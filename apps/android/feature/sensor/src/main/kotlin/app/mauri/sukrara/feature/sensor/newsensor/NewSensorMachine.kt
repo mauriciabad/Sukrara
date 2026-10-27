@@ -144,8 +144,12 @@ object NewSensorMachine {
     /** How long Bluetooth may take to give the first sign of life after a tap. */
     val BLE_TIMEOUT: Duration = Duration.ofMinutes(2)
 
-    /** Steps where (re)starting re-checks the gates; later steps ignore it (a tap is already under way). */
+    /**
+     * Steps where (re)starting re-checks the gates (also the tap page: NFC turned off or a sign-out meanwhile sends the
+     * person back to that gate); later steps ignore it (a tap is under way or done).
+     */
     private val GATES = setOf(
+        NewSensorStep.WaitingForTap,
         NewSensorStep.Idle,
         NewSensorStep.CoreMissing,
         NewSensorStep.NeedsLibreViewSignIn,
@@ -182,7 +186,7 @@ object NewSensorMachine {
                 if (step == NewSensorStep.ReadingNfc) state.copy(step = afterTap(event.outcome, now)) else state
             is NewSensorEvent.Source -> state.copy(step = afterSource(step, event.detail, event.state, now))
             is NewSensorEvent.Tick -> state.copy(step = afterTick(step, event.now))
-            NewSensorEvent.Retry -> state.copy(step = retry(step, now))
+            NewSensorEvent.Retry -> retry(state, now)
         }
     }
 
@@ -217,18 +221,23 @@ object NewSensorMachine {
     }
 
     /**
-     * Only the sensor this tap paired counts (the source may still report the previous one for a moment): a step moves
-     * on when the detail names [serial], or when the problem can't be about another sensor (permission, ownership).
+     * Only the sensor this tap paired counts (the source may still report the previous one for a while: it doesn't
+     * clear its detail on a restart): a step moves on when the detail names [serial], or when the problem can't be
+     * about another sensor (permission, ownership). `SensorStatus.Ended` names no sensor, so it counts only once this
+     * sensor was seen warming up (the previous, ended sensor is the usual reason for a new one). A failed step recovers
+     * by itself when the link comes back (Bluetooth turned on, permission granted).
      */
     private fun afterSource(step: NewSensorStep, detail: SensorStatus, state: SensorState, now: Instant): NewSensorStep {
         val serial = when (step) {
             is NewSensorStep.ConnectingBle -> step.serial
             is NewSensorStep.WarmingUp -> step.serial
+            is NewSensorStep.BleFailed -> step.serial
             else -> return step
         }
         return when (detail) {
             SensorStatus.BluetoothPermissionMissing -> NewSensorStep.BleFailed(serial, BleFailure.PermissionMissing)
             is SensorStatus.OwnedByAnotherApp -> NewSensorStep.TakeoverFailed(detail.showcaseInstalled)
+            SensorStatus.Ended -> if (step is NewSensorStep.WarmingUp) NewSensorStep.NfcFailed(NfcFailure.SensorEnded) else step
             is SensorStatus.Libre3 -> if (detail.serial != serial) step else afterLink(step, serial, detail.link, state, now)
             else -> step
         }
@@ -237,14 +246,21 @@ object NewSensorMachine {
     private fun afterLink(step: NewSensorStep, serial: String, link: LinkStatus, state: SensorState, now: Instant): NewSensorStep =
         when (link) {
             LinkStatus.Live -> NewSensorStep.Ready
-            LinkStatus.SensorEnded -> NewSensorStep.NfcFailed(NfcFailure.SensorEnded)
             LinkStatus.WaitingForBluetooth -> NewSensorStep.BleFailed(serial, BleFailure.BluetoothOff)
-            LinkStatus.PermissionMissing -> NewSensorStep.BleFailed(serial, BleFailure.PermissionMissing)
             is LinkStatus.WarmingUp -> NewSensorStep.WarmingUp(
                 serial,
-                (state as? SensorState.WarmingUp)?.readyAt ?: now.plus(Duration.ofMinutes(link.minutesLeft.toLong())),
+                // the hub's end of the warm-up wins; else keep the one shown (no new page on every status)
+                (state as? SensorState.WarmingUp)?.readyAt
+                    ?: (step as? NewSensorStep.WarmingUp)?.readyAt
+                    ?: now.plus(Duration.ofMinutes(link.minutesLeft.toLong())),
             )
-            else -> step
+            // Bluetooth / permission back: connecting again (its 2-min clock starts over); a timed-out link that is still
+            // trying stays "not answering" until it is live or warming up
+            else -> if (step is NewSensorStep.BleFailed && step.cause != BleFailure.Timeout) {
+                NewSensorStep.ConnectingBle(serial, now, activated = false)
+            } else {
+                step
+            }
         }
 
     private fun afterTick(step: NewSensorStep, now: Instant): NewSensorStep =
@@ -254,10 +270,11 @@ object NewSensorMachine {
             step
         }
 
-    private fun retry(step: NewSensorStep, now: Instant): NewSensorStep = when (step) {
-        // after stopping the other app (showcase: Settings › Sensor › Stop), the same sensor can be scanned again
-        is NewSensorStep.NfcFailed, is NewSensorStep.TakeoverFailed -> NewSensorStep.WaitingForTap
-        is NewSensorStep.BleFailed -> NewSensorStep.ConnectingBle(step.serial, now, activated = false)
-        else -> step
+    private fun retry(state: NewSensorState, now: Instant): NewSensorState = when (val step = state.step) {
+        // after stopping the other app (showcase: Settings › Sensor › Stop), the same sensor can be scanned again —
+        // through the gates, which may have changed meanwhile
+        is NewSensorStep.NfcFailed, is NewSensorStep.TakeoverFailed -> gate(state)
+        is NewSensorStep.BleFailed -> state.copy(step = NewSensorStep.ConnectingBle(step.serial, now, activated = false))
+        else -> state
     }
 }

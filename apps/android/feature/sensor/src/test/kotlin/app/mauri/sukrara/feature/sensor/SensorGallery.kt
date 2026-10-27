@@ -45,11 +45,12 @@ class SensorGallery {
     private val steps = Steps.all.filter { it.second != NewSensorStep.LeftRunning && it.second != NewSensorStep.Cancelled }
 
     private val signIn = listOf(
+        "loading" to SignInUi.Loading,
         "signed-out" to SignInUi.SignedOut(),
         "working" to SignInUi.Working,
         "wrong-password" to SignInUi.SignedOut(SignInError.WrongPassword),
         "accept-terms" to SignInUi.SignedOut(SignInError.AcceptTerms),
-        "offline" to SignInUi.SignedOut(SignInError.Offline),
+        "failed" to SignInUi.SignedOut(SignInError.Failed),
         "signed-in" to SignInUi.SignedIn("ana@example.com"),
     )
 

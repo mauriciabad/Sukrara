@@ -85,7 +85,9 @@ fun NewSensorRoute(
     LaunchedEffect(step) {
         if (step == NewSensorStep.Cancelled || step == NewSensorStep.LeftRunning) onDone()
     }
-    NfcReaderMode(enabled = step.acceptsTap, onTag = viewModel::onTag)
+    // on for the whole flow, also while a tag is being read (turning it off mid-read restarts polling and can cut the
+    // exchange, and the system's own tag dispatch would take the tag); the view model takes a tag only when it may
+    NfcReaderMode(enabled = !step.isFinal, onTag = viewModel::onTag)
     BackHandler {
         if (step.isFinal) onDone() else viewModel.onCancel() // ignored while the tap is being read
     }

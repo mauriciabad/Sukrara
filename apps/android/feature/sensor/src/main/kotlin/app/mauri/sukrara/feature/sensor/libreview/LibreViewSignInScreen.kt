@@ -14,6 +14,7 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -81,11 +82,11 @@ fun LibreViewSignInContent(
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         Text(stringResource(R.string.libreview_title), Modifier.semantics { heading() }, style = MaterialTheme.typography.headlineSmall)
-        Swap(ui is SignInUi.SignedIn) { signedIn ->
-            if (signedIn && ui is SignInUi.SignedIn) {
-                SignedIn(ui.email, onSignOut, onBack)
-            } else {
-                Form(ui, canSubmit, onSignIn, onBack)
+        Swap(ui.page) { page ->
+            when {
+                page == Page.Loading -> CircularProgressIndicator()
+                page == Page.SignedIn && ui is SignInUi.SignedIn -> SignedIn(ui.email, onSignOut, onBack)
+                else -> Form(ui, canSubmit, onSignIn, onBack)
             }
         }
     }
@@ -151,12 +152,11 @@ private fun Form(
             visualTransformation = if (showPassword) VisualTransformation.None else PasswordVisualTransformation(),
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Done),
             keyboardActions = KeyboardActions(onDone = { submit() }),
-            trailingIcon = {
-                TextButton({ showPassword = !showPassword }) {
-                    Text(stringResource(if (showPassword) R.string.libreview_hide_password else R.string.libreview_show_password))
-                }
-            },
         )
+        // under the field, not inside it: the largest font would squeeze the field's label
+        TextButton({ showPassword = !showPassword }) {
+            Text(stringResource(if (showPassword) R.string.libreview_hide_password else R.string.libreview_show_password))
+        }
         (ui as? SignInUi.SignedOut)?.error?.let { error ->
             Text(
                 stringResource(error.message),
@@ -176,5 +176,15 @@ private val SignInError.message: Int
     get() = when (this) {
         SignInError.WrongPassword -> R.string.libreview_error_wrong_password
         SignInError.AcceptTerms -> R.string.libreview_error_accept_terms
-        SignInError.Offline -> R.string.libreview_error_offline
+        SignInError.Failed -> R.string.libreview_error_failed
+    }
+
+/** One page per kind of state (the form keeps its fields across Working and an error). */
+private enum class Page { Loading, Form, SignedIn }
+
+private val SignInUi.page: Page
+    get() = when (this) {
+        SignInUi.Loading -> Page.Loading
+        is SignInUi.SignedIn -> Page.SignedIn
+        else -> Page.Form
     }

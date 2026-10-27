@@ -86,5 +86,5 @@
     <string name="libreview_back">Atrás</string>
     <string name="libreview_error_wrong_password">Correo o contraseña incorrectos.</string>
     <string name="libreview_error_accept_terms">LibreView tiene condiciones nuevas. Acéptalas en la app LibreView o Libre y vuelve a iniciar sesión.</string>
-    <string name="libreview_error_offline">No se pudo conectar con LibreView. Revisa la conexión y vuelve a intentarlo.</string>
+    <string name="libreview_error_failed">No se pudo iniciar sesión en LibreView. Revisa la conexión y vuelve a intentarlo.</string>
 </resources>

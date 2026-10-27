@@ -89,5 +89,5 @@
     <string name="libreview_back">Back</string>
     <string name="libreview_error_wrong_password">Wrong email or password.</string>
     <string name="libreview_error_accept_terms">LibreView has new terms. Accept them in the LibreView or Libre app, then sign in again.</string>
-    <string name="libreview_error_offline">Couldn\'t reach LibreView. Check the connection and try again.</string>
+    <string name="libreview_error_failed">Couldn\'t sign in to LibreView. Check the connection and try again.</string>
 </resources>

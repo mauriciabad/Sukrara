@@ -45,6 +45,8 @@ class SensorUiModule(
     private val settings: SettingsRepository,
     private val clock: Clock,
     private val appScope: CoroutineScope,
+    /** Starts the monitoring service (the app's start path); called in the foreground, right after a tap. */
+    private val startMonitoring: suspend () -> Unit,
 ) {
     private val app = context.applicationContext
 
@@ -71,7 +73,15 @@ class SensorUiModule(
 
         override fun retryLink() = sensors.source.retry()
 
-        override suspend fun useJuggluco() = settings.set(SOURCE, SensorSourceKind.Juggluco.id)
+        override suspend fun useJuggluco() {
+            settings.set(SOURCE, SensorSourceKind.Juggluco.id)
+            startMonitoring() // Juggluco is a source to monitor even with no sensor paired here
+        }
+
+        override suspend fun onPaired() {
+            settings.set(SOURCE, SensorSourceKind.Libre3.id)
+            startMonitoring()
+        }
     }
 
     val libreView: LibreViewPort = object : LibreViewPort {
