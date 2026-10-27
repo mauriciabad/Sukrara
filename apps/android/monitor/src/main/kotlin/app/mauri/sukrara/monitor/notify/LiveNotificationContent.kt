@@ -30,7 +30,7 @@ data class LiveNotificationContent(
     val text: UiText?,
     /** The value is struck through (5–20 min old). */
     val strike: Boolean,
-    /** The Live Update chip's text ("↗ 138"); null = icon only. */
+    /** The Live Update chip's text ("138"; its icon is the arrow); null = icon only. */
     val chip: UiText?,
     val icon: Icon,
     /** The rate (mg/dL/min) the [Icon.TREND] arrow points for. */

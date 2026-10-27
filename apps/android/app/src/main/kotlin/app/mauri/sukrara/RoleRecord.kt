@@ -28,6 +28,7 @@ class RoleStore(
 ) : StateStore<RoleRecord> {
     override val data: Flow<RoleRecord> = combine(primary.data, backup.data) { p, b -> if (p.role != null) p else b }
 
+    /** Not atomic across the two files: the role has one writer (setup), never two at once. */
     override suspend fun update(transform: (RoleRecord) -> RoleRecord) {
         val next = transform(data.first())
         primary.update { next }
@@ -37,7 +38,8 @@ class RoleStore(
     /**
      * Brings the two copies back in line at start (`AppGraph.ready`): a role only one file has is copied to the other
      * (an install from before the backup existed, a write cut between the two files, a quarantined file). The primary
-     * wins when both have one: it is written first.
+     * wins when both have one: it is written first. A role clear cut between the two writes comes back from the
+     * backup: on purpose, keeping monitoring is the safe failure (setup clears it again).
      */
     suspend fun heal() {
         val p = primary.data.first()

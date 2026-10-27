@@ -136,6 +136,7 @@ class AndroidAlertReadiness(
             notificationsEnabled = nm.areNotificationsEnabled(),
             anyAlarmKind = alarmKinds(inputs.settings).isNotEmpty(),
             fullScreenAllowed = nm.canUseFullScreenIntent(),
+            // always true while the manifest holds USE_EXACT_ALARM; kept so a future switch to SCHEDULE_EXACT_ALARM is covered
             exactAlarmAllowed = ctx.getSystemService(AlarmManager::class.java).canScheduleExactAlarms(),
             batteryExempt = ctx.getSystemService(PowerManager::class.java).isIgnoringBatteryOptimizations(ctx.packageName),
             backgroundRestricted = ctx.getSystemService(ActivityManager::class.java).isBackgroundRestricted,
@@ -166,8 +167,10 @@ class AndroidAlertReadiness(
                 true
             }
 
+            // the policy of the modes active now (Bedtime, Driving…), not only the default Do Not Disturb
             NotificationManager.INTERRUPTION_FILTER_PRIORITY -> {
-                !canBypassDnd() && nm.notificationPolicy.priorityCategories and NotificationManager.Policy.PRIORITY_CATEGORY_ALARMS == 0
+                !canBypassDnd() &&
+                    nm.consolidatedNotificationPolicy.priorityCategories and NotificationManager.Policy.PRIORITY_CATEGORY_ALARMS == 0
             }
 
             else -> {
@@ -195,6 +198,7 @@ class AndroidAlertReadiness(
                     addAction(BluetoothAdapter.ACTION_STATE_CHANGED)
                     addAction(NotificationManager.ACTION_INTERRUPTION_FILTER_CHANGED)
                     addAction(NotificationManager.ACTION_NOTIFICATION_POLICY_CHANGED)
+                    addAction(NotificationManager.ACTION_CONSOLIDATED_NOTIFICATION_POLICY_CHANGED)
                     addAction(NotificationManager.ACTION_APP_BLOCK_STATE_CHANGED)
                     addAction(NotificationManager.ACTION_NOTIFICATION_CHANNEL_BLOCK_STATE_CHANGED)
                     addAction(NotificationManager.ACTION_NOTIFICATION_CHANNEL_GROUP_BLOCK_STATE_CHANGED)

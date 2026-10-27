@@ -164,8 +164,8 @@ fun SukraraNavigation(
                     SettingsScreen(
                         deps = graph.settingsUi.deps,
                         route = key.route(),
-                        navigate = { backStack.add(SettingsKey.of(it)) },
-                        onBack = { backStack.remove(key) },
+                        navigate = { backStack.push(SettingsKey.of(it)) },
+                        onBack = { backStack.pop(key) },
                         openSensor = { backStack.add(NewSensorKey) },
                         // the sharing pages come with chunk 24; until then setup is where sharing starts
                         openSharing = { backStack.add(SetupRoute) },
@@ -180,11 +180,22 @@ fun SukraraNavigation(
                         onAcknowledge = graph.home::acknowledge,
                         onBack = { backStack.removeLastOrNull() },
                         // damaged settings lead straight to the alert levels
-                        onOpenAlertSettings = { backStack.add(SettingsKey.of(SettingsRoute.Alerts)) },
+                        onOpenAlertSettings = { backStack.push(SettingsKey.of(SettingsRoute.Alerts)) },
                     )
                 }
             },
     )
+}
+
+/** Adds [key] on top unless it's already there (a double tap opens one page, not two). */
+private fun NavBackStack<NavKey>.push(key: NavKey) {
+    if (lastOrNull() != key) add(key)
+}
+
+/** Removes the top-most [key] (equal keys can be lower in the stack; never pop one of those). */
+private fun NavBackStack<NavKey>.pop(key: NavKey) {
+    val i = lastIndexOf(key)
+    if (i >= 0) removeAt(i)
 }
 
 /** Where each home action leads: an in-app destination or the system / another feature's screen. */
@@ -200,7 +211,7 @@ private fun route(
         }
 
         HomeAction.OpenSettings -> {
-            backStack.add(SettingsKey.of(SettingsRoute.Overview))
+            backStack.push(SettingsKey.of(SettingsRoute.Overview))
         }
 
         HomeAction.PairSensor, HomeAction.OpenSensor -> {

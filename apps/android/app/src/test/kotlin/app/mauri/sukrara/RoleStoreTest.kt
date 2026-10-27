@@ -49,6 +49,14 @@ class RoleStoreTest {
             assertEquals(Role.Wearer, backup.data.first().role)
         }
 
+    @Test fun aClearCutBetweenTheTwoWritesKeepsMonitoring() =
+        runTest {
+            store.update { it.copy(role = Role.Wearer) }
+            primary.update { RoleRecord() } // the clear reached role.json, not the backup
+            store.heal()
+            assertEquals(Role.Wearer, store.data.first().role)
+        }
+
     @Test fun clearingTheRoleClearsBothCopies() =
         runTest {
             store.update { it.copy(role = Role.Wearer) }
