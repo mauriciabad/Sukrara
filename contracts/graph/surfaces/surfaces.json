@@ -375,7 +375,7 @@
     },
     "value_text_ok": [
       {
-        "path": "apps/macos/Sources/SukraraApp/Alerts/AlertNotifier.swift",
+        "path": "apps/macos/Sources/SukraraApp/Alerts/AlertText.swift",
         "why": "an alert's notification says the reading that fired it; log lines"
       },
       {
