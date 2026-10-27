@@ -22,6 +22,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
+import java.time.Instant
 
 /** What the new-sensor flow needs from the sensor side (SensorUiModule implements it over chunk 12's SensorModule). */
 interface NewSensorPort {
@@ -74,6 +75,9 @@ class NewSensorViewModel(
                 }
         }
     }
+
+    /** The time the countdown is drawn against (the same clock the machine uses). */
+    fun now(): Instant = clock.now()
 
     /** (Re)check the gates: on first show and every time the screen resumes. */
     fun start() {
