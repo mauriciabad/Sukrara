@@ -15,7 +15,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -29,6 +29,7 @@ import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.runtime.rememberNavBackStack
 import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.navigation3.ui.NavDisplay
+import app.mauri.sukrara.alerts.AlertKind
 import app.mauri.sukrara.core.model.NavTargets
 import app.mauri.sukrara.feature.home.DataProblemScreen
 import app.mauri.sukrara.feature.home.HomeAction
@@ -37,6 +38,8 @@ import app.mauri.sukrara.feature.home.HomeViewModel
 import app.mauri.sukrara.feature.home.banners.Showcase
 import app.mauri.sukrara.feature.sensor.libreview.LibreViewSignInRoute
 import app.mauri.sukrara.feature.sensor.newsensor.NewSensorRoute
+import app.mauri.sukrara.feature.settings.SettingsRoute
+import app.mauri.sukrara.feature.settings.SettingsScreen
 import app.mauri.sukrara.feature.settings.sensor.SensorSettingsScreen
 import app.mauri.sukrara.feature.settings.sensor.SensorSettingsViewModel
 import app.mauri.sukrara.feature.sharing.SetupScreen
@@ -52,6 +55,39 @@ data object SetupRoute : NavKey
 
 @Serializable
 data object DataProblemsRoute : NavKey
+
+/** One settings page ([SettingsRoute]) on the back stack: [page] names it, [kind] is an alert kind page's contract id. */
+@Serializable
+data class SettingsKey(
+    val page: String,
+    val kind: String? = null,
+) : NavKey {
+    fun route(): SettingsRoute =
+        when (page) {
+            "alerts" -> SettingsRoute.Alerts
+            "kind" -> kind?.let(AlertKind::fromWire)?.let(SettingsRoute::AlertKindPage) ?: SettingsRoute.Alerts
+            "ranges" -> SettingsRoute.Ranges
+            "graph" -> SettingsRoute.Graph
+            "reliability" -> SettingsRoute.Reliability
+            "about" -> SettingsRoute.About
+            "review" -> SettingsRoute.ThresholdReview
+            else -> SettingsRoute.Overview
+        }
+
+    companion object {
+        fun of(route: SettingsRoute): SettingsKey =
+            when (route) {
+                SettingsRoute.Overview -> SettingsKey("overview")
+                SettingsRoute.Alerts -> SettingsKey("alerts")
+                is SettingsRoute.AlertKindPage -> SettingsKey("kind", route.kind.wire)
+                SettingsRoute.Ranges -> SettingsKey("ranges")
+                SettingsRoute.Graph -> SettingsKey("graph")
+                SettingsRoute.Reliability -> SettingsKey("reliability")
+                SettingsRoute.About -> SettingsKey("about")
+                SettingsRoute.ThresholdReview -> SettingsKey("review")
+            }
+    }
+}
 
 /** The new-sensor flow (chunk 18): home's Pair sensor, the "Sensor ended" notification, [NavTargets.ACTION_SENSOR_SETUP]. */
 @Serializable
@@ -78,15 +114,16 @@ fun SukraraNavigation(
     graph: AppGraph,
     deepLink: Uri?,
     openNewSensor: Boolean,
-    onNewSensorOpened: () -> Unit,
+    onNewSensorShow: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val backStack = rememberNavBackStack(HomeRoute)
     // a request (a notification tap, also while the app is open) opens the flow once, on top of home
+    val newSensorShown by rememberUpdatedState(onNewSensorShow)
     LaunchedEffect(openNewSensor) {
         if (openNewSensor) {
             if (backStack.last() != NewSensorKey) backStack.add(NewSensorKey)
-            onNewSensorOpened()
+            newSensorShown()
         }
     }
     // an invite link opens setup on top of home (Back lands on home), once per link: a recreated activity keeps it
@@ -129,6 +166,17 @@ fun SukraraNavigation(
                         onBack = { backStack.remove(LibreViewSignInKey) },
                     )
                 }
+                entry<SettingsKey> { key ->
+                    SettingsScreen(
+                        deps = graph.settingsUi.deps,
+                        route = key.route(),
+                        navigate = { backStack.push(SettingsKey.of(it)) },
+                        onBack = { backStack.pop(key) },
+                        openSensor = { backStack.push(SensorSettingsKey) },
+                        // the sharing pages come with chunk 24; until then setup is where sharing starts
+                        openSharing = { backStack.add(SetupRoute) },
+                    )
+                }
                 entry<SensorSettingsKey> {
                     SensorSettingsScreen(
                         viewModel = viewModel(factory = SensorSettingsViewModel.factory(graph.sensorSettings)),
@@ -141,18 +189,28 @@ fun SukraraNavigation(
                 entry<DataProblemsRoute> {
                     val problems by graph.home.dataProblems.collectAsStateWithLifecycle()
                     LaunchedEffect(problems.isEmpty()) { if (problems.isEmpty()) backStack.remove(DataProblemsRoute) }
-                    val alertSettings = remember(context) { Intent(NavTargets.ACTION_ALERT_SETTINGS).setPackage(context.packageName) }
-                    val canOpenAlerts = remember(context) { context.packageManager.resolveActivity(alertSettings, 0) != null }
                     DataProblemScreen(
                         problems = problems,
                         onCopyReport = { copy(context, it) },
                         onAcknowledge = graph.home::acknowledge,
                         onBack = { backStack.removeLastOrNull() },
-                        onOpenAlertSettings = if (canOpenAlerts) ({ context.startActivity(alertSettings) }) else null,
+                        // damaged settings lead straight to the alert levels
+                        onOpenAlertSettings = { backStack.push(SettingsKey.of(SettingsRoute.Alerts)) },
                     )
                 }
             },
     )
+}
+
+/** Adds [key] on top unless it's already there (a double tap opens one page, not two). */
+private fun NavBackStack<NavKey>.push(key: NavKey) {
+    if (lastOrNull() != key) add(key)
+}
+
+/** Removes the top-most [key] (equal keys can be lower in the stack; never pop one of those). */
+private fun NavBackStack<NavKey>.pop(key: NavKey) {
+    val i = lastIndexOf(key)
+    if (i >= 0) removeAt(i)
 }
 
 /** Where each home action leads: an in-app destination or the system / another feature's screen. */
@@ -163,26 +221,51 @@ private fun route(
     home: HomeModule,
 ) {
     when (action) {
-        HomeAction.OpenSetup -> backStack.add(SetupRoute)
+        HomeAction.OpenSetup -> {
+            backStack.add(SetupRoute)
+        }
 
-        HomeAction.PairSensor -> backStack.add(NewSensorKey)
+        HomeAction.OpenSettings -> {
+            backStack.push(SettingsKey.of(SettingsRoute.Overview))
+        }
+
+        HomeAction.PairSensor -> {
+            backStack.add(NewSensorKey)
+        }
 
         // no readings from a running sensor: its state, source and account, not a new pairing
-        HomeAction.OpenSensor -> backStack.add(SensorSettingsKey)
+        HomeAction.OpenSensor -> {
+            backStack.add(SensorSettingsKey)
+        }
 
-        HomeAction.AddTreatment -> open(context, Intent(NavTargets.ACTION_QUICK_TREATMENT)) {}
+        HomeAction.AddTreatment -> {
+            open(context, Intent(NavTargets.ACTION_QUICK_TREATMENT)) {}
+        }
 
-        HomeAction.EnableBluetooth -> open(context, Intent(Settings.ACTION_BLUETOOTH_SETTINGS)) {}
+        HomeAction.EnableBluetooth -> {
+            open(context, Intent(Settings.ACTION_BLUETOOTH_SETTINGS)) {}
+        }
 
-        HomeAction.OpenShowcaseInfo -> open(context, Showcase.appInfo()) {}
+        HomeAction.OpenShowcaseInfo -> {
+            open(context, Showcase.appInfo()) {}
+        }
 
-        HomeAction.ResumeMonitoring -> home.resumeMonitoring()
+        HomeAction.ResumeMonitoring -> {
+            home.resumeMonitoring()
+        }
 
         // the launcher's own dialog places the combined widget; home re-checks on resume and the pin callback
-        HomeAction.AddWidget -> (context as? Activity)?.let { context.graph.widgets.presence.pin(it) }
+        HomeAction.AddWidget -> {
+            (context as? Activity)?.let {
+                context.graph.widgets.presence
+                    .pin(it)
+            }
+        }
 
         // their banners stay hidden until the owning chunks (13, integrations) provide the inputs and the route
-        HomeAction.OpenBackup, HomeAction.OpenClinicUpload -> Unit
+        HomeAction.OpenBackup, HomeAction.OpenClinicUpload -> {
+            Unit
+        }
     }
 }
 

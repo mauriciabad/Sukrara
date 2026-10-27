@@ -48,7 +48,7 @@
             func scene(
                 link: LinkState = .following(wearer: "Marta", canWrite: true), readings: [Reading],
                 setup: SetupFlow = done, permission: NotificationPermission = .allowed,
-                mode: LaunchMode = .normal, act: (AlertController) -> Void = { _ in }
+                mode: LaunchMode = .normal, focus: Bool = false, act: (AlertController) -> Void = { _ in }
             ) -> Scene {
                 var own = AlertSettings()
                 own.source = .own
@@ -70,6 +70,7 @@
                 act(controller)
                 controller.refreshUI()
                 model.notificationPermission = permission
+                model.focusCanHoldAlerts = focus
                 let setupModel = SetupModel(store: store, follow: FollowModel(status: .notFollowing, actions: nil))
                 setupModel.flow = setup
                 let links = PanelLinks(setup: setupModel, openSetup: {}, openFollow: {})
@@ -103,6 +104,7 @@
                         setup: SetupFlow(states: [.welcome: .done, .follow: .skipped, .alerts: .done]))
                 ),
                 ("panel-notifications-off", scene(readings: ending(105, rate: 0), permission: .denied)),
+                ("panel-focus-can-hold", scene(readings: ending(105, rate: 0), focus: true)),
                 ("panel-fixture", scene(readings: ending(112, rate: -0.4), mode: .fixture)),
             ]
         }

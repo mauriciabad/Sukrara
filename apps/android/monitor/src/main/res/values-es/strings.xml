@@ -106,7 +106,7 @@
     <string name="monitor_notif_warming_up">Sensor calentando · listo a las %1$s</string>
     <string name="monitor_notif_bluetooth_off">El Bluetooth está apagado: actívalo para recibir lecturas</string>
     <string name="monitor_notif_core_missing">Esta versión no puede leer un sensor Libre 3</string>
-    <string name="monitor_chip_value">%1$s %2$s</string>
+    <string name="monitor_chip_value">%1$s</string>
     <string name="monitor_chip_stale">%1$s</string>
     <string name="monitor_action_open_app">Abrir Sukrara</string>
     <string name="monitor_action_set_up_sensor">Configurar sensor</string>

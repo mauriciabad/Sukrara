@@ -16,7 +16,4 @@ object NavTargets {
 
     /** The new-sensor / sensor setup flow (chunk 18). */
     const val ACTION_SENSOR_SETUP = "app.mauri.sukrara.action.SENSOR_SETUP"
-
-    /** The alert levels and mutes (the settings feature declares it; until then nothing offers to open it). */
-    const val ACTION_ALERT_SETTINGS = "app.mauri.sukrara.action.ALERT_SETTINGS"
 }

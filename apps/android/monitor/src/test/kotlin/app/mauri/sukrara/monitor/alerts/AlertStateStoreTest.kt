@@ -65,4 +65,12 @@ class AlertStateStoreTest {
         rig.store.setSettings(custom)
         assertEquals(75.0, rig.store.settings.first().rule(AlertKind.LOW).threshold, 0.0)
     }
+
+    @Test fun updatesFromTwoScreensBothLand() = runTest {
+        rig.store.updateSettings { it.withRule(AlertKind.LOW, it.rule(AlertKind.LOW).copy(threshold = 75.0)) }
+        rig.store.updateSettings { it.withRule(AlertKind.HIGH, it.rule(AlertKind.HIGH).copy(threshold = 200.0)) }
+        val stored = rig.store.settings.first()
+        assertEquals(75.0, stored.rule(AlertKind.LOW).threshold, 0.0)
+        assertEquals(200.0, stored.rule(AlertKind.HIGH).threshold, 0.0)
+    }
 }

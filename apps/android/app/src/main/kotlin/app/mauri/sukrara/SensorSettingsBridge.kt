@@ -42,7 +42,14 @@ class SensorSettingsBridge(
             sensors.libreView.receiverId,
         ) { (source, sensor, detail), info, email, receiverId ->
             SensorSettingsState(
-                source = if (SensorSourceKind.fromId(source) == SensorSourceKind.Juggluco) SourceChoice.Juggluco else SourceChoice.Libre3Direct,
+                source =
+                    if (SensorSourceKind.fromId(source) ==
+                        SensorSourceKind.Juggluco
+                    ) {
+                        SourceChoice.Juggluco
+                    } else {
+                        SourceChoice.Libre3Direct
+                    },
                 state = sensor,
                 sensor = info?.let { SensorSummary(it.serial, Instant.ofEpochSecond(it.startEpoch), Instant.ofEpochSecond(it.endEpoch)) },
                 account = email?.let { LibreViewSummary(it, receiverId) },
@@ -54,20 +61,27 @@ class SensorSettingsBridge(
     /** Whether readings really arrive: [SensorState] calls a connecting link or a silent Juggluco Active. */
     private fun linkOf(detail: SensorStatus): SourceLink =
         when (detail) {
-            is SensorStatus.Juggluco ->
+            is SensorStatus.Juggluco -> {
                 when (detail.status) {
                     JugglucoStatus.Live -> SourceLink.Receiving
                     JugglucoStatus.FetchingHistory -> SourceLink.Connecting
                     is JugglucoStatus.Unreachable -> SourceLink.JugglucoUnreachable
                 }
-            is SensorStatus.Libre3 ->
+            }
+
+            is SensorStatus.Libre3 -> {
                 when (detail.link) {
                     LinkStatus.Live, is LinkStatus.WarmingUp, LinkStatus.SensorEnded, LinkStatus.WaitingForBluetooth,
                     LinkStatus.PermissionMissing,
                     -> SourceLink.Receiving
+
                     else -> SourceLink.Connecting
                 }
-            else -> SourceLink.Receiving
+            }
+
+            else -> {
+                SourceLink.Receiving
+            }
         }
 
     override fun setSource(source: SourceChoice) {

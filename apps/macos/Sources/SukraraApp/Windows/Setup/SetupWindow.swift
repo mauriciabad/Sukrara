@@ -48,6 +48,8 @@ public struct SetupView: View {
                 case .alerts: page(.alerts, L10n.t("Check your alerts")) { thresholds }
                 case .notifications: page(.notifications, L10n.t("Allow notifications")) {
                     Text(L10n.t("Alerts reach you as notifications, even when Sukrara is in the background."))
+                    Text(L10n.t("A Focus (Do Not Disturb, Sleep…) can hold back Sukrara's alarms on this Mac. Allow Sukrara in each Focus, and keep the phone as the alarm."))
+                        .foregroundStyle(.secondary)
                 }
                 case .openAtLogin: page(.openAtLogin, L10n.t("Open at login")) {
                     Text(L10n.t("Sukrara starts when you log in, so the menu bar always shows the glucose."))

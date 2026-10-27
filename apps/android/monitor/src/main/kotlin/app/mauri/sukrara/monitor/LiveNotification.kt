@@ -39,7 +39,7 @@ import java.util.concurrent.TimeUnit
  * monitoring service's foreground notification, so the status bar costs one post per reading.
  *
  * Promoted ongoing **Live Update** when Android allows it (`canPostPromotedNotifications`): the status-bar chip is the
- * small icon (the trend arrow) + `setShortCriticalText` ("↗ 138"). A Live Update can't be colorized or use custom
+ * small icon (the trend arrow) + `setShortCriticalText` ("138", no text arrow). A Live Update can't be colorized or use custom
  * views, so the card stays a standard BigText notification. When the person turned Live Updates off (or demoted it)
  * the same notification posts unpromoted: title, text and arrow icon in the shade, no chip. The renderer's card image
  * (surface `notification`) joins once `GlucoseCard` lands (OPS issue c10).
