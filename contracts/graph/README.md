@@ -105,6 +105,14 @@ The ring's crown / laurel and the % column's crown (docs/FEATURES.md, "Time-in-r
 | `crown` | whether the column's 100 wears the crown |
 | `flower` | the laurel's flower (`Bloom`): `none`, `lavender` (95), `forget_me_not` (96), `daisy` (97), `cherry` (98), `rosette` (99 and the crowned 100) |
 
+## Trend arrow (`trend/trend.json`)
+
+The one trend arrow per platform (`TrendAngle`): a case is `rate` (mg/dL/min, null = no trend) and `expect`
+`{text, deg, double}` — the text arrow every text place writes (`○` without a rate), the drawn arrow's rotation in
+degrees (y-down, negative = up) and whether it is doubled. Android `TrendFixtureTest` (plus the glucose notification's
+title in `LiveNotificationContentTest`), Mac `TrendFixtureTests` (plus the menu bar and alert titles in
+`MenubarTitleTests`).
+
 ## Freshness steps (`freshness/freshness.json`)
 
 What every glucose surface shows as the latest reading ages (90 s time, 5 min struck + grey + "no trend" ring, 20 min

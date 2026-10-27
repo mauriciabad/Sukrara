@@ -4,6 +4,7 @@
 import Foundation
 import SukraraAlerts
 import SukraraCore
+import SukraraGraph
 
 /// The words of an alert notification in the user's language (English, Spanish). Self-contained: the value, the
 /// direction and what it means, readable on the lock screen without opening the app.
@@ -24,7 +25,7 @@ struct AlertText: Equatable {
     /// "Low · 62 mg/dL ↓" (no reading: just the meaning).
     func title(_ f: AlertFiring) -> String {
         guard let r = f.reading, f.kind != .noData else { return headline(f) }
-        return "\(headline(f)) · \(Int(r.mgdl.rounded())) mg/dL \(TrendGlyph.of(r.rate))"
+        return "\(headline(f)) · \(Int(r.mgdl.rounded())) mg/dL \(TrendAngle.text(r.rate))"
     }
 
     /// "Falling slowly. Below 70 mg/dL since 14:05." / "No reading for 20 min."
