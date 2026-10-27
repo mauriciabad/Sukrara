@@ -68,6 +68,24 @@ sealed interface SensorState {
     data object CoreMissing : SensorState
 
     data object BluetoothOff : SensorState
+
+    /** The sensor can't be read until the person does something (added by chunk 12; the UI words live in chunk 18). */
+    data class ActionNeeded(val action: SensorAction) : SensorState
+}
+
+/** What the person has to do so the sensor can be read again. */
+enum class SensorAction {
+    /** Scan the sensor with the phone (NFC): a new sensor, a lost or unreadable pairing, or taking it over. */
+    ScanSensor,
+
+    /** Sign in to LibreView so V1 can start / take over the sensor with the account's receiver ID. */
+    SignInLibreView,
+
+    /** Another app (the Sukrara showcase) owns the sensor: stop it there or uninstall it, then scan again. */
+    StopOtherApp,
+
+    /** Grant the Nearby devices (Bluetooth) permission. */
+    GrantBluetooth,
 }
 
 /** Why the app isn't monitoring yet. Shown as "Not monitoring: no sensor yet" with the action "Set up sensor". */
@@ -107,10 +125,65 @@ sealed interface SourceStatus {
     data class Interrupted(val since: Instant) : SourceStatus
 }
 
-/** What the alert runtime shows: which alert kinds are firing (contract kind ids) and the global mute. */
+/**
+ * What the alert runtime shows: which alert kinds are firing (contract kind ids), *Mute all* ([mutedUntil] null = off,
+ * [UNTIL_TURNED_OFF] = until the person turns it off) and the sides that are quiet or remind less ([quiet]), each with
+ * its way out ([AlertControls]).
+ */
 data class AlertUiState(
     val firingKinds: Set<String> = emptySet(),
     val mutedUntil: Instant? = null,
+    val quiet: List<AlertQuietSide> = emptyList(),
+    /** What stops alerts from ringing as set up right now (home shows a banner with the fix). */
+    val deliveryProblems: Set<AlertDeliveryProblem> = emptySet(),
+) {
+    val mutedUntilTurnedOff: Boolean get() = mutedUntil == UNTIL_TURNED_OFF
+
+    companion object {
+        /** *Mute all* with no end. */
+        val UNTIL_TURNED_OFF: Instant = Instant.ofEpochSecond(Long.MAX_VALUE / 1000)
+    }
+}
+
+/** A reason an alert would not reach the person as set up; each has a fix in the reliability row. */
+enum class AlertDeliveryProblem {
+    /** The app's notifications are off. */
+    NotificationsOff,
+
+    /** An alert channel is blocked in the system settings. */
+    AlertChannelBlocked,
+
+    /** Alarm-level alerts can't open over the lock screen (full-screen intent not allowed). */
+    FullScreenDenied,
+}
+
+/** Why a side is quiet (contracts/alerts/SPEC.md §2 "States and exits"). */
+enum class AlertQuietReason {
+    /** Muted from a notification or the app ("Unmute", "Change time"). */
+    Muted,
+
+    /** Carbs logged in the window ("Alert me anyway"). */
+    AfterCarbs,
+
+    /** Rapid insulin logged in the window ("Alert me anyway"). */
+    AfterInsulin,
+
+    /** A high falling back into range ("Alert me anyway"). */
+    FallingBack,
+}
+
+/**
+ * One side the person can act on now. [kind] = the episode's kind (contract id; the side's main kind without one);
+ * [matching] = it still matches; [reason] null = not quiet but reminding less every [relaxMin] minutes; [until] the
+ * quiet's end (null = no fixed end); [canRemindLess] = *Remind less* would slow it down.
+ */
+data class AlertQuietSide(
+    val kind: String,
+    val matching: Boolean,
+    val reason: AlertQuietReason?,
+    val until: Instant?,
+    val relaxMin: Int,
+    val canRemindLess: Boolean,
 )
 
 /** A follower's link to the wearer it follows. */

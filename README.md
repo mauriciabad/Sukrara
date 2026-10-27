@@ -275,7 +275,9 @@ by the app's icon code.</sub>
 - No account, no server of ours, no Abbott cloud in the loop.
 - Back up your identity to Proton Pass, Bitwarden or KeePassDX as a normal password item. No passkeys, so you can
   move between password managers. [06](docs/06-sharing-and-keys.md)
-- New phone? Restore from the password manager and your followers carry on without a new invite.
+- New phone, or switching from Sukrara Showcase? Restore from your recovery code (the showcase's Backup page exports
+  it) and your followers, the Mac included, carry on without a new invite. If the showcase keeps sharing as you,
+  Sukrara stops and asks you to turn it off instead of fighting it.
 
 ## Use cases
 

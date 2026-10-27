@@ -7,9 +7,34 @@ import app.mauri.sukrara.core.testing.Contracts
 import java.io.File
 
 /**
+ * The wearer under test in a scenario: the bare [AlertMachine] ([MachineDevice], `:core:alerts`) or the Android alert
+ * runtime around it (`:monitor`). [handle] returns the effects the device applied; [restart] is a process restart: the
+ * device resumes from what it saved.
+ */
+interface ScenarioDevice {
+    fun handle(input: AlertInput, t: Long): List<AlertEffect>
+
+    fun restart(settings: AlertSettings, doses: Doses, sensor: SensorWindow?, t: Long): List<AlertEffect>
+}
+
+/** The machine alone; a restart goes through the saved state's JSON like the runtime's store. */
+class MachineDevice(settings: AlertSettings, t0: Long) : ScenarioDevice {
+    private var machine = AlertMachine(AlertRole.WEARER, settings).also { it.start(null, null, null, t0) }
+
+    override fun handle(input: AlertInput, t: Long) = machine.handle(input, t)
+
+    override fun restart(settings: AlertSettings, doses: Doses, sensor: SensorWindow?, t: Long): List<AlertEffect> {
+        val saved = AlertStateCodec.decode(AlertStateCodec.encode(machine.snapshot()))
+        val last = machine.engine.last
+        machine = AlertMachine(AlertRole.WEARER, settings, doses)
+        return machine.start(saved, last, sensor, t)
+    }
+}
+
+/**
  * The shared alert timelines (contracts/alerts/scenarios/\*.txt; format and driver in contracts/alerts/SPEC.md §7) run
- * through [AlertMachine]: the wearer's machine, and for `mirror` scenarios a follower machine mirroring it fed with the
- * wearer's [AlertEffect.Mirror] events. Strict: an unknown line, event or setting fails the scenario.
+ * through a wearer [ScenarioDevice], and for `mirror` scenarios a follower machine mirroring it fed with the wearer's
+ * [AlertEffect.Mirror] events. Strict: an unknown line, event or setting fails the scenario.
  */
 object AlertScenarios {
     data class Line(val minute: Int, val at: Int, val events: List<String>, val expect: List<String>)
@@ -108,14 +133,17 @@ object AlertScenarios {
         return (m.groupValues[1].toIntOrNull() ?: 0) * 60 + (m.groupValues[2].toIntOrNull() ?: 0)
     }
 
-    /** Runs [sc] (driver: SPEC §7); one line per minute that differs, empty when it all matches. */
-    fun run(sc: Scenario): List<String> {
+    /**
+     * Runs [sc] (driver: SPEC §7) on the wearer [device] made from the scenario's settings and start time; one line per
+     * minute that differs, empty when it all matches.
+     */
+    fun run(sc: Scenario, device: (AlertSettings, Long) -> ScenarioDevice = ::MachineDevice): List<String> {
         var s = sc.settings.fold(AlertSettings()) { acc, kv -> set(acc, kv) }
         val got = HashMap<Int, MutableList<String>>()
         var t = T0
         fun note(what: String) { got.getOrPut(((t - T0) / 60).toInt()) { mutableListOf() } += what }
 
-        var wearer = AlertMachine(AlertRole.WEARER, s).also { it.start(null, null, null, T0) }
+        val wearer = device(s, T0)
         // the follower's own no_data isn't run (SPEC §7)
         fun followerSettings() = s.withRule(AlertKind.NO_DATA, s.rule(AlertKind.NO_DATA).copy(on = false))
         val follower = AlertMachine(AlertRole.FOLLOWER_MIRROR, followerSettings()).also { it.start(null, null, null, T0) }
@@ -213,13 +241,8 @@ object AlertScenarios {
                         follow(AlertInput.Settings(followerSettings()))
                         wearerDid(wearer.handle(AlertInput.Settings(s), t))
                     }
-                    "restart" -> {
-                        // the process restarts: a new machine restores the saved state (through its JSON) and the last reading
-                        val saved = AlertStateCodec.decode(AlertStateCodec.encode(wearer.snapshot()))
-                        val last = wearer.engine.last
-                        wearer = AlertMachine(AlertRole.WEARER, s, doses())
-                        wearerDid(wearer.start(saved, last, sensor, t))
-                    }
+                    // the process restarts: the device resumes from its saved state and last reading
+                    "restart" -> wearerDid(wearer.restart(s, doses(), sensor, t))
                     else -> error("unknown event: $ev")
                 }
             }
