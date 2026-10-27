@@ -97,6 +97,7 @@ object Slots {
                     )
                     mark(item).takeIf { it != TirMark.NONE }?.let { append(' ').append(it.name.lowercase()) }
                 }
+
                 is SlotItem.Last -> {
                     append("LAST ").append(item.info.tr.k)
                     item.info.carbs?.let { append('+').append(it.tr.k) }
@@ -113,7 +114,7 @@ object Slots {
         w: CardWords,
     ): Pair<String, String>? =
         when (item) {
-            is SlotItem.Metric ->
+            is SlotItem.Metric -> {
                 if (item.m.empty) {
                     null
                 } else if (item.spec.kind == SlotKind.TIR) {
@@ -123,8 +124,11 @@ object Slots {
                     MetricGauge.text(item.spec.kind, item.m).let { (v, u) -> "$v$u" } to
                         "${MetricGauge.short(item.spec.kind, w)} ${w.period(item.spec.windowS)}"
                 }
-            is SlotItem.Last ->
+            }
+
+            is SlotItem.Last -> {
                 (TreatmentMarks.label(item.info.tr, 8) ?: item.info.tr.k) to w.ago(w.shortDuration(now - item.info.tr.t))
+            }
         }
 
     internal fun hasLaurel(item: SlotItem) = mark(item) != TirMark.NONE
@@ -188,7 +192,12 @@ object Slots {
         }
         val blooms =
             items.map { item ->
-                (item as? SlotItem.Metric)?.takeIf { it.spec.kind == SlotKind.TIR && it.spec.marks }?.let { Bloom.of(it.m.tir, it.spec.range) }
+                (item as? SlotItem.Metric)?.takeIf { it.spec.kind == SlotKind.TIR && it.spec.marks }?.let {
+                    Bloom.of(
+                        it.m.tir,
+                        it.spec.range,
+                    )
+                }
             }
 
         fun alpha(i: Int) = (255 * items[i].emphasis).toInt()
@@ -236,10 +245,17 @@ object Slots {
         countdown: Double?,
     ) {
         when {
-            item is SlotItem.Metric && item.spec.kind == SlotKind.TIR ->
+            item is SlotItem.Metric && item.spec.kind == SlotKind.TIR -> {
                 return TirRing.draw(cv, cx, cy, radius, item.m.tir, item.spec, pal, item.emphasis, w, countdown)
-            item is SlotItem.Metric -> MetricGauge.draw(cv, cx, cy, radius, item.m, item.spec, pal, item.emphasis, d, w)
-            item is SlotItem.Last -> LastSlot.draw(cv, cx, cy, radius, item.info, nowS, pal, d, w)
+            }
+
+            item is SlotItem.Metric -> {
+                MetricGauge.draw(cv, cx, cy, radius, item.m, item.spec, pal, item.emphasis, d, w)
+            }
+
+            item is SlotItem.Last -> {
+                LastSlot.draw(cv, cx, cy, radius, item.info, nowS, pal, d, w)
+            }
         }
         SensorBadge.drawCountdown(cv, cx, cy, radius, countdown, pal)
     }
@@ -295,7 +311,12 @@ internal object LastSlot {
         val s = TreatmentMarks.amount(info.tr).orEmpty()
         num.textSize = min(num.textSize, num.textSize * inner / num.measureText(s).coerceAtLeast(1f))
         cv.drawText(s, cx, cy + radius * 0.17f, num)
-        val sub = Paint(num).apply { textSize = radius * 0.3f; typeface = bold(600); color = pal.inkSoft }
+        val sub =
+            Paint(num).apply {
+                textSize = radius * 0.3f
+                typeface = bold(600)
+                color = pal.inkSoft
+            }
         cv.drawText(w.shortDuration(nowS - info.tr.t), cx, cy + radius * 0.17f + sub.textSize * 1.25f, sub)
     }
 
@@ -314,7 +335,11 @@ internal object LastSlot {
         val innerSw = radius * 0.13f
         val outerR = radius - outerSw / 2
         val innerR = radius - outerSw - radius * 0.05f - innerSw / 2
-        val ring = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE; strokeCap = Paint.Cap.ROUND }
+        val ring =
+            Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                style = Paint.Style.STROKE
+                strokeCap = Paint.Cap.ROUND
+            }
         for ((info, r, sw) in listOf(Triple(ins, outerR, outerSw), Triple(carbs, innerR, innerSw))) {
             val oval = RectF(cx - r, cy - r, cx + r, cy + r)
             ring.strokeWidth = sw
@@ -328,7 +353,12 @@ internal object LastSlot {
         }
         // the two amounts in the inner circle, one size so they read as a pair
         val room = (innerR - innerSw / 2) * 2 * 0.84f
-        val num = Paint(Paint.ANTI_ALIAS_FLAG).apply { textAlign = Paint.Align.CENTER; typeface = bold(800); textSize = radius * 0.36f }
+        val num =
+            Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                textAlign = Paint.Align.CENTER
+                typeface = bold(800)
+                textSize = radius * 0.36f
+            }
         val a = TreatmentMarks.amount(ins.tr).orEmpty()
         val b = TreatmentMarks.amount(carbs.tr).orEmpty()
         val widest = maxOf(num.measureText(a), num.measureText(b)).coerceAtLeast(1f)
