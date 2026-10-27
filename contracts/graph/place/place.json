@@ -1,0 +1,227 @@
+{
+ "about": "Where the sensor's time left goes on a card (GlucoseCard.sensorSpot) and its box in the chart (left edge, GlucoseGraph.sensorTop, SENSOR_DP tall), plus the room it keeps free of treatment labels (sensorWidth). One decision for every surface; shared by Android (GraphFixtureTest.place) and Mac (-graphselftest). Format: ../README.md.",
+ "rooms": [
+  {
+   "label": "13d",
+   "room": 33.1
+  },
+  {
+   "label": "20h",
+   "room": 33.1
+  },
+  {
+   "label": "45m",
+   "room": 35.8
+  }
+ ],
+ "cases": [
+  {
+   "name": "combined widget 4×2 (% column): in the hour-label row",
+   "card": {
+    "graph": true,
+    "value": true
+   },
+   "sensor": "live",
+   "age": 60,
+   "chart": {
+    "w": 300,
+    "h": 150
+   },
+   "expect": {
+    "spot": "graph",
+    "box": [
+     0,
+     139.4,
+     10
+    ]
+   }
+  },
+  {
+   "name": "combined, narrow chart (no % column): still the hour-label row",
+   "card": {
+    "graph": true,
+    "value": true
+   },
+   "sensor": "live",
+   "age": 60,
+   "chart": {
+    "w": 200,
+    "h": 120
+   },
+   "expect": {
+    "spot": "graph",
+    "box": [
+     0,
+     109.4,
+     10
+    ]
+   }
+  },
+  {
+   "name": "graph only (graph widget, notification, lock screen chart part): in the graph",
+   "card": {
+    "graph": true,
+    "value": false
+   },
+   "sensor": "live",
+   "age": 60,
+   "chart": {
+    "w": 320,
+    "h": 96
+   },
+   "expect": {
+    "spot": "graph",
+    "box": [
+     0,
+     85.4,
+     10
+    ]
+   }
+  },
+  {
+   "name": "value only (value widget): no badge, just the number (the user, 2026-10-21)",
+   "card": {
+    "graph": false,
+    "value": true
+   },
+   "sensor": "live",
+   "age": 60,
+   "expect": {
+    "spot": "none"
+   }
+  },
+  {
+   "name": "chart without hour labels: no badge, just the number",
+   "card": {
+    "graph": true,
+    "value": true,
+    "axisLabels": false
+   },
+   "sensor": "live",
+   "age": 60,
+   "expect": {
+    "spot": "none"
+   }
+  },
+  {
+   "name": "chart without hour labels and no value: nowhere",
+   "card": {
+    "graph": true,
+    "value": false,
+    "axisLabels": false
+   },
+   "sensor": "live",
+   "age": 60,
+   "expect": {
+    "spot": "none"
+   }
+  },
+  {
+   "name": "the place's setting hides it",
+   "card": {
+    "graph": true,
+    "value": true,
+    "sensorTime": false
+   },
+   "sensor": "live",
+   "age": 60,
+   "expect": {
+    "spot": "none"
+   }
+  },
+  {
+   "name": "the setting hides it on a value-only card too",
+   "card": {
+    "graph": false,
+    "value": true,
+    "sensorTime": false
+   },
+   "sensor": "live",
+   "age": 60,
+   "expect": {
+    "spot": "none"
+   }
+  },
+  {
+   "name": "warming up: the value's place shows the warm-up instead",
+   "card": {
+    "graph": true,
+    "value": true
+   },
+   "sensor": "warmup",
+   "age": 60,
+   "expect": {
+    "spot": "none"
+   }
+  },
+  {
+   "name": "ended: Sensor ended instead",
+   "card": {
+    "graph": true,
+    "value": true
+   },
+   "sensor": "ended",
+   "age": 60,
+   "expect": {
+    "spot": "none"
+   }
+  },
+  {
+   "name": "old reading (75 min): no value, the chart still shows it",
+   "card": {
+    "graph": true,
+    "value": true
+   },
+   "sensor": "live",
+   "age": 4500,
+   "chart": {
+    "w": 300,
+    "h": 150
+   },
+   "expect": {
+    "spot": "graph",
+    "box": [
+     0,
+     139.4,
+     10
+    ]
+   }
+  },
+  {
+   "name": "very old (5 h): no chart, no value: nowhere",
+   "card": {
+    "graph": true,
+    "value": true
+   },
+   "sensor": "live",
+   "age": 18000,
+   "expect": {
+    "spot": "none"
+   }
+  },
+  {
+   "name": "value only, old reading: no number to sit beside",
+   "card": {
+    "graph": false,
+    "value": true
+   },
+   "sensor": "live",
+   "age": 4500,
+   "expect": {
+    "spot": "none"
+   }
+  },
+  {
+   "name": "nothing known about the sensor",
+   "card": {
+    "graph": true,
+    "value": true
+   },
+   "sensor": "none",
+   "age": 60,
+   "expect": {
+    "spot": "none"
+   }
+  }
+ ]
+}
