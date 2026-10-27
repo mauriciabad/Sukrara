@@ -93,8 +93,14 @@ class AlertNotifier(private val ctx: Context) : AlertPresenter {
         if (alarmKinds.isNotEmpty() && !nm.canUseFullScreenIntent()) add(AlertDeliveryProblem.FullScreenDenied)
     }
 
+    @Volatile private var channelsReady = false
+
     private fun post(group: AlertGroup, n: Notification, channelId: String) {
-        AlertChannels.ensure(ctx)
+        // the channels exist before the first alert of this process (also created by AlertsModule.attach)
+        if (!channelsReady) {
+            AlertChannels.ensure(ctx)
+            channelsReady = true
+        }
         NotificationGroups.post(ctx, idOf(group), n, NotificationGroups.Group.ALERTS, channelId)
     }
 

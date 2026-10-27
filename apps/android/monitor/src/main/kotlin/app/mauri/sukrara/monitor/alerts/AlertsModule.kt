@@ -17,6 +17,8 @@ import app.mauri.sukrara.monitor.sensorend.SensorEndMemory
 import app.mauri.sukrara.monitor.sensorend.SensorEndNotifier
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
@@ -60,6 +62,6 @@ class AlertsModule(
     fun attach(scope: CoroutineScope) {
         AlertChannels.ensure(ctx)
         runtime.observe(scope, hub.state, wearerSettings, remoteEvents)
-        scope.launch { hub.state.collect { sensorEnd.onSensor(it.sensor) } }
+        scope.launch { hub.state.map { it.sensor }.distinctUntilChanged().collect { sensorEnd.onSensor(it) } }
     }
 }
