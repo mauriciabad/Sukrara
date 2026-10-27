@@ -83,17 +83,36 @@ jobs:
           distribution: temurin
           java-version: '21'
           cache: gradle
-      - name: ./gradlew check (unit + contract tests, lint, spotless, Roborazzi verify)
+      # Pinned in :sensor (ndkVersion / cmake version); ubuntu-24.04 ships neither. Only a build with a Juggluco
+      # checkout compiles the Libre 3 core (NativeCore) and CI has none, so this runs once SUKRARA_JUGGLUCO is set.
+      - name: Android NDK + CMake for the Libre 3 core
+        if: steps.present.outputs.build == 'true' && env.SUKRARA_JUGGLUCO != ''
+        run: '"$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "ndk;28.2.13676358" "cmake;4.1.2"'
+      - name: ./gradlew check (unit + contract tests, lint) + Roborazzi verify
         if: steps.present.outputs.build == 'true'
         working-directory: apps/android
         # verifyReleaseSigning guards real release outputs and needs the owner's key; CI has none and ships no
         # release artifact, so it is excluded here (release builds are checked by tools/release/verify-apk.sh).
-        run: ./gradlew --no-daemon check -x verifyReleaseSigning
+        # Roborazzi verify only where goldens are committed (src/test/snapshots): :core:graph and :widgets.
+        # Spotless isn't enforced yet (QualityConventionPlugin isEnforceCheck = false) until the one-shot format.
+        run: >-
+          ./gradlew --no-daemon check -x verifyReleaseSigning
+          :core:graph:verifyRoborazziDebug :widgets:verifyRoborazziDebug
+      - name: Roborazzi diffs
+        if: failure() && steps.present.outputs.build == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: roborazzi-diffs
+          path: apps/android/**/build/outputs/roborazzi
+          if-no-files-found: ignore
 
   mac:
     needs: changes
     if: needs.changes.outputs.mac == 'true'
-    runs-on: macos-15
+    # apps/macos builds against the macOS 27 SDK: the runner with Xcode 27.1, selected explicitly.
+    runs-on: xcode-27
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_27.1.app/Contents/Developer
     steps:
       - uses: actions/checkout@v7
       - name: Is there a V1 Mac package yet?
@@ -105,12 +124,15 @@ jobs:
         if: steps.present.outputs.build == 'true'
         working-directory: apps/macos
         run: |
+          xcodebuild -version
           swift build
           swift test
-      - name: Unsigned bundle smoke (app + widget appex)
+      - name: Unsigned bundle (app + widget appex) + launch smoke
         if: steps.present.outputs.build == 'true'
         working-directory: apps/macos
-        run: Bundle/bundle.sh --unsigned
+        run: |
+          Bundle/bundle.sh --unsigned
+          Bundle/smoke.sh
 
   poc-android:
     needs: changes

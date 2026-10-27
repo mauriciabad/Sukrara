@@ -24,6 +24,9 @@ android {
     lint.disable += "ChromeOsAbiSupport"
     // R8 must keep Libre3Crypto's native methods: their JNI symbol names are bound to the class and method names.
     defaultConfig.consumerProguardFiles("consumer-rules.pro")
+    // Pinned with CMake below so every machine builds the core with the same toolchain (CI installs both when it has a
+    // Juggluco checkout: checks.yml).
+    ndkVersion = "28.2.13676358"
     if (juggluco != null) {
         externalNativeBuild.cmake {
             path = file("src/main/cpp/CMakeLists.txt")

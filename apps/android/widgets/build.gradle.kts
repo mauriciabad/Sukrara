@@ -29,8 +29,9 @@ dependencies {
     testImplementation(libs.roborazzi)
 }
 
+// Goldens in src/test/snapshots: `./gradlew :widgets:recordRoborazziDebug` rewrites them, `verifyRoborazziDebug` (CI)
+// compares. A plain test run neither writes nor compares.
 tasks.withType<Test>().configureEach {
-    systemProperty("roborazzi.test.record", "true")
     // Robolectric on SDK 36 reaches into FileDescriptor internals
     jvmArgs("--add-opens=java.base/java.io=ALL-UNNAMED", "--add-exports=java.base/jdk.internal.access=ALL-UNNAMED")
 }
