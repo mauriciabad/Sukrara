@@ -260,7 +260,7 @@
           ]
         ],
         "files": [
-          "apps/android/monitor/src/main/kotlin/app/mauri/sukrara/monitor/LiveNotification.kt"
+          "apps/android/monitor/src/main/kotlin/app/mauri/sukrara/monitor/NotificationCard.kt"
         ]
       },
       {
