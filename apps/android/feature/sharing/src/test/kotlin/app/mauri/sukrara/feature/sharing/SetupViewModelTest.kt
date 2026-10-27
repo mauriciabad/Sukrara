@@ -20,6 +20,7 @@ import app.mauri.sukrara.core.testing.FakeClock
 import app.mauri.sukrara.core.testing.InMemorySettingsRepository
 import app.mauri.sukrara.core.testing.InMemoryStateStore
 import app.mauri.sukrara.feature.sharing.setup.AlertSettingsAccess
+import app.mauri.sukrara.feature.sharing.setup.AndroidAlertReadiness
 import app.mauri.sukrara.feature.sharing.setup.RestoreUi
 import app.mauri.sukrara.feature.sharing.setup.SetupRecord
 import app.mauri.sukrara.feature.sharing.setup.SetupStep
@@ -68,7 +69,7 @@ class SetupViewModelTest {
                 alerts,
                 settings,
                 resetAlerts = { events += "reset" },
-                alertChannels = { emptyList() },
+                readiness = AndroidAlertReadiness(ApplicationProvider.getApplicationContext(), { emptyList() }, { true }),
                 clock = clock,
             )
         return SetupViewModel(module)

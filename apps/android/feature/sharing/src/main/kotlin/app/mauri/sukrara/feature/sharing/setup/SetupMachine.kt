@@ -55,6 +55,8 @@ data class SetupFacts(
     val hasIdentity: Boolean,
     /** The alert thresholds were confirmed (here or in Settings › Alerts: `alerts.thresholdsConfirmedAt`). */
     val alertsConfirmed: Boolean = false,
+    /** Every item of the alert checklist is met (the Allow-alerts row drops out). */
+    val alertsReady: Boolean = false,
 )
 
 /** One line of the home "Finish setup" card: a skipped step that still matters; tapping reopens [step]. */
@@ -169,7 +171,7 @@ object SetupMachine {
                     FinishItem.ConnectSensor -> !facts.ownSensorLive
                     FinishItem.RestoreFollowers -> !facts.hasIdentity
                     FinishItem.AlertsNotConfirmed -> !facts.alertsConfirmed
-                    else -> true
+                    FinishItem.AllowAlerts -> !facts.alertsReady
                 }
         }
     }

@@ -30,6 +30,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.RadioButton
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -83,8 +84,10 @@ fun SetupScreen(
     val haptics = rememberHaptics()
     if (u.step == null) {
         LaunchedEffect(Unit) {
-            haptics.confirm()
-            onDone()
+            if (!viewModel.reopenFirstUnfinished()) {
+                haptics.confirm()
+                onDone()
+            }
         }
         return
     }
@@ -155,7 +158,8 @@ fun SetupContent(
 ) {
     val step = u.step ?: return
     val reduced = LocalReducedMotion.current
-    Column(modifier.fillMaxSize()) {
+    Surface(modifier.fillMaxSize(), color = MaterialTheme.colorScheme.surface) {
+    Column(Modifier.fillMaxSize()) {
         Row(Modifier.fillMaxWidth().heightIn(min = 56.dp).padding(horizontal = 4.dp), verticalAlignment = Alignment.CenterVertically) {
             if (u.canBack || u.single) {
                 IconButton(onClick = actions.back) {
@@ -188,6 +192,7 @@ fun SetupContent(
                 Spacer(Modifier.size(24.dp))
             }
         }
+    }
     }
 }
 
@@ -336,7 +341,7 @@ private fun ColumnScope.PermissionsStep(
     for (r in items) {
         val ok = r !in u.readiness.missing
         ChecklistRow(r, ok) {
-            val permission = AndroidAlertReadiness.runtimePermission(r)
+            val permission = runtimePermission(r)
             if (permission != null && r !in asked.value) {
                 asked.value += r
                 launcher.launch(permission)
@@ -375,6 +380,14 @@ private fun ChecklistRow(
         }
     }
 }
+
+/** The runtime permission the system dialog can grant for [r] (asked in context the first time), or null. */
+private fun runtimePermission(r: AlertRequirement): String? =
+    when (r) {
+        AlertRequirement.Notifications -> android.Manifest.permission.POST_NOTIFICATIONS
+        AlertRequirement.Bluetooth -> android.Manifest.permission.BLUETOOTH_CONNECT
+        else -> null
+    }
 
 @Composable
 private fun requirementText(r: AlertRequirement): Pair<String, String> =
@@ -419,9 +432,8 @@ private fun ColumnScope.SensorStep(
     actions: SetupActions,
 ) {
     StepHeader(stringResource(R.string.setup_sensor_title), stringResource(R.string.setup_sensor_body))
-    val mgdl = u.latestMgdl
-    if (mgdl != null) {
-        NoteCard(stringResource(R.string.setup_sensor_live, mgdl))
+    if (u.facts.ownSensorLive) {
+        NoteCard(stringResource(R.string.setup_sensor_live))
         StepButtons(stringResource(R.string.setup_continue), actions.completeSensor)
     } else {
         NoteCard(stringResource(R.string.setup_sensor_not_monitoring))

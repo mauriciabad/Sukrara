@@ -87,14 +87,4 @@ class AndroidAlertReadiness(
     override fun fix(requirement: AlertRequirement) {
         ctx.startActivity(fixIntent(requirement).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
     }
-
-    companion object {
-        /** The runtime permission the system dialog can grant for [r] (asked in context first), or null. */
-        fun runtimePermission(r: AlertRequirement): String? =
-            when (r) {
-                AlertRequirement.Notifications -> Manifest.permission.POST_NOTIFICATIONS
-                AlertRequirement.Bluetooth -> Manifest.permission.BLUETOOTH_CONNECT
-                else -> null
-            }
-    }
 }

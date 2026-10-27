@@ -52,6 +52,10 @@ class SharingViewModel(private val sharing: OwnerSharing) : ViewModel() {
 
     fun remove(follower: String) = viewModelScope.launch { sharing.remove(follower) }
 
+    fun retryConflict() {
+        viewModelScope.launch { sharing.retryConflict() }
+    }
+
     companion object {
         fun factory(sharing: OwnerSharing) = viewModelFactory { initializer { SharingViewModel(sharing) } }
     }

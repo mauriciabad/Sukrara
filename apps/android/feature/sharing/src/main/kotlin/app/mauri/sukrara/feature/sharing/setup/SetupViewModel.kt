@@ -13,6 +13,7 @@ import app.mauri.sukrara.core.model.Role
 import app.mauri.sukrara.feature.sharing.SetupModule
 import app.mauri.sukrara.share.owner.OwnerShareState
 import app.mauri.sukrara.share.owner.usecase.RestoreIdentity
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -47,7 +48,6 @@ data class SetupUi(
     val alerts: AlertThresholds,
     val gate: RestoreGate,
     val share: OwnerShareState,
-    val latestMgdl: Int?,
     val restore: RestoreUi,
     val busy: Boolean,
     /** Opened from the Finish-setup card: one step, then home. */
@@ -91,7 +91,12 @@ class SetupViewModel(private val m: SetupModule) : ViewModel() {
                     alertsConfirmed = i.alertsConfirmed,
                 )
             val steps = SetupMachine.steps(facts)
-            val step = override?.takeIf { it in steps } ?: SetupMachine.next(i.record, facts)
+            val step =
+                if (l.single) {
+                    override?.takeIf { it in steps && it !in i.record.completed && it !in i.record.skipped }
+                } else {
+                    override?.takeIf { it in steps } ?: SetupMachine.next(i.record, facts)
+                }
             val at = steps.indexOf(step)
             SetupUi(
                 step = step,
@@ -103,7 +108,6 @@ class SetupViewModel(private val m: SetupModule) : ViewModel() {
                 alerts = AlertThresholds(l.editing ?: i.alerts),
                 gate = RestoreGate.evaluate(facts.ownSensorLive, facts.showcaseInstalled, i.record.showcaseSharingOffConfirmed),
                 share = i.share,
-                latestMgdl = i.glucose.latest?.mgdl?.takeIf { facts.ownSensorLive },
                 restore = l.restore,
                 busy = l.busy,
                 single = l.single,
@@ -116,9 +120,22 @@ class SetupViewModel(private val m: SetupModule) : ViewModel() {
         phone.value = m.phoneNow()
     }
 
+    /**
+     * Opened from home after setup was finished: the first Finish-setup row's step. False when there is none (or one
+     * was already shown), then the screen goes home.
+     */
+    suspend fun reopenFirstUnfinished(): Boolean {
+        if (single.value) return false
+        val item = m.finishItems.first().firstOrNull() ?: return false
+        open(item.step)
+        return true
+    }
+
     /** Reopened from the Finish-setup card. */
     fun open(step: SetupStep) {
         single.value = true
+        shown.value = step
+        // shown again without touching the record: leaving with Back keeps its Finish-setup row
         record { SetupMachine.reopen(it, step) }
     }
 
@@ -171,7 +188,7 @@ class SetupViewModel(private val m: SetupModule) : ViewModel() {
         act {
             val shownAlerts = ui.value?.alerts ?: return@act
             if (!shownAlerts.ordered) return@act
-            m.confirmAlerts(shownAlerts.settings)
+            m.confirmAlerts(shownAlerts)
             editing.value = null
             m.setupStore.update(SetupMachine::confirmAlerts)
         }
@@ -179,11 +196,9 @@ class SetupViewModel(private val m: SetupModule) : ViewModel() {
     /** P10: called after the person confirmed what Start fresh means. */
     fun startFresh() =
         act {
-            m.sharing.startFresh()
+            val created = m.sharing.startFresh()
             val facts = ui.value?.facts ?: return@act
-            // the engine's state turns Sharing; complete against it so the step doesn't wait for a recomposition
-            val has = m.sharing.state.first { it !is OwnerShareState.Loading }.let { it is OwnerShareState.Sharing }
-            m.setupStore.update { SetupMachine.completeIdentity(it, facts.copy(hasIdentity = has)) }
+            m.setupStore.update { SetupMachine.completeIdentity(it, facts.copy(hasIdentity = created || facts.hasIdentity)) }
         }
 
     fun completeIdentity() {
@@ -200,11 +215,27 @@ class SetupViewModel(private val m: SetupModule) : ViewModel() {
         code: String,
         password: String?,
     ) = act {
-        phone.value = m.phoneNow()
         val u = ui.first { it != null }!!
-        if (!u.gate.open) return@act
+        val gate =
+            RestoreGate.evaluate(
+                ownSensorLive = RestoreGate.ownSensorLive(m.hub.state.value, m.clock.now()),
+                showcaseInstalled = m.showcase.installed(),
+                showcaseSharingOffConfirmed = m.setupStore.data.first().showcaseSharingOffConfirmed,
+            )
+        if (!gate.open) {
+            phone.value = m.phoneNow()
+            return@act
+        }
         restore.value = RestoreUi.Busy
-        val result = m.sharing.restore(code.trim(), password?.takeIf { it.isNotEmpty() })
+        // an unexpected failure is "nothing changed, try again", never a stuck spinner
+        val result =
+            try {
+                m.sharing.restore(code.trim(), password?.takeIf { it.isNotEmpty() })
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                RestoreIdentity.Result.RelaysUnreachable
+            }
         restore.value = if (result is RestoreIdentity.Result.Restored) RestoreUi.Restored(result.followers) else RestoreUi.Failed(result)
         if (result is RestoreIdentity.Result.Restored) m.setupStore.update { SetupMachine.completeIdentity(it, u.facts.copy(hasIdentity = true)) }
     }
@@ -225,7 +256,11 @@ class SetupViewModel(private val m: SetupModule) : ViewModel() {
             busy.value = true
             try {
                 block()
-                shown.update { null }
+                if (!single.value) shown.update { null }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                // nothing to log without health data: the screen stays on the step and the person can try again
             } finally {
                 busy.value = false
             }

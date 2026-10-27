@@ -14,7 +14,14 @@ import app.mauri.sukrara.core.model.Role
 import app.mauri.sukrara.core.model.SystemClock
 import app.mauri.sukrara.core.model.Treatment
 import app.mauri.sukrara.feature.sensor.SensorUiModule
+import app.mauri.sukrara.feature.sharing.EngineOwnerSharing
+import app.mauri.sukrara.feature.sharing.SetupModule
 import app.mauri.sukrara.feature.sharing.SharingDeps
+import app.mauri.sukrara.feature.sharing.setup.AndroidAlertReadiness
+import app.mauri.sukrara.feature.sharing.setup.SetupRecord
+import app.mauri.sukrara.feature.sharing.setup.label
+import app.mauri.sukrara.monitor.alerts.AlertChannels
+import app.mauri.sukrara.share.ShareOwnerModule
 import app.mauri.sukrara.feature.treatments.LocalTreatmentSync
 import app.mauri.sukrara.feature.treatments.TreatmentsModule
 import app.mauri.sukrara.monitor.MonitorModule
@@ -120,6 +127,25 @@ class AppGraph(
 
     val sensorUi by lazy { SensorUiModule(app, sensor, data.settings, clock, scope, startMonitoring = { startMonitoring(StartReason.App) }) }
 
+    /** The wearer's sharing engine (chunk 13); access requests are reviewed in Followers until the notification lands. */
+    val share by lazy { ShareOwnerModule(app, data, data.secureStore, monitor.hub, clock, dispatchers, data.http, onRequest = {}) }
+
+    override val setup by lazy {
+        SetupModule(
+            context = app,
+            setupStore = data.typedStore("setup", SetupRecord.serializer(), SetupRecord(), whenCorrupt = SetupRecord()),
+            roles = AppRoles(role),
+            hub = monitor.hub,
+            sharing = EngineOwnerSharing(share.ownerEngine, scope) { clock.now().epochSecond },
+            alertSettings = AppAlertSettings(alerts.store),
+            settings = data.settings,
+            resetAlerts = alerts::reset,
+            // until the monitor's checklist is composed here (cW2), setup reads the phone directly
+            readiness = AndroidAlertReadiness(app, { AlertChannels.ALL }, wearer = { monitor.hub.state.value.role != Role.Follower }),
+            clock = clock,
+        )
+    }
+
     val home by lazy {
         HomeModule(
             context = app,
@@ -131,6 +157,8 @@ class AppGraph(
             readinessSource = null,
             unmuteAlerts = { scope.launch { alerts.controls.unmuteAll() } },
             resume = { scope.launch { startMonitoring(StartReason.Resume) } },
+            nextSetupStep = setup.finishItems.map { items -> items.firstOrNull()?.label(app) },
+            refreshSetup = setup::refresh,
         )
     }
 

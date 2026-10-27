@@ -103,8 +103,8 @@
     <string name="setup_sensor_body">Start a new Libre 3, take over the one you wear with your LibreView account, or read it from Juggluco.</string>
     <!-- Setup sensor step: no reading yet -->
     <string name="setup_sensor_not_monitoring">Not monitoring: no sensor yet. No alert can ring until a reading arrives.</string>
-    <!-- Setup sensor step: a reading arrived; %1$d = mg/dL -->
-    <string name="setup_sensor_live">Reading received: %1$d mg/dL. Sukrara is monitoring.</string>
+    <!-- Setup sensor step: a reading arrived -->
+    <string name="setup_sensor_live">Reading received. Sukrara is monitoring.</string>
     <!-- Setup sensor step: open the sensor flow -->
     <string name="setup_sensor_open">Set up sensor</string>
     <!-- Setup alerts step: title -->
@@ -201,8 +201,6 @@
     <string name="conflict_retry">I turned it off. Retry</string>
     <!-- Identity conflict: close -->
     <string name="conflict_close">Close</string>
-    <!-- Home card title: setup steps left -->
-    <string name="finish_title">Finish setup</string>
     <!-- Finish setup item -->
     <string name="finish_allow">Allow what alerts need</string>
     <!-- Finish setup item -->
@@ -263,6 +261,8 @@
     <string name="approve_allow">Allow</string>
     <!-- Approve: deny -->
     <string name="approve_deny">Deny</string>
+    <!-- Sharing page: open setup's followers step -->
+    <string name="sharing_set_up">Set up sharing</string>
     <!-- Followers: none yet -->
     <string name="followers_empty_title">Nobody follows you yet</string>
     <!-- Followers: none yet, explanation -->

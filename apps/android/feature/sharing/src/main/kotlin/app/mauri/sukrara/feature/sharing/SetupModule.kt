@@ -9,7 +9,7 @@ import app.mauri.sukrara.core.model.GlucoseHub
 import app.mauri.sukrara.core.model.Role
 import app.mauri.sukrara.core.model.storage.StateStore
 import app.mauri.sukrara.feature.sharing.setup.AlertSettingsAccess
-import app.mauri.sukrara.feature.sharing.setup.AndroidAlertReadiness
+import app.mauri.sukrara.core.model.AlertReadinessSource
 import app.mauri.sukrara.feature.sharing.setup.PhoneFacts
 import app.mauri.sukrara.feature.sharing.setup.SetupRecord
 import app.mauri.sukrara.feature.sharing.setup.ShowcaseDetector
@@ -23,7 +23,9 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import java.time.Instant
-import app.mauri.sukrara.alerts.AlertSettings
+import app.mauri.sukrara.feature.sharing.setup.AlertThresholds
+import app.mauri.sukrara.feature.sharing.setup.ThresholdField
+import kotlinx.coroutines.flow.first
 import app.mauri.sukrara.core.data.settings.SchemaSettings
 import app.mauri.sukrara.core.model.storage.SettingsRepository
 
@@ -50,7 +52,7 @@ interface SharingDeps {
  * - [resetAlerts]: chunk 11's `AlertsModule.reset()`, called when the role is chosen or changed — before any
  *   monitoring — so no phantom no-data alarm survives. Not on identity "Start fresh": by then the sensor runs, and a
  *   reset stops alerts until the hub reports a role again.
- * - [alertChannels]: chunk 11's alert channel ids, for the readiness check.
+ * - [readiness]: THE alert checklist (CHANGES P5), the same instance home's reliability row reads.
  */
 class SetupModule(
     context: Context,
@@ -62,7 +64,7 @@ class SetupModule(
     /** The app's schema settings: setup records `alerts.thresholdsConfirmedAt` (shared with Settings › Alerts). */
     private val settings: SettingsRepository,
     val resetAlerts: suspend () -> Unit,
-    alertChannels: () -> List<String>,
+    val readiness: AlertReadinessSource,
     val clock: Clock,
     /** Following on Android (chunk 25) is in this build. */
     val followerAvailable: Boolean = false,
@@ -71,9 +73,6 @@ class SetupModule(
 
     val showcase by lazy { ShowcaseDetector(ctx) }
 
-    /** THE alert checklist: also given to home's reliability row (CHANGES P5). */
-    val readiness by lazy { AndroidAlertReadiness(ctx, alertChannels, wearer = { hub.state.value.role != Role.Follower }) }
-
     private val showcaseInstalled = MutableStateFlow(false)
 
     /** When the alert thresholds were confirmed (setup or Settings › Alerts), null = never (CHANGES P4). */
@@ -81,9 +80,15 @@ class SetupModule(
         settings.flow(THRESHOLDS_CONFIRMED_AT).map { text -> text.takeIf { it.isNotEmpty() }?.let { runCatching { Instant.parse(it) }.getOrNull() } }
     }
 
-    /** P4: the shown thresholds become the runtime's, then the confirmation is recorded. */
-    suspend fun confirmAlerts(shown: AlertSettings) {
-        alertSettings.save(shown)
+    /**
+     * P4: the shown thresholds become the runtime's (merged into the current settings, so nothing changed meanwhile in
+     * Settings › Alerts is lost), then the confirmation is recorded.
+     */
+    suspend fun confirmAlerts(shown: AlertThresholds) {
+        val current = alertSettings.settings.first()
+        val merged =
+            ThresholdField.entries.fold(current) { s, f -> s.withRule(f.kind, s.rule(f.kind).copy(threshold = shown.value(f))) }
+        alertSettings.save(merged)
         settings.set(THRESHOLDS_CONFIRMED_AT, clock.now().toString())
     }
 
@@ -108,6 +113,7 @@ class SetupModule(
                     ownSensorLive = RestoreGate.ownSensorLive(glucose, clock.now()),
                     hasIdentity = share is OwnerShareState.Sharing || share is OwnerShareState.AnotherAppSharingAsYou,
                     alertsConfirmed = confirmed != null,
+                    alertsReady = readiness.readiness.value.ready,
                 )
             SetupMachine.finishItems(record, facts)
         }

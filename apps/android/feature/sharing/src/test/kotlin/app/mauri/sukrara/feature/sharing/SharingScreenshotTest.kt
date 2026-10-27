@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -20,8 +21,6 @@ import app.mauri.sukrara.designsystem.theme.SukraraTheme
 import app.mauri.sukrara.feature.sharing.conflict.IdentityConflictScreen
 import app.mauri.sukrara.feature.sharing.followers.FollowersPage
 import app.mauri.sukrara.feature.sharing.setup.AlertThresholds
-import app.mauri.sukrara.feature.sharing.setup.FinishItem
-import app.mauri.sukrara.feature.sharing.setup.FinishSetupCard
 import app.mauri.sukrara.feature.sharing.setup.RestoreGate
 import app.mauri.sukrara.feature.sharing.setup.RestoreUi
 import app.mauri.sukrara.feature.sharing.setup.SetupActions
@@ -77,7 +76,6 @@ class SharingScreenshotTest {
         share: OwnerShareState = OwnerShareState.NoIdentity,
         restore: RestoreUi = RestoreUi.Idle,
         record: SetupRecord = SetupRecord(),
-        latest: Int? = null,
     ) = SetupUi(
         step = step,
         index = index,
@@ -88,7 +86,6 @@ class SharingScreenshotTest {
         alerts = alerts,
         gate = RestoreGate.evaluate(facts.ownSensorLive, facts.showcaseInstalled, record.showcaseSharingOffConfirmed),
         share = share,
-        latestMgdl = latest,
         restore = restore,
         busy = false,
         single = false,
@@ -114,7 +111,7 @@ class SharingScreenshotTest {
             },
             "setup-4-showcase" to { SetupContent(ui(SetupStep.Showcase, 4), a) },
             "setup-5-sensor-waiting" to { SetupContent(ui(SetupStep.Sensor, 5), a) },
-            "setup-5-sensor-live" to { SetupContent(ui(SetupStep.Sensor, 5, live, latest = 118), a) },
+            "setup-5-sensor-live" to { SetupContent(ui(SetupStep.Sensor, 5, live), a) },
             "setup-6-alerts" to { SetupContent(ui(SetupStep.Alerts, 6, live), a) },
             "setup-6-alerts-out-of-order" to {
                 SetupContent(ui(SetupStep.Alerts, 6, live, alerts = AlertThresholds(AlertSettings()).with(ThresholdField.High, 260.0)), a)
@@ -140,9 +137,6 @@ class SharingScreenshotTest {
             },
             "followers" to { FollowersPage(followers, listOf(request), {}, {}, {}) },
             "followers-empty" to { FollowersPage(emptyList(), emptyList(), {}, {}, {}) },
-            "finish-setup-card" to {
-                Box(Modifier.padding(16.dp)) { FinishSetupCard(listOf(FinishItem.ConnectSensor, FinishItem.AlertsNotConfirmed, FinishItem.RestoreFollowers), {}) }
-            },
         )
     }
 
@@ -160,7 +154,7 @@ class SharingScreenshotTest {
                     val suffix = (if (dark) "-dark" else "-light") + if (largest) "-largest" else ""
                     captureRoboImage("src/test/snapshots/$name$suffix.png", roborazziComposeOptions = options) {
                         SukraraTheme(dark = dark, dynamic = false) {
-                            Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface)) { content() }
+                            Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.surface) { content() }
                         }
                     }
                 }

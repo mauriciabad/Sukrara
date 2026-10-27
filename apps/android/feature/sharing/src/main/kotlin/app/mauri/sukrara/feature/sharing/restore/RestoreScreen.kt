@@ -70,8 +70,10 @@ fun ColumnScope.IdentityStep(
         else -> {
             if (share is OwnerShareState.IdentityUnreadable) NoteCard(stringResource(R.string.identity_unreadable), error = true)
             RestoreForm(u, actions)
-            HorizontalDivider()
-            StartFresh(enabled = share is OwnerShareState.NoIdentity && !u.busy, actions)
+            if (share is OwnerShareState.NoIdentity) {
+                HorizontalDivider()
+                StartFresh(enabled = !u.busy, actions)
+            }
             StepButtons(null, {}, secondary = listOf(stringResource(R.string.setup_later) to { actions.skip(SetupStep.Identity) }))
         }
     }

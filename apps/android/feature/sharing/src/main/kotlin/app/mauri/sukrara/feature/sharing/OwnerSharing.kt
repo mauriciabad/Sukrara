@@ -9,6 +9,8 @@ import app.mauri.sukrara.share.owner.usecase.CreateInvite
 import app.mauri.sukrara.share.owner.usecase.RestoreIdentity
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.launch
+import java.util.concurrent.atomic.AtomicBoolean
 
 /** A created invite: the link (also the QR) and when it stops working (epoch s). */
 data class Invite(val link: String, val label: String, val expiresAt: Long)
@@ -47,7 +49,14 @@ class EngineOwnerSharing(
     private val scope: CoroutineScope,
     private val now: () -> Long,
 ) : OwnerSharing {
-    override val state: StateFlow<OwnerShareState> get() = engine.state
+    private val started = AtomicBoolean(false)
+
+    /** The engine loads the identity (and starts sharing if there is one) the first time anyone looks. */
+    override val state: StateFlow<OwnerShareState>
+        get() {
+            if (started.compareAndSet(false, true)) scope.launch { engine.start(scope) }
+            return engine.state
+        }
 
     override suspend fun startFresh(): Boolean = engine.createIdentity(scope, profile = null)
 

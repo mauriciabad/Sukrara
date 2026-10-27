@@ -166,7 +166,8 @@ damaged setup file never asks for the role again or turns alerts off.
   the restore at the end.
 - **Sensor**: *Set up sensor* opens chunk 18's new-sensor flow (Libre 3 start / takeover with the LibreView receiver
   ID, or Juggluco). Until a reading arrives it says "Not monitoring: no sensor yet. No alert can ring until a reading
-  arrives."; the step completes only with a live reading from this phone's own sensor (≤ 15 min old) and shows it.
+  arrives."; the step completes only with a live reading from this phone's own sensor (≤ 15 min old): "Reading
+  received. Sukrara is monitoring."
 - **Alert thresholds** (P4): urgent low, low, high, very high and no data, from the settings the alert runtime reads,
   each editable with the number dialog; levels must stay in order. Nothing is saved until *Confirm these alerts*;
   *Later* leaves them unconfirmed (never silently defaulted).
@@ -177,13 +178,14 @@ damaged setup file never asks for the role again or turns alerts off.
   off in Sukrara Showcase" (`RestoreGate`, re-checked just before restoring; `RestoreGateTest`). *Start fresh* is
   confirmed: "Your followers (and your Mac) will need a new invite. Your old identity stays in the Showcase; this
   phone can't switch back to it without reinstalling."
-- **Finish setup card** (home, below the glucose card): one row per skipped step that still matters — *Allow what
-  alerts need*, *Turn off Sukrara Showcase*, *Connect your sensor*, *Alerts not confirmed*, *Restore your followers*;
-  each reopens its step; rows drop out by themselves when the Showcase is uninstalled, a reading arrives or an
-  identity exists.
+- **Finish setup** (home's banner, chunk 16): names the first skipped step that still matters — *Allow what alerts
+  need*, *Turn off Sukrara Showcase*, *Connect your sensor*, *Alerts not confirmed*, *Restore your followers*; its
+  action reopens that step alone (done or *Later* → home); items drop out by themselves when the checklist is complete,
+  the Showcase is uninstalled, a reading arrives, the thresholds are confirmed (also in Settings › Alerts:
+  `alerts.thresholdsConfirmedAt`) or an identity exists. First launch (no role yet) opens setup on top of home.
 
 **States and exits**: every step → *Back* (not into the role once chosen) and its primary action; Permissions,
-Showcase, Sensor, Alerts and Followers → *Skip* / *Later* (→ Finish setup card → reopens the step → completes or *Later*
+Showcase, Sensor, Alerts and Followers → *Skip* / *Later* (→ the Finish setup banner → reopens the step → completes or *Later*
 again). Role → choose → confirm / *Cancel*; Follower in this build → stays on the role step with the note. Showcase →
 *I've turned it off* → confirm / *Cancel*. Sensor waiting → *Set up sensor* (chunk 18 flow, its own Cancel) / *Later*;
 reading received → *Continue*. Alerts → edit (number dialog *Cancel* / OK) → *Confirm these alerts*, disabled with the
@@ -587,7 +589,8 @@ The wearer's phone shares readings, alerts and the stream's roster with approved
 - **Relays**: `wss://nos.lol`, `wss://relay.primal.net`, `wss://nostr.mom`, `wss://relay.snort.social`; reconnect
   2 s doubling to 5 min (random 50–100 %), at once when the network comes back; per-relay status, never an error
   thrown at the person. Roster and backup are refreshed every 6 days.
-- **Screens** (chunk 24, `feature/sharing` `share/`, `followers/`, `conflict/`): *Share with someone* (a label only
+- **Screens** (chunk 24, `feature/sharing` `share/`, `followers/`, `conflict/`; Settings › Sharing = `SharingScreen`:
+  no identity → *Set up sharing* (setup's followers step), sharing → Followers, conflict → the conflict screen): *Share with someone* (a label only
   the wearer sees, *Create invite* → the QR springs in with a confirm haptic, the link as selectable text, *Send link* /
   *Copy*, "works once, until <date>", *They'll see*, *Invite someone else*); the approve dialog (name, the invite's
   label, the 4-digit code to compare — read digit by digit by TalkBack — a warning when other phones tried the same
