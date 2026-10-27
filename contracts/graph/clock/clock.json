@@ -1,0 +1,12 @@
+{
+ "about": "Clock times in the phone's / Mac's 12- or 24-hour setting (not the locale's default) and the graph's hour labels, shared by Android (GraphFixtureTest.clock, graph/Clock.kt) and Mac (-graphselftest, Clock in SukraraGraph.swift). Format: ../README.md.",
+ "cases": [
+  {"name": "en-US, 24 h set: 21:08", "locale": "en-US", "minute": 1268, "hour24": true, "expect": {"time": "21:08", "axis": "21:00"}},
+  {"name": "en-US, 12 h (its default)", "locale": "en-US", "minute": 1268, "hour24": false, "expect": {"time": "9:08 PM", "axis": "9 PM"}},
+  {"name": "en-US, 24 h set, morning: two-digit hour", "locale": "en-US", "minute": 545, "hour24": true, "expect": {"time": "09:05", "axis": "09:00"}},
+  {"name": "en-US, 12 h, half past midnight: 12, not 0", "locale": "en-US", "minute": 30, "hour24": false, "expect": {"time": "12:30 AM", "axis": "12 AM"}},
+  {"name": "es-ES, 24 h (its default)", "locale": "es-ES", "minute": 1268, "hour24": true, "expect": {"time": "21:08", "axis": "21:00"}},
+  {"name": "es-ES, 24 h, morning: the locale's one-digit hour", "locale": "es-ES", "minute": 545, "hour24": true, "expect": {"time": "9:05", "axis": "09:00"}},
+  {"name": "es-ES, 12 h set: the locale's day period", "locale": "es-ES", "minute": 1268, "hour24": false, "expect": {"time": "9:08 p. m.", "axis": "9 p. m."}}
+ ]
+}

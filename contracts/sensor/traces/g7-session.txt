@@ -1,0 +1,29 @@
+# Dexcom G7 / ONE+ / Stelo frames.
+# Origin: DiaBLE DiaBLE/DexcomG7.swift comments (MIT) — :243-245 (EGV 0x4E), :361 (backfill reply 0x59),
+# :380-383 (one 9-byte backfill record), :315-316 (calibration bounds 0x32), :341 (diagnostic 0x51).
+# EGV: txTime 2005 s, sequence 9, age 5 s, glucose 97 mg/dL, state 0x06 ok, trend +0.1 mg/dL/min, no prediction.
+egv-97 4e00d507000009000001050061000601ffff0e
+# Backfill reply: status ok, 63 bytes of records follow (7 × 9), payload CRC 0x93ab.
+backfill-reply 5900003f000000ab933802e2960200ea9d0200
+# One backfill record: 41285 s since start, 150 mg/dL, state 0x06, trend -0.4 mg/dL/min.
+backfill-record 45a10000960006 0ffc
+# Calibration bounds with no calibration yet, and one with last BG 170 mg/dL (0x00AA).
+bounds-none 3200014e00000000000000000001010 0e4000000
+bounds-170 3200014d000000aa00344d0200030102754e0200
+#
+# A recorded sensor lifecycle, with the expected decoding asserted in G7MessagesTest.
+# Origin: LoopKit G7SensorKit, G7SensorKitTests/G7GlucoseMessageTests.swift (MIT).
+# life-0: stopped, no glucose · life-1..5: warming up · life-6,7: ok · life-8: expired
+life-0 4e00b6000000010000006600ffff017fffff00
+life-1 4e00cd000000030000010500ffff027fffff01
+life-2 4e00f90100000400000105009100027effff02
+life-3 4e00250300000500000105007d00027effff02
+life-4 4e0051040000060000010500650002dfffff02
+life-5 4e007d0500000700000105004e0002e7ffff02
+life-6 4e00ab060000080000010700540006f5ffff0e
+life-7 4e00d507000009000001050061000601ffff0e
+life-8 4e004d440e00d40b0001d46b650018036a000e
+# 138 mg/dL, reading at 87485 s, not display-only.
+egv-138 4e00c35501002601000106008a00060187000f
+# 104 mg/dL, reading at 901390 s, display-only (calibration byte 0x1f).
+egv-104 4e000ec10d00c00b00010000680006fe63001f
