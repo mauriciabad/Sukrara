@@ -118,3 +118,31 @@ core); the app shell (chunk 21) owns notifications, sounds, timers and storage.
   the SPEC §7 driver; also run with an `AlertMirror` for `mirror` scenarios), `SettingsCodecTests`,
   `EpisodesRestoreTests`, `EngineTests` (safety invariants, effect order, clock jumps, deterministic ids),
   `MuteCopyTests`.
+
+## Android storage (`apps/android/core/data`)
+
+Ports live in `:core:model` (`storage/Storage.kt`, in-memory fakes in `:core:testing`); `:core:data` implements them
+and `DataModule` (built lazily by `AppGraph`, `ready()` opens the database on IO) exposes them. No PoC files or keys are
+read (new app id, no migration). Nothing is in cloud backup or device transfer (`allowBackup=false`,
+`data_extraction_rules.xml` excludes every domain).
+
+| What | Where | API |
+|---|---|---|
+| Settings | `datastore/<store>.preferences_pb`, one per schema store, keys from `contracts/settings/settings.json` | `SettingsRepository` + `SchemaSettings.number/bool/text(id)` |
+| Typed state (alert episodes, sensor pairing, …) | `files/state/<name>.json` (DataStore + kotlinx JSON) | `DataModule.typedStore(name, serializer, initial, whenCorrupt)` |
+| Secrets | `files/secure/<name>.bin` = `0x01` ‖ IV ‖ AES-256-GCM (AAD = name); Keystore alias `sukrara.<name>`, one key per purpose: `identity.owner`, `identity.follower`, `nightscout`, `tidepool`, `libreview`, `sensor` | `SecureStore` (`KeystoreSecureStore` on `SecretBox`) |
+| History | `databases/sukrara.db` (Room v1, schema in `core/data/schemas/`): `readings` (PK t+source), `treatments` (LWW on `modified_at`, tombstones), `seen_wraps`, `rejects`, `outbox` | `ReadingsRepository`, `TreatmentsRepository`, DAOs for the sharing ledger |
+| Other files | `files/<path>` atomic tmp + fsync + rename | `DataModule.fileStore(path, codec)` → `Loaded / Missing / Corrupt` |
+| Diagnostics | `files/diag/diag.log` + `.1`, 512 KB each, `Redact` scrubs keys / tokens | `DiagLog` |
+| Network | one OkHttp client (15 s connect, 30 s read, 60 s call, UA `Sukrara/<version>`, no body logging); one `SukraraJson` (`ignoreUnknownKeys`, `explicitNulls = false`) | `DataModule.http`, `DataModule.json` |
+
+Retention (`Retention`, applied in `ready()`): readings 90 days, seen wraps / rejects / sent outbox 14 days.
+
+**Corruption is never silent.** A file that can't be decoded is kept (`<file>.corrupt-<epochMs>`) and reported to
+`DataModule.corruption` (`CorruptionLog`), which `AppGraph.startupState` turns into a visible problem with *Copy
+report*. Typed stores continue from the owner's explicit `whenCorrupt` value and expose their own `corruption` flow; a
+`FileStore` returns `Corrupt` and leaves no file; settings read as defaults. A secret that can't be opened throws
+`SecretUnreadableException` on every read and stays in place (an unreadable identity is never "no identity"); a
+transient Keystore error (busy after an OS update) throws `transient = true`, is not reported and deletes nothing; keys
+are never deleted by an error path. Open: Room's default corruption handling deletes a damaged database (issue:
+SQLCipher + a quarantining open helper).
