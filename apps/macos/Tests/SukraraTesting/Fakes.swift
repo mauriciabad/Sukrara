@@ -6,7 +6,7 @@ import SukraraCore
 import Synchronization
 
 /// A clock tests set and advance.
-public final class FakeClock: Clock {
+public final class FakeClock: TimeSource {
     private let current: Mutex<Date>
 
     public init(_ start: Date = Date(timeIntervalSince1970: 1_800_000_000)) {
