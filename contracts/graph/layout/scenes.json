@@ -1,0 +1,53 @@
+{
+ "about": "The scenes every registered surface is rendered with (CardLayoutTest on Android, -graphselftest on the Mac); format: ../README.md, 'Layout across surfaces'. Times are seconds relative to now (1800000000, UTC). Readings every 5 min from -days to -age, a triangle wave lo..hi with the given period (integer maths: lo + (hi - lo) * tri / half, tri = k or period - k, k = (t - first) mod period, half = period / 2); the newest one is 'last' with 'rate' (null = the source sent none).",
+ "now": 1800000000,
+ "scenes": [
+  {"id": "live", "lo": 80, "hi": 200, "period": 21600, "days": 8, "age": 60, "last": 156, "rate": 1.0,
+   "sensor": {"start": -172800, "end": 1123200, "warmupEnd": -169200},
+   "treatments": [{"id": "i1", "k": "rapid", "a": 4.5, "t": -3000}, {"id": "c1", "k": "carbs", "a": 30, "t": -2700},
+                  {"id": "n1", "k": "note", "a": 0, "t": -10800, "n": "walk"},
+                  {"id": "i0", "k": "rapid", "a": 3, "t": -41400, "about": "30 min after a 12 h window's start: its label passes under the sensor badge"}]},
+  {"id": "late", "lo": 90, "hi": 170, "period": 28800, "days": 8, "age": 200, "last": 132, "rate": -0.5},
+  {"id": "stale", "lo": 90, "hi": 170, "period": 28800, "days": 8, "age": 600, "last": 141, "rate": 2.0},
+  {"id": "old", "lo": 90, "hi": 170, "period": 28800, "days": 8, "age": 3600, "last": 118, "rate": 0.2},
+  {"id": "gone", "lo": 90, "hi": 170, "period": 28800, "days": 8, "age": 18000, "last": 125, "rate": 0.0},
+  {"id": "none", "days": 0},
+  {"id": "warmup", "lo": 90, "hi": 170, "period": 28800, "days": 8, "age": 7200, "last": 110, "rate": 0.0,
+   "sensor": {"start": -1200, "end": 1208400, "warmupEnd": 2400}},
+  {"id": "ended", "lo": 90, "hi": 170, "period": 28800, "days": 8, "age": 4200, "last": 120, "rate": 0.0,
+   "sensor": {"start": -1213200, "end": -3600, "warmupEnd": -1209600}},
+  {"id": "perfect", "lo": 100, "hi": 130, "period": 14400, "days": 8, "age": 60, "last": 128, "rate": 3.4,
+   "sensor": {"start": -1191600, "end": 18000, "warmupEnd": -1188000}},
+  {"id": "low", "lo": 60, "hi": 75, "period": 7200, "days": 8, "age": 60, "last": 64, "rate": -1.2},
+  {"id": "high190", "lo": 120, "hi": 200, "period": 21600, "days": 8, "age": 60, "last": 190, "rate": 0.5,
+   "about": "above the default high (180), in range once the user's high is 200 (settings 'high200')"},
+  {"id": "norate", "lo": 90, "hi": 170, "period": 28800, "days": 8, "age": 60, "last": 120, "rate": null,
+   "about": "a fresh reading the source sent without a rate (Juggluco direction \"\"): the 'no trend' ring on every surface, never an arrow derived from earlier readings (the Mac did, 2026-10-21)"}
+ ],
+ "settings": [
+  {"id": "default"},
+  {"id": "sensor-off", "sensorTime": false},
+  {"id": "side-off", "side": false},
+  {"id": "three-end", "ringCount": 3, "lastPlace": "END"},
+  {"id": "lines", "lines": [100, 120], "gridHours": 0},
+  {"id": "high200", "high": 200},
+  {"id": "clock12", "hour24": false, "about": "the phone's 12-hour time: every clock time on every surface (card, hour labels, notification, tile, screen-reader words, Mac) is 12-hour"},
+  {"id": "clock24", "hour24": true}, {"id": "marks-all", "marks": "all", "about": "every part of every treatment kind (the look before Treatments on the graph)"}, {"id": "marks-mixed", "marks": {"rapid": ["amount", "time"], "carbs": ["point", "line", "amount"], "note": []}, "about": "rapid: labels without its point or mute line; carbs: amount without time (the meal label takes the time from nobody: none); notes hidden"}
+ ],
+ "scroll": {
+  "about": "Scrolled charts (the app panel and the Mac dropdown, the only surfaces that scroll): each case renders 'scene' with the window's end 'back' s before now and, when zoomed, 'span' s long (else the place's 12 h) through the scrollable surfaces' real entry paths (PanelCard with a ChartScroll; the dropdown's CardView with scrollEnd). Checked on both platforms: the chart is the chart of the visible data alone (the same entry path with every reading and treatment outside the window removed, now = the window's end and the place's time shown = the window's length: % column, y range, distribution dots, hour labels, treatment markers), its y range is the visible readings' (yMin = min(low - 22, veryLow - 6, lowest - 6), yMax = max(high + 40, veryHigh + 8, highest + 8)), the Now pill shows only when scrolled or zoomed, and 'expect' (font-independent: chart (its window), chart.pct, chart.y, chart.window, chart.markers). Scenes: this list first, then the main one.",
+  "scenes": [
+   {"id": "swing", "lo": 70, "hi": 300, "period": 172800, "days": 8, "age": 60, "last": 72, "rate": 0.0,
+    "about": "a two-day swing: the last 12 h stay low (70-185), a day back high (185-300): the y range grows while scrolling back",
+    "treatments": [{"id": "r1", "k": "rapid", "a": 6, "t": -93600}, {"id": "c1", "k": "carbs", "a": 20, "t": -3600}]}
+  ],
+  "cases": [
+   {"scene": "live", "back": 21600, "expect": {"chart": "12h", "chart.pct": "0/85/15", "chart.y": "48-258", "chart.window": "-1080m..-360m", "chart.markers": "1"}},
+   {"scene": "swing", "back": 0, "expect": {"chart": "12h", "chart.pct": "0/96/4", "chart.y": "48-258", "chart.window": "", "chart.markers": "1"}},
+   {"scene": "swing", "back": 86400, "expect": {"chart": "12h", "chart.pct": "0/0/100", "chart.y": "48-308", "chart.window": "-2160m..-1440m", "chart.markers": "1"}},
+   {"scene": "live", "back": 0, "span": 10800, "expect": {"chart": "3h", "chart.pct": "0/83/17", "chart.y": "48-258", "chart.window": "", "chart.markers": "3"}},
+   {"scene": "live", "back": 0, "span": 172800, "expect": {"chart": "48h", "chart.pct": "0/85/15", "chart.y": "48-258", "chart.window": "", "chart.markers": "4"}},
+   {"scene": "swing", "back": 43200, "span": 86400, "expect": {"chart": "24h", "chart.pct": "0/0/100", "chart.y": "48-308", "chart.window": "-2160m..-720m", "chart.markers": "1"}}
+  ]
+ }
+}

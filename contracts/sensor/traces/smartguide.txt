@@ -1,0 +1,11 @@
+# Accu-Chek SmartGuide: standard Bluetooth CGM Service frames, with the E2E-CRC (CRC-16/MCRF4XX, little-endian).
+# Origin: Juggluco Common/src/main/cpp/accu/java.cpp comments — :130-131 (sensor-error measurements),
+# :182-183 (below-range measurements), :292 (a CGM Status read). Juggluco's own struct names the fields.
+# Sensor error: glucose, trend and quality are all the SFLOAT "NaN" pattern 0x07FF.
+error-1 0ec3ff07af460802ff07ff07ea5c
+error-2 0ec3ff07fe010803ff07ff0786e8
+# Below range (glucose SFLOAT 0x0802 = -INFINITY) with all three annunciation bytes: Juggluco posts 39 mg/dL.
+low-1 0fe30208e5150802 40f0ff380064 27
+low-2 0fe30208ea150802 40bfef0e00e572
+# CGM Status read (2AA9): time offset 0x129A = 4762 minutes since the session started.
+status 9a120002005 28b
