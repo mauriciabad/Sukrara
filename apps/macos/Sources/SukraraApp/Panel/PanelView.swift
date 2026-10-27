@@ -11,6 +11,8 @@ import SwiftUI
 /// notifications off → Open Notification Settings; an update → Download / Later.
 struct PanelView: View {
     let model: AppModel
+    /// The window layer's entry points (nil in a render without windows).
+    var links: PanelLinks?
     @Environment(\.colorScheme) private var scheme
 
     static let cardSize = CGSize(width: 340, height: 196)
@@ -18,6 +20,13 @@ struct PanelView: View {
     var body: some View {
         TimelineView(.periodic(from: .now, by: 30)) { context in
             VStack(alignment: .leading, spacing: 10) {
+                #if DEBUG
+                    if model.plan.mode == .fixture {
+                        Label(L10n.t("Synthetic data (dev build)"), systemImage: "flask")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                #endif
                 if let reason = model.notMonitoringReason {
                     Label(reason, systemImage: "antenna.radiowaves.left.and.right.slash")
                         .font(.callout)
@@ -25,6 +34,7 @@ struct PanelView: View {
                 } else {
                     card
                 }
+                if let links { SetupRows(links: links, needsFollow: model.needsFollow) }
                 if model.notificationPermission.needsAttention { notificationsWarning }
                 if let alerts = model.alerts { AlertBlocks(alerts: alerts, now: context.date) }
                 if let updates = model.updates { UpdateRow(updates: updates) }
@@ -60,6 +70,28 @@ struct PanelView: View {
                     NSWorkspace.shared.open(url)
                 }
             }
+        }
+    }
+}
+
+/// What the window layer opens from the panel.
+struct PanelLinks {
+    let setup: SetupModel
+    let openSetup: () -> Void
+    let openFollow: () -> Void
+}
+
+/// "Finish setup…" while a setup step is skipped or not reached; "Follow Someone…" when the walk is done but this
+/// Mac follows nobody (after Stop following, a decline, a revoke).
+private struct SetupRows: View {
+    let links: PanelLinks
+    let needsFollow: Bool
+
+    var body: some View {
+        if !links.setup.flow.isComplete {
+            Button(L10n.t("Finish Setup…"), systemImage: "checklist", action: links.openSetup)
+        } else if needsFollow {
+            Button(L10n.t("Follow Someone…"), systemImage: "person.badge.plus", action: links.openFollow)
         }
     }
 }

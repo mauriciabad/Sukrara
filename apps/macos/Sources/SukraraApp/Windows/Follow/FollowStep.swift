@@ -38,6 +38,8 @@ struct FollowStep: View {
                     .accessibilityAddTraits(.isStaticText)
             }
         }
+        .onAppear { follow.searchNearby(follow.status == .notFollowing) }
+        .onDisappear { follow.searchNearby(false) }
         .fileImporter(isPresented: $importing, allowedContentTypes: [.image]) { result in
             let text = (try? result.get()).flatMap { url -> String? in
                 let ok = url.startAccessingSecurityScopedResource()
