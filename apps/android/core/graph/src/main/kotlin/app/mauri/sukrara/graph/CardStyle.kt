@@ -46,17 +46,33 @@ data class GraphPalette(
     companion object {
         val DARK =
             GraphPalette(
-                true, bg = 0xFF1C1C1E.toInt(), ink = 0xFFF2F2F2.toInt(), inkSoft = 0xFFA3A3A8.toInt(),
-                grid = 0xFF3A3A3E.toInt(), veryLow = 0xFFC2413B.toInt(), low = 0xFFF0524F.toInt(),
-                tight = 0xFF3DD47A.toInt(), target = 0xFF8CC63F.toInt(), high = 0xFFF5A524.toInt(),
-                veryHigh = 0xFFFF7A45.toInt(), extremelyHigh = 0xFFE35BD0.toInt(),
+                true,
+                bg = 0xFF1C1C1E.toInt(),
+                ink = 0xFFF2F2F2.toInt(),
+                inkSoft = 0xFFA3A3A8.toInt(),
+                grid = 0xFF3A3A3E.toInt(),
+                veryLow = 0xFFC2413B.toInt(),
+                low = 0xFFF0524F.toInt(),
+                tight = 0xFF3DD47A.toInt(),
+                target = 0xFF8CC63F.toInt(),
+                high = 0xFFF5A524.toInt(),
+                veryHigh = 0xFFFF7A45.toInt(),
+                extremelyHigh = 0xFFE35BD0.toInt(),
             )
         val LIGHT =
             GraphPalette(
-                false, bg = 0xFFFFFFFF.toInt(), ink = 0xFF1C1C1E.toInt(), inkSoft = 0xFF6B6B70.toInt(),
-                grid = 0xFFDADADF.toInt(), veryLow = 0xFFB3261E.toInt(), low = 0xFFD92D2A.toInt(),
-                tight = 0xFF17A34A.toInt(), target = 0xFF6E9E1E.toInt(), high = 0xFFD97706.toInt(),
-                veryHigh = 0xFFC2410C.toInt(), extremelyHigh = 0xFFA3238F.toInt(),
+                false,
+                bg = 0xFFFFFFFF.toInt(),
+                ink = 0xFF1C1C1E.toInt(),
+                inkSoft = 0xFF6B6B70.toInt(),
+                grid = 0xFFDADADF.toInt(),
+                veryLow = 0xFFB3261E.toInt(),
+                low = 0xFFD92D2A.toInt(),
+                tight = 0xFF17A34A.toInt(),
+                target = 0xFF6E9E1E.toInt(),
+                high = 0xFFD97706.toInt(),
+                veryHigh = 0xFFC2410C.toInt(),
+                extremelyHigh = 0xFFA3238F.toInt(),
             )
 
         fun of(dark: Boolean) = if (dark) DARK else LIGHT

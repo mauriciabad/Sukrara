@@ -16,11 +16,15 @@ import app.mauri.sukrara.graph.stats.GlucoseStats
  * the card draws ([GlucoseCard.face], [StatusBadge.look], [SensorBadge.look]).
  */
 object A11y {
-    /** The value sentence: "112 milligrams per decilitre, falling, in range, 2 min ago". */
+    /**
+     * The value sentence: "112 milligrams per decilitre, falling, in range, 2 min ago", then the status pill's words
+     * when the card draws the pill (a value is shown and the place has [badge] on).
+     */
     fun value(
         model: CardModel,
         bands: Bands,
         surface: CardSurface,
+        badge: Boolean = true,
     ): String {
         val w = model.words
         val now = model.nowS
@@ -29,10 +33,18 @@ object A11y {
         val face = GlucoseCard.face(r, now, sensor, surface)
         val parts =
             when (face.state) {
-                GlucoseLook.State.WARMING_UP, GlucoseLook.State.ENDED -> listOf(SensorBadge.describe(checkNotNull(sensor), now, w))
-                GlucoseLook.State.NONE -> listOf(w.string(R.string.a11y_no_readings))
-                GlucoseLook.State.NO_READINGS ->
+                GlucoseLook.State.WARMING_UP, GlucoseLook.State.ENDED -> {
+                    listOf(SensorBadge.describe(checkNotNull(sensor), now, w))
+                }
+
+                GlucoseLook.State.NONE -> {
+                    listOf(w.string(R.string.a11y_no_readings))
+                }
+
+                GlucoseLook.State.NO_READINGS -> {
                     listOf(w.string(R.string.a11y_no_reading_since, Freshness.timeText(checkNotNull(r).t, now)))
+                }
+
                 GlucoseLook.State.VALUE -> {
                     val p = checkNotNull(r)
                     listOfNotNull(
@@ -50,7 +62,7 @@ object A11y {
             }
         val extras =
             listOfNotNull(
-                StatusBadge.describe(model.status, now, w),
+                StatusBadge.describe(model.status, now, w).takeIf { badge && face.state == GlucoseLook.State.VALUE },
                 sensor?.takeIf { face.state == GlucoseLook.State.VALUE }?.let { SensorBadge.describe(it, now, w) },
             )
         return (listOf(parts.joinToString(", ")) + extras).joinToString(". ")
@@ -76,7 +88,7 @@ object A11y {
         surface: CardSurface,
     ): String {
         val bands = style.bands.sane()
-        val value = if (style.value) value(model, bands, surface) else null
+        val value = if (style.value) value(model, bands, surface, style.badge) else null
         val chart = style.graph?.let { chart(model, it) }
         return listOfNotNull(value, chart).joinToString(". ")
     }
@@ -88,8 +100,11 @@ object A11y {
     ): String =
         w.string(
             when {
-                sgv >= b.extremelyHigh -> R.string.a11y_band_extremely_high
-                else ->
+                sgv >= b.extremelyHigh -> {
+                    R.string.a11y_band_extremely_high
+                }
+
+                else -> {
                     when (b.of(sgv)) {
                         Band.VERY_LOW -> R.string.a11y_band_very_low
                         Band.LOW -> R.string.a11y_band_low
@@ -97,6 +112,7 @@ object A11y {
                         Band.HIGH -> R.string.a11y_band_high
                         Band.VERY_HIGH -> R.string.a11y_band_very_high
                     }
+                }
             },
         )
 

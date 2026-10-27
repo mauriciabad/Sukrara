@@ -37,6 +37,24 @@ How Sukrara V1 is built. Each part is filled in by the work that builds it; the 
 ### Services, alerts and notifications
 <!-- Chunks 10 / 11: MonitoringService, alert runtime, channel registry. -->
 
+**Alerts (chunk 11, `:monitor` `monitor/alerts/`).** The rules are `:core:alerts` (`AlertMachine`); the runtime only
+applies them.
+- `AlertRuntime` — the one owner of the machine per process, behind one `Mutex`. Inputs: hub state (role, latest
+  reading, `monitoringStartedAt`, sensor), alert settings (store `alerts`, key `alerts`, SPEC §3 JSON via
+  `AlertStateStore`), treatments (→ `Doses`), the wearer's mirrored settings and `alert` events (25), this device's
+  actions (`AlertControls` in `:core:model`, also the notification buttons). Per input: machine → effects applied
+  (`AlertPresenter`, `AlertEventSink`, `AlertAlarm`) → `AlertRecord` saved (typed store) → `AlertUiState` published to
+  the hub. Role `null` is ignored (setup / hub loading); `monitoringStartedAt == null` switches `no_data` off.
+- `AlertCheckReceiver` (exact alarm, boot, update, clock / zone change) → `runtime.tick()` from the saved record with
+  the service dead → `sensorEnd.check()` → `MonitorRestarter.restart()` (10's starter). `AlertActionReceiver` (Mute… /
+  Change time direct reply, Remind less / as usual, Unmute, swipe tidy). Both non-exported, `goAsync` with a 9 s budget.
+- `AlertNotifier` + `AlertChannels` (`alert.<kind>` / `alert_alarm.<kind>`) + `NotificationGroups` (`notify/`: the
+  `alerts` and `info` notification groups with summaries; every alerting notification of the app belongs to one) +
+  `AlertSoundProvider` (`${applicationId}.alertsound`, exported read-only for System UI) + `AlertHaptics`.
+- `SensorEndNotifier` (`monitor/sensorend/`): `SensorEndPlan` (pure) + its own exact alarm.
+- `AlertsModule` (A4) wires it; the Application implements `AlertsHost` so receivers and the provider reach it; the
+  monitoring service calls `attach(scope)`.
+
 ### Sensor
 <!-- Chunks 12 / 18: GattLink, Libre 3, pairing store, new-sensor flow. -->
 
@@ -45,6 +63,30 @@ How Sukrara V1 is built. Each part is filled in by the work that builds it; the 
 
 ### Card, widgets and UI
 <!-- Chunks 08 / 16 / 17 / 20: the one renderer, home, settings, widgets. -->
+
+**The one card renderer: `:core:graph`** (package `app.mauri.sukrara.graph`, flat so `tools/check` card-api matches
+the `api` names in `contracts/graph/surfaces/surfaces.json`).
+
+- **Entry points.** `GlucoseCard.draw(canvas, w, h, model, style, palette, d, surface, part)` lays out and paints a
+  `CardPart` (whole card, header, value, slots, chart) and returns a `CardLayout` (every element's name, box and
+  what it shows: what the layout tests read). `GlucoseCard.image` draws into a bitmap (widgets, notification, lock
+  screen). `GlucoseCard.face` gives text / icon places the value, trend mark and freshness step (`GlucoseLook`).
+  `A11y` builds the screen-reader sentence from the same decisions.
+- **Inputs, no app state.** `CardModel` = readings (`GlucosePoint`), treatments, `nowS`, `CardWords`, `CardStatus`,
+  `MuteRule?`, `SensorInfo?`, countdown hours and an optional `metricsOf` cache. `CardStyle` / `GraphStyle` come from
+  the surface and its place's `GraphConfig` (built by the settings repository from the schema keys; `GraphConfig`
+  is a plain data class, not a JSON blob). The renderer depends only on `:core:model` and the generated
+  `SettingsSpec` (`:core:data`): no `:core:alerts`, no `:monitor`.
+- **Status from outside.** The alert runtime (chunk 11) maps its alert status to `CardStatus` (None / Needed /
+  Taken / Paused / Muted) and supplies the `MuteRule` (when a treatment's mute ends, from the alert settings). The
+  renderer only draws them (badge, last-treatment slot, mute lines).
+- **Words.** `CardWords.of(resources)` once per `Resources` (en + es strings of the module); durations through the one
+  formatter `core.model.Durations` with the `duration_*` strings.
+- **Tests** (`./gradlew :core:graph:testDebugUnitTest :core:graph:verifyRoborazziDebug`): `GraphFixtureTest`
+  (contracts/graph share, mark, sensor, place, labels, status), `FreshnessFixtureTest`, `ClockTest`, `DurationsTest`
+  (contracts/settings/durations.json, en + es), `A11ySentenceTest`, `CardLayoutTest` (contracts/graph/layout rules
+  and `expect.json` over stand-ins for the registered card surfaces until their code lands) and the Roborazzi
+  goldens in `core/graph/src/test/snapshots` (synthetic data, UTC, en-US).
 
 ### Integrations and pens
 <!-- Chunks 19 / 26. -->

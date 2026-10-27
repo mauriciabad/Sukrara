@@ -182,7 +182,12 @@ object TirRing {
     ) {
         val mark = mark(tir, spec)
         val sw = r * 0.2f
-        val ring = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE; strokeWidth = sw; strokeCap = Paint.Cap.BUTT }
+        val ring =
+            Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                style = Paint.Style.STROKE
+                strokeWidth = sw
+                strokeCap = Paint.Cap.BUTT
+            }
         val oval = RectF(cx - r + sw / 2, cy - r + sw / 2, cx + r - sw / 2, cy + r - sw / 2)
         val alpha = (255 * emphasis).toInt()
         val crownW = r * 0.74f
@@ -345,7 +350,11 @@ internal object MetricGauge {
             cv.drawArc(oval, -90f, 360f * f, false, ring)
         }
         val ga = Math.toRadians(-90.0 + 360.0 * (goal - lo) / (hi - lo))
-        val tick = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = ColorUtils.setAlphaComponent(pal.ink, alpha); strokeWidth = 1.6f * d }
+        val tick =
+            Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                color = ColorUtils.setAlphaComponent(pal.ink, alpha)
+                strokeWidth = 1.6f * d
+            }
         val r0 = radius - sw * 1.15f
         val r1 = radius + sw * 0.15f
         cv.drawLine(
@@ -361,7 +370,11 @@ internal object MetricGauge {
                 typeface = RoundedFont.typeface(800)
                 textSize = radius * 0.62f
             }
-        val unit = Paint(num).apply { textSize = radius * 0.3f; typeface = RoundedFont.typeface(600) }
+        val unit =
+            Paint(num).apply {
+                textSize = radius * 0.3f
+                typeface = RoundedFont.typeface(600)
+            }
         val sub =
             Paint(num).apply {
                 textAlign = Paint.Align.CENTER

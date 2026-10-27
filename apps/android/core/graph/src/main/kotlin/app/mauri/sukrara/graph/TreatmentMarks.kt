@@ -75,9 +75,17 @@ class MarkShow private constructor(
         fun parse(text: String?): MarkShow {
             if (text.isNullOrBlank()) return DEFAULT
             val got =
-                text.split(",")
+                text
+                    .split(",")
                     .mapNotNull { e -> e.split(":", limit = 2).takeIf { it.size == 2 }?.let { it[0].trim() to it[1] } }
-                    .associate { (k, v) -> k to v.split("+").map { it.trim() }.filter { it.isNotEmpty() }.toSet() }
+                    .associate { (k, v) ->
+                        k to
+                            v
+                                .split("+")
+                                .map { it.trim() }
+                                .filter { it.isNotEmpty() }
+                                .toSet()
+                    }
             return of(KINDS.associateWith { k -> got[k] ?: defaults(k) })
         }
     }
@@ -130,7 +138,8 @@ object TreatmentMarks {
         tr: Treatment,
         noteChars: Int = 0,
     ): String? =
-        amount(tr) ?: tr.note.trim()
+        amount(tr) ?: tr.note
+            .trim()
             .takeIf { noteChars > 0 && it.isNotEmpty() }
             ?.let { if (it.length > noteChars) it.take(noteChars - 1).trimEnd() + "…" else it }
 
@@ -183,14 +192,27 @@ object TreatmentMarks {
                     )
                 }
             }
-            "carbs" -> cv.drawCircle(x, y, r * 0.8f, fill)
+
+            "carbs" -> {
+                cv.drawCircle(x, y, r * 0.8f, fill)
+            }
+
             // the "Replace sensor" pill: the Libre sensor disc
             "sensor" -> {
-                cv.drawCircle(x, y, r * 0.8f, Paint(fill).apply { style = Paint.Style.STROKE; strokeWidth = r * 0.26f })
+                cv.drawCircle(
+                    x,
+                    y,
+                    r * 0.8f,
+                    Paint(fill).apply {
+                        style = Paint.Style.STROKE
+                        strokeWidth = r * 0.26f
+                    },
+                )
                 cv.drawCircle(x, y, r * 0.3f, fill)
             }
+
             // the "Now" pill over a scrolled chart: "arrow_back" mirrored to "arrow_forward"
-            "now" ->
+            "now" -> {
                 cv.drawPath(
                     Path(arrowBack).apply {
                         transform(
@@ -204,7 +226,9 @@ object TreatmentMarks {
                     },
                     fill,
                 )
-            else ->
+            }
+
+            else -> {
                 cv.drawPath(
                     Path().apply {
                         moveTo(x, y - r * 0.67f)
@@ -215,6 +239,7 @@ object TreatmentMarks {
                     },
                     fill,
                 )
+            }
         }
     }
 
@@ -282,12 +307,19 @@ object TreatmentMarks {
         show: MarkShow = MarkShow.DEFAULT,
     ): Layout {
         val items =
-            list.filter { !it.deleted && amount(it) != null && show.label(it.k) }
+            list
+                .filter { !it.deleted && amount(it) != null && show.label(it.k) }
                 .sortedWith(compareBy<Treatment>({ it.t }, { ORDER.getValue(it.k) }, { it.amount }, { it.id }))
         val groups = ArrayList<MutableList<Treatment>>()
         for (tr in items) {
             val g = groups.lastOrNull()
-            if (g != null && (tr.t - g.last().t <= MERGE_S || x(tr.t) - x(g.first().t) < MERGE_DP * d)) g += tr else groups += mutableListOf(tr)
+            if (g != null &&
+                (tr.t - g.last().t <= MERGE_S || x(tr.t) - x(g.first().t) < MERGE_DP * d)
+            ) {
+                g += tr
+            } else {
+                groups += mutableListOf(tr)
+            }
         }
         val size = LABEL_DP * d
         val gap = LABEL_GAP_DP * d
@@ -427,7 +459,11 @@ object TreatmentMarks {
         base1: Float,
         sep: Int,
     ) {
-        val bold = Paint(Paint.ANTI_ALIAS_FLAG).apply { textSize = LABEL_DP * d; typeface = Typeface.DEFAULT_BOLD }
+        val bold =
+            Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                textSize = LABEL_DP * d
+                typeface = Typeface.DEFAULT_BOLD
+            }
         val medium = Paint(bold).apply { typeface = Typeface.create(Typeface.DEFAULT, 500, false) }
         val drawn =
             layout.labels.map { l ->
@@ -438,7 +474,12 @@ object TreatmentMarks {
                 }
                 val timeOf = l.timeOf
                 if (l.time != null && timeOf != null) {
-                    pieces += Piece(if (pieces.isEmpty()) l.time else " ${l.time}", medium, ColorUtils.setAlphaComponent(color(pal, timeOf.k), 0xC0))
+                    pieces +=
+                        Piece(
+                            if (pieces.isEmpty()) l.time else " ${l.time}",
+                            medium,
+                            ColorUtils.setAlphaComponent(color(pal, timeOf.k), 0xC0),
+                        )
                 }
                 val w = pieces.sumOf { it.paint.measureText(it.s).toDouble() }.toFloat()
                 Triple(l, pieces, l.left + (l.w - w) / 2) // the real text, centred in its modelled box
@@ -507,7 +548,8 @@ object LastTreatment {
         val tr =
             live.filter { it.k == "rapid" && (until(it) ?: 0) > now }.maxByOrNull { it.t }
                 ?: taken
-                ?: live.filter { t -> keepS(t)?.let { now - t.t < it } == true }
+                ?: live
+                    .filter { t -> keepS(t)?.let { now - t.t < it } == true }
                     .maxWithOrNull(compareBy<Treatment> { it.t / 60 }.thenBy { if (it.k == "rapid") 1 else 0 })
                 ?: return null
         val u = until(tr)
