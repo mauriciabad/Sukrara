@@ -19,7 +19,14 @@ import app.mauri.sukrara.core.model.AlertQuietSide
 import app.mauri.sukrara.core.model.AlertReadiness
 import app.mauri.sukrara.core.model.AlertRequirement
 import app.mauri.sukrara.core.model.AlertUiState
+import app.mauri.sukrara.core.model.SensorState
 import app.mauri.sukrara.designsystem.theme.SukraraTheme
+import app.mauri.sukrara.feature.settings.sensor.LibreViewSummary
+import app.mauri.sukrara.feature.settings.sensor.SensorSettingsActions
+import app.mauri.sukrara.feature.settings.sensor.SensorSettingsContent
+import app.mauri.sukrara.feature.settings.sensor.SensorSettingsState
+import app.mauri.sukrara.feature.settings.sensor.SensorSummary
+import app.mauri.sukrara.feature.settings.sensor.SourceChoice
 import com.github.takahirom.roborazzi.captureRoboImage
 import org.junit.Rule
 import org.junit.Test
@@ -54,6 +61,14 @@ class SettingsGallery {
             assets = listOf(ReleaseAsset("Sukrara-0.90.1.dmg", "https://example.invalid/d"), ReleaseAsset("Sukrara-0.90.1.apk", "https://example.invalid/a")),
         )
 
+    private val sensorWorking =
+        SensorSettingsState(
+            SourceChoice.Libre3Direct,
+            SensorState.Active(now.plusSeconds(9 * 86_400 + 4 * 3600)),
+            SensorSummary("3MH00SYNTH1", now.minusSeconds(5 * 86_400 + 20 * 3600), now.plusSeconds(9 * 86_400 + 4 * 3600)),
+            LibreViewSummary("wearer@example.invalid", 2_864_434_397),
+        )
+
     private val pages: List<Pair<String, @Composable () -> Unit>> =
         listOf(
             "overview" to { SettingsOverviewContent(true, AlertUiState(), AlertReadiness(setOf(AlertRequirement.ExactAlarm)), zone, OverviewActions()) {} },
@@ -70,6 +85,14 @@ class SettingsGallery {
             "reliability" to { ReliabilityContent(AlertReadiness(setOf(AlertRequirement.FullScreenIntent, AlertRequirement.BatteryExemption)), {}) {} },
             "about-update" to { AboutContent("0.90.0", UpdateState.Available(release), {}) {} },
             "about-offline" to { AboutContent("0.90.0", UpdateState.Offline, {}) {} },
+            "sensor" to { SensorSettingsContent(sensorWorking, now, zone, SensorSettingsActions()) {} },
+            "sensor-ended" to { SensorSettingsContent(sensorWorking.copy(state = SensorState.Ended), now, zone, SensorSettingsActions()) {} },
+            "sensor-juggluco-signed-out" to {
+                SensorSettingsContent(sensorWorking.copy(source = SourceChoice.Juggluco, sensor = null, account = null), now, zone, SensorSettingsActions()) {}
+            },
+            "sensor-none" to {
+                SensorSettingsContent(SensorSettingsState(SourceChoice.Libre3Direct, SensorState.None, null, null), now, zone, SensorSettingsActions()) {}
+            },
         )
 
     private fun gallery(
@@ -103,5 +126,5 @@ class SettingsGallery {
     @Test fun darkLargest() = gallery(dark = true, fontScale = 2f)
 
     @Test @Config(qualifiers = "es")
-    fun spanish() = gallery(dark = true, fontScale = 1f, prefix = "es-", only = setOf("alerts", "alert-kind-low-muted", "threshold-review", "about-update"))
+    fun spanish() = gallery(dark = true, fontScale = 1f, prefix = "es-", only = setOf("alerts", "alert-kind-low-muted", "threshold-review", "about-update", "sensor", "sensor-juggluco-signed-out"))
 }

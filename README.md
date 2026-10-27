@@ -90,6 +90,9 @@ by the app's icon code.</sub>
   warm-up countdown and the first reading. Turning NFC or Bluetooth on, the LibreView sign-in and every problem
   (ended sensor, Libre 2, a failed scan, another app holding the sensor) are handled on the same screen. Tapping a
   sensor while Sukrara is closed opens this screen and uses that tap. [21](docs/21-new-sensor-flow.md)
+- Settings › Sensor shows the current sensor (status, serial, start, end and time left), switches the reading source
+  between the Libre 3 directly and Juggluco (saying first what changes), and signs in or out of LibreView (email and
+  receiver ID shown, the password never stored), with *Pair new sensor* one tap away.
 - Sensor end reminders that fit your day: at the times you choose (default: the day before and on the end day at
   09:00, "Sensor ends tomorrow at 14:30"), or earlier at your first unlock of the morning (from 05:00); on the last
   day "Take your spare sensor with you"; and if the sensor ends during your night (23:00–07:00, editable), a reminder

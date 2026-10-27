@@ -120,6 +120,8 @@ class AppGraph(
 
     val sensorUi by lazy { SensorUiModule(app, sensor, data.settings, clock, scope, startMonitoring = { startMonitoring(StartReason.App) }) }
 
+    val sensorSettings by lazy { SensorSettingsBridge(sensor, data.settings, SensorSource) { startMonitoring(StartReason.App) } }
+
     val home by lazy {
         HomeModule(
             context = app,
