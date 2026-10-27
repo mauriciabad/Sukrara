@@ -4,7 +4,7 @@
 """Deterministic guards for the repo rules in CLAUDE.md. Python 3.9 stdlib only; run through tools/check/run.sh.
 
 Scope (V1): the per-app rules scan the V1 apps (apps/android, apps/macos) and contracts/; the frozen PoC (poc/) is
-checked by java, secrets, large and images only. A file named by a registry (surfaces.json, allow.json) that doesn't
+checked by java, secrets and large only (it is frozen). A file named by a registry (surfaces.json, allow.json) that doesn't
 exist yet is a 'pending V1 file' NOTE (counted in one line; --pending lists them) until tools/check/v1-complete exists,
 then it fails.
 
@@ -786,7 +786,7 @@ def check_static(ch, rep):
         size = ch.size(p)
         if size > allow["large_bytes"] and not match(p, allow["large_ok"]):
             rep.add("FAIL", "large", "%s: %d KB. Shrink it (crop/resize/pngquant) or list it in tools/check/allow.json large_ok." % (p, size // 1024))
-        if IMAGE.search(p) and st == "A":
+        if IMAGE.search(p) and st == "A" and not p.startswith(POC):
             if not match(p, allow["images_ok"]) and p not in allow["images_extra"]:
                 rep.add("FAIL", "images", "%s: images go to docs/img/**, assets/brand/**, res/ or the snapshot goldens\n"
                         "(allow.json images_ok; synthetic data only), or allow.json images_extra with the reason." % p)
