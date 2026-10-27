@@ -88,8 +88,10 @@ class HomeGallery {
             "sensor-ended" to ui(Samples.wearer(sensor = SensorState.Ended)),
             "bluetooth-off" to ui(Samples.wearer(ageMin = 25, sensor = SensorState.BluetoothOff)),
             "core-missing" to ui(Samples.wearer(sensor = SensorState.CoreMissing)),
-            "monitoring-stopped" to ui(Samples.wearer(ageMin = 25).copy(service = ServiceState.Stopped(StopReason.StartDenied))),
+            "monitoring-stopped" to
+                ui(Samples.wearer(ageMin = 25).copy(service = ServiceState.Stopped(StopReason.StartDenied)), banner = BannerKind.MonitoringStopped),
             "wearer-silent" to ui(Samples.wearer(ageMin = 30).copy(role = Role.Follower, link = LinkState("Ana", NOW.minus(Duration.ofMinutes(30))))),
+            "link-revoked" to ui(follower.copy(link = LinkState("Ana", NOW.minus(Duration.ofMinutes(5)), revoked = true))),
             "follower" to ui(follower),
             "muted" to ui(Samples.wearer().copy(alerts = AlertUiState(mutedUntil = NOW.plus(Duration.ofMinutes(72))))),
             "alerts-unreliable" to ui(Samples.wearer(), banner = BannerKind.AlertsUnreliable),
@@ -133,14 +135,23 @@ class HomeGallery {
     @Test @Config(qualifiers = "es")
     fun spanishInRange() = gallery(dark = true, fontScale = 1f, only = listOf("in-range", "no-sensor-yet", "showcase-installed"), prefix = "es-")
 
+    /** A small phone at the largest font: a safety banner must be on screen without scrolling (ux-batch1 F2). */
+    @Test @Config(qualifiers = "w360dp-h640dp-xhdpi")
+    fun smallPhoneSafetyBanner() =
+        gallery(dark = false, fontScale = 2f, only = listOf("alerts-unreliable", "monitoring-stopped", "showcase-installed"), prefix = "360x640-")
+
     @Test fun dataProblemScreen() {
         compose.setContent {
             SukraraTheme(dark = true, dynamic = false) {
                 DataProblemScreen(
-                    listOf(DataProblem("settings", "SerializationException", "settings.corrupt-1767.json", NOW)),
+                    listOf(
+                        DataProblem("settings:alerts", "SerializationException", "settings.corrupt-1767.json", NOW),
+                        DataProblem("database:history", "sqlite corruption", null, NOW),
+                    ),
                     onCopyReport = {},
                     onAcknowledge = {},
                     onBack = {},
+                    onOpenAlertSettings = {},
                 )
             }
         }

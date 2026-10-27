@@ -77,9 +77,13 @@ fun homeLook(
     return GlucoseCard.face(state.latest?.toPoint(), now.epochSecond, sensor, CardSurface.APP_PANEL)
 }
 
-/** The sensor's dates as the card needs them; null when nothing is known (the card then shows no sensor badge). */
-private fun SensorState.info(): SensorInfo? =
+/**
+ * The sensor's dates as the card needs them; null when nothing is known (the card then shows no sensor badge). An ended
+ * sensor without dates ends at [now], so the renderer draws "Sensor ended" + "Replace sensor" in the value's place.
+ */
+private fun SensorState.info(now: Instant): SensorInfo? =
     when (this) {
+        SensorState.Ended -> SensorInfo(startS = now.epochSecond - SENSOR_LIFE.seconds, endS = now.epochSecond)
         is SensorState.Active -> endsAt?.let { SensorInfo(startS = it.epochSecond - SENSOR_LIFE.seconds, endS = it.epochSecond) }
         is SensorState.WarmingUp -> {
             val start = readyAt.epochSecond - WARMUP.seconds
@@ -118,7 +122,7 @@ fun PanelCard(
                 nowS = nowS,
                 words = words,
                 status = glucose.alerts.mutedUntil?.takeIf { it > now }?.let { CardStatus.Muted(it.epochSecond) } ?: CardStatus.None,
-                sensor = glucose.sensor.info(),
+                sensor = glucose.sensor.info(now),
             )
         }
     val style = remember { CardStyle(graph = GraphStyle(windowS = DEFAULT_SPAN_S), sensorTime = true) }
@@ -165,18 +169,26 @@ private val CARD_HEIGHT = 300.dp
 
 /**
  * What TalkBack reads for the card: the value sentence ("112 milligrams per decilitre, falling slowly, in range,
- * 2 minutes ago"; an old value says so first) and the chart summary. Empty when there is no value (the reason panel
- * speaks instead).
+ * 2 minutes ago"; an old value says so first) and the chart summary. Without a value only the chart summary (the reason
+ * under the card speaks for the missing value); empty when the chart has nothing either.
  */
 fun cardDescription(
     state: HomeUiState,
     resources: Resources,
 ): String {
+    val bands = Bands()
+    val window = state.glucose.recent.filter { it.t >= state.now.minusSeconds(DEFAULT_SPAN_S) }
+    val chart =
+        if (window.isEmpty()) {
+            null
+        } else {
+            val inRange = window.count { bands.of(it.mgdl).group == 0 } * 100 / window.size
+            resources.getString(R.string.home_a11y_chart, (DEFAULT_SPAN_S / 3600).toInt(), inRange)
+        }
     val reading = state.glucose.latest
     val text = state.look.text
-    if (!state.look.shown || reading == null || text == null) return ""
+    if (!state.look.shown || reading == null || text == null) return chart.orEmpty()
     val words = CardWords.of(resources)
-    val bands = Bands()
     val range =
         when (bands.of(reading.mgdl)) {
             Band.VERY_LOW -> R.string.home_a11y_range_very_low
@@ -190,8 +202,5 @@ fun cardDescription(
     val trend = words.trend(state.look.rate.takeIf { state.look.trend == TrendMark.ARROW })
     val sentence = resources.getString(R.string.home_a11y_value, text, trend, resources.getString(range), age)
     val value = if (state.look.strike) resources.getString(R.string.home_a11y_stale, sentence) else sentence
-    val window = state.glucose.recent.filter { it.t >= state.now.minusSeconds(DEFAULT_SPAN_S) }
-    if (window.isEmpty()) return value
-    val inRange = window.count { bands.of(it.mgdl).group == 0 } * 100 / window.size
-    return value + ". " + resources.getString(R.string.home_a11y_chart, (DEFAULT_SPAN_S / 3600).toInt(), inRange)
+    return if (chart == null) value else "$value. $chart"
 }

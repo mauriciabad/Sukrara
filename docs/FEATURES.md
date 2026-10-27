@@ -264,13 +264,16 @@ Glucose first: the card (value, arrow, slots, 6 h chart through the one renderer
 *Now* to return) with the sensor's end date under it; then at most **one** non-glucose banner; the Mute alerts strip
 (time left + *Unmute*); the last 24 h of treatments (delete → *Treatment deleted* snackbar with *Undo* for 5 s; the
 delete is a tombstone version so sync carries it, Undo a newer version); *Add treatment* (floating pill, opens chunk
-19's quick dialog). Follower: the header says *Following <name>* and *Connected · last heard …*. TalkBack reads the
+19's quick dialog). Follower: the header says *Following <name>* and, from the same decision as the card's reason, *Last heard just now* / *Last heard 2 minutes ago* (never "0 minutes"), *Not hearing from <name> since 1:24 AM* (error colour; the date too after 12 h) or *No longer following*. TalkBack reads the
 card as one sentence (*112 milligrams per decilitre, falling, in range, 2 minutes ago*, *Old reading: …* when struck)
 plus the chart summary (*Chart of the last 6 hours: 80% in range*); Unmute is a custom action. Haptics only on the
 person's actions (dismiss, delete, undo, unmute); passive updates never vibrate or bounce; reduced motion snaps.
 
-**No data reasons** (never a bare "---"; the first match wins, and a reason only replaces the card when the card itself
-hides the number): *Sukrara isn't set up yet* → Set up; *Not monitoring: no sensor yet* before the first reading ever
+**No data reasons** (never a bare "---"; the first match wins; a reason is given only when the card itself hides the
+number). The card always stays, with its chart (the renderer draws *No reading since …* + `sensors_off`, the warm-up
+countdown or *Sensor ended* + *Replace sensor*), and the reason sits **under** it, compact: title, one explanation, the
+action, no icon. Only when there is nothing to draw (not set up, no sensor yet, core missing) a full-width reason takes
+the card's place. Reasons: *Sukrara isn't set up yet* → Set up; *Not monitoring: no sensor yet* before the first reading ever
 (no "no data" alarm is armed in this state; follower: *not following anyone yet* → Join) → Pair sensor; *This build
 can't read Libre 3 sensors* (no action); *Sensor ended* → Pair new sensor; *Sensor warming up* (first reading at …);
 *You no longer follow this person* → Join with a new invite; *Monitoring stopped* → Resume monitoring; *Bluetooth is
@@ -282,13 +285,16 @@ sensor* (last reading …) → Sensor details. Not in V1 yet: "sensor owned by S
 the same items and order as setup's permission step) → Fix; (2) *Turn off Sukrara Showcase* while
 `app.mauri.sukrara.poc` is installed (re-checked on resume) → Open its app info; (3) *Some saved data was damaged*
 (`DataModule.corruption`) → Review; (4) *Finish setup* (next step) → Continue; (5) *Not backed up*; (6) *Add the glucose
-widget*; (7) *Share with your clinic*. 0–3 can't be dismissed; Finish setup's close = later (back after 24 h until
+widget*; (7) *Share with your clinic*. 0–3 are *safety* banners: error-container colours with a filled action at the start (clear of the floating button), drawn right under the card so they're on screen without scrolling, and *Add treatment* turns icon-only while one shows or the page is scrolled; tips use the neutral container. 0–3 can't be dismissed; Finish setup's close = later (back after 24 h until
 done); 5–7 close for good (typed state `home-banners`). A banner whose input isn't known on this build yet is never
 shown. Not in V1 yet: tips, the quiet all-green reliability row, the clinic report card.
 
-**Damaged data** screen (from the banner's Review): each damaged file (store, error type, the name the damaged copy was
-kept as), *Copy report* (no content, only what failed), *Got it* (acknowledges it; the banner leaves when none is
-left), Back.
+**Damaged data** screen (from the banner's Review; back arrow in the top bar): each damaged file as what it means for
+the person: settings → *Your settings were reset to the defaults. Check your alert levels and mutes.* with *Open alert
+settings* (shown once the settings screen declares `NavTargets.ACTION_ALERT_SETTINGS`); readings / treatments may be
+missing; a key or sign-in may need redoing; other saved data started again. *Copy report* (store, error type and the
+kept file's name; no content), *Got it* (acknowledges it; the banner leaves when none is left), Back. No exception or
+file names on screen.
 
 **States and exits**: *value* → scroll/zoom the chart → *Now*; *no data* → the reason's action (or wait: warming up,
 core missing explains why); *banner* → its action, or close (non-safety), safety banners leave when fixed; *muted* →

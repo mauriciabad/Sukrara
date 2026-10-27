@@ -14,6 +14,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -88,11 +89,14 @@ fun SukraraNavigation(
                 entry<DataProblemsRoute> {
                     val problems by graph.home.dataProblems.collectAsStateWithLifecycle()
                     LaunchedEffect(problems.isEmpty()) { if (problems.isEmpty()) backStack.remove(DataProblemsRoute) }
+                    val alertSettings = remember(context) { Intent(NavTargets.ACTION_ALERT_SETTINGS).setPackage(context.packageName) }
+                    val canOpenAlerts = remember(context) { context.packageManager.resolveActivity(alertSettings, 0) != null }
                     DataProblemScreen(
                         problems = problems,
                         onCopyReport = { copy(context, it) },
                         onAcknowledge = graph.home::acknowledge,
                         onBack = { backStack.removeLastOrNull() },
+                        onOpenAlertSettings = if (canOpenAlerts) ({ context.startActivity(alertSettings) }) else null,
                     )
                 }
             },
