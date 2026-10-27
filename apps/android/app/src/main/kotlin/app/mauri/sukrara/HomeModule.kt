@@ -39,6 +39,8 @@ class HomeModule(
     private val readinessSource: AlertReadinessSource,
     private val unmuteAlerts: () -> Unit,
     private val resume: () -> Unit,
+    /** Whether a graph widget is on the home screen, checked now (null = unknown: the banner stays hidden). */
+    private val widgetPlaced: () -> Boolean? = { null },
 ) : HomeDeps {
     override val treatments: TreatmentsRepository get() = data.treatments
 
@@ -59,7 +61,7 @@ class HomeModule(
     /** Re-reads what can change outside the app (the activity calls it on every resume). */
     fun refresh() {
         readinessSource.refresh()
-        env.update { it.copy(showcaseInstalled = Showcase.installed(context.packageManager)) }
+        env.update { it.copy(showcaseInstalled = Showcase.installed(context.packageManager), widgetPlaced = widgetPlaced()) }
     }
 
     override fun acknowledge(problem: DataProblem) {

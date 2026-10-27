@@ -12,6 +12,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilledTonalButton
@@ -36,6 +38,9 @@ import app.mauri.sukrara.core.designsystem.R
 import app.mauri.sukrara.designsystem.motion.Reveal
 import app.mauri.sukrara.designsystem.motion.Swap
 
+/** How much a banner matters: [Safety] = alerts or readings may not work (error colours, filled action); [Info] = a tip. */
+enum class BannerSeverity { Safety, Info }
+
 /**
  * One non-glucose banner (set up X, permission missing, the showcase still installed). [id] keys the cross-fade
  * from one banner to the next; [onDismiss] null = it can't be dismissed (it goes away only when fixed through
@@ -49,6 +54,7 @@ data class Banner(
     val action: String?,
     val onAction: () -> Unit,
     val onDismiss: (() -> Unit)?,
+    val severity: BannerSeverity = BannerSeverity.Info,
 ) {
     init {
         require(action != null || onDismiss != null) { "banner $id has no way out: give it an action or a dismiss" }
@@ -75,19 +81,24 @@ fun BannerSlot(
 
 @Composable
 private fun BannerCard(b: Banner) {
+    val safety = b.severity == BannerSeverity.Safety
+    val colors = MaterialTheme.colorScheme
+    val container = if (safety) colors.errorContainer else colors.surfaceContainerHigh
+    val content = if (safety) colors.onErrorContainer else colors.onSurface
     Card(
         Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp).semantics { liveRegion = LiveRegionMode.Polite },
         shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
+        colors = CardDefaults.cardColors(containerColor = container, contentColor = content),
     ) {
         Column(Modifier.padding(start = 16.dp, top = 12.dp, end = 4.dp, bottom = 12.dp)) {
             Row(verticalAlignment = Alignment.Top) {
-                Icon(painterResource(b.icon), contentDescription = null, tint = MaterialTheme.colorScheme.primary,
+                // a safety banner's icon is never the informational primary blue
+                Icon(painterResource(b.icon), contentDescription = null, tint = if (safety) content else colors.primary,
                     modifier = Modifier.padding(top = 12.dp))
                 Spacer(Modifier.width(16.dp))
                 Column(Modifier.weight(1f).padding(top = 10.dp)) {
                     Text(b.title, style = MaterialTheme.typography.titleMedium)
-                    Text(b.text, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(b.text, style = MaterialTheme.typography.bodyMedium, color = if (safety) content else colors.onSurfaceVariant)
                 }
                 b.onDismiss?.let {
                     IconButton(onClick = it) {
@@ -96,8 +107,18 @@ private fun BannerCard(b: Banner) {
                 }
             }
             b.action?.let { label ->
-                Row(Modifier.fillMaxWidth().padding(end = 12.dp, top = 8.dp), horizontalArrangement = Arrangement.End) {
-                    FilledTonalButton(onClick = b.onAction) { Text(label) }
+                // a safety action starts at the text's edge, clear of the floating button in the bottom-end corner
+                Row(
+                    Modifier.fillMaxWidth().padding(start = 40.dp, end = 12.dp, top = 8.dp),
+                    horizontalArrangement = if (safety) Arrangement.Start else Arrangement.End,
+                ) {
+                    if (safety) {
+                        Button(onClick = b.onAction, colors = ButtonDefaults.buttonColors(containerColor = colors.error, contentColor = colors.onError)) {
+                            Text(label)
+                        }
+                    } else {
+                        FilledTonalButton(onClick = b.onAction) { Text(label) }
+                    }
                 }
             }
         }

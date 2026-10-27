@@ -18,6 +18,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExtendedFloatingActionButton
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -31,8 +32,11 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -53,6 +57,7 @@ import app.mauri.sukrara.core.model.SensorState
 import app.mauri.sukrara.core.model.Treatment
 import app.mauri.sukrara.core.model.TreatmentKind
 import app.mauri.sukrara.designsystem.banner.Banner
+import app.mauri.sukrara.designsystem.banner.BannerSeverity
 import app.mauri.sukrara.designsystem.banner.BannerSlot
 import app.mauri.sukrara.designsystem.haptics.rememberHaptics
 import app.mauri.sukrara.designsystem.motion.Reveal
@@ -62,6 +67,7 @@ import app.mauri.sukrara.designsystem.state.StateScreen
 import app.mauri.sukrara.feature.home.banners.BannerKind
 import app.mauri.sukrara.graph.CardWords
 import app.mauri.sukrara.graph.Clock
+import java.time.Duration
 import java.time.Instant
 import app.mauri.sukrara.core.designsystem.R as DsR
 
@@ -125,6 +131,11 @@ fun HomeContent(
         }
     }
     val follower = state.glucose.role == Role.Follower
+    val scroll = rememberScrollState()
+    val shownBanner = banner(state, callbacks, onDismissed = { haptics.confirm() })
+    // a safety banner sits right under the card (seen without scrolling); a tip goes below the glucose block
+    val safetyBanner = shownBanner?.takeIf { it.severity == BannerSeverity.Safety }
+    val infoBanner = shownBanner?.takeIf { it.severity == BannerSeverity.Info }
     Scaffold(
         modifier = modifier.fillMaxSize(),
         topBar = {
@@ -139,10 +150,15 @@ fun HomeContent(
         },
         floatingActionButton = {
             if (state.glucose.role != null) {
+                // icon-only while a safety banner shows or the page is scrolled, so it never covers what matters
+                val atTop by remember { derivedStateOf { scroll.value == 0 } }
+                val expanded = safetyBanner == null && atTop
+                val label = stringResource(R.string.home_add_treatment)
                 ExtendedFloatingActionButton(
                     onClick = { callbacks.onAction(HomeAction.AddTreatment) },
-                    icon = { Icon(painterResource(R.drawable.home_ic_add), contentDescription = null) },
-                    text = { Text(stringResource(R.string.home_add_treatment)) },
+                    expanded = expanded,
+                    icon = { Icon(painterResource(R.drawable.home_ic_add), contentDescription = if (expanded) null else label) },
+                    text = { Text(label) },
                 )
             }
         },
@@ -152,12 +168,12 @@ fun HomeContent(
             Modifier
                 .padding(padding)
                 .fillMaxSize()
-                .verticalScroll(rememberScrollState()),
+                .verticalScroll(scroll),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            // glucose first: the value (or why there is none) is always at the top, the one banner under it
-            GlucoseSection(state, callbacks)
-            BannerSlot(banner(state, callbacks, onDismissed = { haptics.confirm() }))
+            // glucose first: the card (or, before any reading, why there is none) is always at the top
+            GlucoseSection(state, callbacks, safetyBanner)
+            BannerSlot(infoBanner)
             MuteStrip(state.mutedUntil, state.now) {
                 haptics.confirm()
                 callbacks.onUnmute()
@@ -172,40 +188,78 @@ fun HomeContent(
     }
 }
 
+/**
+ * Who is followed and how the link is, from the same decision as the card's reason: fresh = when last heard ("just
+ * now", "2 minutes ago"); silent = since when nothing came, in the error colour; removed = no longer following.
+ */
 @Composable
 private fun FollowerHeader(state: HomeUiState) {
     val link = state.glucose.link
+    val name = link?.wearerName
     Column {
         Text(
-            link?.wearerName?.let { stringResource(R.string.home_following, it) } ?: stringResource(R.string.home_following_unnamed),
+            when {
+                // removed: just the name, so the title never says "Following" over "No longer following"
+                state.reason == NoDataReason.LinkRevoked -> name ?: stringResource(R.string.home_following_unnamed)
+                name != null -> stringResource(R.string.home_following, name)
+                else -> stringResource(R.string.home_following_unnamed)
+            },
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )
-        val heard = link?.lastHeardAt
+        val (line, trouble) =
+            when (val reason = state.reason) {
+                NoDataReason.LinkRevoked -> stringResource(R.string.home_link_revoked) to true
+                is NoDataReason.WearerSilent -> {
+                    val since = reason.since
+                    when {
+                        since == null -> stringResource(R.string.home_link_never)
+                        name == null -> stringResource(R.string.home_link_silent_unnamed, sinceTime(since, state.now))
+                        else -> stringResource(R.string.home_link_silent, name, sinceTime(since, state.now))
+                    } to true
+                }
+                else ->
+                    (link?.lastHeardAt?.let { stringResource(R.string.home_link_heard, relative(it, state.now)) } ?: stringResource(R.string.home_link_never)) to
+                        false
+            }
         Text(
-            if (heard == null) stringResource(R.string.home_link_never) else stringResource(R.string.home_link_heard, relative(heard, state.now)),
+            line,
             style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            color = if (trouble) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
         )
     }
 }
 
+/**
+ * The card, always (its chart keeps the last trajectory and the renderer draws the stale / warm-up / ended face), then
+ * a safety banner, then the compact reason with its action. Only before there is anything to draw (not set up, no
+ * sensor yet, no core) a full-width reason takes the card's place; that swap cross-fades (reduced motion: snaps).
+ */
 @Composable
 private fun GlucoseSection(
     state: HomeUiState,
     callbacks: HomeCallbacks,
+    safetyBanner: Banner?,
 ) {
     val resources = LocalContext.current.resources
     val unmuteLabel = stringResource(R.string.home_a11y_unmute)
-    // a reason replaces the value; the swap cross-fades (reduced motion: snaps); the reason is announced politely
-    Swap(state.reason) { reason ->
-        if (reason == null) {
-            Column(Modifier.padding(horizontal = 16.dp)) {
+    Swap(state.reason?.takeIf { it.fullPage }) { fullPage ->
+        if (fullPage != null) {
+            Column {
+                ReasonPage(fullPage, state.now) { callbacks.onAction(it) }
+                // safety banners show in every state (e.g. the showcase still installed before the first sensor)
+                BannerSlot(safetyBanner)
+            }
+        } else {
+            Column {
                 PanelCard(
                     glucose = state.glucose,
                     treatments = state.treatments,
                     now = state.now,
                     description = cardDescription(state, resources),
+                    modifier = Modifier.padding(horizontal = 16.dp),
                     actions =
                         if (state.mutedUntil != null) {
                             listOf(CustomAccessibilityAction(unmuteLabel) { callbacks.onUnmute().let { true } })
@@ -213,10 +267,12 @@ private fun GlucoseSection(
                             emptyList()
                         },
                 )
+                BannerSlot(safetyBanner)
+                // Monitoring stopped already has its safety banner (banner 0): never say it twice
+                val compact = state.reason?.takeUnless { it == NoDataReason.MonitoringStopped && state.banner == BannerKind.MonitoringStopped }
+                ReasonRow(compact, state.now) { callbacks.onAction(it) }
                 SensorLine(state)
             }
-        } else {
-            ReasonPanel(reason, state.now) { callbacks.onAction(it) }
         }
     }
 }
@@ -228,12 +284,13 @@ private fun SensorLine(state: HomeUiState) {
         stringResource(R.string.home_sensor_ends, relative(ends, state.now)),
         style = MaterialTheme.typography.bodyMedium,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
-        modifier = Modifier.padding(top = 4.dp),
+        modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 4.dp),
     )
 }
 
+/** Before there is anything to draw: the reason in the card's place, announced politely. */
 @Composable
-private fun ReasonPanel(
+private fun ReasonPage(
     reason: NoDataReason,
     now: Instant,
     onAction: (HomeAction) -> Unit,
@@ -241,12 +298,47 @@ private fun ReasonPanel(
     val text = reasonText(reason, now)
     StateScreen(
         modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
-        kind = if (reason is NoDataReason.WarmingUp) StateKind.Empty else StateKind.NoData,
+        kind = StateKind.NoData,
         title = text.first,
         reason = text.second,
         action = reason.action?.let { actionLabel(reason) },
         onAction = { reason.action?.let(onAction) },
     )
+}
+
+/**
+ * The reason under the card: title, one explanation, the action. No icon: the card above already draws
+ * `sensors_off`, the warm-up ring or the flag. Appears / leaves with the shared reveal motion; announced politely.
+ */
+@Composable
+private fun ReasonRow(
+    reason: NoDataReason?,
+    now: Instant,
+    onAction: (HomeAction) -> Unit,
+) {
+    // keep the last reason while it animates out
+    var shown by remember { mutableStateOf(reason) }
+    if (reason != null) shown = reason
+    Reveal(reason != null) {
+        val r = shown ?: return@Reveal
+        val text = reasonText(r, now)
+        Column(
+            Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 4.dp),
+            verticalArrangement = Arrangement.spacedBy(2.dp),
+        ) {
+            Column(Modifier.semantics(mergeDescendants = true) { liveRegion = LiveRegionMode.Polite }) {
+                Text(text.first, style = MaterialTheme.typography.titleMedium, modifier = Modifier.semantics { heading() })
+                Text(text.second, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            r.action?.let { action ->
+                FilledTonalButton(onClick = { onAction(action) }, modifier = Modifier.align(Alignment.End).padding(top = 4.dp)) {
+                    Text(actionLabel(r))
+                }
+            }
+        }
+    }
 }
 
 /** Title and explanation for [reason]. */
@@ -310,50 +402,51 @@ private fun banner(
             }
         }
     fun open(action: HomeAction): () -> Unit = { callbacks.onAction(action) }
+    val severity = if (kind.safety) BannerSeverity.Safety else BannerSeverity.Info
     return when (kind) {
         BannerKind.MonitoringStopped ->
             Banner(
                 kind.name, R.drawable.home_ic_warning, stringResource(R.string.reason_stopped_title), stringResource(R.string.reason_stopped_body),
-                stringResource(R.string.reason_stopped_action), open(HomeAction.ResumeMonitoring), null,
+                stringResource(R.string.reason_stopped_action), open(HomeAction.ResumeMonitoring), null, severity,
             )
         BannerKind.AlertsUnreliable -> {
             val problem = state.firstProblem ?: return null
             Banner(
                 kind.name, R.drawable.home_ic_warning, stringResource(R.string.banner_alerts_title), requirementText(problem),
-                stringResource(R.string.banner_alerts_action), { callbacks.onFix(problem) }, null,
+                stringResource(R.string.banner_alerts_action), { callbacks.onFix(problem) }, null, severity,
             )
         }
         BannerKind.TurnOffShowcase ->
             Banner(
                 kind.name, R.drawable.home_ic_warning, stringResource(R.string.banner_showcase_title), stringResource(R.string.banner_showcase_text),
-                stringResource(R.string.banner_showcase_action), open(HomeAction.OpenShowcaseInfo), null,
+                stringResource(R.string.banner_showcase_action), open(HomeAction.OpenShowcaseInfo), null, severity,
             )
         BannerKind.DataProblem ->
             Banner(
                 kind.name, DsR.drawable.ds_ic_error, stringResource(R.string.banner_data_title),
                 pluralStringResource(R.plurals.banner_data_text, state.dataProblems.size, state.dataProblems.size),
-                stringResource(R.string.banner_data_action), callbacks.onOpenDataProblems, null,
+                stringResource(R.string.banner_data_action), callbacks.onOpenDataProblems, null, severity,
             )
         BannerKind.FinishSetup ->
             Banner(
                 kind.name, DsR.drawable.ds_ic_info, stringResource(R.string.banner_setup_title),
                 stringResource(R.string.banner_setup_text, state.nextSetupStep.orEmpty()),
-                stringResource(R.string.banner_setup_action), open(HomeAction.OpenSetup), dismiss,
+                stringResource(R.string.banner_setup_action), open(HomeAction.OpenSetup), dismiss, severity,
             )
         BannerKind.NotBackedUp ->
             Banner(
                 kind.name, DsR.drawable.ds_ic_info, stringResource(R.string.banner_backup_title), stringResource(R.string.banner_backup_text),
-                stringResource(R.string.banner_backup_action), open(HomeAction.OpenBackup), dismiss,
+                stringResource(R.string.banner_backup_action), open(HomeAction.OpenBackup), dismiss, severity,
             )
         BannerKind.AddWidget ->
             Banner(
                 kind.name, DsR.drawable.ds_ic_info, stringResource(R.string.banner_widget_title), stringResource(R.string.banner_widget_text),
-                stringResource(R.string.banner_widget_action), open(HomeAction.AddWidget), dismiss,
+                stringResource(R.string.banner_widget_action), open(HomeAction.AddWidget), dismiss, severity,
             )
         BannerKind.ShareWithClinic ->
             Banner(
                 kind.name, DsR.drawable.ds_ic_info, stringResource(R.string.banner_clinic_title), stringResource(R.string.banner_clinic_text),
-                stringResource(R.string.banner_clinic_action), open(HomeAction.OpenClinicUpload), dismiss,
+                stringResource(R.string.banner_clinic_action), open(HomeAction.OpenClinicUpload), dismiss, severity,
             )
     }
 }
@@ -441,11 +534,27 @@ private fun treatmentLabel(t: Treatment): String {
     return if (t.note.isBlank()) kind else "$kind · ${t.note}"
 }
 
-/** "5 minutes ago" / "in 3 days", in the phone's language. */
+/** "just now" / "5 minutes ago" / "in 3 days", in the phone's language (never "0 minutes ago"). */
+@Composable
 private fun relative(
     t: Instant,
     now: Instant,
-): String = DateUtils.getRelativeTimeSpanString(t.toEpochMilli(), now.toEpochMilli(), DateUtils.MINUTE_IN_MILLIS).toString()
+): String {
+    val past = Duration.between(t, now)
+    if (!past.isNegative && past < Duration.ofMinutes(1)) return stringResource(R.string.home_a11y_just_now)
+    return DateUtils.getRelativeTimeSpanString(t.toEpochMilli(), now.toEpochMilli(), DateUtils.MINUTE_IN_MILLIS).toString()
+}
+
+/** "1:24 AM" within the last 12 hours, else the date and time ("Oct 26, 11:40 PM"): when a silence began. */
+@Composable
+private fun sinceTime(
+    t: Instant,
+    now: Instant,
+): String {
+    if (Duration.between(t, now) < Duration.ofHours(12)) return clockTime(t)
+    val flags = DateUtils.FORMAT_SHOW_DATE or DateUtils.FORMAT_SHOW_TIME or DateUtils.FORMAT_ABBREV_MONTH
+    return DateUtils.formatDateTime(LocalContext.current, t.toEpochMilli(), flags)
+}
 
 /** Time left until [end] in the card's words ("1h 12m left"), rounded up to the minute. */
 @Composable
@@ -462,4 +571,4 @@ private fun left(
 private fun clockTime(t: Instant): String = Clock.time(t.epochSecond)
 
 /** A mute ending further away than this is the alert engine's "until you turn it off". */
-private val FOREVER = java.time.Duration.ofDays(365)
+private val FOREVER = Duration.ofDays(365)
