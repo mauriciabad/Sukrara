@@ -61,3 +61,56 @@ Packages follow the module path: `:feature:home` → `app.mauri.sukrara.feature.
 - **Time and threads**: inject `Clock` and `DispatcherProvider` (from `:core:model`); tests use `FakeClock` and
   `TestDispatchers`.
 - **Tests**: JUnit 4 + kotlinx-coroutines-test in `src/test/kotlin`; Robolectric only when Android is really needed.
+- **Formatting**: `./gradlew spotlessApply` (ktlint + Compose rules + the GPL header); `check` fails on drift.
+
+## Shared interfaces (`:core:model`, additive only)
+
+```kotlin
+data class Reading(val t: Instant, val mgdl: Int, val rateMgdlPerMin: Double?, val source: SourceId)
+@JvmInline value class SourceId(val id: String)          // Libre3, Juggluco, Relay, Nearby
+enum class Trend; enum class Role { Wearer, Follower }
+data class Treatment(id, kind: TreatmentKind, amount, at, note, modifiedAt, deleted, origin: TreatmentOrigin)
+interface Clock { fun now(): Instant; val zone: ZoneId }  // SystemClock reads the zone on every access
+interface DispatcherProvider { val main; val default; val io }   // DefaultDispatchers
+data class GlucoseState(role, latest, recent, sensor: SensorState, source: SourceStatus, alerts: AlertUiState, link: LinkState?)
+interface GlucoseHub { val state: StateFlow<GlucoseState>; suspend fun ingest(readings, from: SourceId); fun setSource(status) }
+// core.model.storage — implemented by :core:data, faked by :core:testing
+interface SettingSpec<T> { val key: String; val default: T }
+interface SettingsRepository { fun <T> flow(spec): Flow<T>; suspend fun <T> set(spec, value) }
+interface StateStore<T> { val data: Flow<T>; suspend fun update(transform: (T) -> T) }
+interface SecureStore { suspend fun read(name): ByteArray?; suspend fun write(name, bytes); suspend fun delete(name) }
+interface ReadingsRepository { fun window(from: Instant): Flow<List<Reading>>; suspend fun upsert(readings) }
+```
+
+`GlucoseState.Initial` = nothing known, `SourceStatus.NotStarted` (no missing-data alarm before monitoring starts).
+Fakes in `:core:testing`: `FakeClock` (settable time and zone), `TestDispatchers`, `InMemorySettingsRepository`,
+`InMemoryStateStore`, `InMemorySecureStore`, `InMemoryReadingsRepository`, `Contracts.file(path)`.
+
+## Android components (merged manifest)
+
+| component | module | state |
+|---|---|---|
+| `MainActivity` (launcher, `sukrara:`, App Link `https://sukrara.mauri.app/join*`), `HealthPermissionsRationale` alias | `:app` | live |
+| `debug.DebugReceiver` (exported, `DUMP`) | `:app` `src/debug` | debug builds only |
+| `MonitoringService` (FGS `connectedDevice`), `BootReceiver`, `AlertCheckReceiver`, `AlertActionReceiver`, `HealthCheckReceiver` | `:monitor` | skeleton, enabled (10/11 fill) |
+| `AlertSoundProvider` `${applicationId}.alertsound` (exported read-only for System UI) | `:monitor` | skeleton (11) |
+| `SensorTapActivity` (NFC, `DISPATCH_NFC_MESSAGE`) | `:sensor` | disabled until 12/18 |
+| `PenTapActivity` (NFC), `PenReadActivity` | `:pen` | disabled until 19 |
+| `TreatmentTileService`, `QuickTreatmentActivity` | `:feature:treatments` | disabled until 19 |
+| `FileProvider` `${applicationId}.export` | `:integrations` | live (not exported) |
+| Glance widget receivers + config activity | `:widgets` | added by chunk 20 |
+
+A Bluetooth on/off receiver can't be declared in the manifest (`ACTION_STATE_CHANGED` isn't an exempt implicit
+broadcast): `:sensor` / `:share` register it at runtime while monitoring runs.
+
+## Release builds
+
+- Version from `<repo>/VERSION` (`0.90.0` → versionCode 90000; `BuildConfig.PRERELEASE` while major is 0).
+- Signed with `SUKRARA_KEYSTORE` (default `~/.android/sukrara-release.jks`, alias `sukrara`); the password comes only
+  from env `SUKRARA_KEYSTORE_PASSWORD` (Gradle never reads the Keychain):
+  `SUKRARA_KEYSTORE_PASSWORD="$(security find-generic-password -s sukrara-android-release -a sukrara -w)" ./gradlew :app:assembleRelease`.
+- The Libre 3 core comes from Juggluco (`-Psukrara.juggluco=…`, env `SUKRARA_JUGGLUCO`, else
+  `<main checkout>/third_party/Juggluco`) at the commit in `sensor/juggluco.lock`, clean tree. Debug builds without
+  it only warn (the app reports the missing core). Any release output (`preReleaseBuild`) fails without the key or
+  the pinned checkout, and `assembleRelease` / `installRelease` fail if the APK lacks `lib/arm64-v8a/libsukrara_libre3.so`.
+- `local.properties` (`sdk.dir=…`) is needed once per clone/worktree when `ANDROID_HOME` isn't set.

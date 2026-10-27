@@ -53,7 +53,8 @@ val verifyJuggluco =
     tasks.register("verifyJuggluco") {
         group = "verification"
         description = "Fails a release build without the pinned, clean Juggluco checkout."
-        doLast { jugglucoProblem?.let { throw GradleException("Release build without the Libre 3 core: $it") } }
+        val problem = jugglucoProblem // a plain String: the configuration cache can't hold script references
+    doLast { problem?.let { throw GradleException("Release build without the Libre 3 core: $it") } }
     }
 tasks.matching { it.name == "preReleaseBuild" }.configureEach { dependsOn(verifyJuggluco) }
 
