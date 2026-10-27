@@ -18,6 +18,9 @@ test keys (the OGS draft-1 vector keys plus `D2` = sha256("sukrara/sync/D2")); a
 
 ## Format (`v` 1)
 
+The fixtures carry the real signed, encrypted events (not decrypted payloads), so every acceptance rule — signature,
+roster membership, epoch, decryption, tags — runs on both platforms exactly as it does on relays and Bluetooth.
+
 Follower sequences: `keys` (`{name: {sec, pub}}`), `sid`, `follower` (key name), `identity` (I's pub), `now` (unix s,
 the clock for every step), `events` (`{step: nostr event}`), `steps` (`[{event, expect}]`, `expect` =
 `accepted|rejected|ignored:<what>`, the reference follower's codes), `expected`:
