@@ -570,7 +570,8 @@ The wearer's phone shares readings, alerts and the stream's roster with approved
   Asked with your invite for Ana · 14:02* with **Deny** and **Allow** (Allow only on an unlocked phone); a tap opens
   the app. When another phone also tried the same invite there are no actions: open the app and check. The
   notification goes as soon as the request is answered anywhere (notification or app) or sharing pauses (another app
-  sharing as you).
+  sharing as you). An Allow that didn't happen (invite expired, request no longer waiting, sharing paused) is replaced
+  by *Couldn't give access* (open Sukrara to send a new invite). Sharing runs only while the phone is the wearer.
 - **Treatments** (PROTOCOL-v2 §Treatments): every change of the phone's treatment log (add, edit, delete, undo) goes
   to followers at once, signed by this phone's device key; the whole log of the last 30 days (deleted entries too)
   again on start, on a new epoch (restore, removing a follower), when a follower is approved, and weekly. **Can add
