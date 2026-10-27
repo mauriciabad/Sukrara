@@ -4,6 +4,7 @@
 import Foundation
 import SukraraAlerts
 import SukraraCore
+import SukraraGraph
 import SukraraShare
 import SukraraTesting
 import Testing
@@ -213,5 +214,16 @@ final class RecordingSender: TreatmentActions {
         #expect(w.bool("alerts.kind.on", kind: "low") == false)
         #expect(w.number("graph.band.high") == nil)
         #expect(w.number("alerts.threshold.no_data") == nil)  // not mirrored
+    }
+
+    @Test func graphConfigLoadsOwnOrMirroredValues() {
+        let s = scratchStore()
+        s.setNumber(75, for: MacSettings.bandLow)
+        s.setNumber(6, for: MacSettings.graphHours)
+        let w = WearerSettings(json: #"{"graph":{"low":65}}"#, wearer: "Ana")
+        #expect(GraphConfig.load(from: s, wearer: w).bands.low == 65)  // default settingsFrom = wearer
+        s.set(SettingsFrom.custom.rawValue, for: MacSettings.settingsFrom)
+        let own = GraphConfig.load(from: s, wearer: w)
+        #expect(own.bands.low == 75 && own.hours == 6)
     }
 }
