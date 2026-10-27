@@ -52,6 +52,8 @@ internal class Libre3Driver(
     private val clockMs: () -> Long = System::currentTimeMillis,
     private val random: (ByteArray) -> Unit = { SecureRandom().nextBytes(it) },
     private val log: (String) -> Unit = {},
+    /** The newest life count already reported for this sensor (by an earlier driver; -1 = none). */
+    lastLifeCount: Int = -1,
 ) : SensorDriver {
     private var link: BleLink? = null
 
@@ -70,7 +72,7 @@ internal class Libre3Driver(
     private var secAt = 0
 
     private var glucoseBuf = ByteArray(0)
-    private var lastLifeCount = -1
+    private var lastLifeCount = lastLifeCount
     private var authorizedAt = 0L
     private var outSeq = 1 // outgoing CCM sequence, restarts at 1 each session
     private var backfillRequested = false

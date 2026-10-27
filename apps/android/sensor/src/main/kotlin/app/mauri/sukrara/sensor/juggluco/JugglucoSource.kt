@@ -41,7 +41,8 @@ sealed interface JugglucoStatus {
 
 /** Where the Juggluco source sends what it learns. */
 internal interface JugglucoSink {
-    fun onReadings(readings: List<Reading>)
+    /** [live] = Juggluco's current value from the stream; false = history. */
+    fun onReadings(readings: List<Reading>, live: Boolean)
 
     fun onStatus(status: JugglucoStatus)
 
@@ -112,9 +113,12 @@ internal class JugglucoSource(http: OkHttpClient, private val baseUrl: String = 
 
     @Volatile private var call: Call? = null
 
-    /** Cancels the open request (the coroutine running [run] must be cancelled too). */
+    @Volatile private var liveCall: Call? = null
+
+    /** Cancels the open requests, the live stream included (the coroutine running [run] must be cancelled too). */
     fun cancelCall() {
         call?.cancel()
+        liveCall?.cancel()
     }
 
     suspend fun run(sink: JugglucoSink) {
@@ -123,7 +127,7 @@ internal class JugglucoSource(http: OkHttpClient, private val baseUrl: String = 
         while (currentCoroutineContext().isActive) {
             try {
                 sink.onStatus(JugglucoStatus.FetchingHistory)
-                sink.onReadings(get("/api/v1/entries.json?count=${if (first) 1600 else 180}&interval=0", ::parseEntries))
+                sink.onReadings(get("/api/v1/entries.json?count=${if (first) 1600 else 180}&interval=0", ::parseEntries), live = false)
                 first = false
                 sensor()?.let(sink::onSensor)
                 live(sink) { backoff = FIRST_BACKOFF_MS }
@@ -149,7 +153,7 @@ internal class JugglucoSource(http: OkHttpClient, private val baseUrl: String = 
 
     private fun live(sink: JugglucoSink, onData: () -> Unit) {
         val req = Request.Builder().url("$baseUrl/x/live").header("Accept", "text/event-stream").build()
-        http.newCall(req).also { call = it }.execute().use { resp ->
+        http.newCall(req).also { liveCall = it }.execute().use { resp ->
             check(resp.isSuccessful) { "HTTP ${resp.code}" }
             sink.onStatus(JugglucoStatus.Live)
             val src = checkNotNull(resp.body).source()
@@ -163,7 +167,7 @@ internal class JugglucoSource(http: OkHttpClient, private val baseUrl: String = 
                     line.startsWith("data:") && event == "glucose" -> {
                         val (reading, id) = parseLive(line.substring(5).trim()) ?: continue
                         onData()
-                        sink.onReadings(listOf(reading))
+                        sink.onReadings(listOf(reading), live = true)
                         // a new sensor in Juggluco: read its start again
                         if (sensorId != -1 && id != sensorId) sensor()?.let(sink::onSensor)
                         sensorId = id

@@ -49,12 +49,17 @@ class GattLinkTest {
     private class FakeConnector : GattConnector {
         override var isBluetoothOn = true
         var permissionRevoked = false
+        var stackFails = 0
         val log = ArrayList<String>()
         val connections = ArrayList<FakeConnection>()
         val callbacks = ArrayList<(GattEvent) -> Unit>()
 
         override fun connect(address: String, generation: Int, onEvent: (GattEvent) -> Unit): GattConnection {
             if (permissionRevoked) throw SecurityException("BLUETOOTH_CONNECT")
+            if (stackFails > 0) {
+                stackFails--
+                throw IllegalStateException("connectGatt returned null")
+            }
             log += "connect#$generation"
             callbacks += onEvent
             return FakeConnection(generation, log).also { connections += it }
@@ -190,8 +195,9 @@ class GattLinkTest {
         r.scope.cancel()
     }
 
+    /** Bluetooth on is the source's job: it starts a new link + driver (SourceManagerTest.bluetoothOffAndBackOn). */
     @Test
-    fun bluetoothOffClosesWithoutRetriesAndOnMakesANewConnection() = runTest {
+    fun bluetoothOffClosesWithoutRetries() = runTest {
         val r = Rig(this)
         r.link.start()
         r.connectAndDiscover()
@@ -203,10 +209,19 @@ class GattLinkTest {
         assertEquals("disconnected", r.driver.calls.last())
         advanceTimeBy(5 * 60_000L)
         assertEquals(emptyList<String>(), r.connector.take()) // no retries while off
-        r.connector.isBluetoothOn = true
-        r.link.bluetoothOn()
-        assertEquals(listOf("connect#3"), r.connector.take())
-        assertTrue(r.connector.connections[0].closed)
+        r.scope.cancel()
+    }
+
+    @Test
+    fun bluetoothOffCancelsAPendingReconnect() = runTest {
+        val r = Rig(this)
+        r.link.start()
+        r.connectAndDiscover()
+        r.link.disconnect() // a reconnect is now armed
+        r.connector.take()
+        r.link.bluetoothOff()
+        advanceTimeBy(5 * 60_000L)
+        assertEquals(emptyList<String>(), r.connector.take())
         r.scope.cancel()
     }
 
@@ -215,11 +230,23 @@ class GattLinkTest {
         val r = Rig(this)
         r.connector.isBluetoothOn = false
         r.link.start()
+        advanceTimeBy(5 * 60_000L)
         assertEquals(emptyList<String>(), r.connector.take())
         assertEquals(LinkStatus.WaitingForBluetooth, r.statuses.all.last())
-        r.connector.isBluetoothOn = true
-        r.link.bluetoothOn()
-        assertEquals(listOf("connect#1"), r.connector.take())
+        r.scope.cancel()
+    }
+
+    /** The stack throwing (adapter gone, Bluetooth turning off mid-call) is a dropped link, never a crash. */
+    @Test
+    fun aFailingStackRetriesWithBackoff() = runTest {
+        val r = Rig(this)
+        r.connector.stackFails = 2
+        r.link.start()
+        assertEquals(LinkStatus.WaitingForSensor, r.statuses.all.last())
+        advanceTimeBy(GattLink.FIRST_BACKOFF_MS + 1)
+        assertEquals(emptyList<String>(), r.connector.take()) // second failure
+        advanceTimeBy(2 * GattLink.FIRST_BACKOFF_MS + 1)
+        assertEquals(listOf("connect#3"), r.connector.take())
         r.scope.cancel()
     }
 

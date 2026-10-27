@@ -29,9 +29,11 @@ class PairingStoreTest {
     fun authorizationAndEndedOnlyForTheSavedSerial() = runTest {
         val store = PairingStore(InMemorySecureStore())
         store.save(pairing)
-        store.setAuthorization("OTHER", ByteArray(149) { 1 })
+        store.setAuthorization(pairing.copy(serial = "OTHER"), ByteArray(149) { 1 })
+        // a late authorization from a driver that ran with the sensor's previous PIN (re-scanned meanwhile)
+        store.setAuthorization(pairing.copy(pin = byteArrayOf(1, 2, 3, 4)), ByteArray(149) { 1 })
         assertEquals(null, (store.load() as PairingLoad.Ok).pairing.kAuth)
-        store.setAuthorization("3MH0001", ByteArray(149) { 1 })
+        store.setAuthorization(pairing, ByteArray(149) { 1 })
         store.markEnded("3MH0001")
         val p = (store.load() as PairingLoad.Ok).pairing
         assertEquals(149, p.kAuth?.size)

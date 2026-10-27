@@ -92,7 +92,7 @@ class JugglucoSourceTest {
         val gotLive = CompletableDeferred<Unit>()
         var sensor: SensorInfo? = null
         val sink = object : JugglucoSink {
-            override fun onReadings(readings: List<Reading>) {
+            override fun onReadings(readings: List<Reading>, live: Boolean) {
                 readings.forEach { readingsAdd(it) }
             }
 
