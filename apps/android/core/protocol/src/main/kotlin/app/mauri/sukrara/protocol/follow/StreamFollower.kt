@@ -175,7 +175,7 @@ class StreamFollower(private val crypto: NostrCrypto, initial: FollowerState) {
         return when (ev.kind) {
             Wire.KIND_DATA -> onData(ev, epoch, sid, author)
             Wire.KIND_LIVE, Wire.KIND_ALERT -> {
-                if (author !in state.devices) return FollowResult.Rejected("author-not-device")
+                if (author !in state.devices) return notInRosterYet(ev, "author-not-device")
                 val plain = decrypt(epoch, author, ev.content)
                 if (ev.kind == Wire.KIND_LIVE) onLive(ev, ReadingsCodec.decodeLive(plain), now) else onAlert(AlertCodec.decode(plain), now)
             }
@@ -201,6 +201,15 @@ class StreamFollower(private val crypto: NostrCrypto, initial: FollowerState) {
         return FollowResult.Ignored("unknown-epoch")
     }
 
+    /**
+     * The author isn't in the roster we hold. Rejected, but not remembered as seen: the roster that adds it may still
+     * be on its way (a writer's entry or a BLE backlog arriving first), and the event is judged again when it returns.
+     */
+    private fun notInRosterYet(ev: SignedEvent, reason: String): FollowResult {
+        state = state.copy(seen = state.seen - ev.id)
+        return FollowResult.Rejected(reason)
+    }
+
     private fun decrypt(epoch: Epoch, author: String, content: String): String {
         val sender = PublicKeyHex.parse(author) ?: throw InvalidPayload("bad author")
         return crypto.decrypt(epoch.key.secret, sender, content) ?: throw InvalidPayload("does not decrypt")
@@ -214,7 +223,7 @@ class StreamFollower(private val crypto: NostrCrypto, initial: FollowerState) {
             d == Wire.settingsD(sid) -> onSettings(ev, epoch, author)
             c == Wire.treatmentsC(sid) -> onTreatment(ev, epoch, sid, author)
             c == Wire.glucoseC(sid) -> {
-                if (author !in state.devices) return FollowResult.Rejected("author-not-device")
+                if (author !in state.devices) return notInRosterYet(ev, "author-not-device")
                 val chunk = ReadingsCodec.decodeChunk(decrypt(epoch, author, ev.content))
                 if (d != Wire.chunkD(sid, chunk.hour)) return FollowResult.Rejected("d-mismatch")
                 FollowResult.Accepted(Item.Chunk(chunk))
@@ -243,7 +252,7 @@ class StreamFollower(private val crypto: NostrCrypto, initial: FollowerState) {
     }
 
     private fun onSettings(ev: SignedEvent, epoch: Epoch, author: String): FollowResult {
-        if (author !in state.devices) return FollowResult.Rejected("author-not-device")
+        if (author !in state.devices) return notInRosterYet(ev, "author-not-device")
         val settings = SettingsCodec.decode(decrypt(epoch, author, ev.content))
         if (settings.u <= state.settingsU) return FollowResult.Ignored("settings-older")
         state = state.copy(settingsU = settings.u)
@@ -253,7 +262,7 @@ class StreamFollower(private val crypto: NostrCrypto, initial: FollowerState) {
     private fun onTreatment(ev: SignedEvent, epoch: Epoch, sid: String, author: String): FollowResult {
         val s = state
         val fromDevice = author in s.devices
-        if (!fromDevice && author !in s.writers) return FollowResult.Rejected("author-not-in-roster")
+        if (!fromDevice && author !in s.writers) return notInRosterYet(ev, "author-not-in-roster")
         val tr = TreatmentCodec.decode(decrypt(epoch, author, ev.content))
         if (ev.tag("d") != Wire.treatmentD(sid, tr.id)) return FollowResult.Rejected("d-mismatch")
         val creator = s.creators[tr.id]
@@ -334,11 +343,16 @@ class StreamFollower(private val crypto: NostrCrypto, initial: FollowerState) {
         }
         val newest = s.epochs.values.maxOfOrNull { it.n } ?: 0
         val latest = k.epoch >= newest
+        // A newer epoch's key outranks every roster of older epochs (PoC): a late or refreshed roster from the
+        // replaced device can't bring its devices back before the new epoch's roster arrives.
+        val raise = k.epoch > s.rosterEpoch
         state = s.copy(
             sid = k.sid,
             epochs = s.epochs + (gk to Epoch(k.epoch, key)),
             devices = if (latest && k.devices.isNotEmpty()) k.devices else s.devices,
             relays = if (latest && k.relays.isNotEmpty()) k.relays else s.relays,
+            rosterEpoch = if (raise) k.epoch else s.rosterEpoch,
+            rosterCreatedAt = if (raise) -1 else s.rosterCreatedAt,
             status = status,
             lastKeyAt = lastKeyAt,
         )

@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.protocol
 
+import app.mauri.sukrara.core.testing.Contracts
 import app.mauri.sukrara.protocol.event.BackupCodec
 import app.mauri.sukrara.protocol.event.BackupEpoch
 import app.mauri.sukrara.protocol.event.BackupPayload
@@ -85,7 +86,7 @@ class IdentityConflictTest {
                 put("events", buildJsonObject { list.forEach { (n, ev) -> put(n, Json.parseToJsonElement(ev.toJson())) } })
                 put("checks", buildJsonArray { list.forEach { (n, _, e) -> add(buildJsonObject { put("event", n); put("expect", e) }) } })
             }
-            File(System.getProperty("sukrara.contracts"), "protocol/sync/owner-conflict.json").writeText(Json { prettyPrint = true }.encodeToString(JsonElement.serializer(), fx) + "\n")
+            File(Contracts.root, "protocol/sync/owner-conflict.json").writeText(Json { prettyPrint = true }.encodeToString(JsonElement.serializer(), fx) + "\n")
         }
         val fx = ContractFiles.json("protocol/sync/owner-conflict.json")
         val events = fx.getValue("events").jsonObject

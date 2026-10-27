@@ -83,7 +83,9 @@ object Invites {
     ): Pair<InviteLink, SignedEvent> {
         val link = InviteLink.of(identity.public, secret)
         val recipient = crypto.keyPair(Derive.inviteKey(secret))!!.public
-        val wrap = crypto.giftWrap(identity, recipient, Wire.KIND_INVITE, RumorCodec.encode(Rumor.Invite(expiry, relays, profile)), now, expiry)
+        // the wrap lives until the invite expires, at least a minute (PoC)
+        val wrapExpiry = maxOf(now + 60, expiry)
+        val wrap = crypto.giftWrap(identity, recipient, Wire.KIND_INVITE, RumorCodec.encode(Rumor.Invite(expiry, relays, profile)), now, wrapExpiry)
         return link to wrap
     }
 

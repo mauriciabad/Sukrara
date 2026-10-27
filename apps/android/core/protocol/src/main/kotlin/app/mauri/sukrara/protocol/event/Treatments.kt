@@ -34,6 +34,9 @@ data class TreatmentPayload(
     val pen: String? = null,
     val penDoses: JsonArray? = null,
 ) {
+    /** Health data: never in logs. */
+    override fun toString() = "TreatmentPayload($id, $kind${if (deleted) ", deleted" else ""})"
+
     /** SPEC §1 merge: `(u, o)` compared lexicographically; the greater wins. */
     fun newerThan(other: TreatmentPayload): Boolean = compareValuesBy(this, other, { it.u }, { it.origin }) > 0
 }

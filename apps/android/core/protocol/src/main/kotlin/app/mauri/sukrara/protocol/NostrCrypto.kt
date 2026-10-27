@@ -6,7 +6,9 @@ package app.mauri.sukrara.protocol
 /**
  * Every cryptographic operation the protocol needs, implemented outside this module by a vetted library: Android
  * `:share` wraps `org.nostrdevkit:nostr-sdk` (the same rust-nostr core the Mac uses), the unit tests wrap its JVM
- * build. This module never implements a primitive itself. Implementations must be thread-safe.
+ * build. This module never implements a primitive itself. Implementations must be thread-safe, and the checking
+ * calls ([verify], [decrypt], [unwrap], [keyPair], [parseNsec], [parseNcryptsec]) never throw: bad input is false / null.
+ * Every implementation passes `NostrCryptoContractTest` (testFixtures).
  */
 interface NostrCrypto {
     fun generate(): KeyPair
@@ -50,5 +52,11 @@ interface NostrCrypto {
     fun parseNcryptsec(ncryptsec: String, password: String): SecretKey?
 }
 
-/** An opened gift wrap: [sender] is the seal's signer, which the implementation authenticated (and = rumor author). */
-data class Unwrapped(val sender: PublicKeyHex, val kind: Int, val content: String, val createdAt: Long)
+/**
+ * An opened gift wrap: [sender] is the seal's signer, which the implementation authenticated and checked equals the
+ * rumor's author; [kind], [content] and [createdAt] are the **rumor's** (not the seal's or wrap's randomised times —
+ * revoke / re-approval ordering depends on it).
+ */
+data class Unwrapped(val sender: PublicKeyHex, val kind: Int, val content: String, val createdAt: Long) {
+    override fun toString() = "Unwrapped(kind=$kind, sender=$sender)"
+}

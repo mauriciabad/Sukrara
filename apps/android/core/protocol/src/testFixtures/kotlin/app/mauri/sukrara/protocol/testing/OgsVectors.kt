@@ -3,25 +3,20 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.protocol.testing
 
+import app.mauri.sukrara.core.testing.Contracts
 import app.mauri.sukrara.protocol.KeyPair
 import app.mauri.sukrara.protocol.PublicKeyHex
 import app.mauri.sukrara.protocol.SecretKey
 import app.mauri.sukrara.protocol.SignedEvent
-import java.io.File
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 
-/** Files under the repo's `contracts/` (system property `sukrara.contracts`). A missing file fails the test. */
+/** JSON files under the repo's `contracts/` ([Contracts]); a missing file fails the test. */
 object ContractFiles {
-    fun file(path: String): File {
-        val root = System.getProperty("sukrara.contracts") ?: error("system property sukrara.contracts is not set (Gradle sets it)")
-        return File(root, path).also { check(it.isFile) { "missing contract file ${it.path}" } }
-    }
-
-    fun json(path: String): JsonObject = Json.parseToJsonElement(file(path).readText()).jsonObject
+    fun json(path: String): JsonObject = Json.parseToJsonElement(Contracts.file(path).readText()).jsonObject
 }
 
 /** contracts/protocol/ogs/ogs-draft1.json: throwaway keys, real signed + encrypted events from the Python reference. */

@@ -17,8 +17,13 @@ import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 
-/** One glucose reading on the wire: [t] unix s, [sgv] mg/dL, [rate] mg/dL/min (null = unknown), [dev] its source. */
-data class WireReading(val t: Long, val sgv: Int, val rate: Double?, val dev: String = "")
+/**
+ * One glucose reading on the wire: [t] unix s, [sgv] mg/dL, [rate] mg/dL/min (null = unknown), [dev] its source.
+ * Health data: [toString] leaves the value out so a logged result never carries it.
+ */
+data class WireReading(val t: Long, val sgv: Int, val rate: Double?, val dev: String = "") {
+    override fun toString() = "WireReading(t=$t)"
+}
 
 /** The wearer's current sensor (unix s): start, end, warm-up end. */
 data class SensorLife(val start: Long, val end: Long, val warmupEnd: Long)
@@ -27,7 +32,9 @@ data class SensorLife(val start: Long, val end: Long, val warmupEnd: Long)
 data class LivePayload(val reading: WireReading?, val sensor: SensorLife?)
 
 /** An hour chunk's content: the hour start and its readings in time order. */
-data class ChunkPayload(val hour: Long, val readings: List<WireReading>)
+data class ChunkPayload(val hour: Long, val readings: List<WireReading>) {
+    override fun toString() = "ChunkPayload(hour=$hour, ${readings.size} readings)"
+}
 
 /** Live (kind 21078) and hour chunk (kind 30078) content codecs (PROTOCOL-v2 §Events, §Sensor life). */
 object ReadingsCodec {

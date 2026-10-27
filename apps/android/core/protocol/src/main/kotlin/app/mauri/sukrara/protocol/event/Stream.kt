@@ -61,7 +61,9 @@ object RosterCodec {
  * The wearer's mirrored settings (PROTOCOL-v2 §Settings). [graph] and [alerts] are the schema's `"mirror": true`
  * rows under their wire keys; their meaning and coercion belong to the settings layer, so they stay JSON here.
  */
-data class SettingsPayload(val u: Long, val graph: JsonObject, val alerts: JsonObject)
+data class SettingsPayload(val u: Long, val graph: JsonObject, val alerts: JsonObject) {
+    override fun toString() = "SettingsPayload(u=$u)"
+}
 
 object SettingsCodec {
     fun encode(s: SettingsPayload): String =

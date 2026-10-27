@@ -29,7 +29,10 @@ data class AlertPayload(
     val threshold: Double?,
     val n: Int,
     val tr: Int,
-)
+) {
+    /** Health data: never in logs. */
+    override fun toString() = "AlertPayload($kind ${if (fire) "fire" else "clear"})"
+}
 
 object AlertCodec {
     val KINDS = setOf("very_low", "low", "high", "very_high", "extremely_high", "falling_fast", "rising_fast", "no_data")
@@ -44,7 +47,7 @@ object AlertCodec {
             put("at", a.at)
             put("t", a.t?.let(::JsonPrimitive) ?: JsonNull)
             put("sgv", a.sgv?.let(::JsonPrimitive) ?: JsonNull)
-            put("r", Payload.rate(a.rate))
+            put("r", a.rate?.let(::JsonPrimitive) ?: JsonNull)
             put("th", a.threshold?.let(::threshold) ?: JsonNull)
             put("n", a.n)
             put("tr", a.tr)

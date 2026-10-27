@@ -62,6 +62,7 @@ abstract class NostrCryptoContractTest {
             assertEquals(name, o.str("seal_signer"), u!!.sender.hex)
             assertEquals(name, rumor.str("content"), u.content)
             assertEquals(name, rumor.str("kind").toInt(), u.kind)
+            assertEquals("$name: the rumor's created_at, not the seal's", rumor.str("created_at").toLong(), u.createdAt)
             checked++
         }
         assertTrue("unwrapped $checked", checked >= 8)

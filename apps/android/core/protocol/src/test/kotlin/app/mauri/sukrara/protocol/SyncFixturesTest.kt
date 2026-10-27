@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.protocol
 
+import app.mauri.sukrara.core.testing.Contracts
 import app.mauri.sukrara.protocol.event.EventFactory
 import app.mauri.sukrara.protocol.event.LivePayload
 import app.mauri.sukrara.protocol.event.RosterPayload
@@ -104,6 +105,9 @@ class SyncFixturesTest {
                 Triple("roster-1", roster(1, g1, listOf(d)), "accepted:roster"),
                 Triple("live-1", live(d, g1, now - 300, 140, 0.0), "accepted:live"),
                 Triple("key-2", keyTo(2, g2, listOf(d2)), "accepted:key"),
+                // the replaced phone (or the showcase) refreshes its epoch-1 roster: the epoch-2 key outranks it
+                Triple("roster-1-refresh", roster(1, g1, listOf(d), at = now - 60), "ignored:roster-older"),
+                Triple("live-before-roster-2", live(d2, g2, now - 55, 139, 0.0), "accepted:live"),
                 Triple("roster-2", roster(2, g2, listOf(d2), at = now - 50), "accepted:roster"),
                 Triple("live-old-device", live(d, g2, now - 40, 141, 0.0), "rejected:author-not-device"),
                 Triple("live-old-epoch", live(d, g1, now - 35, 142, 0.0), "rejected:author-not-device"),
@@ -162,7 +166,7 @@ class SyncFixturesTest {
 
     @Test fun fixturesReplayToTheirExpectedState() {
         if (System.getProperty("sukrara.regen") == "true") {
-            val dir = File(System.getProperty("sukrara.contracts"), "protocol/sync").apply { mkdirs() }
+            val dir = File(Contracts.root, "protocol/sync").apply { mkdirs() }
             names.forEach { File(dir, "$it.json").writeText(pretty.encodeToString(JsonElement.serializer(), generate(it)) + "\n") }
         }
         names.forEach { name ->

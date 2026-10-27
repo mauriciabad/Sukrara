@@ -118,3 +118,41 @@ core); the app shell (chunk 21) owns notifications, sounds, timers and storage.
   the SPEC §7 driver; also run with an `AlertMirror` for `mirror` scenarios), `SettingsCodecTests`,
   `EpisodesRestoreTests`, `EngineTests` (safety invariants, effect order, clock jumps, deterministic ids),
   `MuteCopyTests`.
+
+## Android protocol (`apps/android/core/protocol`)
+
+Nostr protocol v2 + identity ([`contracts/protocol`](../contracts/protocol/)) as one pure-JVM module: no Android, no
+I/O, no clock (time is a parameter), no nostr-sdk. The wire formats are the PoC's byte for byte (kinds, tag order,
+TTLs, JSON field names and number forms, invite link `https://sukrara.mauri.app/join#…`, BLE framing), so a restored
+identity keeps working with followers on Sukrara 0.11 (Android and Mac).
+
+- **Crypto seam**: `NostrCrypto` (sign / verify, NIP-44 v2, NIP-59 gift wraps, nsec / npub, NIP-49). `:share`
+  implements it with `org.nostrdevkit:nostr-sdk` (AAR, chunk 13). The module's tests use the JVM build of the same
+  library (`nostr-sdk-jvm`, test classpath only). `testFixtures` ships `NostrCryptoContractTest` (OGS vectors: every
+  event verifies / decrypts, wraps open to their rumor and its `created_at`, a rumor whose author isn't the seal signer
+  is refused, NIP-49 and nsec round trips, the BLE HELLO proof); every implementation subclasses it. The PoC's
+  hand-written BIP-340 verifier is gone: the HELLO proof is checked by the library's `Event.verify()`. HKDF is RFC 5869
+  over the JCA's HMAC, pinned by RFC 5869 case 1 and `identity/vectors.json`.
+- **Keys**: `PublicKeyHex`, `SecretKey` (redacted `toString`, hex only via `revealHex()`), `KeyPair`, `Derive.inviteKey`.
+- **Events** (`event/`): payload codecs per family (`ReadingsCodec` live / sensor / chunk, `AlertCodec`,
+  `TreatmentCodec` + `WriterScope`, `SettingsCodec`, `RosterCodec`, `BackupCodec` — reads what the showcase writes,
+  `RumorCodec` for 30500 / 30501 / 30502, `Profile` / `Avatar`) and `EventFactory`, which signs every event the
+  wearer and writers publish. Decoders throw only `InvalidPayload`; health payloads redact `toString`.
+- **Follower acceptance** (`follow/StreamFollower`): the transport-independent judge for relays and Bluetooth: verdict
+  `Accepted(item) | Rejected(reason) | Ignored(reason, rekey?)` with the codes of the OGS / sync fixtures. It keeps only
+  trust and dedupe state (`FollowerState`: status, sid, epochs, roster, writer-scope creators, settings `u`, seen ids
+  pruned at their expiry, rekey throttle); storing readings / treatments / settings is the follower engine's (25).
+  A port of the reference follower plus, from the PoC `FollowerEngine`: the settings rule, a key delivery newer than
+  the revoked notice re-approves (older notices ignored), a newer epoch's key outranks older-epoch rosters, rekey only
+  for events newer than the latest key with `have` = newest held `gk`. Events rejected only because the author isn't
+  in the roster yet aren't remembered, so they're judged again after the roster arrives. Dropped from the PoC engine:
+  the 24 h treatment window and the `via` tag (UI / engine concerns).
+- **Owner side** (`owner/`): `IdentityConflict.check` (A3: a newer roster without this device, under an epoch we
+  don't hold, or a newer backup with other epochs = another app publishing as this identity → `Conflict`; our own
+  echoes, our own rotation and late old events are `Fine`; the engine persists `OwnerMarks`), `RecoveryCode` (NIP-49
+  export log_n 18 / key_security 0x01; import of ncryptsec, nsec or hex for the first-run restore).
+- **Invites** (`invite/`): `InviteLink` parse / build, `Invites.create` / `open` (fingerprint, expiry, typed failure),
+  match code. **BLE** (`ble/`): UUIDs, framing, `Reassembler` and `RateLimit` (limits of B§4.3 / B§8), HELLO / INFO
+  messages, `HelloProof`.
+- **Fixtures**: `contracts/protocol/{identity,ogs}` vectors and `contracts/protocol/sync/*.json` (owner → follower
+  sequences and the owner-conflict cases, generated here with `-Psukrara.regen=true`, replayed by the Mac too).
