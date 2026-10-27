@@ -1,5 +1,5 @@
 {
-  "_about": "Allowlists for tools/check/check.py. Keep them short; every entry is an exception someone has to justify.",
+  "_about": "Allowlists for tools/check/check.py. Keep them short; every entry is an exception someone has to justify. V1 paths only (the frozen poc/ is checked by java / secrets / large / images only). cleartext_ok / network_ok start empty: each V1 chunk adds its own entries with the reason.",
   "header_exts": [
     ".kt",
     ".swift",
@@ -13,86 +13,37 @@
   "header_exempt": [
     "*.gradle.kts",
     "*/gradlew",
-    "poc/spikes/brand/assets/*",
-    "poc/spikes/showcase-android/settingslib-spa/*"
+    "assets/brand/*",
+    "contracts/*"
   ],
   "images_ok": [
     "docs/img/*",
     "poc/spikes/*/evidence/*",
-    "poc/spikes/brand/*",
-    "*/src/main/res/*"
+    "assets/brand/*",
+    "apps/android/*/src/main/res/*",
+    "apps/android/*/src/test/snapshots/*",
+    "apps/macos/Tests/*/__Snapshots__/*",
+    "apps/macos/Bundle/*.xcassets/*",
+    "apps/macos/Bundle/*.icns"
   ],
   "images_extra": [],
   "large_bytes": 2000000,
   "large_ok": [],
   "secret_ok": [
+    "contracts/protocol/identity/vectors.json",
+    "contracts/protocol/ogs/*",
     "poc/spikes/nostr/identity/vectors.json",
     "poc/spec/test-vectors/*",
-    "tools/check/check.py"
+    "tools/check/check.py",
+    "tools/check/selftest.sh"
   ],
   "strings_scope": [
-    "poc/spikes/showcase-android/app/src/main/kotlin/*.kt"
+    "apps/android/*/src/main/kotlin/*.kt"
   ],
-  "strings_warn_only": [
-    "poc/spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/features/DebugReceiver.kt",
-    "poc/spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/hook/*"
-  ],
-  "cleartext_ok": [
-    {
-      "path": "poc/spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/nightscout/NsConfig.kt",
-      "contains": "\"http\" -> if (isLoopback(host))",
-      "reason": "NsSite.parse, the one validated path: http only to loopback or literal home-network hosts (NsSiteTest)"
-    },
-    {
-      "path": "poc/spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/owner/OwnerEngine.kt",
-      "contains": "\"http://127.0.0.1:17580\"",
-      "reason": "Juggluco's web server on this phone's loopback"
-    },
-    {
-      "path": "poc/spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/bridge/LocalServers.kt",
-      "contains": "\"http://$it:${Features.NIGHTSCOUT_PORT}\"",
-      "reason": "display text: the addresses this phone's own Nightscout API serves on (nothing is fetched)"
-    },
-    {
-      "path": "poc/spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/ui/SettingsScreens.kt",
-      "contains": "\"http://127.0.0.1:${Features.NIGHTSCOUT_PORT}",
-      "reason": "display text: this phone's own Nightscout API on loopback"
-    }
-  ],
-  "network_ok": [
-    {
-      "path": "poc/spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/nightscout/Http.kt",
-      "reason": "Nightscout upload: URLs only from NsConfig, i.e. NsSite.parse"
-    },
-    {
-      "path": "poc/spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/nightscout/NsConfig.kt",
-      "reason": "parses the user's address (URI), opens nothing"
-    },
-    {
-      "path": "poc/spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/tidepool/TidepoolClient.kt",
-      "reason": "https://api.tidepool.org constant"
-    },
-    {
-      "path": "poc/spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/libreview/LibreViewClient.kt",
-      "reason": "https constants; the URLs from Abbott's config must start with https:// (LibreViewClient.https)"
-    },
-    {
-      "path": "poc/spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/direct/ReceiverId.kt",
-      "reason": "https://api(-region).libreview.io literal"
-    },
-    {
-      "path": "poc/spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/ui/SettingsScreens.kt",
-      "reason": "update check: https://api.github.com literal"
-    },
-    {
-      "path": "poc/spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/core/RelayConnection.kt",
-      "reason": "relay URLs only after RelayPool / Proto keep wss:// ones"
-    },
-    {
-      "path": "poc/spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/owner/GlucoseSource.kt",
-      "reason": "Juggluco on loopback (OwnerEngine.JUGGLUCO)"
-    }
-  ],
+  "strings_warn_only": [],
+  "cleartext_ok": [],
+  "network_ok": [],
+  "durations_ok": {},
   "states_pending": [
     {
       "section": "Readings and backfill",
