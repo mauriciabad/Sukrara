@@ -569,6 +569,21 @@ The wearer's phone shares readings, alerts and the stream's roster with approved
   can't read anything new. Writers (followers allowed to add treatments) are named in the roster.
 - **Readings**: live event per new reading (< 10 min old), hour chunks of the last 25 h (current hour at most every
   5 min), all of the last 24 h again on start, approval and rotation. **Alerts** go out at once.
+- **Access request notification** (channel *Access requests*, Sukrara's info group): *Ana wants to see your glucose ·
+  Asked with your invite for Ana · 14:02* with **Deny** and **Allow** (Allow only on an unlocked phone); a tap opens
+  the app. When another phone also tried the same invite there are no actions: open the app and check. The
+  notification goes as soon as the request is answered anywhere (notification or app) or sharing pauses (another app
+  sharing as you). An Allow that didn't happen (invite expired, request no longer waiting, sharing paused) is replaced
+  by *Couldn't give access* (open Sukrara to send a new invite). Sharing runs only while the phone is the wearer.
+- **Treatments** (PROTOCOL-v2 §Treatments): every change of the phone's treatment log (add, edit, delete, undo) goes
+  to followers at once, signed by this phone's device key; the whole log of the last 30 days (deleted entries too)
+  again on start, on a new epoch (restore, removing a follower), when a follower is approved, and weekly. **Can add
+  entries** (writer scope) for an active follower: the roster names it; its entries are merged into the log only for
+  a new entry or one it created (never the wearer's or another writer's), then echoed to every follower.
+- **Mirrored settings** (PROTOCOL-v2 §Settings): exactly the schema's `mirror` settings (ranges, graph, per-alert
+  on / threshold / repeat except no data, the three quiet rules) go to followers 3 s after a change, only when one of
+  them changed (sounds, notification actions, Mute all and the alerts main switch never leave the phone); the same
+  version again on start, a new epoch and weekly. Nothing is sent until the settings layer provides them.
 - **Relays**: `wss://nos.lol`, `wss://relay.primal.net`, `wss://nostr.mom`, `wss://relay.snort.social`; reconnect
   2 s doubling to 5 min (random 50–100 %), at once when the network comes back; per-relay status, never an error
   thrown at the person. Roster and backup are refreshed every 6 days.
@@ -580,8 +595,8 @@ The wearer's phone shares readings, alerts and the stream's roster with approved
 errors → *Needs password* (type it), *Wrong password* / *Not a recovery code* (edit and retry), *Relays unreachable*
 (retry when online), *No backup found* (check the code; nothing changed), *Backup unreadable*; none of them changes
 anything. *Identity unreadable* (blocking; the file is never replaced silently) → *Retry* (when the Keystore was busy)
-or *Restore from recovery code*. *Sharing* → invite, approve / deny, remove, export recovery code. *Request waiting* →
-*Allow* (needs unlock) / *Deny*. *Another app is sharing as you* (home + Settings › Sharing; says whether followers
+or *Restore from recovery code*. *Sharing* → invite, approve / deny, remove, allow / stop a follower adding entries, export recovery code.
+*Request waiting* → notification *Allow* (needs unlock) / *Deny*, or the app; the notification leaves once answered. *Another app is sharing as you* (home + Settings › Sharing; says whether followers
 still get readings) → turn off the showcase's sharing or uninstall it, then *I turned it off — retry* (republishes once,
 past the other app's event; blocks again if it's still running) or *Help*.
 

@@ -27,4 +27,5 @@ data class Treatment(
 
 enum class TreatmentKind { RapidInsulin, LongInsulin, Carbs, Note }
 
-enum class TreatmentOrigin { Phone, Mac }
+/** Who created the entry: the wearer's phone, the Mac (legacy link) or a follower allowed to add entries (writer). */
+enum class TreatmentOrigin { Phone, Mac, Follower }

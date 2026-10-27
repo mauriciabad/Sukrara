@@ -6,4 +6,11 @@
     <!-- Nostr relays (wss only) and reconnecting when the network comes back -->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+
+    <application>
+        <!-- Allow / Deny on the access-request notification: only our own explicit PendingIntents reach it -->
+        <receiver
+            android:name="app.mauri.sukrara.share.owner.requests.RequestActionReceiver"
+            android:exported="false" />
+    </application>
 </manifest>
