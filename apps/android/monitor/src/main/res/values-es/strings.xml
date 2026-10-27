@@ -2,4 +2,50 @@
 <!-- Sukrara — https://github.com/mauriciabad/Sukrara
      Copyright (C) 2026 Maurici Abad
      SPDX-License-Identifier: GPL-3.0-or-later -->
-<resources />
+<resources>
+    <string name="monitor_group_alerts">Avisos de glucosa</string>
+    <string name="monitor_group_alerts_alarm">Alarmas de glucosa</string>
+    <string name="monitor_group_info">Otras</string>
+    <string name="monitor_channel_glucose">Glucosa (siempre visible)</string>
+    <string name="monitor_channel_status">Problemas de monitorización</string>
+    <string name="monitor_channel_requests">Solicitudes</string>
+    <string name="monitor_channel_sensor">Sensor</string>
+    <string name="monitor_channel_sensor_countdown">Cuenta atrás del sensor</string>
+    <string name="monitor_channel_pen_results">Dosis de la pluma</string>
+    <string name="monitor_channel_pen_check">Recordatorios de la pluma</string>
+    <string name="monitor_channel_alert_very_low">Muy baja</string>
+    <string name="monitor_channel_alert_low">Baja</string>
+    <string name="monitor_channel_alert_high">Alta</string>
+    <string name="monitor_channel_alert_very_high">Muy alta</string>
+    <string name="monitor_channel_alert_extremely_high">Extremadamente alta</string>
+    <string name="monitor_channel_alert_falling_fast">Bajando rápido</string>
+    <string name="monitor_channel_alert_rising_fast">Subiendo rápido</string>
+    <string name="monitor_channel_alert_no_data">Sin datos</string>
+    <string name="monitor_channel_alarm_very_low">Muy baja (alarma)</string>
+    <string name="monitor_channel_alarm_low">Baja (alarma)</string>
+    <string name="monitor_channel_alarm_high">Alta (alarma)</string>
+    <string name="monitor_channel_alarm_very_high">Muy alta (alarma)</string>
+    <string name="monitor_channel_alarm_extremely_high">Extremadamente alta (alarma)</string>
+    <string name="monitor_channel_alarm_falling_fast">Bajando rápido (alarma)</string>
+    <string name="monitor_channel_alarm_rising_fast">Subiendo rápido (alarma)</string>
+    <string name="monitor_channel_alarm_no_data">Sin datos (alarma)</string>
+
+    <string name="monitor_notif_value">%1$s mg/dL %2$s</string>
+    <string name="monitor_notif_reading_at">Lectura de las %1$s</string>
+    <string name="monitor_notif_no_readings_since">Sin lecturas desde las %1$s</string>
+    <string name="monitor_notif_waiting">Esperando la glucosa…</string>
+    <string name="monitor_notif_not_monitoring">Sin monitorizar: aún no hay sensor</string>
+    <string name="monitor_notif_sensor_ended">Sensor terminado</string>
+    <string name="monitor_notif_warming_up">Sensor calentando · listo a las %1$s</string>
+    <string name="monitor_notif_bluetooth_off">El Bluetooth está apagado: actívalo para recibir lecturas</string>
+    <string name="monitor_notif_core_missing">Esta versión no puede leer un sensor Libre 3</string>
+    <string name="monitor_chip_value">%1$s %2$s</string>
+    <string name="monitor_chip_stale">%1$s</string>
+    <string name="monitor_action_open_app">Abrir Sukrara</string>
+    <string name="monitor_action_set_up_sensor">Configurar sensor</string>
+    <string name="monitor_action_replace_sensor">Cambiar sensor</string>
+
+    <string name="monitor_stopped_title">Monitorización detenida</string>
+    <string name="monitor_stopped_text">No hay lecturas de glucosa ni avisos hasta que vuelva a funcionar. Toca para reanudar.</string>
+    <string name="monitor_action_resume">Reanudar</string>
+</resources>

@@ -1,5 +1,54 @@
 # Sukrara V1 architecture
 
+How Sukrara V1 is built. Each part is filled in by the work that builds it; the rules are in
+[`CLAUDE.md`](../CLAUDE.md), the day-to-day know-how in [`DEVELOPMENT.md`](DEVELOPMENT.md), what the apps do in
+[`FEATURES.md`](FEATURES.md).
+
+## Repository layout
+
+| Path | What |
+|---|---|
+| `apps/android/` | the Android app (Gradle root: own `settings.gradle.kts`, wrapper, `build-logic/`) |
+| `apps/macos/` | the Mac app (SwiftPM root: `Package.swift`, `Sources/`, `Tests/`, `Bundle/`) |
+| `contracts/` | what both apps agree on and are tested against: alert spec + scenarios, graph fixtures + surface registry, settings schema, protocols + vectors, treatment / export / pen fixtures ([README](../contracts/README.md)) |
+| `assets/brand/` | icons and brand art for both apps and the docs |
+| `poc/` | the frozen showcase PoC (0.11.x) and its investigations; buildable, never changed |
+| `tools/` | `check/` (the rules as checks), `hooks/`, `settings/gen.py`, `release/`, `install.sh` |
+| `VERSION` | the one version source (`0.90.0` → versionCode / CFBundleVersion 90000) |
+
+## Identity and storage
+
+- Android `app.mauri.sukrara`; Mac `app.mauri.sukrara`, widget `app.mauri.sukrara.widget`, App Group
+  `QWUV9H4A3G.app.mauri.sukrara`. V1 installs next to the PoC (`app.mauri.sukrara.poc`) and reads none of its data.
+- Settings: [`contracts/settings/settings.json`](../contracts/settings/settings.json) → generated `SettingsSpec`
+  (Android Preferences DataStore files by area, Mac UserDefaults). Every persisted format carries a version.
+
+## Android (`apps/android`)
+
+### Build
+<!-- Chunk 02: Gradle / AGP / Kotlin versions, convention plugins, signing, native core guard. -->
+
+### Modules
+<!-- Chunk 02: the module graph and what each module owns. -->
+
+### State and dependency injection
+<!-- Chunks 02 / 10: AppGraph, GlucoseHub, dispatchers, error policy. -->
+
+### Services, alerts and notifications
+<!-- Chunks 10 / 11: MonitoringService, alert runtime, channel registry. -->
+
+### Sensor
+<!-- Chunks 12 / 18: GattLink, Libre 3, pairing store, new-sensor flow. -->
+
+### Sharing
+<!-- Chunks 06 / 13 / 24 / 25: protocol, owner / follower engines, nearby share, first-run setup. -->
+
+### Card, widgets and UI
+<!-- Chunks 08 / 16 / 17 / 20: the one renderer, home, settings, widgets. -->
+
+### Integrations and pens
+<!-- Chunks 19 / 26. -->
+
 ## Mac (`apps/macos`)
 
 One SwiftPM package (swift-tools 6.2, Swift 6 language mode, macOS 15, arm64). Build, test and bundle commands:
@@ -150,6 +199,63 @@ core); the app shell (chunk 21) owns notifications, sounds, timers and storage.
   `EpisodesRestoreTests`, `EngineTests` (safety invariants, effect order, clock jumps, deterministic ids),
   `MuteCopyTests`.
 
+## Android sensor (`apps/android/sensor`, chunk 12)
+
+The wearer's glucose input. `SensorModule` builds it; the hub reads `SourceManager` as its one `ReadingSource`
+(`:core:model`).
+
+- **Threading**: one serial dispatcher (`Dispatchers.Default.limitedParallelism(1)`) runs the source switch, the
+  Libre 3 driver, the GATT queue and every timer; Binder callbacks are queued into an unlimited channel and handled
+  there. Juggluco's blocking HTTP runs on IO. A switch, a restart (new pairing, *Try again*, Bluetooth on, watchdog)
+  cancels the running source, whose `finally` closes the gatt, before the next one starts.
+- **Layers**: `libre3/Libre3Driver` (protocol only, no Android; ported byte for byte from the PoC) → `ble/BleLink` →
+  `ble/GattLink` (queue, 10 s per-operation and discovery timeouts, close-now + new connection with 1–30 s backoff,
+  Bluetooth off/on, generation-tagged callbacks) → `ble/GattConnector` (`AndroidGatt` on the phone, fakes in tests).
+  `libre3/Libre3Crypto` is the JNI core (`libsukrara_libre3.so`, from Juggluco at the pinned revision); a build
+  without it shows *Libre 3 core missing* and release builds refuse to build (`verifyNativeCore`).
+- **Storage**: the whole pairing (address, start, PIN, authorization, ended) is one SecureStore entry `sensor`
+  (Keystore alias `sukrara.sensor`): one atomic write; unreadable → `PairingLoad.Corrupt` → *scan the sensor again*.
+  Receiver IDs (V1's own, the LibreView account's + email) in the typed DataStore `receiver-ids.json`. No password or
+  token is stored.
+- **Takeover and receiver IDs** (verified from code and docs/02; device test pending): a Libre 3 is bound for life to
+  the receiver ID it was started with; NFC takeover (`A8`) succeeds only with that ID and a wrong one changes nothing
+  (`B1`). V1 starts sensors only with the LibreView account's ID (nothing sent without it) and tries account → own ID
+  for a takeover (nothing sent without the account ID). A showcase-started sensor (showcase ≥ 2026-10-18 starts with
+  the same account ID) is taken over by V1 signed in to the same account, and can be taken back by the showcase. A
+  takeover gives a new BLE PIN, so V1 pairs afresh and the previous owner's Bluetooth session fails; if the sensor is
+  taken away from V1, 3 rejected authorizations in a row stop the link with *another app has the sensor*.
+- **Juggluco**: `juggluco/JugglucoSource` reads `http://127.0.0.1:17580` (loopback, allow-listed): history, then SSE.
+
+## Android storage (`apps/android/core/data`)
+
+Ports live in `:core:model` (`storage/Storage.kt`, in-memory fakes in `:core:testing`); `:core:data` implements them
+and `DataModule` (built lazily by `AppGraph`, `ready()` opens the database on IO) exposes them. No PoC files or keys are
+read (new app id, no migration). Nothing is in cloud backup or device transfer (`allowBackup=false`,
+`data_extraction_rules.xml` excludes every domain).
+
+| What | Where | API |
+|---|---|---|
+| Settings | `datastore/<store>.preferences_pb`, one per schema store, keys from `contracts/settings/settings.json` | `SettingsRepository` + `SchemaSettings.number/bool/text(id)` |
+| Typed state (alert episodes, sensor pairing, …) | `files/state/<name>.json` (DataStore + kotlinx JSON) | `DataModule.typedStore(name, serializer, initial, whenCorrupt)` |
+| Secrets | `files/secure/<name>.bin` = `0x01` ‖ IV ‖ AES-256-GCM (AAD = name); Keystore alias `sukrara.<name>`, one key per purpose: `identity.owner`, `identity.follower`, `nightscout`, `tidepool`, `libreview`, `sensor` | `SecureStore` (`KeystoreSecureStore` on `SecretBox`) |
+| History | `databases/sukrara.db` (Room v1, schema in `core/data/schemas/`): `readings` (PK t+source), `treatments` (LWW on `modified_at`, tombstones), `seen_wraps`, `rejects`, `outbox` | `ReadingsRepository`, `TreatmentsRepository`, DAOs for the sharing ledger |
+| Other files | `files/<path>` atomic tmp + fsync + rename | `DataModule.fileStore(path, codec)` → `Loaded / Missing / Corrupt` |
+| Diagnostics | `files/diag/diag.log` + `.1`, 512 KB each, `Redact` scrubs keys / tokens | `DiagLog` |
+| Network | one OkHttp client (15 s connect, 30 s read, 60 s call, UA `Sukrara/<version>`, no body logging); one `SukraraJson` (`ignoreUnknownKeys`, `explicitNulls = false`) | `DataModule.http`, `DataModule.json` |
+
+Retention (`Retention`, applied in `ready()`): readings 90 days, seen wraps / rejects / sent outbox 14 days.
+
+**Corruption is never silent.** A file that can't be decoded is copied to `<file>.corrupt-<epochMs>` and reported to
+`DataModule.corruption` (`CorruptionLog`), which `AppGraph.startupState` turns into a visible problem with *Copy
+report*. `ready()` re-reports every kept copy at each start until the person acknowledges it (renamed `.seen-…`, still
+kept), so a crash or a background start can't hide it. Typed stores continue from the owner's explicit `whenCorrupt`
+value and expose their own `corruption` flow; a `FileStore` keeps the damaged file in place and returns `Corrupt` on
+every load (never `Missing`) until a deliberate save or delete; settings read as defaults. A secret that can't be opened throws
+`SecretUnreadableException` on every read and stays in place (an unreadable identity is never "no identity"); a
+transient Keystore error (busy after an OS update) throws `transient = true`, is not reported and deletes nothing; keys
+are never deleted by an error path. A damaged database is copied aside (with its WAL) and reported by
+`QuarantiningOpenHelperFactory` before SQLite recreates it. The database is not encrypted yet (issue: SQLCipher).
+
 ## Android protocol (`apps/android/core/protocol`)
 
 Nostr protocol v2 + identity ([`contracts/protocol`](../contracts/protocol/)) as one pure-JVM module: no Android, no
@@ -205,3 +311,15 @@ identity keeps working with followers on Sukrara 0.11 (Android and Mac).
   relay answers OK, so a rotation interrupted by a crash still reaches every follower. `OwnerEngine` runs them on one
   serial dispatcher, persists before publishing and exposes `StateFlow<OwnerShareState>`; `ShareOwnerModule` (A4)
   builds it for `AppGraph`.
+
+## Contracts and tests
+
+Both apps' tests read `contracts/` (Android: the `sukrara.contracts` system property from the convention plugin;
+Mac: `Contracts.url(…)`). A contract change lands with both implementations (`tools/check` parity groups, CI runs
+both apps). Alert scenario expectations change only with the owner's OK.
+
+## Release
+
+`VERSION` → both apps. Android: `tools/release/android-release.sh` (assembleRelease with the release key +
+`verify-apk.sh`); Mac: `tools/release/mac-release.sh` (bundle + dmg + `verify-app.sh`). 0.x versions are GitHub
+prereleases; both apps' update checks include prereleases only on a prerelease build.

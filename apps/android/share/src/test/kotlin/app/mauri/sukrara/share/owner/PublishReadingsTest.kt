@@ -23,7 +23,7 @@ class PublishReadingsTest {
     private val s = CreateIdentity(ctx)(null, now).state
     private val publisher = PublishReadings(ctx)
 
-    private fun reading(t: Long, mgdl: Int) = Reading(Instant.ofEpochSecond(t), mgdl, 1.0f, SourceId.Libre3)
+    private fun reading(t: Long, mgdl: Int) = Reading(Instant.ofEpochSecond(t), mgdl, 1.0, SourceId.Libre3)
 
     private fun decrypt(content: String) = crypto.decrypt(s.readKey(crypto).secret, s.device(crypto).public, content)!!
 

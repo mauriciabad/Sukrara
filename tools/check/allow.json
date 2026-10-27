@@ -13,8 +13,7 @@
   "header_exempt": [
     "*.gradle.kts",
     "*/gradlew",
-    "assets/brand/*",
-    "contracts/*"
+    "assets/brand/*"
   ],
   "images_ok": [
     "docs/img/*",
@@ -41,8 +40,22 @@
     "apps/android/*/src/main/kotlin/*.kt"
   ],
   "strings_warn_only": [],
-  "cleartext_ok": [],
+  "cleartext_ok": [
+    {
+      "path": "apps/android/sensor/src/main/kotlin/app/mauri/sukrara/sensor/juggluco/JugglucoSource.kt",
+      "contains": "http://127.0.0.1:17580",
+      "reason": "local Juggluco on this phone: its web server listens on loopback only (127.0.0.1:17580); nothing leaves the device"
+    }
+  ],
   "network_ok": [
+    {
+      "path": "apps/android/sensor/src/main/kotlin/app/mauri/sukrara/sensor/juggluco/JugglucoSource.kt",
+      "reason": "local Juggluco on this phone: the fixed loopback base URL (LOCAL_URL); no user-entered host"
+    },
+    {
+      "path": "apps/android/sensor/src/main/kotlin/app/mauri/sukrara/sensor/libreview/LibreViewAccount.kt",
+      "reason": "LibreView receiver-ID sign-in: https only, fixed host api.libreview.io or api-<region>.libreview.io (region validated as 2-3 lower-case letters)"
+    },
     {
       "path": "apps/android/share/src/main/kotlin/app/mauri/sukrara/share/transport/WebSocket.kt",
       "reason": "Nostr sharing: relay WebSockets; RelayPool passes only wss:// URLs (Wire.secureRelays), never cleartext"
@@ -63,10 +76,6 @@
       "reason": "written before the Complete flows rule (round f29): audit its states and exits, then add the paragraph"
     },
     {
-      "section": "Sensor life",
-      "reason": "written before the Complete flows rule (round f29): audit its states and exits, then add the paragraph"
-    },
-    {
       "section": "New sensor (pairing flow)",
       "reason": "written before the Complete flows rule (round f29): audit its states and exits, then add the paragraph"
     },
@@ -76,10 +85,6 @@
     },
     {
       "section": "Data export",
-      "reason": "written before the Complete flows rule (round f29): audit its states and exits, then add the paragraph"
-    },
-    {
-      "section": "Live notification",
       "reason": "written before the Complete flows rule (round f29): audit its states and exits, then add the paragraph"
     },
     {

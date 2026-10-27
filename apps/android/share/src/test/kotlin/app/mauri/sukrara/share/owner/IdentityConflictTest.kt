@@ -98,7 +98,7 @@ class IdentityConflictTest {
         assertNull(engine.createInvite("x"))
         assertEquals(before, relay.published.size)
         // readings continue
-        hub.push(Reading(Instant.ofEpochSecond(NOW - 30), 123, 0.5f, SourceId.Libre3))
+        hub.push(Reading(Instant.ofEpochSecond(NOW - 30), 123, 0.5, SourceId.Libre3))
         runCurrent()
         assertTrue(relay.published.drop(before).any { it.kind == app.mauri.sukrara.protocol.Wire.KIND_LIVE })
 
@@ -119,6 +119,12 @@ class IdentityConflictTest {
         override suspend fun ingest(readings: List<Reading>, from: SourceId) = Unit
 
         override fun setSource(status: SourceStatus) = Unit
+
+        override fun setSensor(sensor: app.mauri.sukrara.core.model.SensorState) = Unit
+
+        override fun setAlerts(alerts: app.mauri.sukrara.core.model.AlertUiState) = Unit
+
+        override fun setLink(link: app.mauri.sukrara.core.model.LinkState?) = Unit
     }
 
     private companion object {
