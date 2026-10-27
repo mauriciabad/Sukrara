@@ -12,7 +12,9 @@ import app.mauri.sukrara.core.model.ServiceState
 import app.mauri.sukrara.core.model.StopReason
 import app.mauri.sukrara.feature.home.Samples.NOW
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.time.Duration
 
@@ -60,7 +62,7 @@ class NoDataReasonTest {
     @Test fun `ended and warming up replace any number`() {
         assertEquals(NoDataReason.SensorEnded, reason(Samples.wearer(sensor = SensorState.Ended)))
         val ready = NOW.plus(Duration.ofMinutes(40))
-        assertEquals(NoDataReason.WarmingUp(ready), reason(Samples.wearer(sensor = SensorState.WarmingUp(ready))))
+        assertEquals(NoDataReason.WarmingUp(ready), reason(Samples.wearer(ageMin = 25, sensor = SensorState.WarmingUp(ready))))
     }
 
     @Test fun `native core missing has no action but says why`() {
@@ -77,5 +79,28 @@ class NoDataReasonTest {
     @Test fun `a revoked follower is told so`() {
         val state = Samples.wearer().copy(role = Role.Follower, link = LinkState("Ana", NOW, revoked = true))
         assertEquals(NoDataReason.LinkRevoked, reason(state))
+    }
+
+    @Test fun `only nothing-to-draw reasons take the card's place, the rest sit under the card and its chart`() {
+        assertTrue(reason(GlucoseState.Initial)!!.fullPage)
+        assertTrue(reason(Samples.noSensorYet())!!.fullPage)
+        assertTrue(reason(Samples.wearer(sensor = SensorState.CoreMissing))!!.fullPage)
+        val underCard =
+            listOf(
+                Samples.wearer(ageMin = 25),
+                Samples.wearer(sensor = SensorState.Ended),
+                Samples.wearer(ageMin = 25, sensor = SensorState.WarmingUp(NOW.plus(Duration.ofMinutes(40)))),
+                Samples.wearer(ageMin = 30).copy(role = Role.Follower, link = LinkState("Ana", NOW.minus(Duration.ofMinutes(30)))),
+                Samples.wearer(ageMin = 25).copy(service = ServiceState.Stopped(StopReason.StartDenied)),
+            )
+        for (state in underCard) assertFalse("$state", reason(state)!!.fullPage)
+    }
+
+    @Test fun `a damaged store says what it means for the person`() {
+        fun kind(store: String) = DataProblem(store, "x", null, NOW).kind
+        assertEquals(DamagedStore.Settings, kind("settings:alerts"))
+        assertEquals(DamagedStore.History, kind("database:history"))
+        assertEquals(DamagedStore.Keys, kind("secret:identity"))
+        assertEquals(DamagedStore.Other, kind("home-banners.json"))
     }
 }

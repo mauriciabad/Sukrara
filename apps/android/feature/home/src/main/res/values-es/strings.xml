@@ -90,7 +90,7 @@
 
     <string name="home_following">Siguiendo a %1$s</string>
     <string name="home_following_unnamed">Siguiendo</string>
-    <string name="home_link_heard">Conectado · última señal %1$s</string>
+    <string name="home_link_heard">Última señal %1$s</string>
     <string name="home_link_never">Esperando la primera lectura</string>
 
     <string name="home_treatments">Últimas 24 horas</string>
@@ -103,11 +103,20 @@
     <string name="home_undo">Deshacer</string>
 
     <string name="data_title">Datos dañados</string>
-    <string name="data_intro">Estos archivos no se pudieron leer. Sukrara los apartó, siguió funcionando con lo que pudo leer y guardó las copias dañadas para el informe.</string>
-    <string name="data_file">%1$s · %2$s</string>
-    <string name="data_kept_as">Guardado como %1$s</string>
-    <string name="data_not_moved">Dejado en su sitio</string>
+    <string name="data_intro">Sukrara no pudo leer algunos de sus datos guardados y empezó esas partes de nuevo. Esto es lo que significa para ti.</string>
     <string name="data_copy">Copiar informe</string>
     <string name="data_ack">Entendido</string>
     <string name="data_back">Atrás</string>
+    <string name="home_link_silent">Sin señal de %1$s desde %2$s</string>
+    <string name="home_link_silent_unnamed">Sin señal de su móvil desde %1$s</string>
+    <string name="home_link_revoked">Ya no sigues a esta persona</string>
+    <string name="data_store_settings_title">Ajustes</string>
+    <string name="data_store_settings_text">Tus ajustes volvieron a los valores por defecto. Revisa tus niveles de alerta y silencios.</string>
+    <string name="data_open_alerts">Abrir ajustes de alertas</string>
+    <string name="data_store_history_title">Lecturas y tratamientos</string>
+    <string name="data_store_history_text">Puede que falten algunas lecturas guardadas o tratamientos registrados.</string>
+    <string name="data_store_keys_title">Claves e inicios de sesión</string>
+    <string name="data_store_keys_text">No se pudo leer una clave o un inicio de sesión guardado. Puede que tengas que iniciar sesión, emparejar o compartir de nuevo.</string>
+    <string name="data_store_other_title">Otros datos guardados</string>
+    <string name="data_store_other_text">Se reinició un archivo guardado; Sukrara lo empezó de nuevo vacío.</string>
 </resources>
