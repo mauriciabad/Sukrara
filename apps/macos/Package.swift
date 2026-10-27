@@ -16,6 +16,7 @@ let mainActorByDefault: [SwiftSetting] = [
 
 let package = Package(
     name: "Sukrara",
+    defaultLocalization: "en",
     platforms: [.macOS(.v15)],
     products: [
         .executable(name: "Sukrara", targets: ["Sukrara"]),
@@ -42,6 +43,7 @@ let package = Package(
         .target(
             name: "SukraraApp",
             dependencies: ["SukraraCore", "SukraraGraph", "SukraraAlerts", "SukraraShare"],
+            resources: [.process("Windows/Localizable.xcstrings")],
             swiftSettings: mainActorByDefault
         ),
         .executableTarget(name: "Sukrara", dependencies: ["SukraraApp"], swiftSettings: mainActorByDefault),
@@ -60,7 +62,9 @@ let package = Package(
             ]
         ),
         // Offline snapshot renderer for every surface (debug builds only).
-        .executableTarget(name: "sukrara-snap", dependencies: ["SukraraApp"], swiftSettings: mainActorByDefault),
+        .executableTarget(
+            name: "sukrara-snap", dependencies: ["SukraraApp", "SukraraCore", "SukraraGraph"],
+            swiftSettings: mainActorByDefault),
 
         // Test support: fakes for every store / transport protocol and the contracts/ locator.
         .target(name: "SukraraTesting", dependencies: ["SukraraCore", "SukraraShare"], path: "Tests/SukraraTesting"),

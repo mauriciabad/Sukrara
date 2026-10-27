@@ -41,7 +41,14 @@ internal object Scenes {
         kind: TreatmentKind,
         amount: Double,
         agoS: Long,
-    ) = Treatment(id, kind, amount, Instant.ofEpochSecond(NOW - agoS), modifiedAt = Instant.ofEpochSecond(NOW - agoS), origin = TreatmentOrigin.Phone)
+    ) = Treatment(
+        id,
+        kind,
+        amount,
+        Instant.ofEpochSecond(NOW - agoS),
+        modifiedAt = Instant.ofEpochSecond(NOW - agoS),
+        origin = TreatmentOrigin.Phone,
+    )
 
     fun model(
         readings: List<GlucosePoint>,

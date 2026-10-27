@@ -1,0 +1,82 @@
+// Sukrara — https://github.com/mauriciabad/Sukrara
+// Copyright (C) 2026 Maurici Abad
+// SPDX-License-Identifier: GPL-3.0-or-later
+package app.mauri.sukrara
+
+import android.content.Context
+import app.mauri.sukrara.core.data.CorruptFile
+import app.mauri.sukrara.core.data.DataModule
+import app.mauri.sukrara.core.model.AlertReadiness
+import app.mauri.sukrara.core.model.AlertReadinessSource
+import app.mauri.sukrara.core.model.AlertRequirement
+import app.mauri.sukrara.core.model.Clock
+import app.mauri.sukrara.core.model.GlucoseState
+import app.mauri.sukrara.core.model.storage.StateStore
+import app.mauri.sukrara.core.model.storage.TreatmentsRepository
+import app.mauri.sukrara.feature.home.DataProblem
+import app.mauri.sukrara.feature.home.HomeDeps
+import app.mauri.sukrara.feature.home.banners.BannerMemory
+import app.mauri.sukrara.feature.home.banners.HomeEnvironment
+import app.mauri.sukrara.feature.home.banners.Showcase
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.update
+
+/**
+ * The home screen's ports, built from the modules `AppGraph` composes. [glucose] is the hub's state and [readiness]
+ * the alert checklist (`:monitor` / the alert runtime implement them; until they are composed into `AppGraph` the
+ * hub's initial state and an unknown checklist are passed — home then shows "not set up" and claims nothing).
+ */
+class HomeModule(
+    private val context: Context,
+    private val data: DataModule,
+    override val clock: Clock,
+    scope: CoroutineScope,
+    override val glucose: StateFlow<GlucoseState>,
+    private val readinessSource: AlertReadinessSource?,
+    private val unmuteAlerts: () -> Unit,
+    private val resume: () -> Unit,
+) : HomeDeps {
+    override val treatments: TreatmentsRepository get() = data.treatments
+
+    override val readiness: StateFlow<AlertReadiness?> =
+        readinessSource?.readiness ?: MutableStateFlow(null)
+
+    private val env = MutableStateFlow(HomeEnvironment())
+    override val environment: StateFlow<HomeEnvironment> = env
+
+    override val bannerMemory: StateStore<BannerMemory> by lazy {
+        data.typedStore("home-banners", BannerMemory.serializer(), BannerMemory(), whenCorrupt = BannerMemory())
+    }
+
+    override val dataProblems: StateFlow<List<DataProblem>> =
+        data.corruption.files
+            .map { files -> files.map { it.toProblem() } }
+            .stateIn(scope, SharingStarted.Eagerly, emptyList())
+
+    /** Re-reads what can change outside the app (the activity calls it on every resume). */
+    fun refresh() {
+        readinessSource?.refresh()
+        env.update { it.copy(showcaseInstalled = Showcase.installed(context.packageManager)) }
+    }
+
+    override fun acknowledge(problem: DataProblem) {
+        data.corruption.files.value
+            .firstOrNull { it.toProblem() == problem }
+            ?.let(data.corruption::acknowledge)
+    }
+
+    override fun unmute() = unmuteAlerts()
+
+    override fun resumeMonitoring() = resume()
+
+    override fun fix(requirement: AlertRequirement) {
+        readinessSource?.fix(requirement)
+    }
+
+    private fun CorruptFile.toProblem() = DataProblem(store = store, reason = reason, keptAs = quarantinedTo?.name, at = at)
+}

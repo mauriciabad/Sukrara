@@ -37,6 +37,24 @@ How Sukrara V1 is built. Each part is filled in by the work that builds it; the 
 ### Services, alerts and notifications
 <!-- Chunks 10 / 11: MonitoringService, alert runtime, channel registry. -->
 
+**Alerts (chunk 11, `:monitor` `monitor/alerts/`).** The rules are `:core:alerts` (`AlertMachine`); the runtime only
+applies them.
+- `AlertRuntime` — the one owner of the machine per process, behind one `Mutex`. Inputs: hub state (role, latest
+  reading, `monitoringStartedAt`, sensor), alert settings (store `alerts`, key `alerts`, SPEC §3 JSON via
+  `AlertStateStore`), treatments (→ `Doses`), the wearer's mirrored settings and `alert` events (25), this device's
+  actions (`AlertControls` in `:core:model`, also the notification buttons). Per input: machine → effects applied
+  (`AlertPresenter`, `AlertEventSink`, `AlertAlarm`) → `AlertRecord` saved (typed store) → `AlertUiState` published to
+  the hub. Role `null` is ignored (setup / hub loading); `monitoringStartedAt == null` switches `no_data` off.
+- `AlertCheckReceiver` (exact alarm, boot, update, clock / zone change) → `runtime.tick()` from the saved record with
+  the service dead → `sensorEnd.check()` → `MonitorRestarter.restart()` (10's starter). `AlertActionReceiver` (Mute… /
+  Change time direct reply, Remind less / as usual, Unmute, swipe tidy). Both non-exported, `goAsync` with a 9 s budget.
+- `AlertNotifier` + `AlertChannels` (`alert.<kind>` / `alert_alarm.<kind>`) + `NotificationGroups` (`notify/`: the
+  `alerts` and `info` notification groups with summaries; every alerting notification of the app belongs to one) +
+  `AlertSoundProvider` (`${applicationId}.alertsound`, exported read-only for System UI) + `AlertHaptics`.
+- `SensorEndNotifier` (`monitor/sensorend/`): `SensorEndPlan` (pure) + its own exact alarm.
+- `AlertsModule` (A4) wires it; the Application implements `AlertsHost` so receivers and the provider reach it; the
+  monitoring service calls `attach(scope)`.
+
 ### Sensor
 <!-- Chunks 12 / 18: GattLink, Libre 3, pairing store, new-sensor flow. -->
 
@@ -45,6 +63,30 @@ How Sukrara V1 is built. Each part is filled in by the work that builds it; the 
 
 ### Card, widgets and UI
 <!-- Chunks 08 / 16 / 17 / 20: the one renderer, home, settings, widgets. -->
+
+**The one card renderer: `:core:graph`** (package `app.mauri.sukrara.graph`, flat so `tools/check` card-api matches
+the `api` names in `contracts/graph/surfaces/surfaces.json`).
+
+- **Entry points.** `GlucoseCard.draw(canvas, w, h, model, style, palette, d, surface, part)` lays out and paints a
+  `CardPart` (whole card, header, value, slots, chart) and returns a `CardLayout` (every element's name, box and
+  what it shows: what the layout tests read). `GlucoseCard.image` draws into a bitmap (widgets, notification, lock
+  screen). `GlucoseCard.face` gives text / icon places the value, trend mark and freshness step (`GlucoseLook`).
+  `A11y` builds the screen-reader sentence from the same decisions.
+- **Inputs, no app state.** `CardModel` = readings (`GlucosePoint`), treatments, `nowS`, `CardWords`, `CardStatus`,
+  `MuteRule?`, `SensorInfo?`, countdown hours and an optional `metricsOf` cache. `CardStyle` / `GraphStyle` come from
+  the surface and its place's `GraphConfig` (built by the settings repository from the schema keys; `GraphConfig`
+  is a plain data class, not a JSON blob). The renderer depends only on `:core:model` and the generated
+  `SettingsSpec` (`:core:data`): no `:core:alerts`, no `:monitor`.
+- **Status from outside.** The alert runtime (chunk 11) maps its alert status to `CardStatus` (None / Needed /
+  Taken / Paused / Muted) and supplies the `MuteRule` (when a treatment's mute ends, from the alert settings). The
+  renderer only draws them (badge, last-treatment slot, mute lines).
+- **Words.** `CardWords.of(resources)` once per `Resources` (en + es strings of the module); durations through the one
+  formatter `core.model.Durations` with the `duration_*` strings.
+- **Tests** (`./gradlew :core:graph:testDebugUnitTest :core:graph:verifyRoborazziDebug`): `GraphFixtureTest`
+  (contracts/graph share, mark, sensor, place, labels, status), `FreshnessFixtureTest`, `ClockTest`, `DurationsTest`
+  (contracts/settings/durations.json, en + es), `A11ySentenceTest`, `CardLayoutTest` (contracts/graph/layout rules
+  and `expect.json` over stand-ins for the registered card surfaces until their code lands) and the Roborazzi
+  goldens in `core/graph/src/test/snapshots` (synthetic data, UTC, en-US).
 
 ### Integrations and pens
 <!-- Chunks 19 / 26. -->
@@ -172,6 +214,35 @@ NostrCrypto (protocol) ◄── NostrSDKCrypto     RelayTransport (protocol) �
   Android tests: Mac passes them unchanged → both followers agree), fake-relay end-to-end, RelayPool over scripted
   sockets. Nothing opens a network connection.
 
+## Mac runtime (follower, stores, nearby, widget feed)
+
+```
+AppModel (21, @MainActor) ── snapshots()/alerts() ──► FollowerService (protocol) ◄── FollowerRuntime (actor)
+                                                        │ owns
+          FollowerSession ◄─ receive ─┬─ RelayLink (RelayPool | FakeRelay)   KeychainStore (SecretStoring)
+                                      └─ NearbyTransport (NearbyCentral | fake) ─ NearbyLink (pure BLE protocol)
+          stores: ReadingsFileStore · TreatmentFileStore · SensorStateStore · WearerSettingsStore (actors)
+WidgetFeed (SukraraApp) ── glucose.json in the App Group + WidgetReloadPolicy (≤ 1 value reload / 5 min)
+```
+
+- **Stores** (`SukraraCore/Stores`): `readings.csv` (`t_ms,mgdl,rate`, appended, atomic rewrite for backfill,
+  31 days, first reading per `t` kept), `treatments.json` (`TreatmentLog` v1: entry + creator + delivery),
+  `sensor.json`, `wearer-settings.json`. An unreadable file is copied to `<name>.corrupt-<unix s>` and reported as a
+  `StoreIssue` (never silent "no data"). `KeychainStore` uses the login keychain: the Apple Development signature has
+  no provisioning profile, so the data-protection keychain answers -34018 (TN3137); that error is tested to surface.
+- **FollowerRuntime**: start reads the Keychain (missing item → wipe leftovers, not following; read error → keep
+  data, `broken`), connects relays (+ Bluetooth when allowed), resubscribes when the session asks, persists trust
+  changes at once and the rest ≤ every 5 min, re-sends unsent treatments, runs the missing-history check 90 s after
+  the backfill. `reconnect()` is for wake / network-up (21 wires `NSWorkspace.didWakeNotification` and
+  NWPathMonitor). Join = invite lookup pool (invite key, `#p`) → `FollowerSession.join` → Keychain → request.
+- **Nearby** (`SukraraShare/Nearby`): `BleFraming` / `BleReassembler` / `BleMessage` / `HelloProof` pinned by the
+  OGS `ble` vectors; `NearbyLink` is the per-connection protocol (HELLO, INFO proof, one write in flight, nothing
+  written before the phone proved it's the wearer's); `NearbyCentral` is the CoreBluetooth adapter, an actor whose
+  executor is the CB queue (delegate callbacks enter with `assumeIsolated`).
+- Tests: `FollowerRuntimeTests` (join over a fake relay hub with the OGS invite and key, outbox, unfollow, Keychain
+  errors), `ProtocolCompatTests` (every sync fixture through the runtime into file stores, incl. `rotation.json` =
+  restore), `NearbyTests`, `StoreTests`, `KeychainStoreTests` (temp service), `WidgetFeedTests`.
+
 ## Mac alerts (`apps/macos/Sources/SukraraAlerts`)
 
 The alert rules of [`contracts/alerts/SPEC.md`](../contracts/alerts/SPEC.md) as a pure Swift 6 library (functional
@@ -293,6 +364,24 @@ identity keeps working with followers on Sukrara 0.11 (Android and Mac).
   messages, `HelloProof`.
 - **Fixtures**: `contracts/protocol/{identity,ogs}` vectors and `contracts/protocol/sync/*.json` (owner → follower
   sequences and the owner-conflict cases, generated here with `-Psukrara.regen=true`, replayed by the Mac too).
+
+## Android sharing, wearer side (`apps/android/share`)
+
+- `crypto/SdkNostrCrypto` — the `:core:protocol` `NostrCrypto` over `org.nostrdevkit:nostr-sdk` 0.45.1 (+ JNA AAR;
+  R8 keeps in `consumer-rules.pro`). Host tests run it on `nostr-sdk-jvm` and subclass `NostrCryptoContractTest`.
+- `transport/` — `RelayTransport` (inbound flow, per-relay status, subscribe / publish / fetch, `reconnectNow`) and
+  `RelayPool`, the Kotlin twin of the Mac `RelayPool`: one OkHttp WebSocket per relay (`OkHttpWebSockets`, wss only,
+  pings every 60 s), backoff 2 s → 5 min × jitter, subscriptions + a 1-hour outbox re-sent after reconnects (a newer
+  live / addressable event replaces the older), NIP-42 AUTH as the identity. nostr-sdk's Client isn't used: one relay
+  behaviour on both platforms, and the pool is unit-tested against fake sockets. Tests use `FakeRelayTransport`.
+- `owner/` — `OwnerState` (V1 typed state, `@Serializable`, redacted) in `OwnerIdentityStore` (SecureStore
+  `identity.owner`; unreadable ≠ missing). Use-cases in `owner/usecase` are pure `(state, input, now) → Step(state,
+  events)`: `CreateIdentity`, `RestoreIdentity` (+ `restoreAllowed` gate), `ExportRecovery`, `CreateInvite`,
+  `HandleInbox`, `ApproveRequest`, `DenyRequest`, `RemoveFollower`, `Rotate`, `PublishReadings`,
+  `IdentityConflictDetector`; control events (deliveries, notices, roster, backup) wait in `pendingControl` until a
+  relay answers OK, so a rotation interrupted by a crash still reaches every follower. `OwnerEngine` runs them on one
+  serial dispatcher, persists before publishing and exposes `StateFlow<OwnerShareState>`; `ShareOwnerModule` (A4)
+  builds it for `AppGraph`.
 
 ## Contracts and tests
 

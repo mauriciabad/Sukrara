@@ -337,7 +337,8 @@
         "draw",
         "image",
         "face",
-        "observer",
+        "accessibilityLabel",
+        "noValueText",
         "yRange"
       ],
       "SensorBadge": [
@@ -374,7 +375,7 @@
     },
     "value_text_ok": [
       {
-        "path": "apps/macos/Sources/SukraraApp/Alerts/AlertNotifier.swift",
+        "path": "apps/macos/Sources/SukraraApp/Alerts/AlertText.swift",
         "why": "an alert's notification says the reading that fired it; log lines"
       },
       {
@@ -406,7 +407,7 @@
           ]
         ],
         "files": [
-          "apps/macos/Sources/SukraraApp/StatusItem/StatusItemController.swift"
+          "apps/macos/Sources/SukraraApp/Panel/PanelView.swift"
         ]
       },
       {
@@ -415,7 +416,8 @@
         "entry": "StatusController.title",
         "what": "the status item's value, strike and arrow",
         "files": [
-          "apps/macos/Sources/SukraraApp/StatusItem/StatusItemController.swift"
+          "apps/macos/Sources/SukraraApp/AppModel.swift",
+          "apps/macos/Sources/SukraraApp/StatusItem/MenubarTitle.swift"
         ]
       },
       {

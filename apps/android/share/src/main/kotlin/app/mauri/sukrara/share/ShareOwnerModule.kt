@@ -1,0 +1,70 @@
+// Sukrara — https://github.com/mauriciabad/Sukrara
+// Copyright (C) 2026 Maurici Abad
+// SPDX-License-Identifier: GPL-3.0-or-later
+package app.mauri.sukrara.share
+
+import android.content.Context
+import android.net.ConnectivityManager
+import android.net.Network
+import app.mauri.sukrara.core.data.DataModule
+import app.mauri.sukrara.core.model.Clock
+import app.mauri.sukrara.core.model.DispatcherProvider
+import app.mauri.sukrara.core.model.GlucoseHub
+import app.mauri.sukrara.core.model.storage.SecureStore
+import app.mauri.sukrara.protocol.Wire
+import app.mauri.sukrara.share.crypto.SdkNostrCrypto
+import app.mauri.sukrara.share.owner.OwnerEngine
+import app.mauri.sukrara.share.owner.OwnerIdentityStore
+import app.mauri.sukrara.share.owner.PendingRequest
+import app.mauri.sukrara.share.owner.SeenWraps
+import app.mauri.sukrara.share.owner.usecase.OwnerContext
+import app.mauri.sukrara.share.owner.usecase.RandomBytes
+import app.mauri.sukrara.share.transport.OkHttpWebSockets
+import app.mauri.sukrara.share.transport.RelayPool
+import java.security.SecureRandom
+import okhttp3.OkHttpClient
+
+/**
+ * The wearer's sharing graph (A4: composed by `AppGraph`, owner role only). Nothing is built until first use.
+ * [onRequest] posts the access-request notification (app layer).
+ */
+class ShareOwnerModule(
+    private val context: Context,
+    private val data: DataModule,
+    private val secure: SecureStore,
+    private val hub: GlucoseHub,
+    private val clock: Clock,
+    private val dispatchers: DispatcherProvider,
+    private val http: OkHttpClient,
+    private val onRequest: (PendingRequest) -> Unit,
+) {
+    val crypto by lazy { SdkNostrCrypto() }
+
+    private val ownerContext by lazy {
+        val random = SecureRandom()
+        OwnerContext(crypto, RandomBytes { n -> ByteArray(n).also(random::nextBytes) })
+    }
+
+    val identityStore by lazy { OwnerIdentityStore(secure) }
+
+    /** Relays read gift wraps addressed to the identity only after NIP-42 AUTH as it: the pool gets I when known. */
+    private val transport by lazy {
+        RelayPool(Wire.DEFAULT_RELAYS, authKey = { ownerEngine.identityKey() }, crypto, OkHttpWebSockets(http), dispatchers.io, { clock.now().epochSecond })
+    }
+
+    val ownerEngine: OwnerEngine by lazy {
+        val seen = SeenWraps { id, at -> data.database.seenWraps().markSeen(id, at) }
+        OwnerEngine(ownerContext, identityStore, transport, hub, seen, clock, dispatchers.default, onRequest = onRequest).also {
+            watchNetwork()
+        }
+    }
+
+    /** The network came back: reconnect relays now instead of waiting out the backoff. */
+    private fun watchNetwork() {
+        context.getSystemService(ConnectivityManager::class.java)?.registerDefaultNetworkCallback(
+            object : ConnectivityManager.NetworkCallback() {
+                override fun onAvailable(network: Network) = transport.reconnectNow()
+            },
+        )
+    }
+}

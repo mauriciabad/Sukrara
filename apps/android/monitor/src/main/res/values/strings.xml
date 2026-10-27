@@ -3,6 +3,79 @@
      Copyright (C) 2026 Maurici Abad
      SPDX-License-Identifier: GPL-3.0-or-later -->
 <resources>
+    <!-- The info notification group's summary title. -->
+    <string name="notification_group_info">Sukrara</string>
+
+    <!-- Alert names (channel names, sound titles). -->
+    <string name="alert_kind_very_low">Very low</string>
+    <string name="alert_kind_low">Low</string>
+    <string name="alert_kind_high">High</string>
+    <string name="alert_kind_very_high">Very high</string>
+    <string name="alert_kind_extremely_high">Extremely high</string>
+    <string name="alert_kind_falling_fast">Falling fast</string>
+    <string name="alert_kind_rising_fast">Rising fast</string>
+    <string name="alert_kind_no_data">No data</string>
+
+    <!-- Alert notification: headline (SPEC §1) and text (value + direction + meaning). -->
+    <string name="alert_headline_very_low">Very low glucose</string>
+    <string name="alert_headline_low">Low glucose</string>
+    <string name="alert_headline_high">High glucose</string>
+    <string name="alert_headline_very_high">Very high glucose</string>
+    <string name="alert_headline_extremely_high">Extremely high glucose</string>
+    <string name="alert_headline_falling_fast">Falling fast</string>
+    <string name="alert_headline_rising_fast">Rising fast</string>
+    <string name="alert_headline_no_data">No glucose data</string>
+    <string name="alert_headline_with_context">%1$s · %2$s</string>
+    <string name="alert_context_eat_more">eat more</string>
+    <string name="alert_context_eat_more_again">eat more again</string>
+    <string name="alert_context_after_insulin">still high after insulin</string>
+    <string name="alert_context_after_more_insulin">still high after more insulin</string>
+    <string name="alert_text_value">%1$d mg/dL %2$s</string>
+    <string name="alert_text_falling">%1$s · falling %2$s mg/dL/min</string>
+    <string name="alert_text_rising">%1$s · rising %2$s mg/dL/min</string>
+    <string name="alert_text_no_data">No reading for %1$s</string>
+    <string name="alert_text_no_data_last">No reading for %1$s · last %2$d mg/dL</string>
+    <string name="alert_relaxed_subtext">Reminders every %1$s</string>
+
+    <!-- Alert notification actions (work from the lock screen; nothing opens). -->
+    <string name="alert_action_mute">Mute…</string>
+    <string name="alert_action_mute_for_label">Mute for (e.g. 45 min, 1 h 30)</string>
+    <string name="alert_action_remind_less">Remind less</string>
+    <string name="alert_action_remind_usual">Remind as usual</string>
+    <string name="alert_action_unmute">Unmute</string>
+    <string name="alert_action_change">Change time</string>
+
+    <!-- Mute / remind-less lines (contracts/alerts/copy.json; AlertCopyTest). Side names fill %1$s. -->
+    <string name="side_low">Low</string>
+    <string name="side_high">High</string>
+    <string name="side_falling_fast">Falling fast</string>
+    <string name="side_rising_fast">Rising fast</string>
+    <string name="side_no_data">No data</string>
+    <string name="mute_side">%1$s alerts muted</string>
+    <string name="mute_side_left_one">%1$s alerts muted · %2$s left</string>
+    <string name="mute_side_left_other">%1$s alerts muted · %2$s left</string>
+    <string name="mute_after_carbs_one">%1$s alerts muted after carbs · %2$s left</string>
+    <string name="mute_after_carbs_other">%1$s alerts muted after carbs · %2$s left</string>
+    <string name="mute_after_insulin_one">%1$s alerts muted after insulin · %2$s left</string>
+    <string name="mute_after_insulin_other">%1$s alerts muted after insulin · %2$s left</string>
+    <string name="mute_falling">%1$s alerts muted while falling back into range</string>
+    <string name="mute_less">%1$s reminders every %2$s</string>
+    <string name="mute_all_left_one">Alerts muted · %1$s left</string>
+    <string name="mute_all_left_other">Alerts muted · %1$s left</string>
+    <string name="mute_all_forever">Alerts muted until you turn it off</string>
+    <string name="mute_notif_until">Until %1$s</string>
+    <string name="mute_pill">Muted · %1$s</string>
+    <string name="mute_pill_forever">Muted</string>
+    <string name="mute_choice">For %1$s</string>
+    <string name="mute_choice_forever">Until you turn it off</string>
+
+    <!-- Sensor end (CHANGES P7). -->
+    <string name="sensor_end_soon_title">Sensor ends in %1$s</string>
+    <string name="sensor_end_soon_text">Have a new sensor ready to change it in time.</string>
+    <string name="sensor_ended_title">Sensor ended</string>
+    <string name="sensor_ended_text">No readings until you start a new sensor.</string>
+    <string name="sensor_action_pair">Pair new sensor</string>
+
     <!-- notification groups and channels (names the person sees in Android's notification settings) -->
     <string name="monitor_group_alerts">Glucose alerts</string>
     <string name="monitor_group_alerts_alarm">Glucose alarms</string>

@@ -14,19 +14,18 @@ import app.mauri.sukrara.protocol.event.TreatmentPayload
 import app.mauri.sukrara.protocol.event.WireReading
 import app.mauri.sukrara.protocol.follow.FollowerState
 import app.mauri.sukrara.protocol.testing.ContractFiles
+import app.mauri.sukrara.protocol.testing.FollowerModel
 import app.mauri.sukrara.protocol.testing.OgsVectors
 import app.mauri.sukrara.protocol.testing.OgsVectors.Companion.str
 import java.io.File
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
-import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import org.junit.Assert.assertEquals
 import org.junit.Test
@@ -123,29 +122,6 @@ class SyncFixturesTest {
 
     private fun follower() = FollowerModel(crypto, FollowerState(follower = fol, identity = i.public))
 
-    /** The state a fixture expects, as JSON (what the Mac compares too). */
-    private fun stateOf(m: FollowerModel): JsonObject {
-        val s = m.follower.state
-        return buildJsonObject {
-            put("status", s.status.name.lowercase())
-            put("epochs", buildJsonArray { s.epochs.values.map { it.n }.sorted().forEach { add(JsonPrimitive(it)) } })
-            put("devices", buildJsonArray { s.devices.forEach { add(JsonPrimitive(it)) } })
-            put("writers", buildJsonArray { s.writers.forEach { add(JsonPrimitive(it)) } })
-            put("readings", buildJsonArray { m.readings.values.forEach { r -> add(buildJsonArray { add(JsonPrimitive(r.t)); add(JsonPrimitive(r.sgv)); add(r.rate?.let(::JsonPrimitive) ?: JsonNull) }) } })
-            put("sensor", m.sensor?.let { buildJsonObject { put("ss", it.start); put("se", it.end); put("sw", it.warmupEnd) } } ?: JsonNull)
-            put(
-                "treatments",
-                buildJsonArray {
-                    m.treatments.values.sortedBy { it.id }.forEach {
-                        add(buildJsonObject { put("id", it.id); put("k", it.kind); put("a", it.amount); put("u", it.u); put("o", it.origin); put("del", it.deleted) })
-                    }
-                },
-            )
-            put("settings", m.settings?.let { buildJsonObject { put("u", it.u); put("graph", it.graph) } } ?: JsonNull)
-            put("alerts", m.alerts.size)
-        }
-    }
-
     private fun generate(name: String): JsonObject {
         val seq = sequence(name)
         val m = follower()
@@ -160,7 +136,7 @@ class SyncFixturesTest {
             put("now", now)
             put("events", buildJsonObject { seq.forEach { (step, ev) -> put(step, Json.parseToJsonElement(ev.toJson())) } })
             put("steps", buildJsonArray { seq.forEach { (step, _, expect) -> add(buildJsonObject { put("event", step); put("expect", expect) }) } })
-            put("expected", stateOf(m))
+            put("expected", m.stateJson())
         }
     }
 
@@ -178,7 +154,7 @@ class SyncFixturesTest {
                 val ev = SignedEvent.parse(events.getValue(step.str("event")).toString())!!
                 assertEquals("$name/${step.str("event")}", step.str("expect"), m.feed(ev, fx.str("now").toLong()).code)
             }
-            assertEquals(name, fx.getValue("expected"), stateOf(m))
+            assertEquals(name, fx.getValue("expected"), m.stateJson())
         }
     }
 
