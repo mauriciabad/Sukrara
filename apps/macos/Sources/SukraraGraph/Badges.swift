@@ -82,7 +82,7 @@ enum StatusBadge {
         ctx.saveGState(); ctx.addPath(p); ctx.setFillColor(color); ctx.fillPath(); ctx.restoreGState()
     }
 
-    private static func colors(_ look: Look, dark: Bool, knockout: Bool) -> (bg: CGColor, fg: CGColor) {
+    static func colors(_ look: Look, dark: Bool, knockout: Bool) -> (bg: CGColor, fg: CGColor) {
         // Tinted: white (full opacity in either tinted mode); needed = solid pill with the words cut out, taken = a
         // faint pill under solid words, so the two stay apart as in full colour.
         if knockout {
@@ -91,7 +91,9 @@ enum StatusBadge {
                 : (CGColor(gray: 1, alpha: 1), CGColor(gray: 0, alpha: 1))
         }
         let c = TreatmentMarks.color(look.kind, dark: dark)
-        return look.tonal ? (c.copy(alpha: (dark ? 0x3D : 0x2E) / 255.0)!, c) : (c, TreatmentMarks.onColor(dark: dark))
+        return look.tonal
+            ? (c.copy(alpha: (dark ? 0x3D : 0x2E) / 255.0)!, TreatmentMarks.tonalInk(look.kind, dark: dark))
+            : (c, TreatmentMarks.onColor(dark: dark))
     }
     private static func font(_ h: CGFloat) -> CTFont { Ink.font(h * 0.56, .semibold) }
 

@@ -101,6 +101,8 @@ class MonitoringService : Service() {
         val m = monitor
         m.hubImpl.setService(ServiceState.Running)
         m.healthCheck.schedule()
+        // the alert runtime follows the hub while the service runs (its exact alarm covers the time it doesn't)
+        alertsModule?.attach(scope)
         watchBluetooth(m)
         scope.launch {
             combine(m.hubImpl.state, m.freshnessTicks.onStart { emit(Unit) }) { state, _ -> state }.collect { state ->

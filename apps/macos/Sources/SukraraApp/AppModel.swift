@@ -129,7 +129,7 @@ public final class AppModel {
 
     var menubarTitle: MenubarTitle {
         MenubarTitle.of(
-            look: look, spoken: GlucoseCard.accessibilityLabel(cardData, unit: unit, surface: .menubarTitle),
+            look: look, spoken: GlucoseCard.accessibilityLabel(cardData, unit: unit, surface: .menubarTitle, config: GraphConfig()),
             alerts: alerts?.ui ?? .idle, reason: notMonitoringReason)
     }
 

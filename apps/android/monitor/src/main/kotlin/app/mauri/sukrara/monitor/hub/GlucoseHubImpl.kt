@@ -78,28 +78,20 @@ class GlucoseHubImpl(
 
     @Volatile private var attachedSource: ReadingSource? = null
 
-    private val roleLoaded = CompletableDeferred<Unit>()
-    private val recordLoaded = CompletableDeferred<Unit>()
+    private val inputsLoaded = CompletableDeferred<Unit>()
 
     /** Completes once the role and the record have been read (after [start]). */
-    suspend fun awaitInputs() {
-        roleLoaded.await()
-        recordLoaded.await()
-    }
+    suspend fun awaitInputs() = inputsLoaded.await()
 
     /** Follows the role, the stored readings and the record. Call once, after the app's storage is ready. */
     fun start(): Job =
         scope.launch(serial) {
+            // role and record land in one update: a state with the role but not yet `monitoringStartedAt` would
+            // briefly look "not monitoring" to the alert runtime (no data off, a showing no-data alert cleared)
             launch {
-                role.collect { r ->
-                    mutableState.update { it.copy(role = r) }
-                    roleLoaded.complete(Unit)
-                }
-            }
-            launch {
-                record.data.collect { rec ->
-                    mutableState.update { it.copy(monitoringStartedAt = rec.startedAtEpochMs?.let(Instant::ofEpochMilli)) }
-                    recordLoaded.complete(Unit)
+                combine(role, record.data) { r, rec -> r to rec.startedAtEpochMs?.let(Instant::ofEpochMilli) }.collect { (r, startedAt) ->
+                    mutableState.update { it.copy(role = r, monitoringStartedAt = startedAt) }
+                    inputsLoaded.complete(Unit)
                 }
             }
             launch { windowStarts().flatMapLatest { from -> readings.window(from) }.collect(::applyWindow) }
@@ -121,6 +113,8 @@ class GlucoseHubImpl(
             val self = coroutineContext[Job]
             attachedJob = self
             attachedSource = source
+            // a source attached while Bluetooth is off hears it now, not only at the next change
+            if (!bluetoothOn.value) source.onBluetoothOff()
             try {
                 coroutineScope {
                     launch { source.sensor.collect(::onSourceSensor) }

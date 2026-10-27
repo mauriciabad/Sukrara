@@ -52,7 +52,7 @@ struct PanelView: View {
         {
             Image(decorative: image, scale: 2)
                 .accessibilityElement()
-                .accessibilityLabel(GlucoseCard.accessibilityLabel(data, unit: model.unit, surface: .menubarCard))
+                .accessibilityLabel(GlucoseCard.accessibilityLabel(data, unit: model.unit, surface: .menubarCard, config: GraphConfig()))
         }
     }
 
