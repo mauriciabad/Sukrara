@@ -106,6 +106,31 @@ func fixtureSetHasCases(_ set: String) {
         }
         if state != "ended" { #expect((lay.first("chart") != nil) == (e.bool("graph") ?? false)) }
     }
+
+    /// A card without a value (the graph widget) shows its data's age: the time label, the dimmed chart, the icon.
+    @Test(arguments: GraphFixtures.cases("freshness/freshness.json"))
+    func graphOnly(_ c: JSON) {
+        let want = c.expect.string("graph_only")
+        let fr = Freshness.of(age: c.number("age"))
+        #expect(fr.ageMark.rawValue == want)
+        var readings: [GraphReading] = []
+        if let age = c.number("age"), let sgv = c.number("sgv") {
+            readings = (1...60).reversed().map { GraphReading(t: now - age - Double($0) * 60, v: 120, rate: 0) }
+            readings.append(GraphReading(t: now - age, v: sgv, rate: c.number("rate")))
+        }
+        let st = CardStyle(graph: GraphStyle(), rings: [], value: false, sensorTime: false)
+        let size = CGSize(width: 332, height: 138)
+        let lay = GlucoseCard.draw(
+            cardContext(size), size: size, readings: readings, marks: [], now: now, st, GraphPalette.of(dark: false),
+            surface: .widgetGraph, part: .all)
+        switch want {
+        case "none": #expect(lay.first("graph.age") == nil && lay.first("chart") != nil)
+        case "face": #expect(lay.first("graph.age") == nil && lay.first("value.none") != nil)
+        default:
+            #expect(lay.first("graph.age")?.info == want)
+            #expect(lay.first("chart") != nil)
+        }
+    }
 }
 
 @Suite struct ClockFixtureTests {

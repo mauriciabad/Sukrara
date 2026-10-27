@@ -65,10 +65,24 @@ public enum GlucoseCard {
                 ? CGRect(x: 0, y: 0, width: w, height: h)
                 : CGRect(
                     x: 0, y: headerH + (st.value ? 6 * d : 0), width: w, height: h - headerH - (st.value ? 6 * d : 0))
+        // a card without a value still shows how old its data is (Freshness.AgeMark)
+        let age: Freshness.AgeMark = !st.value && part == .all && graph != nil ? fr.ageMark : .none
         if part == .all || part == .graph, let graph {
+            if age.dims {
+                ctx.saveGState()
+                ctx.setAlpha(Freshness.AgeMark.dimAlpha)
+                ctx.beginTransparencyLayer(auxiliaryInfo: nil)
+            }
             GlucoseGraph.draw(
                 ctx, chart, readings: readings, marks: marks, now: now, graph, pal, d: d, alerts: alerts,
                 sensor: spot == .graph ? sl : nil, rec: rec, view: view, latestT: latest?.t)
+            if age.dims {
+                ctx.endTransparencyLayer()
+                ctx.restoreGState()
+            }
+        }
+        if age != .none, let latest {
+            drawAgeLabel(ctx, chart, latest, now, age, pal, d: d, rec: rec)
         }
         // a graph-only card without its chart: the value's face alone
         if noChart && !st.value {
@@ -180,6 +194,35 @@ public enum GlucoseCard {
     /// The number + arrow, and under it the late reading's time and/or the status badge (`look`). The badge takes a
     /// row under the number when the box is tall enough to keep the number at least 26 pt; otherwise it shrinks to its
     /// icon beside the arrow, or is left out when there's no room there either.
+    /// A card without a value: the reading's time centred over the top of `chart` on a background pill, after the
+    /// "no readings" icon from 20 min (`age`, freshness.json `graph_only`; GlucoseCard.kt `drawAgeLabel`).
+    private static func drawAgeLabel(
+        _ ctx: CGContext, _ chart: CGRect, _ r: GraphReading, _ now: TimeInterval, _ age: Freshness.AgeMark,
+        _ pal: GraphPalette, d: CGFloat, rec: CardLayout
+    ) {
+        let text = Freshness.timeText(r.t, now: now)
+        let size = min(max(11 * d, chart.height * 0.11), 18 * d)
+        let font = Ink.font(size, .semibold)
+        let icon = age == .noReadings ? size * 1.15 : 0
+        let gap = icon > 0 ? size * 0.3 : 0
+        let padX = size * 0.5, padY = size * 0.25
+        let w = icon + gap + Ink.width(text, font) + 2 * padX, h = size * 1.2 + 2 * padY
+        let box = CGRect(x: chart.midX - w / 2, y: chart.minY + 2 * d, width: w, height: h)
+        if !pal.knockout {
+            ctx.setFillColor(pal.bg.copy(alpha: 0.9) ?? pal.bg)
+            ctx.addPath(CGPath(roundedRect: box, cornerWidth: h / 2, cornerHeight: h / 2, transform: nil))
+            ctx.fillPath()
+        }
+        if icon > 0 {
+            _ = SensorBadge.symbol(
+                ctx, GlucoseLook.noReadingsSymbol, x: box.minX + padX, y: box.midY - icon / 2, size: icon,
+                color: pal.inkSoft)
+        }
+        Ink.draw(ctx, text, x: box.minX + padX + icon + gap, y: box.midY + size * 0.36, font, pal.inkSoft)
+        rec.add("graph.age", box, age.rawValue)
+        rec.add("time.text", nil, text)
+    }
+
     private static func drawValue(
         _ ctx: CGContext, _ box: CGRect, _ r: GraphReading?, _ fr: Freshness, _ now: TimeInterval,
         _ bands: Bands, _ pal: GraphPalette, d: CGFloat, look: StatusBadge.Look?,
