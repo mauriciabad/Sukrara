@@ -97,7 +97,7 @@ fun AlertKindContent(
             SwitchRow(
                 stringResource(R.string.st_alarm),
                 rule.alarm,
-                { on -> actions.edit(AlertEdits.alarm(kind, on)) },
+                { on -> if (!on && kind in ConfirmOff) dialog = "alarmOff" else actions.edit(AlertEdits.alarm(kind, on)) },
                 summary = stringResource(R.string.st_alarm_summary),
                 enabled = rule.on,
             )
@@ -125,8 +125,16 @@ fun AlertKindContent(
                 { dialog = null },
             ) { actions.edit(AlertEdits.kindOn(kind, false)) }
 
+        "alarmOff" ->
+            ConfirmDialog(
+                stringResource(R.string.st_alarm_off_title, kindName(kind)),
+                stringResource(R.string.st_alarm_off_text),
+                stringResource(R.string.st_turn_off),
+                { dialog = null },
+            ) { actions.edit(AlertEdits.alarm(kind, false)) }
+
         "threshold" ->
-            NumberDialog(stringResource(R.string.st_threshold), NumberInput(thresholdSpec), rule.threshold, { label(thresholdSpec, it) }, { dialog = null }) {
+            NumberDialog(stringResource(R.string.st_threshold), thresholdInput(ui.settings, kind), rule.threshold, { label(thresholdSpec, it) }, { dialog = null }) {
                 actions.edit(AlertEdits.threshold(kind, it))
             }
 

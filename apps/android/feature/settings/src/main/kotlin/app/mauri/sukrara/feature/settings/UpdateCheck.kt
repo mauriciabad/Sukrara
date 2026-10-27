@@ -95,9 +95,15 @@ object UpdateCheck {
             val c = x.getOrElse(i) { 0 }.compareTo(y.getOrElse(i) { 0 })
             if (c != 0) return c
         }
-        val sa = a.contains('-')
-        val sb = b.contains('-')
-        return if (sa == sb) 0 else if (sa) -1 else 1
+        val sa = a.substringAfter('-', "")
+        val sb = b.substringAfter('-', "")
+        return when {
+            sa.isEmpty() && sb.isEmpty() -> 0
+            sa.isEmpty() -> 1
+            sb.isEmpty() -> -1
+            // "rc2" > "rc1": the suffix's number decides
+            else -> (sa.filter(Char::isDigit).toIntOrNull() ?: 0).compareTo(sb.filter(Char::isDigit).toIntOrNull() ?: 0)
+        }
     }
 
     /** Parses the List-releases JSON (unknown fields ignored; a release without a tag is skipped). */

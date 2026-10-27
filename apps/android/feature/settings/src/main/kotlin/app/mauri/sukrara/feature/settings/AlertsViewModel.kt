@@ -42,6 +42,19 @@ object AlertEdits {
         value: Double,
     ): (AlertSettings) -> AlertSettings = { s -> s.withRule(kind, s.rule(kind).copy(threshold = SchemaPrefs.thresholdSpec(kind).coerce(value))) }
 
+    /** The level thresholds, lowest first: each must stay between its neighbours. */
+    val LevelOrder = listOf(AlertKind.VERY_LOW, AlertKind.LOW, AlertKind.HIGH, AlertKind.VERY_HIGH, AlertKind.EXTREMELY_HIGH)
+
+    /** The open interval [kind]'s threshold must stay in when [value] would cross a neighbour, or null when it fits. */
+    fun thresholdConflict(
+        s: AlertSettings,
+        kind: AlertKind,
+        value: Double,
+    ): Pair<Double?, Double?>? {
+        val i = LevelOrder.indexOf(kind)
+        return if (i < 0) null else BandOrder.conflict(LevelOrder.map { s.rule(it).threshold }, i, value)
+    }
+
     fun repeat(
         kind: AlertKind,
         minutes: Double,

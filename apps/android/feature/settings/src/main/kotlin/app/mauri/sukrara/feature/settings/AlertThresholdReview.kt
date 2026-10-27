@@ -26,7 +26,6 @@ import app.mauri.sukrara.alerts.AlertSettings
 import app.mauri.sukrara.core.model.Clock
 import app.mauri.sukrara.core.model.storage.SettingsRepository
 import app.mauri.sukrara.designsystem.dialog.NumberDialog
-import app.mauri.sukrara.designsystem.dialog.NumberInput
 import app.mauri.sukrara.designsystem.rows.SettingsGroup
 import app.mauri.sukrara.designsystem.rows.ValueRow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -126,7 +125,7 @@ fun AlertThresholdReviewContent(
     editing?.let { kind ->
         val spec = SchemaPrefs.thresholdSpec(kind)
         val label = numberLabeler()
-        NumberDialog(kindName(kind), NumberInput(spec), draft.rule(kind).threshold, { label(spec, it) }, { editing = null }) {
+        NumberDialog(kindName(kind), thresholdInput(draft, kind), draft.rule(kind).threshold, { label(spec, it) }, { editing = null }) {
             onThreshold(kind, it)
         }
     }

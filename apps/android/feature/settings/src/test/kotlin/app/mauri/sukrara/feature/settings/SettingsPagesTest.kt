@@ -90,6 +90,15 @@ class SettingsPagesTest {
     }
 
     @Test
+    fun `a level threshold can't cross its neighbours`() {
+        val s = app.mauri.sukrara.alerts.AlertSettings()
+        assertNull(AlertEdits.thresholdConflict(s, AlertKind.LOW, 65.0))
+        assertEquals(null to 70.0, AlertEdits.thresholdConflict(s, AlertKind.VERY_LOW, 80.0))
+        assertEquals(180.0 to 300.0, AlertEdits.thresholdConflict(s, AlertKind.VERY_HIGH, 160.0))
+        assertNull(AlertEdits.thresholdConflict(s, AlertKind.NO_DATA, 5.0))
+    }
+
+    @Test
     fun `alert edits change only their field and keep values in format`() {
         val s0 = app.mauri.sukrara.alerts.AlertSettings()
         val s1 = AlertEdits.repeat(AlertKind.HIGH, 0.0)(s0)

@@ -157,4 +157,7 @@
     <string name="st_source_code">Código fuente</string>
     <string name="st_license">Software libre, GPL-3.0 o posterior</string>
     <string name="st_showcase_note">Esta app es distinta de Sukrara Showcase. Tras cambiar, desinstala la showcase para no recibir alertas dobles.</string>
+    <string name="st_alarm_off_title">¿Quitar la alarma de %1$s?</string>
+    <string name="st_alarm_off_text">Sonará como una notificación normal: más baja y sin abrirse sobre la pantalla de bloqueo.</string>
+    <string name="st_threshold_between">Debe estar por encima de %1$s y por debajo de %2$s (las alertas vecinas)</string>
 </resources>

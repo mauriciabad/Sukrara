@@ -57,7 +57,8 @@ object BandOrder {
 class GraphPrefsViewModel(
     private val settings: SettingsRepository,
 ) : ViewModel() {
-    val prefs: StateFlow<GraphPrefs> =
+    /** Null until the stored values have loaded (edits are never checked against defaults). */
+    val prefs: StateFlow<GraphPrefs?> =
         combine(
             combine(SchemaPrefs.Bands.map { settings.flow(it) }) { it.toList() },
             settings.flow(SchemaPrefs.GraphHours),
@@ -65,7 +66,7 @@ class GraphPrefsViewModel(
             settings.flow(SchemaPrefs.RingCount),
             combine(settings.flow(SchemaPrefs.Side), settings.flow(SchemaPrefs.ColumnCrown), settings.flow(SchemaPrefs.RingMarks)) { a, b, c -> Triple(a, b, c) },
         ) { bands, hours, grid, rings, (side, crown, marks) -> GraphPrefs(bands, hours, grid, rings, side, crown, marks) }
-            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), GraphPrefs())
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
     fun <T> set(
         setting: Setting<T>,

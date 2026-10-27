@@ -48,5 +48,7 @@ class UpdateCheckTest {
         assertEquals(0, UpdateCheck.compare("v1.0", "1.0.0"))
         assertTrue(UpdateCheck.compare("0.90.0-rc1", "0.90.0") < 0)
         assertTrue(UpdateCheck.compare("0.90.1-rc1", "0.90.0") > 0)
+        assertTrue(UpdateCheck.compare("v0.90.0-rc2", "0.90.0-rc1") > 0)
+        assertEquals(0, UpdateCheck.compare("v0.90.0-rc1", "0.90.0-rc1"))
     }
 }

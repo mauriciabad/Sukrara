@@ -217,7 +217,7 @@ private fun AlertsDialogs(
         dialog == "actionRelax" -> {
             val spec = SchemaPrefs.spec("alerts.actions.relaxMin")
             // only intervals slower than every level alert's repeat (SPEC §3 relaxMin)
-            val input = NumberInput(spec, presets = s.relaxChoices().map { it.toDouble() }, customMin = (s.relaxFloor() + 1).toDouble())
+            val input = NumberInput(spec, presets = s.relaxChoices().map { it.toDouble() }, customMin = (s.relaxFloor() + 1).toDouble().coerceAtMost(spec.max))
             NumberDialog(stringResource(R.string.st_action_relax), input, s.actions.relaxMin.toDouble(), { label(spec, it) }, close) { v ->
                 actions.edit { it.copy(actions = it.actions.copy(relaxMin = spec.coerce(v).toInt())) }
             }

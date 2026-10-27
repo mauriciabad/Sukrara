@@ -204,3 +204,22 @@ fun Context.openNotificationSettings() {
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
     )
 }
+
+/** The threshold input of [kind]: its schema format, refusing a value that would cross a neighbouring level. */
+@Composable
+fun thresholdInput(
+    settings: app.mauri.sukrara.alerts.AlertSettings,
+    kind: AlertKind,
+): app.mauri.sukrara.designsystem.dialog.NumberInput {
+    val spec = SchemaPrefs.thresholdSpec(kind)
+    val between = stringResource(R.string.st_threshold_between)
+    return app.mauri.sukrara.designsystem.dialog.NumberInput(
+        spec,
+        presets = spec.presets.filter { AlertEdits.thresholdConflict(settings, kind, it) == null },
+        reject = { v ->
+            AlertEdits.thresholdConflict(settings, kind, v)?.let { (lo, hi) ->
+                between.format(lo?.let(spec::text) ?: spec.text(spec.min), hi?.let(spec::text) ?: spec.text(spec.max))
+            }
+        },
+    )
+}

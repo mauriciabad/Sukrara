@@ -93,13 +93,13 @@ fun SettingsScreen(
         SettingsRoute.Ranges -> {
             val vm = viewModel { GraphPrefsViewModel(deps.settings) }
             val prefs by vm.prefs.collectAsStateWithLifecycle()
-            RangesContent(prefs, { s, v -> vm.set(s, v) }, onBack)
+            prefs?.let { RangesContent(it, { s, v -> vm.set(s, v) }, onBack) }
         }
 
         SettingsRoute.Graph -> {
             val vm = viewModel { GraphPrefsViewModel(deps.settings) }
             val prefs by vm.prefs.collectAsStateWithLifecycle()
-            GraphBasicsContent(prefs, { s, v -> vm.set(s, v) }, { s, v -> vm.set(s, v) }, onBack)
+            prefs?.let { GraphBasicsContent(it, { s, v -> vm.set(s, v) }, { s, v -> vm.set(s, v) }, onBack) }
         }
 
         SettingsRoute.Reliability -> {

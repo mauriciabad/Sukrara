@@ -157,4 +157,7 @@
     <string name="st_source_code">Source code</string>
     <string name="st_license">Free software, GPL-3.0-or-later</string>
     <string name="st_showcase_note">This app is separate from Sukrara Showcase. After switching, uninstall the showcase so you don\'t get double alerts.</string>
+    <string name="st_alarm_off_title">Stop the %1$s alarm?</string>
+    <string name="st_alarm_off_text">It will ring as a normal notification: quieter, and it won\'t open over the lock screen.</string>
+    <string name="st_threshold_between">Must be above %1$s and below %2$s (the neighbouring alerts)</string>
 </resources>
