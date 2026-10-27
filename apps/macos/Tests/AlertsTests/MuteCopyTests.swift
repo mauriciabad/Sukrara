@@ -75,5 +75,8 @@ import Testing
             MuteCopy.line(.fallingBack(inMinutes: 8), side: .high, now: now)
                 == "High alerts muted while falling back into range")
         #expect(MuteCopy.line(.sideMuted(until: in12), side: .noData, now: now) == "No data alerts muted · 12 min left")
+        // a quiet that has ended never claims alerts are muted
+        #expect(MuteCopy.line(.allMuted(until: now), side: .high, now: now) == nil)
+        #expect(MuteCopy.line(.sideMuted(until: now), side: .low, now: now.addingTimeInterval(1)) == nil)
     }
 }

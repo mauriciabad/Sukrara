@@ -213,7 +213,10 @@ func runScenario(_ sc: Scenario) throws -> [String] {
     var every = 1
     var nextReading: Int?
     var timer: Int?
-    let byTime = Dictionary(sc.lines.map { (t0 + $0.second, $0) }, uniquingKeysWith: { a, _ in a })
+    guard Set(sc.lines.map(\.minute)).count == sc.lines.count else {
+        throw ScenarioError.bad("\(sc.file): \(sc.title): two lines for the same minute")
+    }
+    let byTime = Dictionary(uniqueKeysWithValues: sc.lines.map { (t0 + $0.second, $0) })
     let stop = t0 + (sc.end + 1) * 60
     var t = t0
     while t < stop {

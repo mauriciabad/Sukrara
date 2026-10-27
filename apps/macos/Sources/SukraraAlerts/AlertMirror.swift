@@ -28,7 +28,7 @@ public struct AlertMirror: Sendable {
     /// group → when and which kind this device last showed (Remind less spaces the wearer's repeats).
     private var lastShown: [AlertGroup: Shown] = [:]
     /// group → id of the wearer's firing whose notification is up here.
-    private var shown: [AlertGroup: String] = [:]
+    private var shown: [AlertGroup: Newest] = [:]
     /// group → the wearer's newest firing, shown here or not.
     private var newest: [AlertGroup: Newest] = [:]
     /// groups whose newest firing the wearer has cleared.
@@ -56,7 +56,7 @@ public struct AlertMirror: Sendable {
                     } ?? false
             } ?? false
         if muted || relaxed { return false }
-        shown[g] = id
+        shown[g] = Newest(id: id, kind: kind)
         lastShown[g] = Shown(at: at, kind: kind)
         return true
     }
@@ -67,7 +67,7 @@ public struct AlertMirror: Sendable {
     public mutating func clear(_ kind: AlertKind, id: String) -> Bool {
         let g = kind.group
         if newest[g]?.id == id { newestCleared.insert(g) }
-        guard let cur = shown[g], cur == id || newest[g]?.id == id else { return false }
+        guard let cur = shown[g], cur.id == id || newest[g]?.id == id else { return false }
         shown[g] = nil
         return true
     }
@@ -83,7 +83,10 @@ public struct AlertMirror: Sendable {
     /// This device's *Mute* on `side` until `until`: true = an alert of it was showing (it goes).
     public mutating func mute(_ side: AlertSide, until: Date) -> Bool {
         snoozes.mute(side, until: until)
-        return shown.removeValue(forKey: side.mainKind.group) != nil
+        let g = side.mainKind.group
+        guard shown[g]?.kind.side == side else { return false }
+        shown[g] = nil
+        return true
     }
 
     public mutating func remindLess(_ side: AlertSide, relaxMin: Int) { snoozes.relax(side, relaxMin: relaxMin) }
@@ -99,14 +102,14 @@ public struct AlertMirror: Sendable {
     /// *Unmute* on `side` at `t`: the id of the wearer's newest firing to show at once, or nil.
     public mutating func unmute(_ side: AlertSide, at t: Date) -> String? {
         guard snoozes.unmute(side, at: t) else { return nil }
-        return muteAllEnd(at: t) != nil ? nil : showAgain(side.mainKind.group, at: t)
+        return muteAllEnd(at: t) != nil ? nil : showAgain(side.mainKind.group, side: side, at: t)
     }
 
     /// *Remind as usual* on `side`: a skipped repeat still up shows at once.
     public mutating func remindAsUsual(_ side: AlertSide, at t: Date) -> String? {
         guard snoozes.unrelax(side) else { return nil }
         if snoozes[side]?.isMuted(at: t) == true || muteAllEnd(at: t) != nil { return nil }
-        return showAgain(side.mainKind.group, at: t)
+        return showAgain(side.mainKind.group, side: side, at: t)
     }
 
     /// *Unmute all* at `t`: the ids of the wearer's newest firings still up to show at once (not muted otherwise).
@@ -115,16 +118,19 @@ public struct AlertMirror: Sendable {
         muteAllUntil = nil
         return AlertGroup.allCases.compactMap { g in
             guard let n = newest[g], snoozes[n.kind.side]?.isMuted(at: t) != true else { return nil }
-            return showAgain(g, at: t)
+            return showAgain(g, side: n.kind.side, at: t)
         }
     }
 
     /// Not mirroring any more (own rules, alerts off): nothing of the wearer's shows here.
     public mutating func forgetShown() { shown = [:] }
 
-    private mutating func showAgain(_ g: AlertGroup, at t: Date) -> String? {
-        guard let n = newest[g], !newestCleared.contains(g), shown[g] != n.id else { return nil }
-        shown[g] = n.id
+    /// Shows the wearer's newest firing of `g` again if it is of `side`, still up on the wearer and not showing here.
+    private mutating func showAgain(_ g: AlertGroup, side: AlertSide, at t: Date) -> String? {
+        guard let n = newest[g], n.kind.side == side, !newestCleared.contains(g), shown[g]?.id != n.id else {
+            return nil
+        }
+        shown[g] = n
         lastShown[g] = Shown(at: t, kind: n.kind)
         return n.id
     }

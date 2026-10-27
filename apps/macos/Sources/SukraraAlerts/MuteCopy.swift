@@ -62,14 +62,17 @@ public enum MuteCopy {
             ? allForever : allTimed(leftMin: Durations.minutesLeft(until.timeIntervalSince(now)))
     }
 
-    /// The line for a quiet reason on `side`, counting down at `now`.
-    public static func line(_ reason: QuietReason, side: AlertSide, now: Date) -> String {
+    /// The line for a quiet reason on `side`, counting down at `now`; nil once a timed one is over (never claims a
+    /// quiet that has ended).
+    public static func line(_ reason: QuietReason, side: AlertSide, now: Date) -> String? {
         switch reason {
+        case .treatment(_, _, let until) where until <= now: nil
+        case .sideMuted(let until) where until <= now: nil
         case .treatment(let kind, _, let until):
             sideAfter(side, treatment: kind, leftMin: Durations.minutesLeft(until.timeIntervalSince(now)))
         case .fallingBack: sideFalling(side)
         case .sideMuted(let until): sideMuted(side, leftMin: Durations.minutesLeft(until.timeIntervalSince(now)))
-        case .allMuted(let until): allLine(until: until, now: now) ?? allForever
+        case .allMuted(let until): allLine(until: until, now: now)
         }
     }
 }

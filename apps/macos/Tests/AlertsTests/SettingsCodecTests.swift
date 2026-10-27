@@ -32,6 +32,10 @@ import Testing
         let fenceEnd = try #require(spec.range(of: "\n```", range: fenceStart.upperBound..<spec.endIndex))
         let json = String(spec[fenceStart.upperBound..<fenceEnd.lowerBound])
         #expect(AlertSettings.decode(Data(json.utf8)) == AlertSettings())
+        // and the defaults write exactly that object (so the decode above cannot pass by falling back)
+        let written = try JSONSerialization.jsonObject(with: AlertSettings().encoded()) as? NSDictionary
+        let documented = try JSONSerialization.jsonObject(with: Data(json.utf8)) as? NSDictionary
+        #expect(written != nil && written == documented)
     }
 
     @Test func defaultsMatchSpec() {
@@ -62,6 +66,17 @@ import Testing
         #expect(s[.veryLow] == .defaults(.veryLow))
         #expect(s.source == .wearer)
         #expect(s.sounds.pack == "quest")
+    }
+
+    /// One malformed field loses only itself: a wearer's low 80 survives a junk field next to it.
+    @Test func oneMalformedFieldLosesOnlyItself() {
+        let json =
+            #"{"alerts":{"low":{"mgdl":80,"on":1},"high":{"mgdl":"200"},"very_low":7},"sounds":{"pack":"kart","kinds":{"low":3}}}"#
+        let s = AlertSettings.decode(Data(json.utf8))
+        #expect(s[.low] == AlertRule(on: true, threshold: 80, repeatMin: 5))
+        #expect(s[.high] == .defaults(.high))
+        #expect(s[.veryLow] == .defaults(.veryLow))
+        #expect(s.sounds.pack == "kart" && s.sounds.kinds.isEmpty)
     }
 
     @Test func unreadableJSONGivesDefaultsWithAlertsOn() {
@@ -108,30 +123,6 @@ import Testing
         s.source = .own
         s.notificationActions.relaxMin = 45
         #expect(AlertSettings.decode(s.encoded()) == s)
-    }
-
-    /// `AlertLimits` mirrors the schema's number formats.
-    @Test(arguments: AlertLimits.all)
-    func limitsMatchSchema(_ limits: AlertLimits.Number) throws {
-        let data = try Data(contentsOf: Contracts.url("settings/settings.json"))
-        let root = try #require(try JSONSerialization.jsonObject(with: data) as? [String: Any])
-        let numbers = try #require(root["numbers"] as? [String: [String: Any]])
-        let n = try #require(numbers[limits.id], "\(limits.id) not in the schema")
-        #expect((n["min"] as? NSNumber)?.doubleValue == limits.min)
-        #expect((n["max"] as? NSNumber)?.doubleValue == limits.max)
-        #expect((n["step"] as? NSNumber)?.doubleValue == limits.step)
-        let specials = ((n["special"] as? [String: Any]) ?? [:]).keys.compactMap(Double.init).sorted()
-        #expect(specials == limits.specials.sorted())
-    }
-
-    @Test func presetsMatchSchema() throws {
-        let data = try Data(contentsOf: Contracts.url("settings/settings.json"))
-        let root = try #require(try JSONSerialization.jsonObject(with: data) as? [String: Any])
-        let numbers = try #require(root["numbers"] as? [String: [String: Any]])
-        func presets(_ id: String) -> [Int] { ((numbers[id]?["presets"] as? [NSNumber]) ?? []).map(\.intValue) }
-        #expect(presets("actionMute") == AlertLimits.mutePresets)
-        #expect(presets("actionRelax") == AlertLimits.relaxPresets)
-        #expect(presets("muteAll") == AlertLimits.muteAllPresets)
     }
 
     @Test func choices() {

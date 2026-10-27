@@ -16,8 +16,7 @@ core); the app shell (chunk 21) owns notifications, sounds, timers and storage.
     (the next `tick`). The shell should also send `tick` on wake from sleep (`NSWorkspace.didWakeNotification`).
 - `AlertEngine.Snapshot` (`v` 1: episodes, `SideSnoozes`, Mute all) and `AlertEngine.restore(_:context:at:)`;
   `Snapshot.decode` returns nil for unreadable / other-version data (start fresh). The settings are not in it: they
-  are the SPEC §3 JSON (`AlertSettings.encoded()` / `.decode`, lenient, coerced to `AlertLimits` = the schema's
-  number formats) stored under the schema key `alerts`, and on a follower they may come from the wearer.
+  are the SPEC §3 JSON (`AlertSettings.encoded()` / `.decode`, lenient, coerced to the generated `SettingsSpec`  number formats) stored under the schema key `alerts`, and on a follower they may come from the wearer.
 - `SideSnoozes` — the per-side Mute / Remind less with the one margin rule (`advance`), shared by the engine and
   `AlertMirror` (a follower mirroring the wearer's `alert` events: which show here, and this device's own actions).
 - `AlertUIState` (`engine.uiState(at:)`) — active alert per group, quiet / relaxed sides with their exits, Mute all;

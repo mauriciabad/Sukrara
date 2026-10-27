@@ -2,6 +2,7 @@
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
 import Foundation
+import SukraraCore
 
 /// A stretch of time on one side of a group (SPEC §1 "Episodes"): it starts when a kind of the side matches and ends
 /// once nothing of the side has matched for the hold time (the kind's repeat, at least 5 min).
@@ -91,7 +92,7 @@ extension AlertEngine {
         e.snoozes.sanitize(at: t)
         if let all = snapshot.muteAllUntil, all > t {
             e.muteAllUntil =
-                all >= muteAllForever ? muteAllForever : min(all, t.addingTimeInterval(AlertLimits.muteAll.max * 60))
+                all >= muteAllForever ? muteAllForever : min(all, t.addingTimeInterval(SettingsSpec.muteAll.max * 60))
         }
         for ep in snapshot.episodes
         where ep.lastIn <= t && t.timeIntervalSince(ep.lastIn) < ep.holdTime(context.settings) {

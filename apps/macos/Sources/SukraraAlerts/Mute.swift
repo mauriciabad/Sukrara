@@ -2,6 +2,7 @@
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
 import Foundation
+import SukraraCore
 
 /// This device's notification actions on one side (SPEC §2): muted until `until` (nil = not muted), repeats relaxed
 /// to `relaxMin` (0 = not relaxed). `backSince`: when the side was first back by the margin without crossing out again.
@@ -124,11 +125,11 @@ public struct SideSnoozes: Codable, Equatable, Sendable {
     /// Drops what a restored snapshot can't be trusted with: Mutes already over, Mutes longer than the longest a Mute
     /// accepts (clamped), relax intervals outside the schema.
     mutating func sanitize(at t: Date) {
-        let longest = t.addingTimeInterval(AlertLimits.actionMute.max * 60)
+        let longest = t.addingTimeInterval(SettingsSpec.actionMute.max * 60)
         for side in Array(bySide.keys) {
             guard var sn = bySide[side] else { continue }
             if let u = sn.until { sn.until = u <= t ? nil : min(u, longest) }
-            if sn.relaxMin != 0 { sn.relaxMin = Int(AlertLimits.actionRelax.coerce(Double(sn.relaxMin))) }
+            if sn.relaxMin != 0 { sn.relaxMin = Int(SettingsSpec.actionRelax.coerce(Double(sn.relaxMin))) }
             if let b = sn.backSince, b > t { sn.backSince = nil }
             put(side, sn)
         }

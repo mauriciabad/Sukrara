@@ -2,6 +2,7 @@
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
 import Foundation
+import SukraraCore
 
 /// One kind's rule (SPEC §3): `threshold` is mg/dL (level kinds), mg/dL/min (rate kinds) or minutes (no data).
 public struct AlertRule: Equatable, Sendable {
@@ -122,7 +123,7 @@ public struct AlertSettings: Equatable, Sendable {
     /// The Remind less presets the settings offer: only ones slower than every enabled level alert's repeat.
     public var relaxChoices: [Int] {
         let c = AlertLimits.relaxPresets.filter { $0 > relaxFloor }
-        return c.isEmpty ? [Int(AlertLimits.actionRelax.max)] : c
+        return c.isEmpty ? [Int(SettingsSpec.actionRelax.max)] : c
     }
 
     /// The Mute… lengths a notification offers: `muteMin` first, then the other presets.
@@ -163,78 +164,80 @@ extension AlertSettings: Codable {
         }
     }
 
-    private struct PartialRule: Decodable {
-        var on: Bool?
-        var alarm: Bool?
-        var mgdl: Double?
-        var rate: Double?
-        var min: Double?
-        var repeatMin: Double?
-    }
+    /// Any JSON value, decoded without ever failing: one malformed field can only lose itself.
+    private enum Loose: Decodable {
+        case bool(Bool)
+        case number(Double)
+        case string(String)
+        case object([String: Loose])
+        case other
 
-    private struct PartialQuiet: Decodable {
-        var on: Bool?
-        var min: Double?
-    }
+        init(from decoder: Decoder) throws {
+            let c = try decoder.singleValueContainer()
+            if let b = try? c.decode(Bool.self) {
+                self = .bool(b)
+            } else if let n = try? c.decode(Double.self) {
+                self = .number(n)
+            } else if let s = try? c.decode(String.self) {
+                self = .string(s)
+            } else if let o = try? c.decode([String: Loose].self) {
+                self = .object(o)
+            } else {
+                self = .other
+            }
+        }
 
-    private struct PartialSounds: Decodable {
-        var pack: String?
-        var kinds: [String: String]?
-        var shuffle: Bool?
-    }
-
-    private struct PartialActions: Decodable {
-        var muteMin: Double?
-        var relaxMin: Double?
-        var backMgdl: Double?
-        var backMin: Double?
+        subscript(key: String) -> Loose? {
+            if case .object(let o) = self { return o[key] }
+            return nil
+        }
+        var bool: Bool? { if case .bool(let b) = self { b } else { nil } }
+        var number: Double? { if case .number(let n) = self, n.isFinite { n } else { nil } }
+        var string: String? { if case .string(let s) = self { s } else { nil } }
     }
 
     /// Lenient (a wearer's mirrored JSON, a file from another version): unknown keys are ignored, a missing or
-    /// malformed key keeps its §3 default, every number is coerced to its schema format (`AlertLimits`).
+    /// malformed field keeps its SPEC §3 default (only that field), every number is coerced to its schema format
+    /// (`SettingsSpec`).
     public init(from decoder: Decoder) throws {
         self.init()
-        let c = try decoder.container(keyedBy: Key.self)
-        if let on = try? c.decode(Bool.self, forKey: .on) { self.on = on }
-        let partial = (try? c.decode([String: PartialRule].self, forKey: .alerts)) ?? [:]
+        let root = try Loose(from: decoder)
+        if let on = root["on"]?.bool { self.on = on }
         for kind in AlertKind.allCases {
-            guard let p = partial[kind.rawValue] else { continue }
+            guard let p = root["alerts"]?[kind.rawValue] else { continue }
             var r = AlertRule.defaults(kind)
-            if let on = p.on { r.on = on }
-            if let alarm = p.alarm { r.alarm = alarm }
-            let raw: Double? =
-                switch kind.group {
-                case .level: p.mgdl
-                case .rate: p.rate
-                case .noData: p.min
-                }
-            if let raw { r.threshold = AlertLimits.threshold(kind).coerce(raw) }
-            if let x = p.repeatMin { r.repeatMin = Int(AlertLimits.alertRepeat.coerce(x)) }
+            if let on = p["on"]?.bool { r.on = on }
+            if let alarm = p["alarm"]?.bool { r.alarm = alarm }
+            if let x = p[Self.thresholdKey(kind)]?.number { r.threshold = AlertLimits.threshold(kind).coerce(x) }
+            if let x = p["repeatMin"]?.number { r.repeatMin = Int(SettingsSpec.alertRepeat.coerce(x)) }
             self[kind] = r
         }
-        func quiet(_ key: Key, _ d: QuietRule, _ limits: AlertLimits.Number) -> QuietRule {
-            guard let p = try? c.decode(PartialQuiet.self, forKey: key) else { return d }
-            return QuietRule(on: p.on ?? d.on, min: p.min.map(limits.coerce) ?? d.min)
+        func quiet(_ key: String, _ d: QuietRule, _ limits: NumberSpec) -> QuietRule {
+            QuietRule(on: root[key]?["on"]?.bool ?? d.on, min: root[key]?["min"]?.number.map(limits.coerce) ?? d.min)
         }
-        muteAfterInsulin = quiet(.muteAfterInsulin, muteAfterInsulin, AlertLimits.muteInsulin)
-        muteFallingHigh = quiet(.muteFallingHigh, muteFallingHigh, AlertLimits.muteFalling)
-        muteAfterCarbs = quiet(.muteAfterCarbs, muteAfterCarbs, AlertLimits.muteCarbs)
-        if let p = try? c.decode(PartialSounds.self, forKey: .sounds) {
+        muteAfterInsulin = quiet("muteAfterInsulin", muteAfterInsulin, SettingsSpec.muteInsulin)
+        muteFallingHigh = quiet("muteFallingHigh", muteFallingHigh, SettingsSpec.muteFalling)
+        muteAfterCarbs = quiet("muteAfterCarbs", muteAfterCarbs, SettingsSpec.muteCarbs)
+        if let snd = root["sounds"] {
+            var kinds: [String: String] = [:]
+            if case .object(let o)? = snd["kinds"] {
+                for (k, v) in o { if let pack = v.string { kinds[k] = pack } }
+            }
             sounds = AlertSoundSettings(
-                pack: p.pack ?? sounds.pack, kinds: p.kinds ?? [:], shuffle: p.shuffle ?? sounds.shuffle)
+                pack: snd["pack"]?.string ?? sounds.pack, kinds: kinds, shuffle: snd["shuffle"]?.bool ?? sounds.shuffle)
         }
-        if let p = try? c.decode(PartialActions.self, forKey: .notificationActions) {
+        if let a = root["notificationActions"] {
             let d = notificationActions
-            func int(_ x: Double?, _ limits: AlertLimits.Number, _ fallback: Int) -> Int {
-                x.map { Int(limits.coerce($0)) } ?? fallback
+            func int(_ key: String, _ limits: NumberSpec, _ fallback: Int) -> Int {
+                a[key]?.number.map { Int(limits.coerce($0)) } ?? fallback
             }
             notificationActions = NotificationActionSettings(
-                muteMin: int(p.muteMin, AlertLimits.actionMute, d.muteMin),
-                relaxMin: int(p.relaxMin, AlertLimits.actionRelax, d.relaxMin),
-                backMgdl: int(p.backMgdl, AlertLimits.backMgdl, d.backMgdl),
-                backMin: int(p.backMin, AlertLimits.backMin, d.backMin))
+                muteMin: int("muteMin", SettingsSpec.actionMute, d.muteMin),
+                relaxMin: int("relaxMin", SettingsSpec.actionRelax, d.relaxMin),
+                backMgdl: int("backMgdl", SettingsSpec.backMgdl, d.backMgdl),
+                backMin: int("backMin", SettingsSpec.backMin, d.backMin))
         }
-        if let s = try? c.decode(AlertSource.self, forKey: .source) { source = s }
+        if let s = root["source"]?.string.flatMap(AlertSource.init(rawValue:)) { source = s }
     }
 
     public func encode(to encoder: Encoder) throws {
