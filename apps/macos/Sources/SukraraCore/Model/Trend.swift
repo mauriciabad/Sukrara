@@ -15,8 +15,8 @@ public enum Trend: String, Sendable, CaseIterable {
         switch rate {
         case 2...: self = .risingFast
         case 1..<2: self = .rising
-        case ..<(-2): self = .fallingFast
-        case ..<(-1): self = .falling
+        case ...(-2): self = .fallingFast
+        case ...(-1): self = .falling
         default: self = .steady
         }
     }
