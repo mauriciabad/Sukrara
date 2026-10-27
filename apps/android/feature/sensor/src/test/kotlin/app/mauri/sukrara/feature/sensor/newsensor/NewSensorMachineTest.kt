@@ -108,6 +108,12 @@ class NewSensorMachineTest {
         assertEquals(NewSensorStep.WaitingForTap, step(Start(ok), Tapped(PairOutcome.Paired("ABC", true))))
     }
 
+    @Test fun `takeover refused - stop the other app, then scan again`() =
+        assertEquals(
+            NewSensorStep.WaitingForTap,
+            step(Start(ok), TagFound, Tapped(PairOutcome.OwnedByAnotherApp("ABC", true)), Retry),
+        )
+
     @Test fun `new sensor warms up then is ready`() {
         val readyAt = t0.plus(Duration.ofMinutes(60))
         val warming = run(*paired, live("ABC", LinkStatus.WarmingUp(60), SensorState.WarmingUp(readyAt)))

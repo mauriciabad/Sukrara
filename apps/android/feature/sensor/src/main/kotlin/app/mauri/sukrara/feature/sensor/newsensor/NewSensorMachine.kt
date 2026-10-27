@@ -255,7 +255,8 @@ object NewSensorMachine {
         }
 
     private fun retry(step: NewSensorStep, now: Instant): NewSensorStep = when (step) {
-        is NewSensorStep.NfcFailed -> NewSensorStep.WaitingForTap
+        // after stopping the other app (showcase: Settings › Sensor › Stop), the same sensor can be scanned again
+        is NewSensorStep.NfcFailed, is NewSensorStep.TakeoverFailed -> NewSensorStep.WaitingForTap
         is NewSensorStep.BleFailed -> NewSensorStep.ConnectingBle(step.serial, now, activated = false)
         else -> step
     }
