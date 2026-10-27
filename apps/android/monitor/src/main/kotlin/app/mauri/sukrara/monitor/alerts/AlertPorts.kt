@@ -12,7 +12,7 @@ import app.mauri.sukrara.alerts.Side
 import app.mauri.sukrara.core.model.AlertDeliveryProblem
 
 /*
- * What the alert runtime drives. The Android implementations are AlertNotifier, AlertScheduler and the module's
+ * What the alert runtime drives. The Android implementations are AlertNotifier, AndroidAlarms.alertCheck and the module's
  * wiring; tests use fakes, so no test ever posts a real notification or sets a real alarm.
  */
 

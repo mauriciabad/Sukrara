@@ -6,7 +6,9 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
-    <!-- The alert runtime's own needs (also declared by :app): exact alarms and full-screen alarms. -->
+    <!-- The alert runtime's own needs (also declared by :app): exact alarms and full-screen alarms. USE_EXACT_ALARM
+         (granted at install, not revocable): the alert check must ring on time in Doze with the service dead —
+         service/AlarmPolicy.kt explains the choice of setExactAndAllowWhileIdle over setAlarmClock. -->
     <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
     <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
     <uses-permission android:name="android.permission.VIBRATE" />
@@ -17,8 +19,8 @@
             android:name=".MonitoringService"
             android:exported="false"
             android:foregroundServiceType="connectedDevice" />
-        <!-- boot, update, time changes, exact-alarm permission → start the service, reschedule the health check.
-             Not exported: the system broadcasts listed still arrive. -->
+        <!-- boot, update, time changes, exact-alarm permission → check alerts, reschedule the health check, start the
+             service once. Not exported: the system broadcasts listed still arrive. -->
         <receiver
             android:name=".BootReceiver"
             android:exported="false">
@@ -34,16 +36,10 @@
         <receiver
             android:name=".HealthCheckReceiver"
             android:exported="false" />
+        <!-- the alert check's exact alarms (alerts, sensor end) -->
         <receiver
             android:name=".AlertCheckReceiver"
-            android:exported="false">
-            <intent-filter>
-                <action android:name="android.intent.action.BOOT_COMPLETED" />
-                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
-                <action android:name="android.intent.action.TIME_SET" />
-                <action android:name="android.intent.action.TIMEZONE_CHANGED" />
-            </intent-filter>
-        </receiver>
+            android:exported="false" />
         <receiver
             android:name=".AlertActionReceiver"
             android:exported="false" />

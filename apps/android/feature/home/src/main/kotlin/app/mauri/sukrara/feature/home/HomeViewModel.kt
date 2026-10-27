@@ -14,7 +14,6 @@ import app.mauri.sukrara.core.model.GlucoseState
 import app.mauri.sukrara.core.model.ServiceState
 import app.mauri.sukrara.core.model.Treatment
 import app.mauri.sukrara.core.model.storage.StateStore
-import app.mauri.sukrara.core.model.storage.TreatmentRecord
 import app.mauri.sukrara.core.model.storage.TreatmentsRepository
 import app.mauri.sukrara.feature.home.banners.BannerKind
 import app.mauri.sukrara.feature.home.banners.BannerMemory
@@ -30,6 +29,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.mapLatest
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -70,6 +70,19 @@ interface HomeDeps {
 
     /** Opens the system screen that fixes [requirement]. */
     fun fix(requirement: AlertRequirement)
+
+    /**
+     * Deletes treatment [id] through the treatment log (a tombstone version, synced to the other devices); returns the
+     * deleted version for Undo, or null when it isn't stored or this phone may not change it (a follower and the
+     * wearer's entry).
+     */
+    suspend fun deleteTreatment(id: String): Treatment?
+
+    /** Brings [previous] (what [deleteTreatment] returned) back as the newest version, through the treatment log. */
+    suspend fun undoTreatment(previous: Treatment)
+
+    /** Whether this phone may delete treatment [id] (a follower only the entries it added). */
+    suspend fun mayChangeTreatment(id: String): Boolean
 }
 
 /** Everything the home screen draws, from one source. */
@@ -87,6 +100,8 @@ data class HomeUiState(
     val treatments: List<Treatment>,
     /** A just-deleted treatment the snackbar offers to bring back. */
     val undo: Treatment?,
+    /** Ids of [treatments] this phone may not delete (a follower and the wearer's entries): no Delete button. */
+    val readOnly: Set<String> = emptySet(),
 ) {
     val mutedUntil: Instant? get() = glucose.alerts.mutedUntil?.takeIf { it > now }
 }
@@ -108,8 +123,10 @@ class HomeViewModel(
         }
 
     @OptIn(ExperimentalCoroutinesApi::class)
-    private val recentTreatments: Flow<List<Treatment>> =
-        minutes.flatMapLatest { now -> deps.treatments.between(now - TREATMENTS_WINDOW, now + FUTURE_SLACK) }
+    private val recentTreatments: Flow<Recent> =
+        minutes
+            .flatMapLatest { now -> deps.treatments.between(now - TREATMENTS_WINDOW, now + FUTURE_SLACK) }
+            .mapLatest { list -> Recent(list, list.filterNot { deps.mayChangeTreatment(it.id) }.mapTo(HashSet()) { it.id }) }
 
     val state: StateFlow<HomeUiState> =
         combine(
@@ -118,7 +135,7 @@ class HomeViewModel(
             deps.readiness,
             deps.environment,
             combine(deps.bannerMemory.data, recentTreatments, undo, deps.dataProblems, ::Extras),
-        ) { glucose, tick, readiness, env, (memory, treatments, pendingUndo, problems) ->
+        ) { glucose, tick, readiness, env, (memory, recent, pendingUndo, problems) ->
             val now = maxOf(tick, deps.clock.now())
             val look = homeLook(glucose, now)
             HomeUiState(
@@ -130,8 +147,9 @@ class HomeViewModel(
                 firstProblem = readiness?.firstProblem,
                 nextSetupStep = env.nextSetupStep,
                 dataProblems = problems,
-                treatments = treatments.sortedByDescending { it.at },
+                treatments = recent.treatments.sortedByDescending { it.at },
                 undo = pendingUndo,
+                readOnly = recent.readOnly,
             )
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), initial())
 
@@ -153,31 +171,26 @@ class HomeViewModel(
 
     fun fix(requirement: AlertRequirement) = deps.fix(requirement)
 
-    /** Deletes [treatment] (a tombstone version, so sync carries it) and offers Undo for [UNDO_WINDOW]. */
+    /** Deletes [treatment] through the treatment log and offers Undo for [UNDO_WINDOW] (none when the log refused). */
     fun delete(treatment: Treatment) {
         viewModelScope.launch {
-            val stored = deps.treatments.get(treatment.id) ?: return@launch
-            val now = deps.clock.now()
-            deps.treatments.upsertIfNewer(stored.next(stored.treatment.copy(deleted = true), now))
-            undo.value = treatment
+            val deleted = deps.deleteTreatment(treatment.id) ?: return@launch
+            undo.value = deleted
             undoExpiry?.cancel()
             undoExpiry =
                 launch {
                     delay(UNDO_WINDOW.toMillis())
-                    undo.compareAndSet(treatment, null)
+                    undo.compareAndSet(deleted, null)
                 }
         }
     }
 
-    /** Brings the just-deleted treatment back as a newer version. */
+    /** Brings the just-deleted treatment back as a newer version (the treatment log's undo). */
     fun undoDelete() {
         val treatment = undo.value ?: return
         undo.value = null
         undoExpiry?.cancel()
-        viewModelScope.launch {
-            val stored = deps.treatments.get(treatment.id) ?: return@launch
-            deps.treatments.upsertIfNewer(stored.next(stored.treatment.copy(deleted = false), deps.clock.now()))
-        }
+        viewModelScope.launch { deps.undoTreatment(treatment) }
     }
 
     /** The snackbar went away without Undo. */
@@ -185,18 +198,14 @@ class HomeViewModel(
         undo.value = null
     }
 
-    /** A new version for last-writer-wins: always later than the stored one, even if the clock went back. */
-    private fun TreatmentRecord.next(
-        changed: Treatment,
-        now: Instant,
-    ): TreatmentRecord {
-        val modified = maxOf(now, treatment.modifiedAt.plusMillis(1))
-        return copy(treatment = changed.copy(modifiedAt = modified))
-    }
+    private data class Recent(
+        val treatments: List<Treatment>,
+        val readOnly: Set<String>,
+    )
 
     private data class Extras(
         val memory: BannerMemory,
-        val treatments: List<Treatment>,
+        val treatments: Recent,
         val undo: Treatment?,
         val problems: List<DataProblem>,
     )
