@@ -86,9 +86,9 @@ enum SensorBadge {
         func waiting(now: TimeInterval) -> Bool { warmup != nil && now >= readyAt }
 
         /// The line under the warm-up figure: "Ready at 19:45", or "Waiting for the first reading" once that's past.
-        func warmupLine(now: TimeInterval, hour24: Bool) -> String {
+        func warmupLine(now: TimeInterval) -> String {
             waiting(now: now)
-                ? "Waiting for the first reading" : "Ready at \(Freshness.timeText(readyAt, now: now, hour24: hour24))"
+                ? "Waiting for the first reading" : "Ready at \(Freshness.timeText(readyAt, now: now))"
         }
     }
 

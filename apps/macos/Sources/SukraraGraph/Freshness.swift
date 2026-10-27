@@ -4,6 +4,7 @@
 import CoreGraphics
 import CoreText
 import Foundation
+import SukraraCore
 
 /// How old the latest reading is decides what a surface shows (see Freshness.kt for the table).
 public enum Freshness: Sendable {
@@ -60,11 +61,11 @@ public enum Freshness: Sendable {
             trend: rate != nil && !fr.strike ? TrendMark.arrow : TrendMark.noTrend, rate: rate)
     }
 
-    /// "14:05" today, "Tue 14:05" this week, "12 Oct" before; the time in the 12/24-hour cycle `hour24` (the
-    /// Mac's setting, `TimeText.hour24`). A clock time doesn't tick.
-    static func timeText(_ t: TimeInterval, now: TimeInterval, hour24: Bool = TimeText.hour24) -> String {
+    /// "14:05" today, "Tue 14:05" this week, "12 Oct" before; the time in the Mac's 12/24-hour setting (`Clock`).
+    /// A clock time doesn't tick.
+    static func timeText(_ t: TimeInterval, now: TimeInterval) -> String {
         let d = Date(timeIntervalSince1970: t), n = Date(timeIntervalSince1970: now)
-        let time = TimeText.time(d, hour24: hour24, locale: .autoupdatingCurrent)
+        let time = Clock.time(d)
         if Calendar.current.isDate(d, inSameDayAs: n) { return time }
         if now - t < 6 * 86400 { return d.formatted(.dateTime.weekday(.abbreviated)) + " " + time }
         return d.formatted(.dateTime.day().month(.abbreviated))

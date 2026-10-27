@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 import CoreGraphics
 import Foundation
+import SukraraCore
 import Testing
 
 @testable import SukraraGraph
@@ -38,7 +39,7 @@ private struct Scene {
 /// very low 55, low 70, high 180, very high 250, extremely high 300; carbs quiet lows 15 min, rapid insulin quiets
 /// highs 60 min, never extremely high), as the PoC renders and Android do for these fixtures.
 enum DefaultAlertRules {
-    private static let levels: [(kind: String, side: AlertSide, low: Bool, mgdl: Double)] = [
+    private static let levels: [(kind: String, side: AlertStatus.Side, low: Bool, mgdl: Double)] = [
         ("very_low", .low, true, 55), ("extremely_high", .high, false, 300), ("very_high", .high, false, 250),
         ("low", .low, true, 70), ("high", .high, false, 180),
     ]
@@ -191,8 +192,10 @@ enum DefaultAlertRules {
 
         var renders: [Render] = []
         var clockShown = 0
+        defer { Clock.hour24Source = nil }
         for (sid, cfg) in settings {
             let hour24 = hour24Of[sid] ?? true
+            Clock.hour24Source = { hour24 }
             for sc in scenes {
                 let data = CardData(
                     readings: sc.readings, marks: sc.marks, sensor: sc.sensor,
@@ -203,13 +206,12 @@ enum DefaultAlertRules {
                         renders.append(
                             Render(
                                 surface: s, size: "-", scene: sc.id, settings: sid, layouts: [],
-                                faces: sc.readings.isEmpty ? [] : [GlucoseCard.face(data, unit: .mgdl)]))
+                                faces: sc.readings.isEmpty
+                                    ? [] : [GlucoseCard.face(data, unit: .mgdl, surface: .menubarTitle)]))
                         continue
                     }
                     for size in sizes(s) {
-                        var st = s.style(cfg, sensor: sc.sensor)
-                        st.hour24 = hour24
-                        st.graph?.hour24 = hour24
+                        let st = s.style(cfg, sensor: sc.sensor)
                         let lay = GlucoseCard.draw(
                             cardContext(size), size: size, readings: data.readings, marks: data.marks, now: now, st,
                             pal,

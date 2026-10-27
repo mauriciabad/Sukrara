@@ -127,7 +127,7 @@ struct Case: @unchecked Sendable, CustomTestStringConvertible {
 }
 
 @Suite struct TreatmentTests {
-    private func entry(u: Int64, o: TreatmentOrigin, a: Double = 1, del: Bool = false) -> Treatment {
+    private func entry(u: Int64, o: Treatment.Origin, a: Double = 1, del: Bool = false) -> Treatment {
         Treatment(id: "x", k: .rapid, a: a, t: 100, u: u, del: del, o: o)
     }
 

@@ -21,10 +21,8 @@ public final class AppModel {
         self.plan = plan
     }
 
-    /// The menu bar title: the value when there is one, else the no-value mark.
-    public var statusTitle: String {
-        glucose?.latest.map { String($0.mgdl) } ?? GlucoseCard.noValueText
-    }
+    /// The menu bar title, from the one card renderer.
+    public var statusTitle: String { GlucoseCard.face(glucose, surface: .menubarTitle) }
 
     /// Why there is no value, in words (the menu's first line and the status item's VoiceOver label), or nil when
     /// a value is shown.

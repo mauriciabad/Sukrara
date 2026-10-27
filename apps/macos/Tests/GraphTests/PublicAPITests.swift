@@ -30,35 +30,37 @@ import Testing
 
     @Test func faceIsInTheUsersUnit() {
         let data = CardData(readings: [reading], now: now)
-        #expect(GlucoseCard.face(data, unit: .mgdl).text == "112")
-        #expect(GlucoseCard.face(data, unit: .mmol).text == "6.2")
-        #expect(GlucoseCard.face(CardData(readings: [], now: now), unit: .mgdl).text == nil)
+        #expect(GlucoseCard.face(data, unit: .mgdl, surface: .menubarTitle).text == "112")
+        #expect(GlucoseCard.face(data, unit: .mmol, surface: .menubarTitle).text == "6.2")
+        #expect(GlucoseCard.face(CardData(readings: [], now: now), unit: .mgdl, surface: .menubarTitle).text == nil)
     }
 
     @Test func voiceOverSentence() {
         #expect(
-            GlucoseCard.accessibilityLabel(CardData(readings: [reading], now: now), unit: .mgdl)
+            GlucoseCard.accessibilityLabel(
+                CardData(readings: [reading], now: now), unit: .mgdl, surface: .widgetCombined)
                 == "Glucose 112 milligrams per decilitre, falling")
         let late = CardData(readings: [GraphReading(t: now - 200, v: 112, rate: 0.2)], now: now)
         #expect(
-            GlucoseCard.accessibilityLabel(late, unit: .mgdl)
-                == "Glucose 112 milligrams per decilitre, steady, 3 minutes ago")
+            GlucoseCard.accessibilityLabel(late, unit: .mgdl, surface: .widgetCombined)
+                == "Glucose 112 milligrams per decilitre, steady, 3 min ago")
         let stale = CardData(readings: [GraphReading(t: now - 600, v: 141, rate: 2)], now: now)
         #expect(
-            GlucoseCard.accessibilityLabel(stale, unit: .mmol)
-                == "Glucose 7.8 (old) millimoles per litre, trend unknown, 10 minutes ago")
+            GlucoseCard.accessibilityLabel(stale, unit: .mmol, surface: .widgetCombined)
+                == "Glucose 7.8 (old) millimoles per litre, trend unknown, 10 min ago")
         #expect(
-            GlucoseCard.accessibilityLabel(CardData(readings: [], now: now), unit: .mgdl) == "Glucose: no readings yet")
+            GlucoseCard.accessibilityLabel(CardData(readings: [], now: now), unit: .mgdl, surface: .widgetCombined)
+                == "Glucose: no readings yet")
         let low = CardData(
             readings: [GraphReading(t: now - 60, v: 64, rate: -1)], alerts: CardAlerts(status: .needed(.low)), now: now)
         #expect(
-            GlucoseCard.accessibilityLabel(low, unit: .mgdl)
+            GlucoseCard.accessibilityLabel(low, unit: .mgdl, surface: .widgetCombined)
                 == "Glucose 64 milligrams per decilitre, falling. Eat carbs")
         // no shown value, no badge sentence (the card draws the badge only under a value)
         let gone = CardData(
             readings: [GraphReading(t: now - 3600, v: 64, rate: -1)], alerts: CardAlerts(status: .needed(.low)),
             now: now)
-        #expect(!GlucoseCard.accessibilityLabel(gone, unit: .mgdl).contains("Eat carbs"))
+        #expect(!GlucoseCard.accessibilityLabel(gone, unit: .mgdl, surface: .widgetCombined).contains("Eat carbs"))
     }
 
     @Test func anExpiredMuteSaysNothing() {
@@ -66,18 +68,23 @@ import Testing
         let data = CardData(
             readings: [GraphReading(t: now - 60, v: 210, rate: 0)],
             alerts: CardAlerts(status: .taken(.high, treatment: bolus, until: now - 400)), now: now)
-        #expect(GlucoseCard.accessibilityLabel(data, unit: .mgdl) == "Glucose 210 milligrams per decilitre, steady")
+        #expect(
+            GlucoseCard.accessibilityLabel(data, unit: .mgdl, surface: .widgetCombined)
+                == "Glucose 210 milligrams per decilitre, steady")
         let running = CardData(
             readings: data.readings, alerts: CardAlerts(status: .taken(.high, treatment: bolus, until: now + 600)),
             now: now)
-        #expect(GlucoseCard.accessibilityLabel(running, unit: .mgdl).hasSuffix("muted after insulin · 10 min left"))
+        #expect(
+            GlucoseCard.accessibilityLabel(running, unit: .mgdl, surface: .widgetCombined).hasSuffix(
+                "muted after insulin · 10 min left"))
     }
 
     @Test func everyCardSurfaceRendersABitmap() {
         let data = CardData(readings: [reading], now: now)
         for s in CardSurface.allCases where s != .menubarTitle {
             let image = GlucoseCard.image(
-                s, size: CGSize(width: 332, height: 138), config: GraphConfig(), data: data, unit: .mmol, dark: true)
+                surface: s, size: CGSize(width: 332, height: 138), config: GraphConfig(), data: data, unit: .mmol,
+                dark: true)
             #expect(image?.width == 664, "\(s)")
         }
     }

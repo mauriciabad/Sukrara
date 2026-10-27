@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Sukrara — https://github.com/mauriciabad/Sukrara -->
+<!-- Copyright (C) 2026 Maurici Abad -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- Sukrara.app's Info.plist. bundle.sh fills @VERSION@, @BUILD@ and @GROUP@. -->
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleDevelopmentRegion</key><string>en</string>
+	<key>CFBundleIdentifier</key><string>app.mauri.sukrara</string>
+	<key>CFBundleName</key><string>Sukrara</string>
+	<key>CFBundleDisplayName</key><string>Sukrara</string>
+	<key>CFBundleExecutable</key><string>Sukrara</string>
+	<key>CFBundleIconFile</key><string>AppIcon</string>
+	<key>CFBundleInfoDictionaryVersion</key><string>6.0</string>
+	<key>CFBundlePackageType</key><string>APPL</string>
+	<key>CFBundleShortVersionString</key><string>@VERSION@</string>
+	<key>CFBundleVersion</key><string>@BUILD@</string>
+	<key>CFBundleSupportedPlatforms</key><array><string>MacOSX</string></array>
+	<key>LSMinimumSystemVersion</key><string>15.0</string>
+	<key>LSUIElement</key><true/>
+	<key>LSApplicationCategoryType</key><string>public.app-category.medical</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key><string>Sukrara invite</string>
+			<key>CFBundleURLSchemes</key><array><string>sukrara</string></array>
+		</dict>
+	</array>
+	<key>SukraraAppGroup</key><string>@GROUP@</string>
+	<key>NSBluetoothAlwaysUsageDescription</key><string>Follow a nearby wearer's glucose over Bluetooth.</string>
+</dict>
+</plist>

@@ -84,8 +84,6 @@ struct GraphStyle {
     var gridHours = 1
     /// Which parts of each treatment kind show: point, mute line, amount, time (`GraphConfig.marks`).
     var marks = MarkShow.defaults
-    /// The hour labels' cycle: the Mac's 24-hour setting (read where the style is made, so a test fixes it).
-    var hour24 = TimeText.hour24
 }
 
 /// Which parts of each kind's marks the chart draws (Settings › Graph › Treatments on the graph; schema `graph.marks`,
@@ -310,8 +308,6 @@ struct CardStyle {
     /// The ranges the value's colour and the slots count in: the user's (`GraphConfig.cardStyle` sets them), also on a
     /// card without a chart (the value widget used the built-in 180 after the high bound moved, 2026-10-21).
     var bands = Bands()
-    /// The clock times' cycle (a late reading's time, "No reading since"): the Mac's 24-hour setting.
-    var hour24 = TimeText.hour24
     /// The unit the value is written in (the user's setting). The chart's axis and range lines stay mg/dL on both
     /// platforms for now (OPS issue c14: mmol/L chart labels).
     var unit: GlucoseUnit = .mgdl

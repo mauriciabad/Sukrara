@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 import CoreGraphics
 import Foundation
+import SukraraCore
 import Testing
 
 @testable import SukraraGraph
@@ -117,8 +118,8 @@ func fixtureSetHasCases(_ set: String) {
     func timeAndHourLabel(_ c: JSON) {
         let locale = Locale(identifier: c.string("locale") ?? "en-US")
         let minute = Int(c.number("minute") ?? 0), hour24 = c.bool("hour24") ?? true
-        #expect(plain(TimeText.minuteOfDay(minute, hour24: hour24, locale: locale)) == c.expect.string("time"))
-        #expect(plain(TimeText.hourLabel(minute / 60, hour24, locale: locale)) == c.expect.string("axis"))
+        #expect(plain(Clock.minuteOfDay(minute, hour24: hour24, locale: locale)) == c.expect.string("time"))
+        #expect(plain(Clock.hourLabel(minute / 60, hour24, locale: locale)) == c.expect.string("axis"))
     }
 }
 

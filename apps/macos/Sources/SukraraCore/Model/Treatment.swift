@@ -3,24 +3,24 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 import Foundation
 
-/// What a treatment entry is (contracts/treatments, SPEC §1 `k`).
-public enum TreatmentKind: String, Sendable, Codable, CaseIterable {
-    case rapid, long, carbs, note
-}
-
-/// Who wrote a treatment entry (SPEC §1 `o`): the wearer's phone, this Mac, or a follower.
-public enum TreatmentOrigin: String, Sendable, Codable, Comparable {
-    case follower, mac, phone
-
-    /// The merge's tie-break on equal `u`: compared by raw value, as both platforms do ("follower" < "mac" < "phone").
-    public static func < (a: Self, b: Self) -> Bool { a.rawValue < b.rawValue }
-}
-
 /// One treatment entry (insulin, carbs or a note) as SPEC §1 defines it, the same keys on both platforms and the wire.
 public struct Treatment: Sendable, Hashable, Codable, Identifiable {
+    /// What a treatment entry is (contracts/treatments, SPEC §1 `k`).
+    public enum Kind: String, Sendable, Codable, CaseIterable {
+        case rapid, long, carbs, note
+    }
+
+    /// Who wrote a treatment entry (SPEC §1 `o`): the wearer's phone, this Mac, or a follower.
+    public enum Origin: String, Sendable, Codable, Comparable {
+        case follower, mac, phone
+
+        /// The merge's tie-break on equal `u`: compared by raw value, as both platforms do ("follower" < "mac" < "phone").
+        public static func < (a: Self, b: Self) -> Bool { a.rawValue < b.rawValue }
+    }
+
     /// UUID v4, lowercase.
     public var id: String
-    public var k: TreatmentKind
+    public var k: Kind
     /// Units (one decimal) or grams (whole); 0 for notes.
     public var a: Double
     /// When, epoch seconds.
@@ -30,7 +30,7 @@ public struct Treatment: Sendable, Hashable, Codable, Identifiable {
     /// Last modified, epoch milliseconds: the last-writer-wins version.
     public var u: Int64
     public var del: Bool
-    public var o: TreatmentOrigin
+    public var o: Origin
     /// Pen entries only: primed units (air shots, never injected), the pen's serial, its doses for this injection.
     public var pr: Double?
     public var pen: String?
@@ -64,8 +64,8 @@ public struct Treatment: Sendable, Hashable, Codable, Identifiable {
     public static let pdMax = 20
 
     public init(
-        id: String = UUID().uuidString.lowercased(), k: TreatmentKind, a: Double, t: Int64, n: String = "", u: Int64,
-        del: Bool = false, o: TreatmentOrigin, pr: Double? = nil, pen: String? = nil, pd: [PenDose]? = nil
+        id: String = UUID().uuidString.lowercased(), k: Kind, a: Double, t: Int64, n: String = "", u: Int64,
+        del: Bool = false, o: Origin, pr: Double? = nil, pen: String? = nil, pd: [PenDose]? = nil
     ) {
         self.id = id
         self.k = k
@@ -98,13 +98,13 @@ public struct Treatment: Sendable, Hashable, Codable, Identifiable {
     public init(from decoder: any Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         id = try c.decode(String.self, forKey: .id)
-        k = try c.decode(TreatmentKind.self, forKey: .k)
+        k = try c.decode(Kind.self, forKey: .k)
         a = try c.decodeIfPresent(Double.self, forKey: .a) ?? 0
         t = try c.decode(Int64.self, forKey: .t)
         n = Self.truncated(try c.decodeIfPresent(String.self, forKey: .n) ?? "")
         u = try c.decode(Int64.self, forKey: .u)
         del = try c.decodeIfPresent(Bool.self, forKey: .del) ?? false
-        o = try c.decode(TreatmentOrigin.self, forKey: .o)
+        o = try c.decode(Origin.self, forKey: .o)
         pr = try c.decodeIfPresent(Double.self, forKey: .pr)
         pen = try c.decodeIfPresent(String.self, forKey: .pen)
         pd = try c.decodeIfPresent([PenDose].self, forKey: .pd)

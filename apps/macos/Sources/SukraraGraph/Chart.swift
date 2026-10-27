@@ -4,6 +4,7 @@
 import CoreGraphics
 import CoreText
 import Foundation
+import SukraraCore
 
 // MARK: - Chart
 
@@ -174,7 +175,7 @@ enum GlucoseGraph {
                 if labels {
                     let s =
                         step >= 24
-                        ? TimeText.dayLabel(hour) : TimeText.hourLabel(cal.component(.hour, from: hour), st.hour24)
+                        ? Clock.dayLabel(hour) : Clock.hourLabel(cal.component(.hour, from: hour))
                     let tw = Ink.width(s, text)
                     let lx = min(max(gx - tw / 2, left), right - tw)
                     // a label squeezed against the right edge would touch its neighbour; a treatment label wins

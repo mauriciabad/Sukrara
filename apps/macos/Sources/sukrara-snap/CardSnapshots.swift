@@ -96,7 +96,8 @@
             // the widget's own background around the card, as the system draws it
             guard
                 let card = GlucoseCard.image(
-                    surface, size: size, config: GraphConfig(), data: data, unit: unit, dark: dark, overflow: 12),
+                    surface: surface, size: size, config: GraphConfig(), data: data, unit: unit, dark: dark,
+                    overflow: 12),
                 let dest = CGImageDestinationCreateWithURL(url as CFURL, UTType.png.identifier as CFString, 1, nil)
             else { throw SnapError.render(url.lastPathComponent) }
             let w = card.width, h = card.height

@@ -73,7 +73,7 @@ public enum GlucoseCard {
         // a graph-only card without its chart: the value's face alone
         if noChart && !st.value {
             drawValue(
-                ctx, chart, latest, fr, now, bands, pal, d: d, look: nil, sensor: sl, hour24: st.hour24, unit: st.unit,
+                ctx, chart, latest, fr, now, bands, pal, d: d, look: nil, sensor: sl, unit: st.unit,
                 rec: rec)
         }
         if st.value && part != .graph {
@@ -88,7 +88,7 @@ public enum GlucoseCard {
             drawValue(
                 ctx, stacked ? chart : CGRect(x: box.minX, y: box.minY, width: box.width - ringsW, height: box.height),
                 latest, fr, now,
-                bands, pal, d: d, look: look, sensor: sl, hour24: st.hour24, unit: st.unit, rec: rec)
+                bands, pal, d: d, look: look, sensor: sl, unit: st.unit, rec: rec)
         }
         return rec
     }
@@ -183,12 +183,12 @@ public enum GlucoseCard {
     private static func drawValue(
         _ ctx: CGContext, _ box: CGRect, _ r: GraphReading?, _ fr: Freshness, _ now: TimeInterval,
         _ bands: Bands, _ pal: GraphPalette, d: CGFloat, look: StatusBadge.Look?,
-        sensor: SensorBadge.Look?, hour24: Bool, unit: GlucoseUnit, rec: CardLayout
+        sensor: SensorBadge.Look?, unit: GlucoseUnit, rec: CardLayout
     ) {
         let small = Ink.font(max(11 * d, box.height * 0.17), .regular)
         let face = face(r, now: now, sensor: sensor, format: unit.format)
         if face.state == .warmingUp, let sensor {
-            return drawWarmup(ctx, box, sensor, small, now, pal, d: d, hour24: hour24, rec: rec)
+            return drawWarmup(ctx, box, sensor, small, now, pal, d: d, rec: rec)
         }
         // an ended sensor says so as soon as it has ended, instead of a value or "No reading since" (not an error)
         if face.state == .ended { return drawEnded(ctx, box, pal, d: d, rec: rec) }
@@ -196,7 +196,7 @@ public enum GlucoseCard {
             // Fit the longer line into the space left of the rings; no readings for 20 min: the menubar's "no readings"
             // symbol before the words, as tall as both lines.
             let lines =
-                r.map { ["No reading since", Freshness.timeText($0.t, now: now, hour24: hour24)] } ?? [
+                r.map { ["No reading since", Freshness.timeText($0.t, now: now)] } ?? [
                     "No readings yet"
                 ]
             var size = min(box.height * 0.26, 20 * d)
@@ -229,7 +229,7 @@ public enum GlucoseCard {
             "value.color", nil,
             fr.strike ? "grey" : r.sgv >= bands.extremelyHigh ? "EXTREMELY_HIGH" : bands.of(Double(r.sgv)).name)
         // A late reading's time goes under the number (the user: beside it, it took the rings' room).
-        let time = fr.showTime ? Freshness.timeText(r.t, now: now, hour24: hour24) : ""
+        let time = fr.showTime ? Freshness.timeText(r.t, now: now) : ""
         let smallH = fr.showTime ? CTFontGetSize(small) * 1.25 : 0
         let badgeH = min(max(box.height * 0.24, 14 * d), 24 * d)
         let badgeRow = look != nil && box.height - badgeH * 1.25 - smallH >= 26 * d
@@ -357,10 +357,10 @@ public enum GlucoseCard {
     /// beside it filling up, and "Ready at 19:45" under it (GlucoseCard.drawWarmup on Android).
     private static func drawWarmup(
         _ ctx: CGContext, _ box: CGRect, _ look: SensorBadge.Look, _ small: CTFont, _ now: TimeInterval,
-        _ pal: GraphPalette, d: CGFloat, hour24: Bool, rec: CardLayout
+        _ pal: GraphPalette, d: CGFloat, rec: CardLayout
     ) {
         guard let s = look.warmup else { return }
-        let line = look.warmupLine(now: now, hour24: hour24)
+        let line = look.warmupLine(now: now)
         let numBox = CGRect(
             x: box.minX, y: box.minY, width: box.width, height: box.height - CTFontGetSize(small) * 1.25)
         var numSize = numBox.height * 1.18
@@ -463,7 +463,7 @@ extension GlucoseCard {
     /// and the placement's `overrides`. `tinted` = a tinted widget rendering mode (accented / vibrant). `overflow`: room
     /// around the card for what overflows it (a ring's laurel or crown).
     public static func image(
-        _ surface: CardSurface, size: CGSize, config: GraphConfig, overrides: PlaceOverrides = PlaceOverrides(),
+        surface: CardSurface, size: CGSize, config: GraphConfig, overrides: PlaceOverrides = PlaceOverrides(),
         data: CardData, unit: GlucoseUnit, dark: Bool, tinted: Bool = false, scale: CGFloat = 2, overflow: CGFloat = 0
     ) -> CGImage? {
         let palette = GraphPalette.of(dark: dark)
@@ -477,7 +477,7 @@ extension GlucoseCard {
 
     /// Draws `part` of `surface`'s card into `ctx` (y-down, points) at `size`: for surfaces that paint into a view.
     public static func draw(
-        _ surface: CardSurface, in ctx: CGContext, size: CGSize, part: CardPart = .all, config: GraphConfig,
+        surface: CardSurface, in ctx: CGContext, size: CGSize, part: CardPart = .all, config: GraphConfig,
         overrides: PlaceOverrides = PlaceOverrides(), data: CardData, unit: GlucoseUnit, dark: Bool
     ) {
         var style = surface.style(config, overrides, sensor: data.sensor)
@@ -490,19 +490,20 @@ extension GlucoseCard {
 
     /// The value's decision for text places (the menu bar title, notifications): the state, the value in `unit`, the
     /// strike and the trend mark, from the same rule the card draws with.
-    public static func face(_ data: CardData, unit: GlucoseUnit) -> GlucoseLook {
+    /// `surface` = the registered place asking (contracts/graph/surfaces/surfaces.json; tools/check `card-surface`).
+    public static func face(_ data: CardData, unit: GlucoseUnit, surface: CardSurface) -> GlucoseLook {
         let latest = data.latest
         return face(
             latest, now: data.now, sensor: SensorBadge.look(data.sensor, now: data.now, latest: latest?.t),
             format: unit.format)
     }
 
-    /// What VoiceOver says for the card's value: "Glucose 112 milligrams per decilitre, falling, 2 minutes ago" (the
+    /// What VoiceOver says for the card's value: "Glucose 112 milligrams per decilitre, falling, 2 min ago" (the
     /// time once the reading is late), "Glucose 141 milligrams per decilitre (old), trend unknown, at 14:05", "Glucose:
     /// no reading since 14:05", "Glucose: no readings yet", "Warming up", "Sensor ended. Replace sensor"; then the
     /// alert badge's sentence when there is one.
-    public static func accessibilityLabel(_ data: CardData, unit: GlucoseUnit) -> String {
-        let look = face(data, unit: unit)
+    public static func accessibilityLabel(_ data: CardData, unit: GlucoseUnit, surface: CardSurface) -> String {
+        let look = face(data, unit: unit, surface: surface)
         let value: String
         switch look.state {
         case .ended: return "Sensor ended. \(StatusBadge.replaceSensor.text)"
@@ -521,10 +522,16 @@ extension GlucoseCard {
         return value + (badge.map { ". " + $0 } ?? "")
     }
 
-    /// "2 minutes ago" within the hour, else the clock time ("at 14:05").
+    /// "2 min ago" within the hour, else the clock time ("at 14:05").
     private static func ago(_ t: TimeInterval, now: TimeInterval) -> String {
         let minutes = Int(max(0, now - t) / 60)
-        if minutes < 60 { return minutes == 1 ? "1 minute ago" : "\(minutes) minutes ago" }
+        if minutes < 60 { return "\(Durations.text(minutes)) ago" }
         return "at \(Freshness.timeText(t, now: now))"
+    }
+
+    /// Scaffold (03a) for `AppModel.statusTitle` until the app composes `face(_:unit:)` with the user's unit and the
+    /// clock (chunk 21; OPS issue c14). Not for new callers: it knows no unit and no freshness.
+    public static func face(_ snapshot: GlucoseSnapshot?, surface: CardSurface) -> String {
+        snapshot?.latest.map { String($0.mgdl) } ?? noValueText
     }
 }

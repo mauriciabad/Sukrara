@@ -9,24 +9,24 @@ import SukraraCore
 // engine's rules (SukraraAlerts) and hands them in, so the badge and the alerts can't disagree and this extension-safe
 // library needs no alert settings.
 
-/// The side of a level alert, which decides the badge's colour (carbs answer lows, insulin highs).
-public enum AlertSide: String, Sendable, Equatable, Codable {
-    case low, high
-
-    /// "Low" / "High" (the mute lines' wording).
-    var title: String { self == .low ? "Low" : "High" }
-}
-
 /// What the alert rules say about the latest reading, for the badge under the value.
 public enum AlertStatus: Sendable, Equatable, Codable {
+    /// The side of a level alert, which decides the badge's colour (carbs answer lows, insulin highs).
+    public enum Side: String, Sendable, Equatable, Codable {
+        case low, high
+
+        /// "Low" / "High" (the mute lines' wording).
+        var title: String { self == .low ? "Low" : "High" }
+    }
+
     /// In range, stale, or alerts off: no badge.
     case none
     /// Out of range and nothing logged that covers it: tell the user what to do.
-    case needed(AlertSide)
+    case needed(Side)
     /// Out of range, but `treatment`'s mute window covers it until `until` (epoch s).
-    case taken(AlertSide, treatment: GraphMark, until: TimeInterval)
+    case taken(Side, treatment: GraphMark, until: TimeInterval)
     /// Out of range, muted on this device (the side's Mute, or Mute all) until `until` (`never` = until turned back on).
-    case paused(AlertSide, until: TimeInterval)
+    case paused(Side, until: TimeInterval)
     /// In range (or no current reading) while Mute all is on, until `until` (`never` = until turned back on).
     case muted(until: TimeInterval)
 
@@ -105,11 +105,11 @@ enum BadgeCopy {
     /// Whole minutes left of `seconds`, partial minutes rounded up ("1 min" until it is over).
     static func leftMin(_ seconds: TimeInterval) -> Int { (Int(max(0, seconds).rounded(.down)) + 59) / 60 }
     /// "Low alerts muted · 12 min left".
-    static func sideMuted(_ side: AlertSide, leftMin: Int) -> String {
+    static func sideMuted(_ side: AlertStatus.Side, leftMin: Int) -> String {
         "\(side.title) alerts muted · \(Durations.text(leftMin)) left"
     }
     /// "Low alerts muted after carbs · 12 min left".
-    static func sideAfter(_ side: AlertSide, treatment: String, leftMin: Int) -> String {
+    static func sideAfter(_ side: AlertStatus.Side, treatment: String, leftMin: Int) -> String {
         "\(side.title) alerts muted after \(treatment == "carbs" ? "carbs" : "insulin") · \(Durations.text(leftMin)) left"
     }
     static let allForever = "Alerts muted until you turn it off"
