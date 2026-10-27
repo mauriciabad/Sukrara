@@ -1,0 +1,398 @@
+{
+    "v": 1,
+    "about": "A 0.11.53 wearer (Sukrara Showcase) → V1 follower, events made by the showcase's own Proto.kt (contracts/protocol/sync/README.md). Throwaway keys, synthetic data.",
+    "generator": "apps/android/share PocWireCompatTest from poc/spikes/showcase-android core/Proto.kt (0.11.53)",
+    "keys": {
+        "I": {
+            "sec": "49c56efe45711db397cc7aae0bf6b5a0de5f2bbe65e4272f2acd29f514111409",
+            "pub": "cf4e0f449b84d73112efdb97730e0aff75b213b2ef9e0947177a0c1f9139e972"
+        },
+        "D": {
+            "sec": "1f517459ffeec1872c8ed3db3b9b944533f4d67f411070ed8e979c0a8f32dc6a",
+            "pub": "8b73bfc4b780b4d3dbecad27f579ce54fd2f46c5db1663d530a560b6a182e974"
+        },
+        "D2": {
+            "sec": "0b53a61ae9954d98bc11b6aa238fa0fd22b3f87f80ff421c7132d492b367a86c",
+            "pub": "e8f25d35bc09ed61bc669fa9f33d96bad3c31db5f2a20703f6191cf83d0b49e1"
+        },
+        "W": {
+            "sec": "97f4fcce9ec27ea64bf770c61f60347e2fc8e9cec36500a83135a76888d8c802",
+            "pub": "59dc1e07fd4130eabe3964319dbee4117e067e6108aa0b3f1a5a843ae0fb4489"
+        },
+        "F": {
+            "sec": "1d7252c5c2323b79cab7e9cb2dbe8f6724d98f23ab50e52e23ce359098389387",
+            "pub": "441dfd2506793cad7f56836950b48b1ea3b4ddc312fa951626ee4162a1970994"
+        },
+        "G1": {
+            "sec": "37beb56c0fb3f501b7fe8bab3ce768956c2ec4fcc0bcbb9bbdec8a5e80fd71d8",
+            "pub": "82ad7d84c0d8dc12a706a416d37512e5f2daaead9ab3ad201bbe4f6434234c6a"
+        },
+        "G2": {
+            "sec": "9abad26e11e08f9b96958c9e25981670dfe849b19feeef1f3cef1bd4a25aa84d",
+            "pub": "c2421f3256af8ec9fc5dd5fdc94dab1f6f4d01609df5410d2837bb3cc321767b"
+        }
+    },
+    "sid": "74767bf125c92e2efb705d29cb173f5bafda20bce46bf81e1a0a603e854c913a",
+    "follower": "F",
+    "identity": "cf4e0f449b84d73112efdb97730e0aff75b213b2ef9e0947177a0c1f9139e972",
+    "now": 1793072887,
+    "events": {
+        "key-1": {
+            "id": "cbc992a0c29c0020608b17a0f3c761aff5c73546105d615b3318278925f2f3f5",
+            "pubkey": "3b4d7f076d0fce9f200ca3efde77e33dc70e9be0243aa36e7f084651bb74a086",
+            "created_at": 1793013594,
+            "kind": 1059,
+            "tags": [
+                [
+                    "expiration",
+                    "1795664887"
+                ],
+                [
+                    "p",
+                    "441dfd2506793cad7f56836950b48b1ea3b4ddc312fa951626ee4162a1970994"
+                ]
+            ],
+            "content": "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",
+            "sig": "ac2ce57ebd6ef1cb2705a373ec1f7545cb41fff52c16aad96670f1212e0c43873b77756c03ea44aaae317ab967e1c1f09c201fea7a1811769af58064fea39c7f"
+        },
+        "roster-1": {
+            "id": "a027083720f0cefa266ce2d3ebbf741a2c0e6f364d89076660041b1366befdf0",
+            "pubkey": "cf4e0f449b84d73112efdb97730e0aff75b213b2ef9e0947177a0c1f9139e972",
+            "created_at": 1793072787,
+            "kind": 30078,
+            "tags": [
+                [
+                    "d",
+                    "011e14378379a46c5944f25e5f183239"
+                ],
+                [
+                    "gk",
+                    "a10d4e6e"
+                ],
+                [
+                    "expiration",
+                    "1795664787"
+                ]
+            ],
+            "content": "AnXp6EruQlsVC5ELBK0OXaNzjOlntllP7I/SbwTw6A16YtSro3B511v9QNasjyayLe1i5be4pegXqaFA6aa/x5u7rL/xHHptmy/sq8wZDXaA82MdbGCUnKzupFU9ho9377TeFoFwdxbe+EN8jhVoML0QcOhsxJ7sbgaBK7DZmuxiReXexAiIkqYPP8aiPSt6rHntixitl3yke1SYgL3h68CZSSnksjea6sGmfklKcX4SABMcJozqk8eReHyGT3Xx9oczE1caxKQ3M8Sylznx+Z8It+VbYentiv3H8kDNvSOO1+gnRijSrwxlSIII1nQ/1JJiDmIbSayowh7vuOj47hEO9J0l6+f3gAupvHCC29VYDNdbIbzcywU3gHSmJA4dsctDVql+jvzmduXUY/PzykOeXXPwatw2qQk4HUjXONeGsz3psrmP+bufDNWbPTwpTVtos0t8SOtIDIzT/6FBZVjPmGCxGfL6L4CAKNMzER9sawuAiWLTFwIqXZ2QQO87eZOA",
+            "sig": "075d4a2f9bd1220f2d85ae74dd9fc4eeb8899117c7b7e572db0acee717570e8d689c2b940190ae546a78d14628f55a41d2f0a668a94470bc826b49f064ef5a26"
+        },
+        "chunk": {
+            "id": "16523a6046d79c74bca36d7ca4fab964255f33a4123fc7e070a911fd64bb1cd9",
+            "pubkey": "8b73bfc4b780b4d3dbecad27f579ce54fd2f46c5db1663d530a560b6a182e974",
+            "created_at": 1793072837,
+            "kind": 30078,
+            "tags": [
+                [
+                    "d",
+                    "28dc5aedcae37c981cf33dc72410b755"
+                ],
+                [
+                    "c",
+                    "3b2ded6fa7fb47f8ada8366ec5f6f426"
+                ],
+                [
+                    "gk",
+                    "a10d4e6e"
+                ],
+                [
+                    "expiration",
+                    "1793671200"
+                ]
+            ],
+            "content": "AvtdH+U8uDnB4Qk1MEldoKGhh5Nh1rOJbHtp0lI87t5tf1QgIdQs5qJI3ISEOwUTvNouk3AWo2ntdJbNtdGx/QneY571IPDtQXuhYU+o4kdgj7clqN1A9EfLHqEhNpmU04YI5j86Yp/nJlsqRfBXWcfywnAYsgj84rJRekkHaZgapsiDmJ5HFZn90oQ1DTIeByH3KEvOEIWs45ESZHHeHYMZOw==",
+            "sig": "d00792e0a042e42dcc47680a801fbff0b644fe4c21aa7aa65d6a9b22dafb4be9534589b00fc6a3b7e4b8eca3840c1f1a3b25d92b8f8804aec7a30d4fb3b096f7"
+        },
+        "live": {
+            "id": "7b94baf2e1b307196a65ec3e0e0587e29b1518f5c7c108fe644ecbdca9ac3aab",
+            "pubkey": "8b73bfc4b780b4d3dbecad27f579ce54fd2f46c5db1663d530a560b6a182e974",
+            "created_at": 1793072862,
+            "kind": 21078,
+            "tags": [
+                [
+                    "gk",
+                    "a10d4e6e"
+                ],
+                [
+                    "expiration",
+                    "1793076462"
+                ]
+            ],
+            "content": "AoVlZqYnQAZo3tcZDtLXW7C8BRq98WA9MxbDTgxvkAu6u4JTm/YYe0QOjvvEi1CNYKWR0JxwKIzP9Ut0dYCUdy+PMV3hBS1fKiel9AHQq6XVOg6yj7Wp9QFDGrR6NEkbf23+OktWRJQvDplZWLGTVmQNzDm1X6oGsOhe5QMFXYncDVV7YJbTclxZrE0V/G/HLNTBx74FMjYBI9WAVNGBcDmJOv3eFutqn0jByygLd6XuMY8oZBHpbSMAoN9p+awlb2Rc",
+            "sig": "2da1773c4da9bbcf7bd7a581eb97aee16766f655d44517a3f72cd8505ac76d6ec6698be5009f81e4b5a2e0a0404c04bb4edddf447c22ef295131dec3f9282de5"
+        },
+        "sensor-new": {
+            "id": "1999a36d01693d3d6d5ff77a005cde6b06243a51cdf0740b1b87ae624b050540",
+            "pubkey": "8b73bfc4b780b4d3dbecad27f579ce54fd2f46c5db1663d530a560b6a182e974",
+            "created_at": 1793072865,
+            "kind": 21078,
+            "tags": [
+                [
+                    "gk",
+                    "a10d4e6e"
+                ],
+                [
+                    "expiration",
+                    "1793076465"
+                ]
+            ],
+            "content": "Aho5CJ0EdR8lbytbxLxCJAb+CfOSmvM9i+DUcCoRqNFVkIivDuT5/+lRt3DET/MwdwBsgdA6dOcDnSTU8IJHZ9c71+sdSOhCYSsY0ntw6W5Ui83ES11VaRPjb2xxKsuMSxihcgZuha2M6oslh793QRwfVgxJI/fmP+wMfPbAIv1Wts0=",
+            "sig": "8dba1715637c26e88e1c11c594fdfaa1865111eb7161e5fe23a2718a8cecbc2a9ccfe0e96d917eb12de2633163b246771d67f11cd5e18c77e62436ce3cd0c283"
+        },
+        "alert": {
+            "id": "332546a15d466a070717a5103d3d88cd29881049cdd740bd3023750c4a82b3ca",
+            "pubkey": "8b73bfc4b780b4d3dbecad27f579ce54fd2f46c5db1663d530a560b6a182e974",
+            "created_at": 1793072867,
+            "kind": 21079,
+            "tags": [
+                [
+                    "gk",
+                    "a10d4e6e"
+                ],
+                [
+                    "expiration",
+                    "1793076467"
+                ]
+            ],
+            "content": "AgA6THHZmrsogaBpIg5ar0yqQYmHypwXpGVnAVEmfu+YlSn/jqP3EXgHvepy79c+PUqkqb0s8zXbcmMVuxEaVq8dGe0U6wNnDR4JW1MAfBytQbXhP6faiZN6a8mgW83c2aAU4qJG/LDqUvZx4HMoUU4bcAQVVUKTFD5GcQpgkS94d6DghsPD92I+05668yiGt0nGuGf6HCNK+WLUDZaLCKozZxhxU4PxGC2OQ4Ol8P1Vn7TpglqpdnD1yLXqcweW2RWOz4n2svHI/U8fMZba4k3tvMnC/Bho8Q3B0J4A1wull2s=",
+            "sig": "b6a3c40a3adba441419870360b5d667be66b59e6b8b92b52d886073c2823f02da9bd33bc4fbe82651fa7ca46fe76990dd09db16ef910a3da2b52934233ff2475"
+        },
+        "treatment": {
+            "id": "e38bdf61953233950ec628b1ab2659df5de5b7820924a05ba62a727863ca652b",
+            "pubkey": "8b73bfc4b780b4d3dbecad27f579ce54fd2f46c5db1663d530a560b6a182e974",
+            "created_at": 1793072872,
+            "kind": 30078,
+            "tags": [
+                [
+                    "d",
+                    "9853b1fd431d44683e80e76ea59bbd91"
+                ],
+                [
+                    "c",
+                    "b96c0424ae639a1208b7556446d40fd1"
+                ],
+                [
+                    "gk",
+                    "a10d4e6e"
+                ],
+                [
+                    "expiration",
+                    "1795664872"
+                ]
+            ],
+            "content": "Apk/1wRla0NuD8KrpPJzLVQ3fSyKz4iZUJrWe2yvA3PA/D6RQK3PmP4imKWjE8Sr3jqAHBLk55I8yEqTNFU9XM8aKwkdCnQZV5fjPGXBZyj1U4zXVNIKZHuk1AcVf+l1MwRTREbf75YRnAvPoCiCBcpP1snQdfgwbpMIXnIsG/Xwm6K0fUePdqQLx3Kd5jvWK4MFP1Ystoo6EC01/4pewnSCGyl29pqa0wBud83BmiSF8Iq3WQM4QMzmBLlyfSwJwGingY/zPbC8jDrUl8FfKr4RZCG2Yp/oQPn4DKQKfah7j3k=",
+            "sig": "63e09b23aca8e4a648f43732b277d2141b7ce75bdacc2de54f456cb1608ae4f983e7d45e07c459cd60dbfc62664bbcdcbf2963cde5daa999e95bca19bf03c742"
+        },
+        "settings": {
+            "id": "cbc82d2c6cf717444944816d9773ed5f607cc10713e93dff4cbb0f2423f9191f",
+            "pubkey": "8b73bfc4b780b4d3dbecad27f579ce54fd2f46c5db1663d530a560b6a182e974",
+            "created_at": 1793072873,
+            "kind": 30078,
+            "tags": [
+                [
+                    "d",
+                    "9f7526cdd02534c7b107b87daebfbb3d"
+                ],
+                [
+                    "gk",
+                    "a10d4e6e"
+                ],
+                [
+                    "expiration",
+                    "1795664873"
+                ]
+            ],
+            "content": "AuWanhoZIPSNf7nAZt2HsB2Zj99BQmJ+ZAgup4Iz3M4YbukQ0i92gJNIhOMvcnOcy6qutbch+nkemwo1X3NXT8GaR7eik/h1O9MjcakLOZ/PIgBn68yHq4m9aP29S6cdSUfpLlAZ7ldjiuznC8SUslpSoCI2cpPbIe13MO5TIMTAyAwBU6I2hnXoK6X/3GPm7Jz3IZ8ny0QheqgwDCsb+vrhYhwdZUq9EQ8NTS6V2FXTDI5NBqZugQg07ZTGqx5aMxZSblc3tm2CmHDISp2WRakRzk1TxILe5jHhMXD3X/2PitU=",
+            "sig": "4970df85d6e5b42e38a9d1c44b94b20832c5ea78f90b4afdc2bea0e09251fc8ca284e500f6368792091e778e46edd636a519588e4dd2bb51f1d3d32301717e2b"
+        },
+        "key-2": {
+            "id": "5e7a3b9ba170d81f247d3ec4722ddd84ee54b8268c9e64a053b761920f9489b3",
+            "pubkey": "aa54466ec1405e5a43b485c2c094daea8949fff17036d724d839286f85964096",
+            "created_at": 1792989424,
+            "kind": 1059,
+            "tags": [
+                [
+                    "expiration",
+                    "1795664887"
+                ],
+                [
+                    "p",
+                    "441dfd2506793cad7f56836950b48b1ea3b4ddc312fa951626ee4162a1970994"
+                ]
+            ],
+            "content": "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",
+            "sig": "2b51e7e26061f2a2d3d1cd616a81fef9249800358c5978c3d829590b794353ec41a36e9298c885698c8ba10aa590663199137fc445b343e681f66d1c17cac8c9"
+        },
+        "roster-2": {
+            "id": "2283829802736ccd0fb1d456626729695f1c6d2a8e623f3f795e801a0be77ff8",
+            "pubkey": "cf4e0f449b84d73112efdb97730e0aff75b213b2ef9e0947177a0c1f9139e972",
+            "created_at": 1793072879,
+            "kind": 30078,
+            "tags": [
+                [
+                    "d",
+                    "011e14378379a46c5944f25e5f183239"
+                ],
+                [
+                    "gk",
+                    "e6884c28"
+                ],
+                [
+                    "expiration",
+                    "1795664879"
+                ]
+            ],
+            "content": "AlVq3/pH9VxSqKw1J+i6ZPBLnrDaBZZ0CbdqLkPaKPAc1EfMPH5xZglSGnUahWr2/qc3LnxVGi4TddET6ZycSXSdeGLTP4cg/IgB+2X8if5gdqi/JbQf+CHf1d8MWKihXpiuVmqjmtGLLlzeMh7vIlWW9ORmQ09sdwe2lGSkX7OLx9WbX9HHrWJWdjKEVWWuaf8+QgFsLh9p7RBmMC/pcL33ZS4apkSeGirM++6/Uws4PuTO3fcKifk3Xy4YZxtVrtKgNU/SwZXcMVUJ0H/phmYr2eEhBk+AmhhEKWOCwoBXRdS2zLnGBQLkIg0+8BYZJfD4sdkycDT5HGbBKz0x9Ii5srsJkV7R5/Goff0wBFs5VAMNFr9Of7jzEt3FNEbqZCkK4jq9D0Gfv8yu94jFFi6G9Awv+ptf4EFBF1KY5ouq+y/0auoCUfENs1dDvwIh823r9NgoIZCPHCPyaNZ/xl1VNO6c0z74LlkGvff4Hhdm8QDWpgLK3Z2Mv5aUPY+cg29j",
+            "sig": "e22ffae907f85d14b64ee538fa173d1398b112b7e126fe28a9e6046f62bb70f0db46b24345536fef73c2c03b04b5db6583304e24427c09ca7d92e0dcf87b0f43"
+        },
+        "live-2": {
+            "id": "611d9b249f9509500fe1b0d0497f9822bef219ff9aeb411a534366f8b022d131",
+            "pubkey": "e8f25d35bc09ed61bc669fa9f33d96bad3c31db5f2a20703f6191cf83d0b49e1",
+            "created_at": 1793072883,
+            "kind": 21078,
+            "tags": [
+                [
+                    "gk",
+                    "e6884c28"
+                ],
+                [
+                    "expiration",
+                    "1793076483"
+                ]
+            ],
+            "content": "AnmtJNVURU+jYeBM7ahrUadJ+wLKffRbI0M90UuvzforOFkC39RNzstvePAWp6LeTNEfT3Tsj6UUQljcomK+RBiwC1Kbitz4V2Nre7xsJPcIxaqW1MuD35toYyzXWkJNi2OmT6i2eN5/X7s2IJah3AFapE4S68U7ZB8rpAqSVC6n2haHSyx+i/Rx/KCoNXRFLSqK56hilRMGwXliFl8RivcuRTxevpcxxbyoPy0oG4fBMyfMEFzJrNf+QU+cZ+uZLFQK",
+            "sig": "af52d2f1bb33b088748ab64752f7342ebdcafcf1c54e56a7b6d88c93575fbda76686e6f0c5dc2bd928e93c1b535bedfb70778acbee1461f2aa707c1dabaccb5b"
+        },
+        "roster-1-refresh": {
+            "id": "eb95e7bdbd18d75efb06ed84a627079a11de8d9d84f27c564e514b23524b89b0",
+            "pubkey": "cf4e0f449b84d73112efdb97730e0aff75b213b2ef9e0947177a0c1f9139e972",
+            "created_at": 1793072884,
+            "kind": 30078,
+            "tags": [
+                [
+                    "d",
+                    "011e14378379a46c5944f25e5f183239"
+                ],
+                [
+                    "gk",
+                    "a10d4e6e"
+                ],
+                [
+                    "expiration",
+                    "1795664884"
+                ]
+            ],
+            "content": "AndLsewyc9WJGi8ENVh/qJHvypa/JH5d442AvZ+1rL+VKHdOaxx3agr+rZykZgNITsryIDQ64TNQ1rsX3o1qDi+nVvWqbVNd/zLVc6MPskaH87A6w1y2nP4JxBrFppFF4Kd+OuLlBXx9ilHvBPfVXdPJLHYBGK3lac3NdSXeUcsUqK+pkxR0TbCN9AmEQXdIm4qRmseM1pnSfdCzOHvvADxN0+iyPyPoub5k9qgWdt9hpUeM2SrtN10xW9+cQtqRs2w2SAjoM9NenWKNJG+EXIYsR5u4+AFLdXOnB78WKRzZtU4=",
+            "sig": "c6d07a9ce34f53d94fc7ce65b6279c2d0fb08fe22c6d029e9c06037632a857eaaab0867382a58406ee2465030bb6b5ce178ef3422adf7da2d51e9d97a2930f44"
+        }
+    },
+    "steps": [
+        {
+            "event": "key-1",
+            "expect": "accepted:key"
+        },
+        {
+            "event": "roster-1",
+            "expect": "accepted:roster"
+        },
+        {
+            "event": "chunk",
+            "expect": "accepted:chunk"
+        },
+        {
+            "event": "live",
+            "expect": "accepted:live"
+        },
+        {
+            "event": "sensor-new",
+            "expect": "accepted:sensor"
+        },
+        {
+            "event": "alert",
+            "expect": "accepted:alert"
+        },
+        {
+            "event": "treatment",
+            "expect": "accepted:treatment"
+        },
+        {
+            "event": "settings",
+            "expect": "accepted:settings"
+        },
+        {
+            "event": "key-2",
+            "expect": "accepted:key"
+        },
+        {
+            "event": "roster-2",
+            "expect": "accepted:roster"
+        },
+        {
+            "event": "live-2",
+            "expect": "accepted:live"
+        },
+        {
+            "event": "roster-1-refresh",
+            "expect": "ignored:roster-older"
+        }
+    ],
+    "expected": {
+        "status": "active",
+        "epochs": [
+            1,
+            2
+        ],
+        "devices": [
+            "e8f25d35bc09ed61bc669fa9f33d96bad3c31db5f2a20703f6191cf83d0b49e1"
+        ],
+        "writers": [
+            "59dc1e07fd4130eabe3964319dbee4117e067e6108aa0b3f1a5a843ae0fb4489"
+        ],
+        "readings": [
+            [
+                1793066460,
+                110,
+                0.5
+            ],
+            [
+                1793066760,
+                115,
+                null
+            ],
+            [
+                1793072857,
+                121,
+                -1.25
+            ],
+            [
+                1793072882,
+                125,
+                0.0
+            ]
+        ],
+        "sensor": {
+            "ss": 1793072827,
+            "se": 1794368887,
+            "sw": 1793076427
+        },
+        "treatments": [
+            {
+                "id": "c0000000-0000-4000-8000-00000000000c",
+                "k": "carbs",
+                "a": 30.0,
+                "u": 1793072287,
+                "o": "phone",
+                "del": false
+            }
+        ],
+        "settings": {
+            "u": 1793072873,
+            "graph": {
+                "high": 180,
+                "low": 70,
+                "countdownHours": 8
+            }
+        },
+        "alerts": 1
+    }
+}

@@ -10,10 +10,52 @@ plugins {
     id("org.jetbrains.kotlin.plugin.serialization")
 }
 
+// PocWireCompatTest runs the showcase 0.11.53 protocol code itself, compiled from poc/ unchanged (copied at build time,
+// never committed, so it can't drift): its builders make the 0.11.53 wearer fixture and its parsing reads V1's wearer
+// output. SensorLife.kt (Android + the whole settings stack) is replaced by the test shim PocShims.kt.
+abstract class PocWireSources @Inject constructor(private val fs: FileSystemOperations) : DefaultTask() {
+    @get:InputFiles @get:PathSensitive(PathSensitivity.RELATIVE)
+    abstract val sources: ConfigurableFileCollection
+
+    @get:Internal
+    abstract val root: DirectoryProperty
+
+    @get:OutputDirectory
+    abstract val out: DirectoryProperty
+
+    @TaskAction fun copy() {
+        fs.sync {
+            from(root) { include(sources.map { it.relativeTo(root.get().asFile).invariantSeparatorsPath }) }
+            into(out)
+        }
+    }
+}
+
+val pocKotlin = rootProject.layout.projectDirectory.dir("../../poc/spikes/showcase-android/app/src/main/kotlin")
+val pocWireSources = tasks.register<PocWireSources>("pocWireSources") {
+    root.set(pocKotlin)
+    sources.from(
+        listOf("core/Proto.kt", "core/Derive.kt", "core/Avatar.kt", "owner/OwnerState.kt").map { pocKotlin.file("app/mauri/sukrara/$it") },
+    )
+    out.set(layout.buildDirectory.dir("generated/poc-wire/kotlin"))
+}
+
+androidComponents {
+    onVariants { variant ->
+        variant.hostTests[com.android.build.api.variant.HostTestBuilder.UNIT_TEST_TYPE]?.sources?.kotlin
+            ?.addGeneratedSourceDirectory(pocWireSources, PocWireSources::out)
+    }
+}
+
 android {
     defaultConfig {
         consumerProguardFiles("consumer-rules.pro")
     }
+}
+
+// `./gradlew :share:testDebugUnitTest -Psukrara.regen=true` rewrites contracts/protocol/sync/poc-0.11.53-wearer.json
+tasks.withType<Test>().configureEach {
+    systemProperty("sukrara.regen", providers.gradleProperty("sukrara.regen").getOrElse("false"))
 }
 
 dependencies {
@@ -34,4 +76,5 @@ dependencies {
     // natives in its resources) runs the adapter there. Test classpath only, never in an APK.
     testImplementation(libs.nostr.sdk.jvm)
     testRuntimeOnly(libs.jna)
+    testImplementation(libs.org.json)
 }

@@ -12,6 +12,7 @@ import app.mauri.sukrara.protocol.event.WireReading
 import app.mauri.sukrara.protocol.follow.FollowResult
 import app.mauri.sukrara.protocol.follow.FollowStatus
 import app.mauri.sukrara.protocol.follow.FollowerState
+import app.mauri.sukrara.protocol.testing.FollowerModel
 import app.mauri.sukrara.protocol.testing.OgsVectors
 import app.mauri.sukrara.protocol.testing.OgsVectors.Companion.str
 import kotlinx.serialization.json.JsonObject

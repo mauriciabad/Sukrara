@@ -23,7 +23,7 @@ public enum AppMain {
         }
         let app = NSApplication.shared
         app.setActivationPolicy(.accessory)
-        let delegate = AppDelegate(model: AppModel(plan: plan))
+        let delegate = AppDelegate(plan: plan)
         app.delegate = delegate
         app.run()
         exit(0)
