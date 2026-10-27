@@ -13,6 +13,7 @@ import app.mauri.sukrara.core.model.ReadingSource
 import app.mauri.sukrara.core.model.Role
 import app.mauri.sukrara.core.model.SystemClock
 import app.mauri.sukrara.core.model.Treatment
+import app.mauri.sukrara.feature.sensor.SensorUiModule
 import app.mauri.sukrara.feature.sharing.SharingDeps
 import app.mauri.sukrara.feature.treatments.LocalTreatmentSync
 import app.mauri.sukrara.feature.treatments.TreatmentsModule
@@ -116,6 +117,8 @@ class AppGraph(
             clock = clock,
         )
     }
+
+    val sensorUi by lazy { SensorUiModule(app, sensor, data.settings, clock, scope, startMonitoring = { startMonitoring(StartReason.App) }) }
 
     val home by lazy {
         HomeModule(
