@@ -40,15 +40,16 @@ data class GlucoseState(
 
     companion object {
         /** Before anything is known: nothing is shown as a value and no data alarm can fire. */
-        val Initial = GlucoseState(
-            role = null,
-            latest = null,
-            recent = emptyList(),
-            sensor = SensorState.None,
-            source = SourceStatus.NotStarted,
-            alerts = AlertUiState(),
-            link = null,
-        )
+        val Initial =
+            GlucoseState(
+                role = null,
+                latest = null,
+                recent = emptyList(),
+                sensor = SensorState.None,
+                source = SourceStatus.NotStarted,
+                alerts = AlertUiState(),
+                link = null,
+            )
     }
 }
 

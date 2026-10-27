@@ -5,7 +5,6 @@ package app.mauri.sukrara
 
 import android.app.Application
 import android.content.Context
-import kotlinx.coroutines.launch
 
 class App : Application() {
     lateinit var graph: AppGraph
@@ -14,7 +13,7 @@ class App : Application() {
     override fun onCreate() {
         super.onCreate()
         graph = AppGraph(this)
-        graph.scope.launch { graph.ready() }
+        graph.ready.start()
     }
 }
 

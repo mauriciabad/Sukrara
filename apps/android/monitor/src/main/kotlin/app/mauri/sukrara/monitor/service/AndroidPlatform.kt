@@ -13,7 +13,9 @@ import android.content.Context
 import android.content.Intent
 import android.os.SystemClock
 import android.util.Log
+import app.mauri.sukrara.monitor.HealthCheckReceiver
 import app.mauri.sukrara.monitor.MonitorReceiver
+import app.mauri.sukrara.monitor.MonitoringService
 import app.mauri.sukrara.monitor.R
 import app.mauri.sukrara.monitor.notify.Channels
 import app.mauri.sukrara.monitor.notify.NotificationIds
@@ -109,7 +111,7 @@ class AndroidAlarms(
         PendingIntent.getBroadcast(
             context,
             action.hashCode(),
-            Intent(context, MonitorReceiver::class.java).setAction(action),
+            Intent(context, HealthCheckReceiver::class.java).setAction(action),
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
         )
 }

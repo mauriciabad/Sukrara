@@ -13,8 +13,7 @@
   "header_exempt": [
     "*.gradle.kts",
     "*/gradlew",
-    "assets/brand/*",
-    "contracts/*"
+    "assets/brand/*"
   ],
   "images_ok": [
     "docs/img/*",

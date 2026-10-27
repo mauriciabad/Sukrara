@@ -59,7 +59,7 @@ class GlucoseHubTest {
     private fun reading(
         mgdl: Int,
         agoMin: Long = 0,
-    ) = Reading(clock.now() - Duration.ofMinutes(agoMin), mgdl, 0.5f, SourceId.Libre3)
+    ) = Reading(clock.now() - Duration.ofMinutes(agoMin), mgdl, 0.5, SourceId.Libre3)
 
     private fun TestScope.hub(): GlucoseHubImpl {
         val dispatchers = TestDispatchers(StandardTestDispatcher(testScheduler))

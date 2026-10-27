@@ -11,6 +11,7 @@ import app.mauri.sukrara.core.model.SensorState
 import app.mauri.sukrara.core.model.SourceId
 import app.mauri.sukrara.graph.CardSurface
 import app.mauri.sukrara.graph.GlucoseCard
+import app.mauri.sukrara.graph.stats.toPoint
 import app.mauri.sukrara.monitor.LiveNotification
 import app.mauri.sukrara.monitor.R
 import app.mauri.sukrara.monitor.notify.LiveNotificationContent.Icon
@@ -29,7 +30,7 @@ class LiveNotificationContentTest {
     private fun state(
         mgdl: Int? = 138,
         ageS: Long = 30,
-        rate: Float? = 1.2f,
+        rate: Double? = 1.2,
         sensor: SensorState = SensorState.Active(null),
         role: Role? = Role.Wearer,
         started: Boolean = true,
@@ -131,7 +132,7 @@ class LiveNotificationContentTest {
     @Test
     fun `the notification takes the renderer's face for its surface`() {
         val s = state(ageS = 10 * 60)
-        assertEquals(GlucoseCard.face(s.latest, now.epochSecond, s.sensor, CardSurface.NOTIFICATION_TEXT), LiveNotification.face(s, now))
+        assertEquals(GlucoseCard.face(s.latest?.toPoint(), now.epochSecond, null, CardSurface.NOTIFICATION_TEXT), LiveNotification.face(s, now))
     }
 
     @Test

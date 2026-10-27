@@ -14,10 +14,13 @@ import android.text.style.StrikethroughSpan
 import android.util.Log
 import app.mauri.sukrara.core.model.GlucoseState
 import app.mauri.sukrara.core.model.NavTargets
+import app.mauri.sukrara.core.model.SensorState
 import app.mauri.sukrara.graph.CardSurface
 import app.mauri.sukrara.graph.Freshness
 import app.mauri.sukrara.graph.GlucoseCard
 import app.mauri.sukrara.graph.GlucoseLook
+import app.mauri.sukrara.graph.SensorBadge
+import app.mauri.sukrara.graph.stats.toPoint
 import app.mauri.sukrara.monitor.notify.Channels
 import app.mauri.sukrara.monitor.notify.LiveNotificationContent
 import app.mauri.sukrara.monitor.notify.LiveNotificationContent.Icon
@@ -135,7 +138,7 @@ class LiveNotification(
             ?: Intent(Intent.ACTION_MAIN).setPackage(context.packageName)
 
     private fun dismissedIntent(): PendingIntent =
-        PendingIntent.getBroadcast(context, REQUEST_DISMISSED, Intent(context, MonitorReceiver::class.java).setAction(MonitorReceiver.ACTION_GLUCOSE_DISMISSED), IMMUTABLE)
+        PendingIntent.getBroadcast(context, REQUEST_DISMISSED, Intent(context, HealthCheckReceiver::class.java).setAction(MonitorReceiver.ACTION_GLUCOSE_DISMISSED), IMMUTABLE)
 
     companion object {
         private const val TAG = "Sukrara.notify"
@@ -150,7 +153,28 @@ class LiveNotification(
         fun face(
             state: GlucoseState,
             now: Instant,
-        ): GlucoseLook = GlucoseCard.face(state.latest, now.epochSecond, state.sensor, CardSurface.NOTIFICATION_TEXT)
+        ): GlucoseLook = GlucoseCard.face(state.latest?.toPoint(), now.epochSecond, sensorLook(state.sensor, now), CardSurface.NOTIFICATION_TEXT)
+
+        /**
+         * The sensor states the face decides on (ended; warming up with its ready time where the number goes). The
+         * badge's label and life ring aren't used by the face, so they stay empty here.
+         */
+        private fun sensorLook(
+            sensor: SensorState,
+            now: Instant,
+        ): SensorBadge.Look? =
+            when (sensor) {
+                SensorState.Ended -> SensorBadge.Look(label = "", life = 0f, ended = true)
+                is SensorState.WarmingUp ->
+                    SensorBadge.Look(
+                        label = "",
+                        life = 0f,
+                        ended = false,
+                        warmup = Freshness.timeText(sensor.readyAt.epochSecond, now.epochSecond),
+                        readyAt = sensor.readyAt.epochSecond,
+                    )
+                else -> null
+            }
 
         fun iconRes(icon: Icon): Int =
             when (icon) {

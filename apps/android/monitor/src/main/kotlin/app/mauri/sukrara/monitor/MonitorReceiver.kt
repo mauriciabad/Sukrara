@@ -8,7 +8,6 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.util.Log
-import app.mauri.sukrara.monitor.service.MonitoringService
 import app.mauri.sukrara.monitor.service.StartReason
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -24,7 +23,7 @@ import kotlinx.coroutines.withTimeoutOrNull
  *  - the freshness step → redraw the glucose surfaces;
  *  - the glucose notification was swiped away → post it again.
  */
-class MonitorReceiver : BroadcastReceiver() {
+abstract class MonitorReceiver : BroadcastReceiver() {
     override fun onReceive(
         context: Context,
         intent: Intent,
@@ -82,3 +81,9 @@ class MonitorReceiver : BroadcastReceiver() {
         const val ACTION_GLUCOSE_DISMISSED = "app.mauri.sukrara.monitor.GLUCOSE_DISMISSED"
     }
 }
+
+/** The system's broadcasts: boot, app update, time / time-zone change, exact-alarm permission change. */
+class BootReceiver : MonitorReceiver()
+
+/** The monitor's own alarms and intents: the health check, the freshness step, the glucose notification swiped away. */
+class HealthCheckReceiver : MonitorReceiver()

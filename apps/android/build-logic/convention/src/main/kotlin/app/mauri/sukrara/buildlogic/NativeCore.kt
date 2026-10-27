@@ -31,8 +31,10 @@ object NativeCore {
                 "(or set -Psukrara.juggluco / SUKRARA_JUGGLUCO), then check out ${lock(project)}."
         }
         val head = git(project, dir, "rev-parse", "HEAD")
+            ?: return "Juggluco at $dir isn't a readable git checkout (git rev-parse HEAD failed)."
         if (head != lock(project)) return "Juggluco at $dir is at $head, the lock (sensor/juggluco.lock) pins ${lock(project)}."
         val dirty = git(project, dir, "status", "--porcelain", "--untracked-files=no")
+            ?: return "Juggluco at $dir: git status failed."
         if (dirty.isNotEmpty()) return "Juggluco at $dir has local changes:\n$dirty"
         return null
     }
@@ -41,11 +43,19 @@ object NativeCore {
         project.rootProject.file("sensor/juggluco.lock").readText().trim()
 
     /** The main checkout (parent of the git common dir), also when building in a worktree. */
-    private fun mainCheckout(project: Project): File? = runCatching {
-        File(git(project, project.rootDir, "rev-parse", "--path-format=absolute", "--git-common-dir"))
-            .takeIf { it.isDirectory }?.parentFile
-    }.getOrNull()
+    private fun mainCheckout(project: Project): File? =
+        git(project, project.rootDir, "rev-parse", "--path-format=absolute", "--git-common-dir")
+            ?.let(::File)?.takeIf { it.isDirectory }?.parentFile
 
-    private fun git(project: Project, dir: File, vararg args: String): String =
-        project.providers.exec { commandLine("git", "-C", dir.path, *args) }.standardOutput.asText.get().trim()
+    /**
+     * git's output, or null when git fails (not a repository, git missing, "dubious ownership" on CI): this runs
+     * while Gradle configures every build, and a debug build must still work then. A release turns null into a problem.
+     */
+    private fun git(project: Project, dir: File, vararg args: String): String? = runCatching {
+        val result = project.providers.exec {
+            commandLine("git", "-C", dir.path, *args)
+            isIgnoreExitValue = true
+        }
+        result.standardOutput.asText.get().trim().takeIf { result.result.get().exitValue == 0 }
+    }.getOrNull()
 }
