@@ -17,12 +17,10 @@ import app.mauri.sukrara.core.model.Treatment
 import app.mauri.sukrara.core.model.storage.StateStore
 import app.mauri.sukrara.graph.GraphConfig
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.launch
 
 /**
  * The home-screen widgets' objects (apps/android/README.md "DI"): built by `AppGraph` from what the widgets read.
@@ -63,16 +61,10 @@ class WidgetsModule(
         updater.start()
     }
 
-    /** Placements were removed: once storage is [ready], forget their settings; recheck the banner. */
-    fun forget(
-        appWidgetIds: IntArray,
-        ready: suspend () -> Unit,
-    ): Job {
+    /** A placement was removed (storage is ready): forget its settings, recheck the banner. */
+    suspend fun forget(appWidgetId: Int) {
+        settings.forget(intArrayOf(appWidgetId))
         presence.refresh()
-        return scope.launch {
-            ready()
-            settings.forget(appWidgetIds)
-        }
     }
 
     /** One placement's settings changed (Reconfigure): save them, then the updater redraws it. */

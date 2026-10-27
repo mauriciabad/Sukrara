@@ -93,8 +93,10 @@ import Testing
         var six = GraphConfig()
         six.hours = 6
         #expect(spoken(data, surface: .menubarCard, config: six).hasSuffix("Last 6 hours: 100% in range, 0% below, 0% above"))
-        // the graph widget shows no value: the summary only; the menu bar title: the value only
-        #expect(spoken(data, surface: .widgetGraph).hasPrefix("Last 12 hours: "))
+        // the graph widget shows no value: its data's time (as its pill, at every age), then the summary; the menu bar
+        // title: the value only
+        #expect(spoken(data, surface: .widgetGraph).hasPrefix("Glucose: last reading "))
+        #expect(spoken(data, surface: .widgetGraph).contains(". Last 12 hours: "))
         #expect(!spoken(data, surface: .menubarTitle).contains("Last"))
         #expect(
             spoken(CardData(readings: [], now: now), surface: .widgetCombined)

@@ -214,10 +214,15 @@ Rules: [poc/spikes/alerts/SPEC.md](../poc/spikes/alerts/SPEC.md); timelines: [po
 
 
 - One decision per platform (the user, 2026-10-21): `Freshness.look` (Android `graph/Freshness.kt`, Mac `SukraraGraph.swift`) turns the latest reading's age into what every surface shows: Android app panel, home widgets of every kind, lock screen widget, glucose notification (title, small icon, card, Live Update chip and card), root status-bar icons, LSPosed SystemUI text, Quick Settings tile, widget descriptions for screen readers; Mac menubar title, dropdown and widgets. Steps: up to 90 s the value alone; from 91 s the reading's time too; **from 5 min struck through and grey** (no range colour) with the "no trend" ring; **from 20 min no value**: *No reading since 00:32* and the "no readings" icon; **from 3 h no chart**. Shared cases in `poc/spikes/graph-fixtures/freshness` (Android `FreshnessFixtureTest`, Mac `-graphselftest`); `tools/check` `freshness-surface` fails a listed surface that formats a value itself or judges the age on its own.
-- A card without a value (the graph widgets) shows its data's age with the same steps, so a chart never looks
-  current when it isn't (`graph_only` in `contracts/graph/freshness`; Mac `Freshness.AgeMark`, Android the same key):
-  from 91 s the reading's time on a pill over the chart's top; **from 5 min the chart dimmed** (grey) with the time;
-  from 20 min the "no readings" icon before the time; from 3 h no chart (the value's face, *No reading since*).
+- A card without a value (the *Glucose graph* widgets on Android and Mac) shows its data's age with the same steps,
+  so a chart never looks current when it isn't (`graph_only` in `contracts/graph/freshness`; `Freshness.AgeMark` on
+  both): the reading's time on a pill over the chart's top **at every age, fresh too** (a launcher or WidgetKit can
+  stop redrawing a widget; one drawn while fresh must still say when its data is from), and VoiceOver says it
+  ("last reading 9:50"); **from 5 min the chart dimmed** (40 %, grey) with the time; from 20 min the "no readings" icon
+  before the time; from 3 h no chart (the value's face, *No reading since*). The pill's text shrinks to fit a narrow
+  chart (down to 60 %) and the pill never grows past the chart. Tests: Android `FreshnessFixtureTest` +
+  `GraphOnlyAgeTest` (every case, fresh time, pill inside the chart at 40–332 dp), Mac
+  `FreshnessFixtureTests.graphOnly` + `agePillStaysInsideTheChart`.
 - "No readings" icon: Material Symbols `sensors_off` (`res/drawable/ic_stat_no_readings.xml`, `GlucoseLook.NO_READINGS_PATH`); Mac SF Symbol `antenna.radiowaves.left.and.right.slash` (a template image in the menubar). Status bar: the icon alone in the trend slot (number slot removed) / in the hook's text; notification small icon; the card and the app panel draw it before *No reading since*. Menubar: the symbol alone, tooltip `Sukrara · no reading since 00:32`.
 - "No trend" (no rate from the sensor, or the value is struck through): a hollow ring in the arrow's place, the arrow's size (radius 0.24, stroke 0.11 of its box; text `○`), everywhere an arrow goes (card, app panel, widgets, notification, chip icon, status bar `sb_t_none` / grey `sb_t_none_s`, SystemUI text, tile, alert notification body, Mac menubar and dropdown). Not a dot (read as a speck) nor `?` (doubts the number); a circle has no direction, so it can't be read as steady (→).
 - Root status bar slot icons: SystemUI spaces the number and the trend icons like its own status icons (5.7 dp on the user's Pixel, root path), so the drawables add no padding between them (0.11.34–0.11.37 added 1.5 dp: 7.2 dp, "too separated"); `SlotDrawablesTest` keeps the visible gap at 5.0–6.5 dp (SystemUI's share 5.74 dp, measured) for root alone; with the LSPosed module the pair sits at the card's own gap, about 3 dp (*Root status bar (system icons)* below). They are two slots (`glucose`, `glucose_trend`); how a full status bar keeps them together: *Root status bar (system icons)* below.
@@ -352,16 +357,22 @@ gone): *Glucose* (value, trend, rings / last treatment), *Glucose graph* (the ch
 (value + slots + chart). Their style is `widgetCardStyle` (`:core:graph`), the same one `CardLayoutTest` renders. Light
 and dark palettes, the system corner radius, the widget fills its cell. Freshness as on every surface: the number is
 struck through and greyed from 5 min and replaced by *no readings since …* from 20 min; the graph goes after 3 h.
+*Glucose graph* has no value, so the renderer marks its age on the chart (contracts/graph/freshness `graph_only`, same
+rule on the Mac): the reading's time on a pill over the chart's top at every age (a widget the launcher stops
+redrawing still says when its data is from; the pill never grows past the chart), the chart dimmed to 40 % from 5 min,
+the *no readings* icon before the time from 20 min, the value's face instead of the chart from 3 h (`GraphOnlyAgeTest`).
+All three draw with the person's graph settings (ranges, time shown, rings, distribution…: `GraphSettings.config`, the
+one `GraphConfig` source home's panel draws from too; `GraphSettingsTest`).
 Followers see the followed person's data and TalkBack starts with their name (*Ana: 112 milligrams per decilitre…*).
 TalkBack reads the renderer's value sentence plus, with a chart, its summary.
 
 - **Tap**: with a value on the widget, quick *Add treatment* (Carbs focused while a low alert fires or the value is
-  under the low band); without one (no reading, 20 min+, warming up, setup not done) the app opens. Until the quick
-  treatment dialog is in the build the tap opens the app.
+  under the low band; `QuickTreatmentIntents.open`, source *Widget*); without one (no reading, 20 min+, warming up,
+  setup not done) the app opens.
 - **Per placement** (*Widget settings*, shown when placed and from the launcher's *Reconfigure*): time shown,
   distribution beside the graph, rings and what they count, sensor time left; each *Same as the app* by default.
   Stored per appWidgetId in the typed state file `widgets` (schema `widget.overrides`), forgotten when the widget is
-  removed. The settings screen previews the widget with the change.
+  removed (inside Glance's own deletion work, `CardWidget.onDelete`; `WidgetDeleteTest`). The settings screen previews the widget with the change.
 - **Updates (battery)**: no periodic update (`updatePeriodMillis` 0) and no polling. `WidgetUpdater` redraws each
   placed widget (one `update` per id) only when its picture would change: a new reading, a freshness step (monitor's
   non-waking `FreshnessTicker` alarm), the sensor, *Mute all*, treatments, settings, the theme or the follower's
@@ -373,8 +384,8 @@ TalkBack reads the renderer's value sentence plus, with a chart, its summary.
 
 **States and exits**: *Placed* → touch & hold → *Reconfigure* (*Widget settings*: *Save*, *Cancel* / back leaves it as
 it was, *Reset* puts every row back to *Same as the app*) or *Remove* (its settings are forgotten). *Just placed* →
-*Widget settings* opens; back keeps the app's settings. *Stale* (5 min+, struck through) and *no readings* (20 min+)
-show on the widget itself; the tap opens the app where the reason and its fix are. *Follower* → the same exits.
+*Widget settings* opens; back keeps the app's settings. *Stale* (5 min+, struck through; the graph widget dimmed with
+the reading's time) and *no readings* (20 min+) show on the widget itself; the tap opens the app where the reason and its fix are. *Follower* → the same exits.
 
 ## Add-the-widget banner
 
@@ -544,8 +555,8 @@ tests `GlucoseHubTest`, `MonitorServiceLogicTest`).
   another format version shows *Open Sukrara* (no number). The gallery shows the real snapshot, or *Open Sukrara*:
   never a sample value.
 - Honest age without the app: the timeline (`WidgetTimeline`) has an entry at each freshness step of the latest
-  reading (time shown from 91 s, struck through from 5 min — on *Glucose graph* the chart dimmed with the reading's
-  time —, no value from 20 min, no chart from 3 h), at every mute's
+  reading (time shown from 91 s, struck through from 5 min — *Glucose graph* shows the reading's time at every age and dims
+  the chart from 5 min —, no value from 20 min, no chart from 3 h), at every mute's
   end with a tick each minute of its last 15 min and every 5 min of the 45 before (the badge counts down; at most
   100 entries, 24 h), and at the sensor's warm-up end and end; WidgetKit
   asks again only after the last one. The app reloads the widgets only when the shown value or state changes, at most

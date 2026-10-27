@@ -258,6 +258,7 @@ private fun GlucoseSection(
                     glucose = state.glucose,
                     treatments = state.treatments,
                     now = state.now,
+                    config = state.config,
                     description = cardDescription(state, resources),
                     modifier = Modifier.padding(horizontal = 16.dp),
                     actions =

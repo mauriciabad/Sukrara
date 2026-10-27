@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.feature.home
 
+import app.mauri.sukrara.graph.GraphConfig
 import app.mauri.sukrara.core.model.AlertReadiness
 import app.mauri.sukrara.core.model.AlertRequirement
 import app.mauri.sukrara.core.model.GlucoseState
@@ -41,6 +42,7 @@ class HomeViewModelTest {
         override val clock = FakeClock(Samples.NOW)
         override val glucose = MutableStateFlow(Samples.wearer())
         override val treatments = InMemoryTreatmentsRepository()
+        override val graphConfig = MutableStateFlow(GraphConfig())
         override val readiness: StateFlow<AlertReadiness?> = MutableStateFlow(AlertReadiness.Ready)
         override val environment = MutableStateFlow(HomeEnvironment())
         override val dataProblems = MutableStateFlow<List<DataProblem>>(emptyList())
