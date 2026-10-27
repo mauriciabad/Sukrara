@@ -20,6 +20,7 @@ dependencies {
     api(project(":core:model"))
     implementation(project(":core:data"))
     implementation(project(":core:alerts"))
+    implementation(project(":core:graph")) // THE clock-time formatter and the duration_* strings
     implementation(libs.androidx.core.ktx)
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.kotlinx.serialization.json)

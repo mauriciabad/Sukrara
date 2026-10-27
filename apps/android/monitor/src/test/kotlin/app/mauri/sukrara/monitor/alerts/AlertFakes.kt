@@ -30,7 +30,7 @@ class FakePresenter : AlertPresenter {
     val log = mutableListOf<String>()
     var problems: Set<AlertDeliveryProblem> = emptySet()
 
-    override fun show(firing: Firing, settings: AlertSettings, silent: Boolean, who: String?) {
+    override fun show(firing: Firing, settings: AlertSettings, silent: Boolean, who: String?, relaxedMin: Int) {
         slots[firing.kind.group] = firing.kind.wire
         log += (if (silent) "resume " else "show ") + firing.kind.wire
     }

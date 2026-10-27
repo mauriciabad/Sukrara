@@ -16,6 +16,7 @@ import app.mauri.sukrara.alerts.AlertSettings
 import app.mauri.sukrara.alerts.AlertSource
 import app.mauri.sukrara.alerts.AlertState
 import app.mauri.sukrara.alerts.Doses
+import app.mauri.sukrara.alerts.Firing
 import app.mauri.sukrara.alerts.QuietReason
 import app.mauri.sukrara.alerts.Rules
 import app.mauri.sukrara.alerts.SensorWindow
@@ -77,8 +78,9 @@ class AlertRuntime(
     private var fedReadingAt: Long? = null
 
     /** Which alert each group's notification shows (from the effects), and the muted cards up. */
-    private val firing = HashMap<AlertGroup, AlertKind>()
+    private val firing = HashMap<AlertGroup, Firing>()
     private val mutedCards = HashMap<AlertGroup, Pair<Side, Long>>()
+    private val shownRelax = HashMap<AlertGroup, Int>()
 
     private fun now(): Long = clock.now().epochSecond
 
@@ -117,12 +119,21 @@ class AlertRuntime(
         process(AlertInput.UnmuteAll)
     }
 
-    /** Shows the group's notification again without sound (a *Mute…* reply that wasn't a length). */
+    /**
+     * Shows [kind]'s notification again without sound: a *Mute…* reply that wasn't a length changes nothing, and the
+     * re-post takes the reply's spinner away.
+     */
     suspend fun reshow(kind: String) {
         mutex.withLock {
-            val k = AlertKind.fromWire(kind) ?: return
-            mutedCards.remove(k.group)
-            reconcileMutedCards(now())
+            val group = AlertKind.fromWire(kind)?.group ?: return
+            val m = machine ?: return
+            val f = firing[group]
+            if (f != null) {
+                presenter.show(f, m.settings, silent = true, who = whoFor(m), relaxedMin = relaxedMin(m, group, now()))
+            } else {
+                mutedCards.remove(group)
+                reconcileMutedCards(now())
+            }
         }
     }
 
@@ -248,11 +259,13 @@ class AlertRuntime(
         for (e in effects) {
             when (e) {
                 is AlertEffect.Fire -> {
-                    firing[e.firing.kind.group] = e.firing.kind
+                    firing[e.firing.kind.group] = e.firing
                     mutedCards.remove(e.firing.kind.group)
-                    presenter.show(e.firing, m.settings, e.silent, who.takeIf { m.role != AlertRole.WEARER })
+                    val relax = relaxedMin(m, e.firing.kind.group, now)
+                    shownRelax[e.firing.kind.group] = relax
+                    presenter.show(e.firing, m.settings, e.silent, whoFor(m), relax)
                 }
-                is AlertEffect.Clear -> if (firing[e.kind.group] == e.kind || firing[e.kind.group] == null) {
+                is AlertEffect.Clear -> if (firing[e.kind.group].let { it == null || it.id == e.id }) {
                     firing.remove(e.kind.group)
                     presenter.clear(e.kind.group)
                 }
@@ -261,6 +274,7 @@ class AlertRuntime(
                 is AlertEffect.Schedule -> alarm.set(e.at)
             }
         }
+        refreshRelaxed(m, now)
         reconcileMutedCards(now)
         save()
         publishUi(now)
@@ -287,6 +301,21 @@ class AlertRuntime(
         }
     }
 
+    /** *Remind less* / *as usual* swaps the alert's button and interval line: shown again silently. */
+    private fun refreshRelaxed(m: AlertMachine, now: Long) {
+        for ((group, f) in firing) {
+            val relax = relaxedMin(m, group, now)
+            if (shownRelax[group] == relax) continue
+            shownRelax[group] = relax
+            presenter.show(f, m.settings, silent = true, who = whoFor(m), relaxedMin = relax)
+        }
+    }
+
+    private fun whoFor(m: AlertMachine) = who.takeIf { m.role != AlertRole.WEARER }
+
+    private fun relaxedMin(m: AlertMachine, group: AlertGroup, now: Long) =
+        m.uiState(now).quiet.firstOrNull { it.kind.group == group }?.relaxMin ?: 0
+
     private suspend fun save() {
         val snapshot = machine?.snapshot()
         store.save { it.copy(machine = snapshot, monitoring = monitoring, who = who, sensor = sensor?.let(::SavedSensor)) }
@@ -299,7 +328,7 @@ class AlertRuntime(
         val alarmKinds = AlertKind.entries.filter { settings.on && settings.rule(it).on && settings.rule(it).alarm }.toSet()
         publish(
             AlertUiState(
-                firingKinds = firing.values.map { it.wire }.toSet(),
+                firingKinds = firing.values.map { it.kind.wire }.toSet(),
                 mutedUntil = instantOf(ui.muteAllUntil),
                 quiet = ui.quiet.map { q ->
                     AlertQuietSide(

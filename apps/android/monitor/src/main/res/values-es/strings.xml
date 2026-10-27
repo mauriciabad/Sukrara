@@ -2,4 +2,78 @@
 <!-- Sukrara — https://github.com/mauriciabad/Sukrara
      Copyright (C) 2026 Maurici Abad
      SPDX-License-Identifier: GPL-3.0-or-later -->
-<resources />
+<resources>
+    <string name="channel_group_alerts">Alertas de glucosa</string>
+    <string name="channel_group_alerts_alarm">Alarmas de glucosa (volumen de alarma)</string>
+    <string name="channel_alert_description">Suena con el volumen de notificaciones: %1$s</string>
+    <string name="channel_alert_description_alarm">Suena con el volumen de alarma, también en No molestar para alarmas: %1$s</string>
+    <string name="channel_sensor">Sensor</string>
+    <string name="channel_sensor_description">El sensor termina pronto o ha terminado</string>
+    <string name="notification_group_alerts">Alertas de glucosa</string>
+    <string name="notification_group_info">Sukrara</string>
+
+    <string name="alert_kind_very_low">Muy baja</string>
+    <string name="alert_kind_low">Baja</string>
+    <string name="alert_kind_high">Alta</string>
+    <string name="alert_kind_very_high">Muy alta</string>
+    <string name="alert_kind_extremely_high">Extremadamente alta</string>
+    <string name="alert_kind_falling_fast">Bajada rápida</string>
+    <string name="alert_kind_rising_fast">Subida rápida</string>
+    <string name="alert_kind_no_data">Sin datos</string>
+
+    <string name="alert_headline_very_low">Glucosa muy baja</string>
+    <string name="alert_headline_low">Glucosa baja</string>
+    <string name="alert_headline_high">Glucosa alta</string>
+    <string name="alert_headline_very_high">Glucosa muy alta</string>
+    <string name="alert_headline_extremely_high">Glucosa extremadamente alta</string>
+    <string name="alert_headline_falling_fast">Bajada rápida</string>
+    <string name="alert_headline_rising_fast">Subida rápida</string>
+    <string name="alert_headline_no_data">Sin datos de glucosa</string>
+    <string name="alert_headline_with_context">%1$s · %2$s</string>
+    <string name="alert_context_eat_more">come más</string>
+    <string name="alert_context_eat_more_again">vuelve a comer</string>
+    <string name="alert_context_after_insulin">sigue alta tras la insulina</string>
+    <string name="alert_context_after_more_insulin">sigue alta tras más insulina</string>
+    <string name="alert_text_value">%1$d mg/dL %2$s</string>
+    <string name="alert_text_falling">%1$s · baja %2$s mg/dL/min</string>
+    <string name="alert_text_rising">%1$s · sube %2$s mg/dL/min</string>
+    <string name="alert_text_no_data">Sin lecturas desde hace %1$s</string>
+    <string name="alert_text_no_data_last">Sin lecturas desde hace %1$s · última %2$d mg/dL</string>
+    <string name="alert_relaxed_subtext">Avisos cada %1$s</string>
+
+    <string name="alert_action_mute">Silenciar…</string>
+    <string name="alert_action_mute_for_label">Silenciar durante (p. ej. 45 min, 1 h 30)</string>
+    <string name="alert_action_remind_less">Avisar menos</string>
+    <string name="alert_action_remind_usual">Avisar como siempre</string>
+    <string name="alert_action_unmute">Reactivar</string>
+    <string name="alert_action_change">Cambiar tiempo</string>
+
+    <string name="side_low">de glucosa baja</string>
+    <string name="side_high">de glucosa alta</string>
+    <string name="side_falling_fast">de bajada rápida</string>
+    <string name="side_rising_fast">de subida rápida</string>
+    <string name="side_no_data">sin datos</string>
+    <string name="mute_side">Alertas %1$s silenciadas</string>
+    <string name="mute_side_left_one">Alertas %1$s silenciadas · queda %2$s</string>
+    <string name="mute_side_left_other">Alertas %1$s silenciadas · quedan %2$s</string>
+    <string name="mute_after_carbs_one">Alertas %1$s silenciadas tras los hidratos · queda %2$s</string>
+    <string name="mute_after_carbs_other">Alertas %1$s silenciadas tras los hidratos · quedan %2$s</string>
+    <string name="mute_after_insulin_one">Alertas %1$s silenciadas tras la insulina · queda %2$s</string>
+    <string name="mute_after_insulin_other">Alertas %1$s silenciadas tras la insulina · quedan %2$s</string>
+    <string name="mute_falling">Alertas %1$s silenciadas mientras baja hacia el rango</string>
+    <string name="mute_less">Avisos %1$s cada %2$s</string>
+    <string name="mute_all_left_one">Alertas silenciadas · queda %1$s</string>
+    <string name="mute_all_left_other">Alertas silenciadas · quedan %1$s</string>
+    <string name="mute_all_forever">Alertas silenciadas hasta que lo desactives</string>
+    <string name="mute_notif_until">Hasta las %1$s</string>
+    <string name="mute_pill">Silenciadas · %1$s</string>
+    <string name="mute_pill_forever">Silenciadas</string>
+    <string name="mute_choice">Durante %1$s</string>
+    <string name="mute_choice_forever">Hasta que lo desactives</string>
+
+    <string name="sensor_end_soon_title">El sensor termina en %1$s</string>
+    <string name="sensor_end_soon_text">Ten un sensor nuevo a mano para cambiarlo a tiempo.</string>
+    <string name="sensor_ended_title">Sensor terminado</string>
+    <string name="sensor_ended_text">No hay lecturas hasta que pongas un sensor nuevo.</string>
+    <string name="sensor_action_pair">Emparejar sensor nuevo</string>
+</resources>

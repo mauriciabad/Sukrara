@@ -18,8 +18,11 @@ import app.mauri.sukrara.core.model.AlertDeliveryProblem
 
 /** Shows and removes alert notifications: one slot per [AlertGroup] (an alert, or its side's muted card). */
 interface AlertPresenter {
-    /** Posts [firing] ([silent]: shown again after a restart, it already rang). [who] = the followed person, or null. */
-    fun show(firing: Firing, settings: AlertSettings, silent: Boolean, who: String?)
+    /**
+     * Posts [firing] ([silent]: shown again after a restart, it already rang). [who] = the followed person, or null;
+     * [relaxedMin] > 0: the side reminds less (offer *Remind as usual*).
+     */
+    fun show(firing: Firing, settings: AlertSettings, silent: Boolean, who: String?, relaxedMin: Int)
 
     /** Replaces the group's slot with "[side] alerts muted · until [until]" (count-down, Unmute, Change time). */
     fun showMuted(group: AlertGroup, side: Side, kind: AlertKind, until: Long, settings: AlertSettings, now: Long)
