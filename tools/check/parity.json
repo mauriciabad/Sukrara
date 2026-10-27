@@ -1,203 +1,171 @@
 {
-  "_about": [
-    "Paths that must change together (tools/check/check.py, CLAUDE.md). Globs: fnmatch, '*' also crosses '/'.",
-    "Touching any side in 'trigger' (default: every side) requires every other side to change in the same commit",
-    "range (branch / merge). Skip with a commit-message trailer: 'Parity-skip: <group>: <reason>'.",
-    "level 'fail' blocks merges, CI and tools/install.sh; 'warn' only reminds."
-  ],
+  "_about": "Path groups that must change together (tools/check/check.py 'parity'). Globs are fnmatch ('*' crosses '/'). A group fires when a 'trigger' side (default: any side) changed and another side didn't; skip with 'Parity-skip: <group>: <reason>'. 'fail' groups fail a range / merge, 'warn' groups only remind. V1 sides only: the frozen PoC (poc/) is in no group.",
   "groups": [
     {
       "name": "graph",
-      "why": "One graph everywhere: Android app/widgets/lock screen/notification and Mac menubar/widgets draw the same card",
       "level": "fail",
+      "why": "One graph everywhere: the Android renderer (:core:graph) and the Mac renderer (SukraraGraph) lay out and draw the same card",
       "sides": {
-        "android": [
-          "poc/spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/graph/GlucoseGraph.kt",
-          "poc/spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/graph/GlucoseCard.kt",
-          "poc/spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/graph/CardSurface.kt",
-          "poc/spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/graph/SensorBadge.kt",
-          "poc/spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/graph/TextModel.kt",
-          "poc/spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/graph/CardStatus.kt",
-          "poc/spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/graph/Freshness.kt",
-          "poc/spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/graph/GlucoseStats.kt",
-          "poc/spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/graph/GlucoseMetrics.kt",
-          "poc/spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/graph/GraphSettings.kt",
-          "poc/spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/treatments/TreatmentMarks.kt",
-          "poc/spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/treatments/LastTreatment.kt",
-          "poc/spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/alerts/AlertStatus.kt"
-        ],
-        "mac": [
-          "poc/spikes/widgets-macos/Shared/SukraraGraph.swift",
-          "poc/spikes/widgets-macos/Shared/CardSurfaces.swift",
-          "poc/spikes/widgets-macos/Shared/AlertRules.swift",
-          "poc/spikes/menubar/Sources/GlucoseBar/SukraraGraph.swift",
-          "poc/spikes/menubar/Sources/GlucoseBar/AlertRules.swift"
-        ]
+        "android": ["apps/android/core/graph/src/main/*"],
+        "mac": ["apps/macos/Sources/SukraraGraph/*"]
       }
     },
     {
       "name": "graph-fixtures",
-      "why": "Graph decisions (badge, slot, labels, what every surface lays out) are pinned by shared fixtures run on both platforms",
       "level": "warn",
       "trigger": ["code"],
+      "why": "Graph decisions (badges, slots, labels, what every surface lays out) are pinned by contracts/graph fixtures: add or update a case",
       "sides": {
-        "code": [
-          "poc/spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/graph/CardStatus.kt",
-          "poc/spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/treatments/TreatmentMarks.kt",
-          "poc/spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/treatments/LastTreatment.kt",
-          "poc/spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/alerts/AlertStatus.kt",
-          "poc/spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/graph/TextModel.kt",
-          "poc/spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/graph/GlucoseCard.kt",
-          "poc/spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/graph/GlucoseGraph.kt",
-          "poc/spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/graph/CardSurface.kt"
-        ],
-        "fixtures": ["poc/spikes/graph-fixtures/*"]
+        "code": ["apps/android/core/graph/src/main/*", "apps/macos/Sources/SukraraGraph/*"],
+        "fixtures": ["contracts/graph/*"]
       }
     },
     {
       "name": "alerts",
-      "why": "One alert engine: Android alerts/*.kt and Mac Alerts.swift + AlertRules.swift implement poc/spikes/alerts/SPEC.md",
       "level": "fail",
+      "why": "One alert engine: Android :core:alerts and Mac SukraraAlerts implement the same rules (contracts/alerts/SPEC.md)",
       "sides": {
-        "android": [
-          "poc/spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/alerts/AlertEngine.kt",
-          "poc/spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/alerts/AlertMirror.kt",
-          "poc/spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/alerts/Alerts.kt",
-          "poc/spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/alerts/AlertSettings.kt",
-          "poc/spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/alerts/AlertStatus.kt"
-        ],
-        "mac": [
-          "poc/spikes/menubar/Sources/GlucoseBar/Alerts.swift",
-          "poc/spikes/menubar/Sources/GlucoseBar/AlertRules.swift",
-          "poc/spikes/widgets-macos/Shared/AlertRules.swift"
-        ]
+        "android": ["apps/android/core/alerts/src/main/*"],
+        "mac": ["apps/macos/Sources/SukraraAlerts/*"]
       }
     },
     {
       "name": "alert-scenarios",
-      "why": "Every alert-rule change adds or updates a timeline scenario (poc/spikes/alerts/scenarios, SPEC.md section 7)",
       "level": "fail",
       "trigger": ["engine"],
+      "why": "Every alert-rule change adds or updates a timeline scenario (contracts/alerts/scenarios); never change a scenario's expectations without the owner's OK",
       "sides": {
-        "engine": [
-          "poc/spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/alerts/AlertEngine.kt",
-          "poc/spikes/menubar/Sources/GlucoseBar/Alerts.swift"
-        ],
-        "scenarios": ["poc/spikes/alerts/scenarios/*"]
+        "engine": ["apps/android/core/alerts/src/main/*", "apps/macos/Sources/SukraraAlerts/*"],
+        "scenarios": ["contracts/alerts/scenarios/*"]
       }
     },
     {
       "name": "alert-spec",
-      "why": "The alert settings JSON / rules contract (poc/spikes/alerts/SPEC.md) is implemented on both platforms",
       "level": "fail",
       "trigger": ["spec"],
+      "why": "The alert rules and settings JSON (contracts/alerts/SPEC.md, copy.json) are implemented by Android and Mac in the same change",
       "sides": {
-        "spec": ["poc/spikes/alerts/SPEC.md"],
-        "android": ["poc/spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/alerts/*"],
-        "mac": ["poc/spikes/menubar/Sources/GlucoseBar/Alerts*.swift", "poc/spikes/widgets-macos/Shared/AlertRules.swift"]
+        "spec": ["contracts/alerts/SPEC.md", "contracts/alerts/copy.json"],
+        "android": ["apps/android/core/alerts/*"],
+        "mac": ["apps/macos/Sources/SukraraAlerts/*", "apps/macos/Tests/AlertsTests/*"]
       }
     },
     {
       "name": "protocol-v2",
-      "why": "PROTOCOL-v2.md (Nostr + BLE sharing) is implemented by Android and Mac",
       "level": "fail",
       "trigger": ["spec"],
+      "why": "PROTOCOL-v2.md (Nostr + BLE sharing) is implemented by Android and Mac in the same change",
       "sides": {
-        "spec": ["poc/spikes/nostr/PROTOCOL-v2.md"],
-        "android": [
-          "poc/spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/core/*",
-          "poc/spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/owner/*",
-          "poc/spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/follower/*",
-          "poc/spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/treatments/*",
-          "poc/spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/alerts/*"
-        ],
-        "mac": ["poc/spikes/menubar/Sources/GlucoseBar/*"]
-      }
-    },
-    {
-      "name": "ogs-spec",
-      "why": "The app wire specs (PROTOCOL-v2.md, libreview SPEC.md) are published as the open standard poc/spec/ogs-*.md: a wire change updates the public spec in the same change (pen keys round, 2026-10-23)",
-      "level": "fail",
-      "trigger": ["app-spec"],
-      "sides": {
-        "app-spec": ["poc/spikes/nostr/PROTOCOL-v2.md", "poc/spikes/libreview/SPEC.md"],
-        "ogs": ["poc/spec/ogs-*.md"]
-      }
-    },
-    {
-      "name": "protocol-v2-impl",
-      "why": "Wire code changed on one platform only: check PROTOCOL-v2.md and the other platform",
-      "level": "warn",
-      "sides": {
-        "android": [
-          "poc/spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/core/Proto.kt",
-          "poc/spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/core/Transport.kt",
-          "poc/spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/core/Ble*.kt"
-        ],
-        "mac": [
-          "poc/spikes/menubar/Sources/GlucoseBar/NostrV2.swift",
-          "poc/spikes/menubar/Sources/GlucoseBar/BLEV2Central.swift",
-          "poc/spikes/menubar/Sources/GlucoseBar/BLELink.swift"
-        ]
+        "spec": ["contracts/protocol/PROTOCOL-v2.md", "contracts/protocol/sync/*"],
+        "android": ["apps/android/core/protocol/*", "apps/android/share/*"],
+        "mac": ["apps/macos/Sources/SukraraShare/*", "apps/macos/Tests/ShareTests/*"]
       }
     },
     {
       "name": "identity",
-      "why": "PROTOCOL-identity.md (names, generated pictures) is implemented by Android and Mac",
       "level": "fail",
       "trigger": ["spec"],
+      "why": "PROTOCOL-identity.md (names, generated pictures) is implemented by Android and Mac in the same change",
       "sides": {
-        "spec": ["poc/spikes/nostr/PROTOCOL-identity.md"],
-        "android": ["poc/spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/core/Avatar.kt"],
-        "mac": ["poc/spikes/menubar/Sources/GlucoseBar/Avatar.swift"]
+        "spec": ["contracts/protocol/PROTOCOL-identity.md", "contracts/protocol/identity/*"],
+        "android": ["apps/android/core/protocol/*"],
+        "mac": ["apps/macos/Sources/SukraraShare/*", "apps/macos/Tests/ShareTests/*"]
+      }
+    },
+    {
+      "name": "protocol-v2-impl",
+      "level": "warn",
+      "why": "Wire code changed on one platform only: check PROTOCOL-v2.md and the other platform",
+      "sides": {
+        "android": ["apps/android/core/protocol/src/main/*"],
+        "mac": ["apps/macos/Sources/SukraraShare/*"]
+      }
+    },
+    {
+      "name": "ogs-spec",
+      "level": "warn",
+      "trigger": ["app-spec"],
+      "why": "The app wire specs (PROTOCOL-v2.md, treatments/SPEC.md) are published as the Open Glucose Sharing draft: keep its vectors in step",
+      "sides": {
+        "app-spec": ["contracts/protocol/PROTOCOL-v2.md", "contracts/treatments/SPEC.md"],
+        "ogs": ["contracts/protocol/ogs/*"]
       }
     },
     {
       "name": "treatments",
-      "why": "The treatment JSON (poc/spikes/libreview/SPEC.md section 1) is shared by Android and Mac",
       "level": "warn",
+      "trigger": ["spec"],
+      "why": "The treatment form and JSON (contracts/treatments) are shared by Android and Mac",
       "sides": {
-        "android": ["poc/spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/treatments/Treatments.kt"],
-        "mac": ["poc/spikes/menubar/Sources/GlucoseBar/Treatments.swift"]
+        "spec": ["contracts/treatments/*"],
+        "android": ["apps/android/core/model/*", "apps/android/core/protocol/*", "apps/android/feature/treatments/*"],
+        "mac": ["apps/macos/Sources/SukraraCore/*", "apps/macos/Sources/SukraraShare/*", "apps/macos/Sources/SukraraApp/Treatments/*"]
       }
     },
     {
       "name": "report",
-      "why": "The doctor's report card exists on Android (ReportCard.kt) and Mac (ReportView.swift)",
       "level": "warn",
+      "why": "The doctor's report exists on Android (home report card) and Mac (report window): same numbers, same periods",
       "sides": {
-        "android": ["poc/spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/ui/ReportCard.kt"],
-        "mac": ["poc/spikes/menubar/Sources/GlucoseBar/ReportView.swift"]
+        "android": ["apps/android/feature/home/src/main/*Report*"],
+        "mac": ["apps/macos/Sources/SukraraApp/*Report*"]
       }
     },
     {
       "name": "strings",
-      "why": "Every English string has its Spain-Spanish twin (StringsParityTest)",
       "level": "fail",
+      "why": "Every English string has its Spain-Spanish twin in the same module (StringsParityTest)",
       "sides": {
-        "en": ["poc/spikes/showcase-android/app/src/main/res/values/strings.xml"],
-        "es": ["poc/spikes/showcase-android/app/src/main/res/values-es/strings.xml"]
+        "en": ["apps/android/*/src/main/res/values/strings.xml"],
+        "es": ["apps/android/*/src/main/res/values-es/strings.xml"]
       }
     },
     {
       "name": "export",
-      "why": "One CSV export: Android export/GlucoseCsv.kt and Mac GlucoseCsv.swift write the same bytes (poc/spikes/export-fixtures)",
       "level": "fail",
+      "why": "One CSV export: Android (:integrations export) and Mac (SukraraCore Export) write the same bytes (contracts/export)",
       "sides": {
-        "android": ["poc/spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/export/GlucoseCsv.kt"],
-        "mac": ["poc/spikes/menubar/Sources/GlucoseBar/GlucoseCsv.swift"]
+        "android": ["apps/android/integrations/src/main/*/export/*"],
+        "mac": ["apps/macos/Sources/SukraraCore/Export/*"]
+      }
+    },
+    {
+      "name": "export-fixtures",
+      "level": "fail",
+      "trigger": ["fixtures"],
+      "why": "The CSV export cases (contracts/export) are what both writers must produce",
+      "sides": {
+        "fixtures": ["contracts/export/*"],
+        "android": ["apps/android/integrations/*"],
+        "mac": ["apps/macos/Sources/SukraraCore/Export/*", "apps/macos/Tests/CoreTests/*"]
+      }
+    },
+    {
+      "name": "settings",
+      "level": "fail",
+      "trigger": ["schema"],
+      "why": "Settings never diverge: a schema change (contracts/settings/settings.json) regenerates both SettingsSpec files (python3 tools/settings/gen.py)",
+      "sides": {
+        "schema": ["contracts/settings/settings.json"],
+        "android": ["apps/android/core/data/src/main/kotlin/app/mauri/sukrara/settings/SettingsSpec.kt"],
+        "mac": ["apps/macos/Sources/SukraraCore/Settings/SettingsSpec.swift"]
+      }
+    },
+    {
+      "name": "durations",
+      "level": "warn",
+      "trigger": ["cases"],
+      "why": "Duration formatting cases (contracts/settings/durations.json) are what both Durations formatters produce",
+      "sides": {
+        "cases": ["contracts/settings/durations.json"],
+        "android": ["apps/android/core/model/*Durations*"],
+        "mac": ["apps/macos/Sources/SukraraCore/*Durations*"]
       }
     }
   ],
   "features": {
     "_about": "App behaviour code; a change needs docs/FEATURES.md in the same range, or 'Features-skip: <reason>'.",
-    "code": [
-      "poc/spikes/showcase-android/app/src/main/*",
-      "poc/spikes/menubar/Sources/*",
-      "poc/spikes/widgets-macos/Shared/*",
-      "poc/spikes/widgets-macos/Widget/*",
-      "poc/spikes/widgets-macos/Host/*"
-    ],
+    "code": ["apps/android/*/src/main/*", "apps/macos/Sources/*"],
     "docs": ["docs/FEATURES.md"],
     "readme": ["README.md"]
   }
