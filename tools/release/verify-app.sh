@@ -17,7 +17,8 @@ fail=0
 bad() { echo "FAIL $*"; fail=1; }
 ok() { echo "ok   $*"; }
 plist() { /usr/libexec/PlistBuddy -c "Print :$2" "$1/Contents/Info.plist" 2>/dev/null || true; }
-set -- $(version_info)
+VI=$(version_info) || exit 1
+set -- $VI
 want_name="$1" want_code="$2"
 
 id="$(plist "$app" CFBundleIdentifier)"

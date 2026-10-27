@@ -13,6 +13,8 @@ dependencies {
     api(project(":core:model"))
     // the generated SettingsSpec (band limits, graph defaults)
     implementation(project(":core:data"))
+    // ColorUtils, PathParser for the Canvas drawing
+    implementation(libs.androidx.core.ktx)
     testImplementation(project(":core:testing"))
     testImplementation(libs.kotlinx.serialization.json)
 }

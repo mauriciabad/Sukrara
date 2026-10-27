@@ -20,7 +20,10 @@ sealed interface FileLoad<out T> {
 
     data object Missing : FileLoad<Nothing>
 
-    /** The file couldn't be decoded; it was moved to [quarantinedTo] and reported. Nothing was replaced. */
+    /**
+     * The file couldn't be decoded. It stays in place (every later load says Corrupt again, never Missing) and a copy
+     * was kept at [quarantinedTo] and reported. Only a deliberate [FileStore.save] or [FileStore.delete] replaces it.
+     */
     data class Corrupt(val quarantinedTo: File, val reason: String) : FileLoad<Nothing>
 }
 
@@ -33,7 +36,8 @@ interface FileCodec<T> {
 
 /**
  * One file written atomically (temp file, fsync, rename): a crash mid-write leaves the old file. A file that can't be
- * decoded is renamed to `<name>.corrupt-<epochMs>` and reported to [corruption], never overwritten with empty data.
+ * decoded is copied to `<name>.corrupt-<epochMs>` (once per process) and reported to [corruption]; it stays in place,
+ * so it never reads as Missing and is never overwritten with empty data by accident.
  * Real I/O errors (disk full, permissions) are thrown as [IOException] and change nothing.
  */
 class FileStore<T>(
@@ -44,6 +48,7 @@ class FileStore<T>(
     private val io: CoroutineDispatcher,
 ) {
     private val lock = Mutex()
+    private var quarantined: FileLoad.Corrupt? = null
 
     suspend fun load(): FileLoad<T> = withContext(io) {
         lock.withLock {
@@ -56,11 +61,17 @@ class FileStore<T>(
     }
 
     suspend fun save(value: T) = withContext(io) {
-        lock.withLock { writeAtomically(file, codec.encode(value)) }
+        lock.withLock {
+            writeAtomically(file, codec.encode(value))
+            quarantined = null
+        }
     }
 
     suspend fun delete() = withContext(io) {
-        lock.withLock { if (file.exists() && !file.delete()) throw IOException("can't delete ${file.name}") }
+        lock.withLock {
+            if (file.exists() && !file.delete()) throw IOException("can't delete ${file.name}")
+            quarantined = null
+        }
     }
 
     private sealed interface Decoded<out T> {
@@ -80,19 +91,22 @@ class FileStore<T>(
         }
 
     private fun quarantine(reason: String): FileLoad.Corrupt {
+        quarantined?.let { return it }
         val now = clock.now()
-        val aside = quarantineTarget(file, now.toEpochMilli())
-        if (!file.renameTo(aside)) throw IOException("can't move corrupt ${file.name} aside")
-        corruption.report(CorruptFile(store = file.name, quarantinedTo = aside, at = now, reason = reason))
-        return FileLoad.Corrupt(aside, reason)
+        val copy = file.copyTo(quarantineTarget(file, now.toEpochMilli()), overwrite = true)
+        corruption.report(CorruptFile(store = file.name, quarantinedTo = copy, at = now, reason = reason))
+        return FileLoad.Corrupt(copy, reason).also { quarantined = it }
     }
 
     companion object {
-        /** Where a damaged [file] is moved: `<name>.corrupt-<epochMs>`. */
+        /** Marks a kept copy of a damaged file; `DataModule.ready` re-reports copies the person hasn't acknowledged. */
+        const val QUARANTINE_MARK = ".corrupt-"
+
+        /** Where a damaged [file]'s copy is kept: `<name>.corrupt-<epochMs>`. */
         fun quarantineTarget(
             file: File,
             epochMs: Long,
-        ): File = File(file.parentFile, "${file.name}.corrupt-$epochMs")
+        ): File = File(file.parentFile, "${file.name}$QUARANTINE_MARK$epochMs")
 
         /** Writes [bytes] to a temp file next to [target], syncs it to disk and renames it over [target]. */
         fun writeAtomically(

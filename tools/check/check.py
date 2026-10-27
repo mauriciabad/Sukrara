@@ -116,14 +116,17 @@ class Change:
         self.rev = rev  # "" = the index, else a commit
         self.files = {}
         self.origin = {}  # renamed / copied path -> where it came from
+        self.sha = {}  # path -> new blob id
+        self._sizes = None
         # Renames are detected (a moved file is R and its unchanged lines aren't "added"), so a tree move such as
         # spikes/ -> poc/spikes/ isn't re-checked as thousands of new files. -l0: no rename-detection limit.
-        for line in git("diff", "--raw", *RENAMES, "--no-ext-diff", *diff_args).splitlines():
+        for line in git("diff", "--raw", "--no-abbrev", *RENAMES, "--no-ext-diff", *diff_args).splitlines():
             meta, _, paths = line.partition("\t")
             path = paths.split("\t")[-1]
             parts = meta.split()
             if len(parts) >= 5:
                 self.files[path] = (parts[4][0], parts[1])
+                self.sha[path] = parts[3]
                 if parts[4][0] in "RC":
                     self.origin[path] = paths.split("\t")[0]
         self.added = {}
@@ -151,8 +154,17 @@ class Change:
         return git("cat-file", "blob", "%s:%s" % (self.rev, path), binary=binary, ok=True)
 
     def size(self, path):
-        out = git("cat-file", "-s", "%s:%s" % (self.rev, path), ok=True).strip()
-        return int(out) if out else 0
+        """Blob size; all changed files' sizes come from one `git cat-file --batch-check` (a tree move has thousands)."""
+        if self._sizes is None:
+            shas = sorted({s for s in self.sha.values() if s.strip("0")})
+            out = subprocess.run(["git", "cat-file", "--batch-check=%(objectname) %(objectsize)"], cwd=ROOT,
+                                 input="\n".join(shas) + "\n", capture_output=True, text=True).stdout
+            self._sizes = {}
+            for line in out.splitlines():
+                sha, _, n = line.partition(" ")
+                if n.isdigit():
+                    self._sizes[sha] = int(n)
+        return self._sizes.get(self.sha.get(path, ""), 0)
 
 
 class Report:
@@ -470,7 +482,7 @@ def check_card(ch, rep):
         value_ok = {e["path"] for e in cfg.get("value_text_ok", [])}
         for e in cfg.get("value_text_ok", []):
             rep.pending(files, e["path"], "card-text", "value_text_ok (%s)" % plat)
-        names = governed([ch.blob(o) for o in owners], swift) | set(api)
+        names = governed([ch.blob(o) for o in owners if o.endswith((".kt", ".swift"))], swift) | set(api)  # owners hold fonts too
         ref = re.compile(r"(?<![\w])(?:[A-Za-z_][\w]*\.)*(%s)\.(\w+)" % "|".join(sorted(names))) if names else None
         for p, text in texts.items():
             code = [(n, l) for n, l in code_lines(text)]
@@ -786,7 +798,7 @@ def check_static(ch, rep):
         size = ch.size(p)
         if size > allow["large_bytes"] and not match(p, allow["large_ok"]):
             rep.add("FAIL", "large", "%s: %d KB. Shrink it (crop/resize/pngquant) or list it in tools/check/allow.json large_ok." % (p, size // 1024))
-        if IMAGE.search(p) and st == "A" and not p.startswith(POC):
+        if IMAGE.search(p) and ch.new(p) and not p.startswith(POC):
             if not match(p, allow["images_ok"]) and p not in allow["images_extra"]:
                 rep.add("FAIL", "images", "%s: images go to docs/img/**, assets/brand/**, res/ or the snapshot goldens\n"
                         "(allow.json images_ok; synthetic data only), or allow.json images_extra with the reason." % p)
