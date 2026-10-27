@@ -14,6 +14,8 @@ import app.mauri.sukrara.core.model.Role
 import app.mauri.sukrara.core.model.SystemClock
 import app.mauri.sukrara.core.model.Treatment
 import app.mauri.sukrara.feature.sharing.SharingDeps
+import app.mauri.sukrara.feature.treatments.LocalTreatmentSync
+import app.mauri.sukrara.feature.treatments.TreatmentsModule
 import app.mauri.sukrara.monitor.MonitorModule
 import app.mauri.sukrara.monitor.alerts.AlertRecord
 import app.mauri.sukrara.monitor.alerts.AlertsModule
@@ -140,6 +142,8 @@ class AppGraph(
         }
         monitor.starter.start(reason)
     }
+
+    val treatments by lazy { TreatmentsModule(data.treatments, LocalTreatmentSync(), clock, home.glucose, data.settings, scope) }
 
     /**
      * Loads what the modules need from disk, once, off the main thread. [App] starts it; anything that reads state
