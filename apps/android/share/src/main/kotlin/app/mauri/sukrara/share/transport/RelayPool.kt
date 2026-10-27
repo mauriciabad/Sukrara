@@ -178,6 +178,7 @@ class RelayPool(
     private suspend fun run(url: String, connection: Connection) {
         var attempt = 0
         while (true) {
+            val attemptBefore = attempt
             // Bounded: a relay that floods faster than we handle loses its socket instead of filling memory.
             val events = Channel<SocketEvent>(INBOUND_QUEUE)
             val flooded = AtomicBoolean(false)
@@ -193,7 +194,7 @@ class RelayPool(
             connection.authEventId = null
             connection.authPending = false
             resend(socket)
-            var reason = "closed"
+            var reason: String? = null
             for (e in events) {
                 if (flooded.get()) break
                 when (e) {
@@ -215,12 +216,16 @@ class RelayPool(
                     }
                 }
             }
-            if (flooded.get()) reason = FLOODED
+            // the first of the relay's close, a too-big message or the flood wins (a late flood callback never
+            // overwrites an earlier reason)
+            val why = reason ?: if (flooded.get()) FLOODED else "closed"
+            // a relay that answers and then floods / oversends doesn't win back the 2 s backoff each time
+            if (why == TOO_BIG || why == FLOODED) attempt = attemptBefore
             events.close()
             socket.cancel()
             connection.socket = null
             connection.open = false
-            setStatus(url, RelayStatus(connected = false, lastError = reason, retryAttempt = attempt + 1))
+            setStatus(url, RelayStatus(connected = false, lastError = why, retryAttempt = attempt + 1))
             delay(backoff.delayMs(attempt, jitter()))
             attempt++
         }
@@ -308,7 +313,8 @@ class RelayPool(
         /**
          * The longest relay message kept (in chars, so at least 1 MiB of UTF-8, like the Mac's URLSession default).
          * Our events are a few KB; anything this big is a broken or hostile relay and its socket is dropped. OkHttp
-         * has already buffered the message by then (it has no incoming limit); this stops the repeat, not the first.
+         * has already buffered the message by then (it has no incoming limit); dropping it keeps the backoff growing (no reset), so a relay that repeats it is
+         * retried less and less often.
          */
         const val MAX_MESSAGE_CHARS = 1 shl 20
 

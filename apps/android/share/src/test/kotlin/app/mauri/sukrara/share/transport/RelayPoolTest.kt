@@ -186,4 +186,34 @@ class RelayPoolTest {
         assertEquals(RelayPool.FLOODED, p.status.value.getValue("wss://a.example").lastError)
         p.close()
     }
+
+    @Test fun aRelayThatAnswersThenOversendsKeepsItsGrowingBackoff() = runTest {
+        val p = pool()
+        p.start()
+        runCurrent()
+        val huge = "[\"EOSE\",\"" + "x".repeat(RelayPool.MAX_MESSAGE_CHARS) + "\"]"
+        // 2 s, then 4 s: a normal message first (which marks the socket open) doesn't bring the 2 s back
+        listOf(2_000L, 4_000L).forEachIndexed { i, wait ->
+            sockets[i].onEvent(SocketEvent.Message("[\"EOSE\",\"ok\"]"))
+            sockets[i].onEvent(SocketEvent.Message(huge))
+            runCurrent()
+            assertEquals(RelayPool.TOO_BIG, p.status.value.getValue("wss://a.example").lastError)
+            advanceTimeBy(wait - 1)
+            assertEquals(i + 1, sockets.size)
+            advanceTimeBy(2)
+            assertEquals(i + 2, sockets.size)
+        }
+        p.close()
+    }
+
+    @Test fun aRelayClosingAfterItsMessagesKeepsItsReason() = runTest {
+        val p = pool()
+        p.start()
+        runCurrent()
+        sockets[0].onEvent(SocketEvent.Message("[\"EOSE\",\"ok\"]"))
+        sockets[0].onEvent(SocketEvent.Closed("going away"))
+        runCurrent()
+        assertEquals("going away", p.status.value.getValue("wss://a.example").lastError)
+        p.close()
+    }
 }

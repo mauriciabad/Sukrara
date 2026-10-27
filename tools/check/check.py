@@ -351,7 +351,7 @@ def check_cleartext(ch, rep):
     for e in clear_ok + net_ok:
         rep.pending(files, e["path"], "cleartext", "allow.json entry")
     nsc = "apps/android/app/src/main/res/xml/network_security_config.xml"
-    xml = git("show", "%s:%s" % (ch.rev or "", nsc), ok=True)  # the index when checking staged changes
+    xml = ch.blob(nsc)  # the index when checking staged changes
     if re.search(r'<base-config[^>]*cleartextTrafficPermitted="true"', xml):
         rep.add("FAIL", "cleartext", "%s permits cleartext app-wide. Keep the base config off and allow cleartext\n"
                 "only per domain (loopback today), with the reason in tools/check/allow.json." % nsc)
