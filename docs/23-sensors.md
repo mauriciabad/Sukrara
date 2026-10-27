@@ -1,6 +1,6 @@
 # 23 — More sensors, more brands: what Sukrara can read besides the Libre 3
 
-*2026-10-18 · standalone PoC in [`spikes/sensors-android`](../spikes/sensors-android) · no sensor was touched:
+*2026-10-18 · standalone PoC in [`poc/spikes/sensors-android`](../poc/spikes/sensors-android) · no sensor was touched:
 every driver is tested against packet traces and test vectors taken from open-source projects*
 
 ## Goal
@@ -107,7 +107,7 @@ Two things to know before trusting the references:
   coordinates to 32 bytes (Juggluco's `BN_bn2bin` drops leading zeros, which shifts the 160-byte packet whenever a
   coordinate starts with a zero byte).
 - Both are written up for the Juggluco maintainer, as a private report and a public issue, not sent:
-  [`spikes/sensors-android/upstream/juggluco-g7-jpake-issue.md`](../spikes/sensors-android/upstream/juggluco-g7-jpake-issue.md).
+  [`poc/spikes/sensors-android/upstream/juggluco-g7-jpake-issue.md`](../poc/spikes/sensors-android/upstream/juggluco-g7-jpake-issue.md).
 
 Where implementations disagree on decoding, this spike follows the one with tests: LoopKit's G7SensorKit reads the
 display-only flag from the message's last byte and treats `0xFFFF` as "no value", while Juggluco and xDrip+ read the
@@ -115,7 +115,7 @@ flag out of the glucose field's top nibble; G7SensorKit's unit tests pin its rea
 
 ## The PoC
 
-`spikes/sensors-android` is a two-module Gradle build with **no app**: a plain-JVM `core` (drivers, decoders,
+`poc/spikes/sensors-android` is a two-module Gradle build with **no app**: a plain-JVM `core` (drivers, decoders,
 crypto, traces, harness) and an `android` library with the one Android-specific class.
 
 ```
@@ -152,7 +152,7 @@ interface SensorDriver {
 ### Build and run
 
 ```sh
-cd spikes/sensors-android
+cd poc/spikes/sensors-android
 export JAVA_HOME=$(brew --prefix openjdk@17)/libexec/openjdk.jdk/Contents/Home
 ./gradlew :core:test            # 36 tests, all the decoding and crypto below
 ./gradlew :core:run             # the harness: replay every bundled trace through its driver

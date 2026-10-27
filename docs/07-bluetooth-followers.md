@@ -1,6 +1,6 @@
 # 07 — Bluetooth followers
 
-*2026-10-16 · investigation report · builds on [06 — Sharing and keys](06-sharing-and-keys.md) · spec: [PROTOCOL-v2](../spikes/nostr/PROTOCOL-v2.md), treatments: [libreview SPEC §5](../spikes/libreview/SPEC.md)*
+*2026-10-16 · investigation report · builds on [06 — Sharing and keys](06-sharing-and-keys.md) · spec: [PROTOCOL-v2](../poc/spikes/nostr/PROTOCOL-v2.md), treatments: [libreview SPEC §5](../poc/spikes/libreview/SPEC.md)*
 
 ## Goal
 
@@ -18,7 +18,7 @@
 emulator's Wi-Fi and mobile data **off** for the whole app↔app run. Transport code is ~400 lines on top of 06's
 `Transport` seam; the engines' acceptance rules are unchanged — BLE events go into the same `onEvent(json, via)`.
 
-| # | Claim | Devices | Result | Evidence (`spikes/nostr/android-app/evidence/`) |
+| # | Claim | Devices | Result | Evidence (`poc/spikes/nostr/android-app/evidence/`) |
 |---|---|---|---|---|
 | 1 | Owner advertises, follower discovers it by service UUID | Pixel → Mac; emu → emu | ✅ Mac finds it in 0.2–5 s; emulator lists it with RSSI | `07-mac-ble-pairing.log`, `07-follower-nearby-list.png` |
 | 2 | Same v2 events over BLE, verified/decrypted by an independent implementation | Pixel (Juggluco) → Mac (`cgm2.py`) | ✅ roster + 25 chunks + live, **27/27 accepted, 0 rejected** | `07-mac-ble-treatment-rejected.log` (first lines) |
@@ -143,7 +143,7 @@ roster `writers` (which it controls with the per-follower "Can add entries" swit
 
 ## Implementation
 
-CGM Share (`spikes/nostr/android-app`, Kotlin), same app, both roles:
+CGM Share (`poc/spikes/nostr/android-app`, Kotlin), same app, both roles:
 
 | file | what |
 |---|---|
@@ -158,10 +158,10 @@ CGM Share (`spikes/nostr/android-app`, Kotlin), same app, both roles:
 | `App.kt` | **debug-only** `dev.spike.cgmshare.CMD` broadcast (`owner`, `pair`, `approve`, `writer`, `fg`) to drive a locked phone over adb |
 | `AndroidManifest.xml` | `BLUETOOTH_CONNECT`, `BLUETOOTH_ADVERTISE`, `BLUETOOTH_SCAN` (`neverForLocation`) — runtime-requested at launch |
 
-Mac test client: `spikes/nostr/ble/ble_follower.py` (`bleak`, uses `v2/cgm2.py` for every check). Follower secret in
-`spikes/nostr/secrets/ble-follower.json` (gitignored, never printed).
+Mac test client: `poc/spikes/nostr/ble/ble_follower.py` (`bleak`, uses `v2/cgm2.py` for every check). Follower secret in
+`poc/spikes/nostr/secrets/ble-follower.json` (gitignored, never printed).
 
-Release APK built: `spikes/nostr/android-app/app/build/outputs/apk/release/app-release.apk` (14 MB; only the debug
+Release APK built: `poc/spikes/nostr/android-app/app/build/outputs/apk/release/app-release.apk` (14 MB; only the debug
 build was run on devices).
 
 ## Bugs found (and fixed)
@@ -204,11 +204,11 @@ build was run on devices).
 
 ## Mac follower (GlucoseBar, now Sukrara for Mac) — same pairing as Android
 
-<img src="../spikes/menubar/evidence/ble-nearby-waiting.png" width="360" alt="Mac waiting for approval with match code">
+<img src="../poc/spikes/menubar/evidence/ble-nearby-waiting.png" width="360" alt="Mac waiting for approval with match code">
 
 GlucoseBar now follows a wearer exactly like the Android follower — over **Nostr v2** ("Follow someone…" with the
 invite link or a QR image, match code, Allow) and over **Bluetooth v2** (nearby pairing with the same match code,
-the GATT framing above). Keys live in the macOS Keychain. Notes and numbers: [`spikes/menubar/FOLLOWER.md`](../spikes/menubar/FOLLOWER.md).
+the GATT framing above). Keys live in the macOS Keychain. Notes and numbers: [`poc/spikes/menubar/FOLLOWER.md`](../poc/spikes/menubar/FOLLOWER.md).
 
 | Test | Result |
 |---|---|
@@ -223,7 +223,7 @@ signing means macOS asks once for Keychain access after each rebuild.
 ## For the showcase app (bundling all features)
 
 - Copy `core/Ble.kt`, `core/BleOwner.kt`, `core/BleFollower.kt`; attach them as extra `Transport`s exactly as here.
-  Keep the GATT framing above — the Mac menubar implements the same (another agent, `spikes/menubar`).
+  Keep the GATT framing above — the Mac menubar implements the same (another agent, `poc/spikes/menubar`).
 - Frames ≤ 512 bytes; one notification in flight per central; one write in flight on the central.
 - Re-publish the roster when BLE starts; cache recent gift wraps; re-`HELLO` after a new key.
 - Reconnect by re-scanning the service UUID, not by stored MAC address.

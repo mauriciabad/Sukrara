@@ -72,7 +72,7 @@ app made a request.
 
 ## What the server answers
 
-[`XdripServer.kt`](../spikes/glucobridge-android/app/src/main/kotlin/dev/spike/glucobridge/XdripServer.kt), ~250
+[`XdripServer.kt`](../poc/spikes/glucobridge-android/app/src/main/kotlin/dev/spike/glucobridge/XdripServer.kt), ~250
 lines, no dependencies. It copies Juggluco's output field for field ([captured samples](evidence/08-garmin/glucobridge-responses.txt)):
 
 ```json
@@ -153,7 +153,7 @@ lines, no dependencies. It copies Juggluco's output field for field ([captured s
 ## Reproducing
 
 ```sh
-cd spikes/glucobridge-android
+cd poc/spikes/glucobridge-android
 export JAVA_HOME=$(brew --prefix openjdk@17)/libexec/openjdk.jdk/Contents/Home PATH="$HOME/.local/bin:$PATH"
 ./gradlew testDirectDebugUnitTest assembleDirectDebug        # XdripServerTest replays the watch's queries
 adb install -r -g app/build/outputs/apk/direct/debug/app-direct-debug.apk

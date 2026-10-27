@@ -12,26 +12,26 @@
       "level": "fail",
       "sides": {
         "android": [
-          "spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/graph/GlucoseGraph.kt",
-          "spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/graph/GlucoseCard.kt",
-          "spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/graph/CardSurface.kt",
-          "spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/graph/SensorBadge.kt",
-          "spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/graph/TextModel.kt",
-          "spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/graph/CardStatus.kt",
-          "spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/graph/Freshness.kt",
-          "spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/graph/GlucoseStats.kt",
-          "spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/graph/GlucoseMetrics.kt",
-          "spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/graph/GraphSettings.kt",
-          "spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/treatments/TreatmentMarks.kt",
-          "spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/treatments/LastTreatment.kt",
-          "spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/alerts/AlertStatus.kt"
+          "poc/spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/graph/GlucoseGraph.kt",
+          "poc/spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/graph/GlucoseCard.kt",
+          "poc/spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/graph/CardSurface.kt",
+          "poc/spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/graph/SensorBadge.kt",
+          "poc/spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/graph/TextModel.kt",
+          "poc/spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/graph/CardStatus.kt",
+          "poc/spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/graph/Freshness.kt",
+          "poc/spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/graph/GlucoseStats.kt",
+          "poc/spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/graph/GlucoseMetrics.kt",
+          "poc/spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/graph/GraphSettings.kt",
+          "poc/spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/treatments/TreatmentMarks.kt",
+          "poc/spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/treatments/LastTreatment.kt",
+          "poc/spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/alerts/AlertStatus.kt"
         ],
         "mac": [
-          "spikes/widgets-macos/Shared/SukraraGraph.swift",
-          "spikes/widgets-macos/Shared/CardSurfaces.swift",
-          "spikes/widgets-macos/Shared/AlertRules.swift",
-          "spikes/menubar/Sources/GlucoseBar/SukraraGraph.swift",
-          "spikes/menubar/Sources/GlucoseBar/AlertRules.swift"
+          "poc/spikes/widgets-macos/Shared/SukraraGraph.swift",
+          "poc/spikes/widgets-macos/Shared/CardSurfaces.swift",
+          "poc/spikes/widgets-macos/Shared/AlertRules.swift",
+          "poc/spikes/menubar/Sources/GlucoseBar/SukraraGraph.swift",
+          "poc/spikes/menubar/Sources/GlucoseBar/AlertRules.swift"
         ]
       }
     },
@@ -42,59 +42,59 @@
       "trigger": ["code"],
       "sides": {
         "code": [
-          "spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/graph/CardStatus.kt",
-          "spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/treatments/TreatmentMarks.kt",
-          "spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/treatments/LastTreatment.kt",
-          "spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/alerts/AlertStatus.kt",
-          "spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/graph/TextModel.kt",
-          "spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/graph/GlucoseCard.kt",
-          "spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/graph/GlucoseGraph.kt",
-          "spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/graph/CardSurface.kt"
+          "poc/spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/graph/CardStatus.kt",
+          "poc/spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/treatments/TreatmentMarks.kt",
+          "poc/spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/treatments/LastTreatment.kt",
+          "poc/spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/alerts/AlertStatus.kt",
+          "poc/spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/graph/TextModel.kt",
+          "poc/spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/graph/GlucoseCard.kt",
+          "poc/spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/graph/GlucoseGraph.kt",
+          "poc/spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/graph/CardSurface.kt"
         ],
-        "fixtures": ["spikes/graph-fixtures/*"]
+        "fixtures": ["poc/spikes/graph-fixtures/*"]
       }
     },
     {
       "name": "alerts",
-      "why": "One alert engine: Android alerts/*.kt and Mac Alerts.swift + AlertRules.swift implement spikes/alerts/SPEC.md",
+      "why": "One alert engine: Android alerts/*.kt and Mac Alerts.swift + AlertRules.swift implement poc/spikes/alerts/SPEC.md",
       "level": "fail",
       "sides": {
         "android": [
-          "spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/alerts/AlertEngine.kt",
-          "spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/alerts/AlertMirror.kt",
-          "spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/alerts/Alerts.kt",
-          "spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/alerts/AlertSettings.kt",
-          "spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/alerts/AlertStatus.kt"
+          "poc/spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/alerts/AlertEngine.kt",
+          "poc/spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/alerts/AlertMirror.kt",
+          "poc/spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/alerts/Alerts.kt",
+          "poc/spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/alerts/AlertSettings.kt",
+          "poc/spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/alerts/AlertStatus.kt"
         ],
         "mac": [
-          "spikes/menubar/Sources/GlucoseBar/Alerts.swift",
-          "spikes/menubar/Sources/GlucoseBar/AlertRules.swift",
-          "spikes/widgets-macos/Shared/AlertRules.swift"
+          "poc/spikes/menubar/Sources/GlucoseBar/Alerts.swift",
+          "poc/spikes/menubar/Sources/GlucoseBar/AlertRules.swift",
+          "poc/spikes/widgets-macos/Shared/AlertRules.swift"
         ]
       }
     },
     {
       "name": "alert-scenarios",
-      "why": "Every alert-rule change adds or updates a timeline scenario (spikes/alerts/scenarios, SPEC.md section 7)",
+      "why": "Every alert-rule change adds or updates a timeline scenario (poc/spikes/alerts/scenarios, SPEC.md section 7)",
       "level": "fail",
       "trigger": ["engine"],
       "sides": {
         "engine": [
-          "spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/alerts/AlertEngine.kt",
-          "spikes/menubar/Sources/GlucoseBar/Alerts.swift"
+          "poc/spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/alerts/AlertEngine.kt",
+          "poc/spikes/menubar/Sources/GlucoseBar/Alerts.swift"
         ],
-        "scenarios": ["spikes/alerts/scenarios/*"]
+        "scenarios": ["poc/spikes/alerts/scenarios/*"]
       }
     },
     {
       "name": "alert-spec",
-      "why": "The alert settings JSON / rules contract (spikes/alerts/SPEC.md) is implemented on both platforms",
+      "why": "The alert settings JSON / rules contract (poc/spikes/alerts/SPEC.md) is implemented on both platforms",
       "level": "fail",
       "trigger": ["spec"],
       "sides": {
-        "spec": ["spikes/alerts/SPEC.md"],
-        "android": ["spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/alerts/*"],
-        "mac": ["spikes/menubar/Sources/GlucoseBar/Alerts*.swift", "spikes/widgets-macos/Shared/AlertRules.swift"]
+        "spec": ["poc/spikes/alerts/SPEC.md"],
+        "android": ["poc/spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/alerts/*"],
+        "mac": ["poc/spikes/menubar/Sources/GlucoseBar/Alerts*.swift", "poc/spikes/widgets-macos/Shared/AlertRules.swift"]
       }
     },
     {
@@ -103,25 +103,25 @@
       "level": "fail",
       "trigger": ["spec"],
       "sides": {
-        "spec": ["spikes/nostr/PROTOCOL-v2.md"],
+        "spec": ["poc/spikes/nostr/PROTOCOL-v2.md"],
         "android": [
-          "spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/core/*",
-          "spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/owner/*",
-          "spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/follower/*",
-          "spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/treatments/*",
-          "spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/alerts/*"
+          "poc/spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/core/*",
+          "poc/spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/owner/*",
+          "poc/spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/follower/*",
+          "poc/spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/treatments/*",
+          "poc/spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/alerts/*"
         ],
-        "mac": ["spikes/menubar/Sources/GlucoseBar/*"]
+        "mac": ["poc/spikes/menubar/Sources/GlucoseBar/*"]
       }
     },
     {
       "name": "ogs-spec",
-      "why": "The app wire specs (PROTOCOL-v2.md, libreview SPEC.md) are published as the open standard spec/ogs-*.md: a wire change updates the public spec in the same change (pen keys round, 2026-10-23)",
+      "why": "The app wire specs (PROTOCOL-v2.md, libreview SPEC.md) are published as the open standard poc/spec/ogs-*.md: a wire change updates the public spec in the same change (pen keys round, 2026-10-23)",
       "level": "fail",
       "trigger": ["app-spec"],
       "sides": {
-        "app-spec": ["spikes/nostr/PROTOCOL-v2.md", "spikes/libreview/SPEC.md"],
-        "ogs": ["spec/ogs-*.md"]
+        "app-spec": ["poc/spikes/nostr/PROTOCOL-v2.md", "poc/spikes/libreview/SPEC.md"],
+        "ogs": ["poc/spec/ogs-*.md"]
       }
     },
     {
@@ -130,14 +130,14 @@
       "level": "warn",
       "sides": {
         "android": [
-          "spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/core/Proto.kt",
-          "spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/core/Transport.kt",
-          "spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/core/Ble*.kt"
+          "poc/spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/core/Proto.kt",
+          "poc/spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/core/Transport.kt",
+          "poc/spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/core/Ble*.kt"
         ],
         "mac": [
-          "spikes/menubar/Sources/GlucoseBar/NostrV2.swift",
-          "spikes/menubar/Sources/GlucoseBar/BLEV2Central.swift",
-          "spikes/menubar/Sources/GlucoseBar/BLELink.swift"
+          "poc/spikes/menubar/Sources/GlucoseBar/NostrV2.swift",
+          "poc/spikes/menubar/Sources/GlucoseBar/BLEV2Central.swift",
+          "poc/spikes/menubar/Sources/GlucoseBar/BLELink.swift"
         ]
       }
     },
@@ -147,18 +147,18 @@
       "level": "fail",
       "trigger": ["spec"],
       "sides": {
-        "spec": ["spikes/nostr/PROTOCOL-identity.md"],
-        "android": ["spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/core/Avatar.kt"],
-        "mac": ["spikes/menubar/Sources/GlucoseBar/Avatar.swift"]
+        "spec": ["poc/spikes/nostr/PROTOCOL-identity.md"],
+        "android": ["poc/spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/core/Avatar.kt"],
+        "mac": ["poc/spikes/menubar/Sources/GlucoseBar/Avatar.swift"]
       }
     },
     {
       "name": "treatments",
-      "why": "The treatment JSON (spikes/libreview/SPEC.md section 1) is shared by Android and Mac",
+      "why": "The treatment JSON (poc/spikes/libreview/SPEC.md section 1) is shared by Android and Mac",
       "level": "warn",
       "sides": {
-        "android": ["spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/treatments/Treatments.kt"],
-        "mac": ["spikes/menubar/Sources/GlucoseBar/Treatments.swift"]
+        "android": ["poc/spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/treatments/Treatments.kt"],
+        "mac": ["poc/spikes/menubar/Sources/GlucoseBar/Treatments.swift"]
       }
     },
     {
@@ -166,8 +166,8 @@
       "why": "The doctor's report card exists on Android (ReportCard.kt) and Mac (ReportView.swift)",
       "level": "warn",
       "sides": {
-        "android": ["spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/ui/ReportCard.kt"],
-        "mac": ["spikes/menubar/Sources/GlucoseBar/ReportView.swift"]
+        "android": ["poc/spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/ui/ReportCard.kt"],
+        "mac": ["poc/spikes/menubar/Sources/GlucoseBar/ReportView.swift"]
       }
     },
     {
@@ -175,28 +175,28 @@
       "why": "Every English string has its Spain-Spanish twin (StringsParityTest)",
       "level": "fail",
       "sides": {
-        "en": ["spikes/showcase-android/app/src/main/res/values/strings.xml"],
-        "es": ["spikes/showcase-android/app/src/main/res/values-es/strings.xml"]
+        "en": ["poc/spikes/showcase-android/app/src/main/res/values/strings.xml"],
+        "es": ["poc/spikes/showcase-android/app/src/main/res/values-es/strings.xml"]
       }
     },
     {
       "name": "export",
-      "why": "One CSV export: Android export/GlucoseCsv.kt and Mac GlucoseCsv.swift write the same bytes (spikes/export-fixtures)",
+      "why": "One CSV export: Android export/GlucoseCsv.kt and Mac GlucoseCsv.swift write the same bytes (poc/spikes/export-fixtures)",
       "level": "fail",
       "sides": {
-        "android": ["spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/export/GlucoseCsv.kt"],
-        "mac": ["spikes/menubar/Sources/GlucoseBar/GlucoseCsv.swift"]
+        "android": ["poc/spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/export/GlucoseCsv.kt"],
+        "mac": ["poc/spikes/menubar/Sources/GlucoseBar/GlucoseCsv.swift"]
       }
     }
   ],
   "features": {
     "_about": "App behaviour code; a change needs docs/FEATURES.md in the same range, or 'Features-skip: <reason>'.",
     "code": [
-      "spikes/showcase-android/app/src/main/*",
-      "spikes/menubar/Sources/*",
-      "spikes/widgets-macos/Shared/*",
-      "spikes/widgets-macos/Widget/*",
-      "spikes/widgets-macos/Host/*"
+      "poc/spikes/showcase-android/app/src/main/*",
+      "poc/spikes/menubar/Sources/*",
+      "poc/spikes/widgets-macos/Shared/*",
+      "poc/spikes/widgets-macos/Widget/*",
+      "poc/spikes/widgets-macos/Host/*"
     ],
     "docs": ["docs/FEATURES.md"],
     "readme": ["README.md"]

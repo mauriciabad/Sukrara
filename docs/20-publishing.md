@@ -22,9 +22,9 @@ every platform it runs on:
 
 Web research only (no app changes): Apple, Homebrew, Sparkle, Google Play Console Help, Android Developers, F-Droid,
 IzzyOnDroid, Accrescent and Garmin pages, plus news for timelines that official pages only summarise. Third-party
-sources are marked as such. The app's own facts come from the repo: `spikes/showcase-android/app/build.gradle.kts`
+sources are marked as such. The app's own facts come from the repo: `poc/spikes/showcase-android/app/build.gradle.kts`
 (`targetSdk 37`, `minSdk 36`, debug signing, Juggluco's GPLv3 security core compiled from a separate checkout),
-the manifest (permissions below), `spikes/menubar/bundle.sh` / `dmg.sh` (Developer ID + notarytool already wired),
+the manifest (permissions below), `poc/spikes/menubar/bundle.sh` / `dmg.sh` (Developer ID + notarytool already wired),
 the last release (APK 18.9 MB, dmg 11.0 MB) and the Play Store (`app.mauri.sukrara` and `.poc` both return 404, i.e.
 unused).
 
@@ -80,7 +80,7 @@ secret `HOMEBREW_TAP_DEPLOY_KEY`. One-time setup (the repo owner):
 ```sh
 ssh-keygen -t ed25519 -N '' -C 'release workflow → homebrew-tap' -f /tmp/tapkey
 gh repo deploy-key add /tmp/tapkey.pub -R mauriciabad/homebrew-tap --allow-write --title 'cgm-reading-mac-spike release workflow'
-gh secret set HOMEBREW_TAP_DEPLOY_KEY -R mauriciabad/cgm-reading-mac-spike < /tmp/tapkey
+gh secret set HOMEBREW_TAP_DEPLOY_KEY -R mauriciabad/Sukrara < /tmp/tapkey
 rm /tmp/tapkey /tmp/tapkey.pub
 ```
 
@@ -89,7 +89,7 @@ rm /tmp/tapkey /tmp/tapkey.pub
 - **Apple Developer Program: 99 USD per membership year** (local price shown at enrolment), individuals can enrol
   (2FA Apple Account, own credit card; the seller name is the person's legal name) [[A1]](https://developer.apple.com/programs/)[[A2]](https://developer.apple.com/help/account/membership/program-enrollment/). Developer ID
   certificates and notarization cost nothing extra; a free Personal Team cannot notarize [[A3]](https://developer.apple.com/programs/whats-included/).
-- **Our scripts already do the rest** (`spikes/menubar/bundle.sh`, `dmg.sh`, NEXT.md §5): once, create a *Developer
+- **Our scripts already do the rest** (`poc/spikes/menubar/bundle.sh`, `dmg.sh`, NEXT.md §5): once, create a *Developer
   ID Application* certificate and `xcrun notarytool store-credentials sukrara …`; then
   `SIGN_ID="Developer ID Application: … (TEAMID)" NOTARY_PROFILE=sukrara ./bundle.sh && NOTARY_PROFILE=sukrara ./dmg.sh`
   signs (hardened runtime), notarizes and staples the app, then the dmg, and writes the release zip. The App Group

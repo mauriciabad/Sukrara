@@ -1,9 +1,9 @@
 # 14 — Nostr identity: profiles, short invites, logging in with Nostr
 
 *2026-10-16 · investigation report · follows [06 — Sharing and keys](06-sharing-and-keys.md) · spec:
-[PROTOCOL-identity](../spikes/nostr/PROTOCOL-identity.md) · PoC app:
-[`spikes/nostr/identity-android`](../spikes/nostr/identity-android) · reference + tests:
-[`spikes/nostr/identity`](../spikes/nostr/identity)*
+[PROTOCOL-identity](../poc/spikes/nostr/PROTOCOL-identity.md) · PoC app:
+[`poc/spikes/nostr/identity-android`](../poc/spikes/nostr/identity-android) · reference + tests:
+[`poc/spikes/nostr/identity`](../poc/spikes/nostr/identity)*
 
 ## Goal
 
@@ -52,7 +52,7 @@ This is a PoC, not a change to the showcase app. The orchestrator will bring the
 
 ### Why the profile has its own key
 
-[PROTOCOL-v2](../spikes/nostr/PROTOCOL-v2.md) is public. Anyone who reads it can spot the identity's events: a weekly
+[PROTOCOL-v2](../poc/spikes/nostr/PROTOCOL-v2.md) is public. Anyone who reads it can spot the identity's events: a weekly
 kind 30078 with a `gk` tag, plus gift wraps addressed to it. Putting a public name and photo on that key would put a
 real person next to a recognisable glucose stream, the exact worry the user raised.
 
@@ -120,28 +120,28 @@ The screen warns that reusing the Nostr name or picture there would make it reco
 
 | Test | Result |
 |---|---|
-| Offline, Python ([`test_identity.py`](../spikes/nostr/identity/test_identity.py)) | **24/24**: RFC 5869 vector, derivation determinism and separation, 06-style, `cgmshare:`, wrong-host and truncated links rejected, link/QR sizes, invite wrap shape and expiration, forged/expired/wrong-secret invites rejected, kind 0 fields |
-| Kotlin ↔ Python ([`DeriveTest.kt`](../spikes/nostr/identity-android/app/src/test/kotlin/dev/spike/nostrid/DeriveTest.kt)) | **4/4** against [`vectors.json`](../spikes/nostr/identity/vectors.json): HKDF, derived root + profile keys, short link, every other link form rejected |
-| Live relays + Blossom ([`live_check.py`](../spikes/nostr/identity/live_check.py), [results](../spikes/nostr/results/14-live.txt)) | invite resolvable by link alone within ~1 s; kind 0 on all relays; Blossom survey; deletion behaviour (below) |
+| Offline, Python ([`test_identity.py`](../poc/spikes/nostr/identity/test_identity.py)) | **24/24**: RFC 5869 vector, derivation determinism and separation, 06-style, `cgmshare:`, wrong-host and truncated links rejected, link/QR sizes, invite wrap shape and expiration, forged/expired/wrong-secret invites rejected, kind 0 fields |
+| Kotlin ↔ Python ([`DeriveTest.kt`](../poc/spikes/nostr/identity-android/app/src/test/kotlin/dev/spike/nostrid/DeriveTest.kt)) | **4/4** against [`vectors.json`](../poc/spikes/nostr/identity/vectors.json): HKDF, derived root + profile keys, short link, every other link form rejected |
+| Live relays + Blossom ([`live_check.py`](../poc/spikes/nostr/identity/live_check.py), [results](../poc/spikes/nostr/results/14-live.txt)) | invite resolvable by link alone within ~1 s; kind 0 on all relays; Blossom survey; deletion behaviour (below) |
 | **Two emulators** (separate devices, separate keys, only relays in common) | wearer creates profile + invite → follower opens the 63-char link, sees "Alex" + picture, asks → wearer sees "Mom" from *her* kind 0, same match code **6611** on both → Allow → follower "Allowed you" |
 | **Negative**: link with a changed fingerprint | rejected: *"sealed by 8f43940432b25257…, link expects 8f40140432b25257…"*, nothing added |
 | Derived account | same throwaway main key on both emulators → identical identity + profile keys, equal to Python's |
-| Amber (v6.6.9, release APK, checksum verified, "manually approve each app") | connect = one approval; root sealed (`nip44_encrypt` + `sign_event` via resolver); app data wiped; connect again → *"sealed root found → same Sukrara account restored"* via 2× `nip44_decrypt` ([log](../spikes/nostr/identity-android/evidence/amber-sealed-root.log)) |
+| Amber (v6.6.9, release APK, checksum verified, "manually approve each app") | connect = one approval; root sealed (`nip44_encrypt` + `sign_event` via resolver); app data wiped; connect again → *"sealed root found → same Sukrara account restored"* via 2× `nip44_decrypt` ([log](../poc/spikes/nostr/identity-android/evidence/amber-sealed-root.log)) |
 | Private Nostr profile | the Amber user (profile mode "nostr") invited the other emulator, which showed *"Riley (main Nostr profile)"* from the main key's own kind 0 |
-| Photo with GPS EXIF via the Photo Picker | confirmation dialog → upload to 3 servers → downloaded copy: 512×512, **EXIF {} GPS {}** ([check](../spikes/nostr/identity-android/evidence/exif-check.txt)) |
+| Photo with GPS EXIF via the Photo Picker | confirmation dialog → upload to 3 servers → downloaded copy: 512×512, **EXIF {} GPS {}** ([check](../poc/spikes/nostr/identity-android/evidence/exif-check.txt)) |
 | Delete account everywhere | Blossom DELETE on all 3 servers → GET 404 on all three; empty kind 0 + NIP-62 accepted by the reachable relays (4/4, later 2/4 while nos.lol and nostr.mom timed out). One adb-driven attempt failed instantly: Android cuts network for a *cached* background app, so the test hook needs the app in the foreground. Sukrara's foreground service isn't affected |
 
 <p>
-<img src="../spikes/nostr/identity-android/evidence/1-welcome.png" width="180" alt="Profile editor with the public notice">
-<img src="../spikes/nostr/identity-android/evidence/13-customize.png" width="180" alt="Avatar customizer">
-<img src="../spikes/nostr/identity-android/evidence/12-upload-dialog.png" width="180" alt="Upload this photo publicly?">
-<img src="../spikes/nostr/identity-android/evidence/2-more-options.png" width="180" alt="More options reveals the Nostr account option">
+<img src="../poc/spikes/nostr/identity-android/evidence/1-welcome.png" width="180" alt="Profile editor with the public notice">
+<img src="../poc/spikes/nostr/identity-android/evidence/13-customize.png" width="180" alt="Avatar customizer">
+<img src="../poc/spikes/nostr/identity-android/evidence/12-upload-dialog.png" width="180" alt="Upload this photo publicly?">
+<img src="../poc/spikes/nostr/identity-android/evidence/2-more-options.png" width="180" alt="More options reveals the Nostr account option">
 </p>
 <p>
-<img src="../spikes/nostr/identity-android/evidence/3-nostr-login.png" width="180" alt="Nostr account: risk, protections, what can still give you away">
-<img src="../spikes/nostr/identity-android/evidence/5-amber-connect.png" width="180" alt="Amber connect sheet">
-<img src="../spikes/nostr/identity-android/evidence/0-wearer-home.png" width="180" alt="Wearer: profile, account, 63-char invite + QR">
-<img src="../spikes/nostr/identity-android/evidence/0-follower-home.png" width="180" alt="Follower: Alex allowed you">
+<img src="../poc/spikes/nostr/identity-android/evidence/3-nostr-login.png" width="180" alt="Nostr account: risk, protections, what can still give you away">
+<img src="../poc/spikes/nostr/identity-android/evidence/5-amber-connect.png" width="180" alt="Amber connect sheet">
+<img src="../poc/spikes/nostr/identity-android/evidence/0-wearer-home.png" width="180" alt="Wearer: profile, account, 63-char invite + QR">
+<img src="../poc/spikes/nostr/identity-android/evidence/0-follower-home.png" width="180" alt="Follower: Alex allowed you">
 </p>
 
 UI choices were checked against the official guidance:
@@ -159,13 +159,13 @@ UI choices were checked against the official guidance:
 | What | Result |
 |---|---|
 | Invite wrap fetched by link alone | nos.lol, relay.primal.net, nostr.mom, offchain.pub: ~1 s. **relay.damus.io now behaves like relay.nostr.net**: it accepts gift wraps but its NIP-42 AUTH answers *"relay needs serviceUrl to be configured before AUTH can work"*, so it can serve them to nobody. Default invite relays changed accordingly |
-| Run-to-run variation | in the last run ([14-live.txt](../spikes/nostr/results/14-live.txt), earlier run: [14-live-run1.txt](../spikes/nostr/results/14-live-run1.txt)), nos.lol and nostr.mom timed out from this network while relay.primal.net, offchain.pub and relay.snort.social served the invite. Always publish and query on ≥ 4 relays |
+| Run-to-run variation | in the last run ([14-live.txt](../poc/spikes/nostr/results/14-live.txt), earlier run: [14-live-run1.txt](../poc/spikes/nostr/results/14-live-run1.txt)), nos.lol and nostr.mom timed out from this network while relay.primal.net, offchain.pub and relay.snort.social served the invite. Always publish and query on ≥ 4 relays |
 | Kind 0 with URL picture | 7/7 relays accepted (5/7 in the last run: the same two timeouts) |
 | Kind 0 with a `data:` picture (7–15 KB) | most relays accept it (offchain.pub refuses unknown keys: "not in our web of trust"), but other clients don't render `data:` pictures (Linky PR #563 hit this), so: Blossom |
 | Blossom free upload with only a Nostr auth event | blossom.primal.net, nostr.download, blossom.band, blossom.nostr.build (→ blossom.band), files.sovbit.host, blossom.yakihonne.com, 24242.io, cdn.nostrcheck.me: yes. cdn.satellite.earth, blossom.f7z.io: 401 |
 | **BUD-11 vs reality** | the spec says base64url without padding; **blossom.primal.net and nostr.download reject it** ("invalid base64 for auth event" / "Invalid auth string"). Standard padded base64 works on every server tried |
 | Blossom DELETE | primal, nostr.download, sovbit, yakihonne, 24242 → 404 afterwards. **blossom.band / blossom.nostr.build answer 204 but keep serving the file** |
-| Removing a profile ([last run](../spikes/nostr/results/14-live.txt)) | **overwriting with an empty kind 0 works best**: the old name was still served by 1/7 relays afterwards (kind 0 is replaceable). A **NIP-09** deletion left it on 3/7. A **NIP-62** request to vanish is accepted (OK) by almost every relay, but only relay.damus.io removed everything; relay.primal.net, offchain.pub, relay.nostr.net and relay.snort.social kept serving. So "Delete account everywhere" does all three, in that order |
+| Removing a profile ([last run](../poc/spikes/nostr/results/14-live.txt)) | **overwriting with an empty kind 0 works best**: the old name was still served by 1/7 relays afterwards (kind 0 is replaceable). A **NIP-09** deletion left it on 3/7. A **NIP-62** request to vanish is accepted (OK) by almost every relay, but only relay.damus.io removed everything; relay.primal.net, offchain.pub, relay.nostr.net and relay.snort.social kept serving. So "Delete account everywhere" does all three, in that order |
 | Network | image servers were intermittently slow (primal 8.8 s, nostr.download unreachable for a while), so the app publishes the name immediately and adds the picture when an upload succeeds |
 
 So "public, and copies may stay" is literally true. The warnings say exactly that, and "Delete account everywhere"
@@ -212,12 +212,12 @@ costs little to maintain; leave out what ties the app to outside services or ser
 |---|---|---|
 | **Short invite links (v3)**, 63 chars, QR version 5 | **Added**, the only invite form (old `#i=…&t=…` and `cgmshare:` links removed, no compatibility) | Easier to scan, fits an SMS, shows who invites before asking, no long-lived npub in the link. Reuses the gift wraps v2 already needs |
 | **Names + pictures** for wearer and followers | **Added, privately**: inside the encrypted invite, request, roster and a new `profile` message | Lists show faces instead of keys. Nothing public, so no "public, copies may stay" warnings |
-| **Generated pictures** | **Added, as numbers** (`{"v":1,"c","s","a","n"}`), drawn by each app; **versioned**: every renderer version is kept so older pictures keep their look ([PROTOCOL-v2 → Profiles](../spikes/nostr/PROTOCOL-v2.md#profiles)) | No image upload, no image server, a few bytes per person. Android and Mac draw the same picture (shared "dots" vectors) |
+| **Generated pictures** | **Added, as numbers** (`{"v":1,"c","s","a","n"}`), drawn by each app; **versioned**: every renderer version is kept so older pictures keep their look ([PROTOCOL-v2 → Profiles](../poc/spikes/nostr/PROTOCOL-v2.md#profiles)) | No image upload, no image server, a few bytes per person. Android and Mac draw the same picture (shared "dots" vectors) |
 | Separate profile key `P`, **public kind 0** | **Left out** | Its only gain is that other Nostr clients can show the profile, and nobody looks at Sukrara's profile key from another client. It's also the privacy risk this report had to work around |
 | **Blossom** picture hosting, EXIF stripping, photo upload | **Left out** | Servers disagree with the spec (BUD-11 base64), some keep "deleted" files, others are slow or reject free uploads: constant maintenance for a feature the private profile doesn't need. Real photos, if ever wanted, can go up encrypted with the key in the delivery |
 | **"Log in with your Nostr account"** (nsec / words / Amber sealed root) | **Left out** (PoC kept as reference) | Very few people with diabetes or their carers have a Nostr account; backup is already solved with the password manager; pasting a main nsec into a health app is a habit not to teach; the Mac would need NIP-46 too |
 | "Delete account everywhere" (Blossom DELETE, empty kind 0, NIP-62) | **Left out** | Only needed for public profiles |
-| **Editing on the Mac** (2026-10-21) | **Added**: Settings › Following › Edit… edits the Mac follower's name and generated picture (Shuffle, Customize: shape, colour, Turn the colours) and sends the same `profile` message as the Android follower. Rules pinned by a shared fixture, [`profile-v1.json`](../spikes/nostr/identity/profile-v1.json) | The user asked for it; the Mac only showed the name it was given at pairing |
+| **Editing on the Mac** (2026-10-21) | **Added**: Settings › Following › Edit… edits the Mac follower's name and generated picture (Shuffle, Customize: shape, colour, Turn the colours) and sends the same `profile` message as the Android follower. Rules pinned by a shared fixture, [`profile-v1.json`](../poc/spikes/nostr/identity/profile-v1.json) | The user asked for it; the Mac only showed the name it was given at pairing |
 | Photo / image picking with crop (any platform) | **Left out** (still) | Profiles carry numbers, never an image, and Android has no photo either; a photo would need encrypted image hosting (see Blossom above) |
 | Relay set | **Changed**: relay.nostr.net → relay.snort.social | See below: offchain.pub, which this report suggested, turned out not to work for a wearer |
 
@@ -229,8 +229,8 @@ Found while integrating (fixed in 0.11.0):
 - **offchain.pub refuses a new key after ~8 events** ("Policy violated and pubkey is not in our web of trust"): a
   wearer's first start publishes ~25 chunks. A live probe of 12 relays (wrap from a new key + served back to its
   recipient; a 30- and 60-event burst from one new key) picked **relay.snort.social** (60/60, serves wraps without
-  AUTH). Tools: [`relay_probe.py`](../spikes/nostr/identity/relay_probe.py),
-  [`relay_burst.py`](../spikes/nostr/identity/relay_burst.py), [results](../spikes/nostr/results/relay-probe-2026-10-17.txt).
+  AUTH). Tools: [`relay_probe.py`](../poc/spikes/nostr/identity/relay_probe.py),
+  [`relay_burst.py`](../poc/spikes/nostr/identity/relay_burst.py), [results](../poc/spikes/nostr/results/relay-probe-2026-10-17.txt).
 - **Invites weren't really single-use**: approving or denying burnt the token, but other pending requests made with
   the same link could still be approved. Now they are dropped with it (tested: two requests on one invite, approve
   one → 0 pending).

@@ -1,4 +1,4 @@
-# CGM research spikes — https://github.com/mauriciabad/cgm-reading-mac-spike
+# Sukrara — https://github.com/mauriciabad/Sukrara
 # Copyright (C) 2026 Maurici Abad
 # SPDX-License-Identifier: GPL-3.0-or-later
 """Deterministic guards for the repo rules in CLAUDE.md. Python 3.9 stdlib only; run through tools/check/run.sh.
@@ -15,14 +15,14 @@ Checks
   header      new source files carry the GPL SPDX header
   secrets     nsec/private keys/tokens in added lines; secrets/, keys, APKs, build dirs as paths
   large       blobs over allow.json large_bytes
-  images      new images only under docs/img, spikes/*/evidence, brand, res; full-phone captures flagged
+  images      new images only under docs/img, poc/spikes/*/evidence, brand, res; full-phone captures flagged
   strings     new hardcoded UI text in Android Kotlin; values/ and values-es/ keys in sync
   cleartext   the app permits cleartext (network_security_config) so the home-network Nightscout works: every
               http:// / ws:// literal or "http"/"ws" scheme in Android Kotlin, and every place that opens a
               connection, must be on allow.json's cleartext_ok / network_ok lists (with the reason). Whole tree.
   card-surface  one graph everywhere and the freshness steps everywhere (the user, 2026-10-21: a badge moved on one
               surface only; the status bar kept a 20-min-old value as if current; "things like this cannot happen
-              again"). Whole tree, Android + Mac, from THE registry spikes/graph-fixtures/surfaces/surfaces.json:
+              again"). Whole tree, Android + Mac, from THE registry poc/spikes/graph-fixtures/surfaces/surfaces.json:
               a file that calls the card renderer (GlucoseCard.draw / image / face) must be a registered file of the
               surface it names; the CardSurface enums list exactly the registry; a glyph surface takes its value from
               GlucoseCard.face; every surface is rendered by the cross-surface tests (CardLayoutTest.kt /
@@ -40,7 +40,7 @@ Checks
               App.kt installs Clock.hour24Source; no own hour24 flag or time formatter; Mac: the same outside Clock)
   debug       DebugReceiver fakes (sensor, readings, unlocks, test alerts, previews, treatments) only through the
               gated DebugFakes.run (debug builds)
-  settings    THE settings schema spikes/settings/settings.json (the user, 2026-10-21: settings must not diverge across
+  settings    THE settings schema poc/spikes/settings/settings.json (the user, 2026-10-21: settings must not diverge across
               platforms): generated SettingsSpec.kt/.swift up to date; every entry on both platforms or 'only' with the
               reason; every stored key (Android GraphConfig/WidgetGraphConfig/FeatureState JSON, Mac graph defaults
               keys) in the schema and every schema key in source; number settings only through the one input pattern
@@ -52,7 +52,7 @@ Checks
               (take it off the list). Whole file at the change's revision.
   durations   every user-visible duration goes through THE formatter (the user, 2026-10-21: "Showing 60 min and 120
               min is long, 1 h and 2 h is better. This applies everywhere in the UI; the mistake is repeated in many
-              places"): Android core/Durations.kt, Mac Shared/Durations.swift, cases in spikes/durations/durations.json.
+              places"): Android core/Durations.kt, Mac Shared/Durations.swift, cases in poc/spikes/durations/durations.json.
               Fails on a minute count written by hand: a string template / format with a number followed by min / m
               (Kotlin, Swift), a minutes placeholder in strings.xml outside the duration_* keys, the Words duration
               formats used outside Durations. Logs and data are exempt (log calls, tests, a line marked
@@ -87,20 +87,26 @@ def match(path, globs):
     return any(fnmatch.fnmatchcase(path, g) for g in globs)
 
 
+RENAMES = ("-M", "-l0")
+
+
 class Change:
     """Files (path -> (status, new mode)) and added lines (path -> [(line, text)]) between two trees."""
 
     def __init__(self, diff_args, rev):
         self.rev = rev  # "" = the index, else a commit
         self.files = {}
-        for line in git("diff", "--raw", "--no-renames", "--no-ext-diff", *diff_args).splitlines():
+        # Renames are detected (a moved file is R and its unchanged lines aren't "added"), so a tree move such as
+        # spikes/ -> poc/spikes/ isn't re-checked as thousands of new files. -l0: no rename-detection limit.
+        for line in git("diff", "--raw", *RENAMES, "--no-ext-diff", *diff_args).splitlines():
             meta, _, path = line.partition("\t")
+            path = path.split("\t")[-1]
             parts = meta.split()
             if len(parts) >= 5:
                 self.files[path] = (parts[4][0], parts[1])
         self.added = {}
         path, n = None, 0
-        for line in git("diff", "-U0", "--no-color", "--no-renames", "--no-ext-diff", *diff_args).splitlines():
+        for line in git("diff", "-U0", "--no-color", *RENAMES, "--no-ext-diff", *diff_args).splitlines():
             if line.startswith("+++ "):
                 path = line[6:] if line.startswith("+++ b/") else None
             elif line.startswith("@@"):
@@ -214,7 +220,7 @@ NOT_WORDS = re.compile(r"\$\{[^}]*\}|\$\w+|mg/dL|mmol/L|Sukrara|Libre 3|dBm|n?c?
 STRING_KEY = re.compile(r'<(string|plurals)\s+name="([^"]+)"([^>]*)>')
 # Debug commands that replace the sensor or make up data run only in debug builds (2026-10-18: `cmd sensorEnd` on the
 # user's release build faked a sensor over the real one). They live in DebugFakes.kt behind one gated entry point.
-APP_KT = "spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/"
+APP_KT = "poc/spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/"
 DEBUG_RECEIVER = APP_KT + "features/DebugReceiver.kt"
 DEBUG_FAKES = APP_KT + "features/DebugFakes.kt"
 # ... and the release app never shows a value, an alert, a treatment or a sensor state that isn't real (2026-10-19):
@@ -282,7 +288,7 @@ def check_cleartext(ch, rep):
                     "URL can only be https:// / wss:// (or loopback / NsSite-validated), then list the file with the reason." % (path, n))
 
 
-SURFACES = "spikes/graph-fixtures/surfaces/surfaces.json"
+SURFACES = "poc/spikes/graph-fixtures/surfaces/surfaces.json"
 # old staleness thresholds (the freshness steps are Freshness.look's)
 LEGACY_STALE = re.compile(r"\bSTALE_AFTER\w*|\bstaleAfter\b|\bisStale\b")
 # a glucose value turned into text: Kotlin "${r.sgv}" / "$sgv" / sgv.toString(), Swift "\(x.mgdl)" / format(x.mgdl), LO/HI
@@ -461,14 +467,14 @@ def check_card(ch, rep):
 
 
 CLOCK_KT = APP_KT + "graph/Clock.kt"
-CLOCK_SWIFT = "spikes/widgets-macos/Shared/SukraraGraph.swift"
+CLOCK_SWIFT = "poc/spikes/widgets-macos/Shared/SukraraGraph.swift"
 # files that write times as data or log text (not the user's clock): why
 CLOCK_OK = {
     APP_KT + "core/EventLog.kt": "the event log's own HH:mm:ss",
     APP_KT + "bridge/XdripServer.kt": "xDrip+ / Juggluco wire formats",
     APP_KT + "alerts/Alerts.kt": "the English log line of an alert note",
-    "spikes/menubar/Sources/GlucoseBar/main.swift": "log lines",
-    "spikes/menubar/Sources/GlucoseBar/NostrSource.swift": "log lines",
+    "poc/spikes/menubar/Sources/GlucoseBar/main.swift": "log lines",
+    "poc/spikes/menubar/Sources/GlucoseBar/NostrSource.swift": "log lines",
 }
 LOCAL_HOUR24 = re.compile(r"(?<!Clock\.)\bhour24\b")
 KT_TIME_FMT = re.compile(r"is24HourFormat\(|getTimeFormat\(|ofLocalizedTime\(|SimpleDateFormat\(\s*\"[^\"]*[Hhk]{1,2}:mm")
@@ -481,8 +487,8 @@ def check_clock(ch, rep):
     no own hour24 flag or time formatter outside graph/Clock.kt. Mac: no own hour24 / time formatter outside Clock
     (SukraraGraph.swift). Whole tree at the change's revision; data / log formats are listed in CLOCK_OK."""
     for p in tree_files(ch):
-        swift = p.endswith(".swift") and p.startswith(("spikes/menubar/Sources/", "spikes/widgets-macos/Shared/",
-                                                       "spikes/widgets-macos/Widget/"))
+        swift = p.endswith(".swift") and p.startswith(("poc/spikes/menubar/Sources/", "poc/spikes/widgets-macos/Shared/",
+                                                       "poc/spikes/widgets-macos/Widget/"))
         kt = p.endswith(".kt") and p.startswith(APP_KT)
         if not (swift or kt) or p in (CLOCK_KT, CLOCK_SWIFT) or p in CLOCK_OK or "SelfTest" in p:
             continue
@@ -499,7 +505,7 @@ def check_clock(ch, rep):
 
 
 DURATIONS_KT = APP_KT + "core/Durations.kt"
-DURATIONS_SWIFT = "spikes/widgets-macos/Shared/Durations.swift"
+DURATIONS_SWIFT = "poc/spikes/widgets-macos/Shared/Durations.swift"
 # every surface uses the formatter since round f30
 DURATIONS_LEVEL = "FAIL"
 WORDS_KT = APP_KT + "core/Words.kt"  # the formats' home (the Words fields Durations reads)
@@ -515,10 +521,10 @@ def check_durations(ch, rep):
     """durations: see the module doc. Whole tree at the change's revision."""
     ok_files = load("allow.json").get("durations_ok", {})
     for p in tree_files(ch):
-        swift = p.endswith(".swift") and p.startswith(("spikes/menubar/Sources/", "spikes/widgets-macos/Shared/",
-                                                       "spikes/widgets-macos/Widget/"))
+        swift = p.endswith(".swift") and p.startswith(("poc/spikes/menubar/Sources/", "poc/spikes/widgets-macos/Shared/",
+                                                       "poc/spikes/widgets-macos/Widget/"))
         kt = p.endswith(".kt") and p.startswith(APP_KT)
-        xml = p.startswith("spikes/showcase-android/app/src/main/res/values") and p.endswith("/strings.xml")
+        xml = p.startswith("poc/spikes/showcase-android/app/src/main/res/values") and p.endswith("/strings.xml")
         if not (swift or kt or xml) or p in (DURATIONS_KT, DURATIONS_SWIFT, WORDS_KT) or p in ok_files or "SelfTest" in p:
             continue
         text = ch.blob(p) or ""
@@ -548,10 +554,10 @@ def check_durations(ch, rep):
                     break
 
 
-SETTINGS_SCHEMA = "spikes/settings/settings.json"
+SETTINGS_SCHEMA = "poc/spikes/settings/settings.json"
 SETTINGS_KT = APP_KT + "settings/SettingsSpec.kt"
-SETTINGS_SWIFT = "spikes/widgets-macos/Shared/SettingsSpec.swift"
-MAC_SRC = "spikes/menubar/Sources/GlucoseBar/"
+SETTINGS_SWIFT = "poc/spikes/widgets-macos/Shared/SettingsSpec.swift"
+MAC_SRC = "poc/spikes/menubar/Sources/GlucoseBar/"
 # the stores whose keys the static rule reads from source (the nested alert JSON is checked by SettingsSchemaTest /
 # -settingsselftest, which flatten the real objects): store -> (file, start marker, end marker)
 ANDROID_STORES = {
@@ -567,7 +573,7 @@ SWIFT_NUMBER_INPUT = re.compile(r"\bStepper\(|TextField\([^)]*\bvalue:|ForEach\(
 
 
 def check_settings(ch, rep):
-    """settings: THE schema (spikes/settings/settings.json; the user, 2026-10-21: "make something that makes sure
+    """settings: THE schema (poc/spikes/settings/settings.json; the user, 2026-10-21: "make something that makes sure
     settings don't diverge across platforms"). Whole tree at the change's revision:
     - the generated SettingsSpec.kt / .swift match the schema (tools/settings/gen.py);
     - every entry is on both platforms, or on one with 'only': {platform, reason}; number refs and defaults are valid;
@@ -650,7 +656,7 @@ def check_settings(ch, rep):
     graph_keys = set(re.findall(r'"(\w+)"', m.group(1))) if m else set()
     if not m:
         rep.add("FAIL", "settings", "%s: can't find StatusController.graphKeys (update MAC_GRAPH_KEYS)." % path)
-    mac_files = [p for p in tree_files(ch) if p.endswith(".swift") and p.startswith((MAC_SRC, "spikes/widgets-macos/Shared/"))]
+    mac_files = [p for p in tree_files(ch) if p.endswith(".swift") and p.startswith((MAC_SRC, "poc/spikes/widgets-macos/Shared/"))]
     mac_text = "\n".join(ch.blob(p) or "" for p in mac_files if p != SETTINGS_SWIFT)
     listed = keys["mac"].get("defaults", {})
     for k in sorted(graph_keys - set(listed)):
@@ -677,7 +683,7 @@ def check_settings(ch, rep):
             bad = (KT_NUMBER_INPUT if kt else SWIFT_NUMBER_INPUT).search(l)
             if bad and "settings-ok" not in l:
                 rep.add("FAIL", "settings", "%s:%d a number setting's input outside the one pattern (%s). Use %s with its\n"
-                        "SettingsSpec number (spikes/settings/settings.json), or mark a non-number line // settings-ok: <why>."
+                        "SettingsSpec number (poc/spikes/settings/settings.json), or mark a non-number line // settings-ok: <why>."
                         % (p, n, bad.group(0).strip(), "NumberDialog / numberRow (SettingsDialogs.kt)" if kt else "NumberSettingRow"))
 
 
@@ -698,7 +704,7 @@ def check_static(ch, rep):
             rep.add("FAIL", "large", "%s: %d KB. Shrink it (crop/resize/pngquant) or list it in tools/check/allow.json large_ok." % (p, size // 1024))
         if IMAGE.search(p) and st == "A":
             if not match(p, allow["images_ok"]) and p not in allow["images_extra"]:
-                rep.add("FAIL", "images", "%s: images go to docs/img/** or spikes/*/evidence/** (or allow.json images_extra)." % p)
+                rep.add("FAIL", "images", "%s: images go to docs/img/** or poc/spikes/*/evidence/** (or allow.json images_extra)." % p)
             head = ch.blob(p, binary=True)[:24]
             if head[:8] == b"\x89PNG\r\n\x1a\n" and len(head) >= 24:
                 w, h = int.from_bytes(head[16:20], "big"), int.from_bytes(head[20:24], "big")
@@ -725,8 +731,8 @@ def check_static(ch, rep):
                     rep.add("WARN" if warn else "FAIL", "strings",
                             '%s:%d hardcoded UI text "%s". Put it in res/values/strings.xml + values-es (NEXT.md section 5),\n'
                             "or mark the line // i18n-ok if it is not user-visible text." % (p, n, lit[:60]))
-    en = "spikes/showcase-android/app/src/main/res/values/strings.xml"
-    es = "spikes/showcase-android/app/src/main/res/values-es/strings.xml"
+    en = "poc/spikes/showcase-android/app/src/main/res/values/strings.xml"
+    es = "poc/spikes/showcase-android/app/src/main/res/values-es/strings.xml"
     if en in ch.files or es in ch.files:
         def keys(path):
             return {m.group(2) for m in STRING_KEY.finditer(ch.blob(path)) if 'translatable="false"' not in m.group(3)}

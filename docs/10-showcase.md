@@ -16,7 +16,7 @@ wearer, with Juggluco as the source.** Checked on the phone at 09:05–09:17:
 | Feature | Default | Verified on the phone |
 |---|---|---|
 | Glucose from Juggluco (`127.0.0.1:17580`, history + `/x/live` SSE) | **ON** | `live (Juggluco SSE)`, 1600-entry backfill at start |
-| Status bar: Live Update chip + number as the notification icon | **ON** | notification flags `PROMOTED_ONGOING`, `MetricStyle`, bitmap icon 96×96 ([dump](../spikes/showcase-android/evidence/phone-statusbar-notification.txt)) |
+| Status bar: Live Update chip + number as the notification icon | **ON** | notification flags `PROMOTED_ONGOING`, `MetricStyle`, bitmap icon 96×96 ([dump](../poc/spikes/showcase-android/evidence/phone-statusbar-notification.txt)) |
 | Sharing over Nostr (v2: live + hourly chunks, roster, owner backup) | **ON**, every reading | 25 chunks + live events published. **GlucoseBar paired over Nostr** (match code 4096 on both sides, approved) and shows live values ~1 s after the phone |
 | Bluetooth followers (v2 GATT `7c6a0001-…`) | **ON** | GlucoseBar (v2) connected over BLE, got `INFO`, the backlog chunk and live readings `via ble:Tartaruga` |
 | Garmin watch server (xDrip+-compatible, `127.0.0.1:17580`) | **ON** | Port taken by Juggluco, as expected: Juggluco keeps serving the watch. On the emulator (no Juggluco) it listens. **In the follower role it serves the followed person** (emulator: `/sgv.json` returned the phone's values) |
@@ -24,10 +24,10 @@ wearer, with Juggluco as the source.** Checked on the phone at 09:05–09:17:
 | LibreView upload | **OFF** (setup screen) | never enabled, nothing posted |
 | Direct Libre 3 source (inv. 02) | **OFF**, opt-in with a warning | compiled (`libsukrara_libre3.so` in the APK); **not run**: it would take the sensor from Juggluco |
 | Follower role + alarms (CGM Share) | available at onboarding | **gap audit, 10:10–10:42:** an emulator running the release build followed the phone's wearer over Nostr (headless invite → `cmd follow` → match code **3308** on both sides → `cmd approve`). Live readings + 24 h of chunks, 0 rejected events |
-| App Link invites `https://sukrara.mauri.app/join#…` | ON | `pm get-app-links`: **`sukrara.mauri.app: verified`** ([evidence](../spikes/showcase-android/evidence/phone-app-links.txt)) |
-| **Home-screen widgets** (inv. 12: value, graph, graph + value) | in the widget picker | the 3 providers are registered on the phone ([dumpsys](../spikes/showcase-android/evidence/phone-widget-providers.txt)). The user has since pinned a *Glucose + graph* widget on the phone. **Follower role too** (gap audit): the emulator follower's value and graph + value widgets show the phone's real readings |
+| App Link invites `https://sukrara.mauri.app/join#…` | ON | `pm get-app-links`: **`sukrara.mauri.app: verified`** ([evidence](../poc/spikes/showcase-android/evidence/phone-app-links.txt)) |
+| **Home-screen widgets** (inv. 12: value, graph, graph + value) | in the widget picker | the 3 providers are registered on the phone ([dumpsys](../poc/spikes/showcase-android/evidence/phone-widget-providers.txt)). The user has since pinned a *Glucose + graph* widget on the phone. **Follower role too** (gap audit): the emulator follower's value and graph + value widgets show the phone's real readings |
 | **Status bar for followers** (gap audit) | follows the chip/icon switches | the follower service's only notification is now the wearer's chip + number icon, showing the followed person's value (emulator: number icon in the status bar, colored card in the shade) |
-| **Nightscout read API** (inv. 03 tier 1, gap audit) | **ON**, `127.0.0.1:17581`; LAN **OFF** | phone (wearer, next to Juggluco): `api_check.py` **17/17** ([log](../spikes/showcase-android/evidence/phone-wearer-nightscout-api-check.txt)); emulator follower: 17/17 ([log](../spikes/showcase-android/evidence/emu-follower-nightscout-api-check.txt)); LAN mode: 401 without / with a wrong secret, 200 with `?token=` or `api-secret` ([log](../spikes/showcase-android/evidence/emu-follower-nightscout-lan-auth.txt)) |
+| **Nightscout read API** (inv. 03 tier 1, gap audit) | **ON**, `127.0.0.1:17581`; LAN **OFF** | phone (wearer, next to Juggluco): `api_check.py` **17/17** ([log](../poc/spikes/showcase-android/evidence/phone-wearer-nightscout-api-check.txt)); emulator follower: 17/17 ([log](../poc/spikes/showcase-android/evidence/emu-follower-nightscout-api-check.txt)); LAN mode: 401 without / with a wrong secret, 200 with `?token=` or `api-secret` ([log](../poc/spikes/showcase-android/evidence/emu-follower-nightscout-lan-auth.txt)) |
 | Restart after reboot / app update | ON | the phone update at 09:29 restarted the wearer service on its own (`MY_PACKAGE_REPLACED`), with the identity, follower and settings kept. Updated in place again at 10:25 and 10:33 (gap-audit build): wearer back at once. **Followers now restart too**: emulator log `Background started FGS: Allowed … MY_PACKAGE_REPLACED` for `FollowerService` |
 
 Screenshots come from the emulator, because the phone's screen is locked with a PIN. The source there is the
@@ -35,11 +35,11 @@ debug build's synthetic one:
 
 | | | |
 |---|---|---|
-| ![home](../spikes/showcase-android/evidence/01-home-wearer.png) | ![chart](../spikes/showcase-android/evidence/02-home-chart.png) | ![share](../spikes/showcase-android/evidence/05-share-qr.png) |
+| ![home](../poc/spikes/showcase-android/evidence/01-home-wearer.png) | ![chart](../poc/spikes/showcase-android/evidence/02-home-chart.png) | ![share](../poc/spikes/showcase-android/evidence/05-share-qr.png) |
 | Home (wearer): value, feature summary | Home, scrolled: backup, 12 h chart | Share: QR with the https App Link, "Copy Mac link" |
-| ![settings](../spikes/showcase-android/evidence/03-settings-1.png) | ![settings 2](../spikes/showcase-android/evidence/04-settings-2-garmin.png) | ![treatments](../spikes/showcase-android/evidence/06-treatments-libreview.png) |
+| ![settings](../poc/spikes/showcase-android/evidence/03-settings-1.png) | ![settings 2](../poc/spikes/showcase-android/evidence/04-settings-2-garmin.png) | ![treatments](../poc/spikes/showcase-android/evidence/06-treatments-libreview.png) |
 | Settings: source, sharing, Mac, status bar | Settings: status bar, Garmin, LibreView | Treatments + LibreView setup (off) |
-| ![picker](../spikes/showcase-android/evidence/07-widget-picker.png) | ![widget](../spikes/showcase-android/evidence/08-widget-home.png) | |
+| ![picker](../poc/spikes/showcase-android/evidence/07-widget-picker.png) | ![widget](../poc/spikes/showcase-android/evidence/08-widget-home.png) | |
 | Widget picker: Sukrara, 3 widgets (generated preview) | Value widget on the emulator. It shows the *stale* style (struck through, "9 min ago") because the release build has no synthetic source and the emulator has no Juggluco | |
 
 **Follower view with real data** (gap audit, 10:17–10:42). The emulator runs the release build as a follower of the
@@ -47,16 +47,16 @@ phone's wearer, over Nostr, so these are the user's real readings:
 
 | | | |
 |---|---|---|
-| ![follower home](../spikes/showcase-android/evidence/09-follower-home-real-data.png) | ![follower widget](../spikes/showcase-android/evidence/10-follower-widget-combined-real-data.png) | ![follower notification](../spikes/showcase-android/evidence/12-follower-notification-real-data.png) |
+| ![follower home](../poc/spikes/showcase-android/evidence/09-follower-home-real-data.png) | ![follower widget](../poc/spikes/showcase-android/evidence/10-follower-widget-combined-real-data.png) | ![follower notification](../poc/spikes/showcase-android/evidence/12-follower-notification-real-data.png) |
 | Follower home: value, 12 h chart, alarms, local servers. The history starts at 09:00 here (see Known issues) | *Glucose + graph* widget in the follower role | The follower's notification: number icon + colored card ("following · via relay.primal.net") |
-| ![value widget](../spikes/showcase-android/evidence/11-follower-widget-value-real-data.png) | ![after fix](../spikes/showcase-android/evidence/13-follower-widget-combined-after-r8-fix.png) | ![bug](../spikes/showcase-android/evidence/13b-combined-widget-r8-merge-bug.png) |
+| ![value widget](../poc/spikes/showcase-android/evidence/11-follower-widget-value-real-data.png) | ![after fix](../poc/spikes/showcase-android/evidence/13-follower-widget-combined-after-r8-fix.png) | ![bug](../poc/spikes/showcase-android/evidence/13b-combined-widget-r8-merge-bug.png) |
 | *Glucose* widget (follower) | Graph + value after a restart, **with the R8 fix**. Struck through: the overloaded emulator had lost DNS for 9 min | The bug the audit found: after a process restart, *Glucose + graph* lost its value header (R8 merged two widget classes) |
 
 ## What's in it (code)
 
-`spikes/showcase-android/`, Kotlin only, GPL header on every file. It's built on CGM Share
-(`spikes/nostr/android-app`) and renamed to `app.mauri.sukrara` (applicationId **`app.mauri.sukrara.poc`**),
-with brand icons from `spikes/brand/assets/sukrara/`. compileSdk/targetSdk 37, minSdk 36.
+`poc/spikes/showcase-android/`, Kotlin only, GPL header on every file. It's built on CGM Share
+(`poc/spikes/nostr/android-app`) and renamed to `app.mauri.sukrara` (applicationId **`app.mauri.sukrara.poc`**),
+with brand icons from `poc/spikes/brand/assets/sukrara/`. compileSdk/targetSdk 37, minSdk 36.
 
 | Package | From | What |
 |---|---|---|
@@ -98,11 +98,11 @@ Changes from the source spikes:
    their name (Shuffle / Customize the picture) and asks. The wearer checks the 4-digit code and taps *Allow*. Change
    your own name or picture by tapping it at the top of the home screen (wearer) or Settings → your name (follower). **Nearby**: Settings → Share with people → *Pair nearby* (10 min), and the
    follower picks the phone from the list.
-5. **Mac (Sukrara for Mac, `spikes/menubar/build/Sukrara.app`, was GlucoseBar)**: follows end-to-end encrypted over
+5. **Mac (Sukrara for Mac, `poc/spikes/menubar/build/Sukrara.app`, was GlucoseBar)**: follows end-to-end encrypted over
    Nostr + BLE like any follower: Share → *Copy* (the `https://sukrara.mauri.app/join#…` link) → Sukrara for Mac
    (0.11 or later) → *Follow someone…* → paste →
    Allow on the phone. Low / high / no-data alarms on the Mac too. The old GlucoseBar follow state is migrated once.
-   Details: [`spikes/menubar/FOLLOWER.md`](../spikes/menubar/FOLLOWER.md).
+   Details: [`poc/spikes/menubar/FOLLOWER.md`](../poc/spikes/menubar/FOLLOWER.md).
 6. **Garmin**: nothing to do while Juggluco is the source, because Juggluco keeps port 17580 and serves the watch.
    Sukrara's server takes over only when the port is free (direct mode, Juggluco stopped) and Settings → Share with
    apps → *xDrip+ server* is on (off by default); its summary shows which one is serving. On a **follower's** phone Sukrara's server takes the port and serves the followed person.
@@ -153,7 +153,7 @@ adb -s 62240DLCH0005W shell am broadcast -n app.mauri.sukrara.poc/app.mauri.sukr
 | `hookPosition` | `--es` after_clock\|before_clock\|icons:0\|slot:\|slot:vpn\|slot:bluetooth\|slot:<mobile\|slot:mobile\|slot:wifi | slot:<mobile | `after/before_clock`, `icons:0`: drawn by the LSPosed module. `slot:…`: as Android system icons (root daemon) — every `slot:` placement shows with root alone (first among the system icons); with the module they're coloured by range, `slot:wifi` etc. moves them right after that icon and `slot:<mobile` right before it |
 | `systemIcons` | read-only | | derived: `hook` and a `slot:` placement; the daemon's state is in the reply's top-level `systemIcons` |
 | `previewSgv`, `previewRate` (debug builds only) | `--ei`, `--ef` | | screenshots: show a made-up value in the root status bar only, until the next real reading. A release build refuses it (see the debug-only row below) |
-| `restartSystemUi` | `--ez` true | | root: kill System UI to (re)load the module. Follow `spikes/statusbar-android/HANDOFF.md` (safety) |
+| `restartSystemUi` | `--ez` true | | root: kill System UI to (re)load the module. Follow `poc/spikes/statusbar-android/HANDOFF.md` (safety) |
 | `screenOffSkip` | `--ez` | false | don't re-post the notification while the screen is off (catches up on screen on) |
 | `garmin` | `--ez` | true | xDrip/Garmin server on 127.0.0.1:17580 (binds only if the port is free) |
 | `nightscout` | `--ez` | true | Nightscout read API on 127.0.0.1:17581 (inv. 03 tier 1; both roles) |
@@ -225,7 +225,7 @@ and any other follower pick up the new key by themselves. The previous APK is ke
 
 ## Root status bar (investigation 05, added 2026-10-16)
 
-Ported from `spikes/statusbar-android` (GlucoStatus): `status/RootStatusBar.kt` (driven from
+Ported from `poc/spikes/statusbar-android` (GlucoStatus): `status/RootStatusBar.kt` (driven from
 `WearerExtras.render()`), `status/SlotDaemon.kt` (root helper via `app_process`), `hook/SystemUiHook.kt` (libxposed
 API 102 module, `resources/META-INF/xposed/`), the 403 `sb_*` drawables (kept from resource shrinking by
 `res/raw/keep_status_icons.xml`), R8 keep rules for the daemon and the module entry. Settings → status bar follows the Android settings guidelines
@@ -261,28 +261,28 @@ removes Sukrara's entries from the status bar's notification-icon row (`Notifica
 status bar only; shelf/AOD untouched), so the always-present logo disappears while the value is shown. There is no
 rootless way on Android 17: a foreground-service notification on a MIN channel is raised to LOW (and the channel
 rewritten), and "silent" icons hide only with a global user setting and without the coloured card. Wearer role only
-(the follower doesn't feed the module yet). ([shown](../spikes/showcase-android/evidence/n-icon-statusbar-shown.png),
-[hidden](../spikes/showcase-android/evidence/n-icon-statusbar-hidden.png))
+(the follower doesn't feed the module yet). ([shown](../poc/spikes/showcase-android/evidence/n-icon-statusbar-shown.png),
+[hidden](../poc/spikes/showcase-android/evidence/n-icon-statusbar-hidden.png))
 
 Safety, kill switch (`settings put global sukrara_hook_disabled 1`) and what not to do (never `adb uninstall`
-Sukrara to recover — it holds the identity): `spikes/statusbar-android/HANDOFF.md`.
+Sukrara to recover — it holds the identity): `poc/spikes/statusbar-android/HANDOFF.md`.
 
 ## Polish round 2 (2026-10-16 afternoon, NEXT.md §1)
 
 Five agents in parallel worktrees, merged into one build line, installed on the phone in place (data kept) and on
 the Mac. Checked end to end on the phone + Mac at 14:25: a note logged on the phone reached Sukrara for Mac over v2
 Bluetooth within seconds, its marker showed in the phone's Live Update graph, the delete propagated
-([card](../spikes/showcase-android/evidence/n-e2e-phone-card-treatment.png), [Mac log](../spikes/showcase-android/evidence/n-e2e-mac-log.txt)).
+([card](../poc/spikes/showcase-android/evidence/n-e2e-phone-card-treatment.png), [Mac log](../poc/spikes/showcase-android/evidence/n-e2e-mac-log.txt)).
 
 - **Live Update chip = value + arrow.** On Android 17 the chip's icon is always the notification's small icon (no
   public API removes it), and SystemUI hides a notification's status-bar icon while its chip shows. So with the chip
   on, the small icon is just the trend arrow and the short critical text the value: the chip reads "→ 134". With the
-  chip off the small icon is the number (or the logo), as before. ([chip](../spikes/showcase-android/evidence/n2-chip.png))
+  chip off the small icon is the number (or the logo), as before. ([chip](../poc/spikes/showcase-android/evidence/n2-chip.png))
 - **Expanded card.** A promoted (Live Update) notification can't have custom views, a colour or a large picture
   (`hasPromotableCharacteristics`), so: chip on → a MetricStyle card (value coloured by range, arrow + rate, live
-  "ago"), minimal header, no graph ([card](../spikes/showcase-android/evidence/n3-card-chipon.png)); chip off → a
+  "ago"), minimal header, no graph ([card](../poc/spikes/showcase-android/evidence/n3-card-chipon.png)); chip off → a
   colorized custom card with the big value, arrow, rate, age and a 3 h graph with treatments
-  ([card](../spikes/showcase-android/evidence/n3-card-chipoff.png)). The system header (icon + "Sukrara") above a
+  ([card](../poc/spikes/showcase-android/evidence/n3-card-chipoff.png)). The system header (icon + "Sukrara") above a
   custom card can't be removed. The graph is cached per reading/theme/5 min and not redrawn while the screen is off.
 - **Treatments for followers.** The wearer publishes its whole merged log (own, Mac, accepted writer entries,
   deletes) as SPEC §5 events signed by its device key, over relays and v2 BLE, and republishes the last 30 days on
@@ -290,7 +290,7 @@ Bluetooth within seconds, its marker showed in the phone's Live Update graph, th
   show them, and the follower's Nightscout API serves them. Spec: PROTOCOL-v2 "Treatments"; SPEC §5 is built.
 - **Writer gating.** "Add entry" only when the follower's key is in the roster `writers`; otherwise "The wearer
   hasn't allowed you to add entries". Own entries show *sending → sent → accepted* (the wearer's device key echoes
-  the same id) or *not accepted yet* after 2 min ([follower screens](../spikes/showcase-android/evidence/n1-follower-writer-accepted-ble-offline.png)).
+  the same id) or *not accepted yet* after 2 min ([follower screens](../poc/spikes/showcase-android/evidence/n1-follower-writer-accepted-ble-offline.png)).
   **Macs too**: a Mac adds entries only over v2, as a roster writer, and disables "Log treatment…" with the reason
   when it isn't one. Mac debug commands `-debugsend '{"cmd":"log"|"remove"|"paths"}'`.
 - **Treatments in every chart**: home chart (both roles), the 3 widgets (read from the role's treatment store, so
@@ -298,7 +298,7 @@ Bluetooth within seconds, its marker showed in the phone's Live Update graph, th
   views. Rapid = filled blue triangle "4.5U", long = outlined violet, carbs = amber dot "30g", notes = grey diamond
   (text in the app chart only). The range band is now 65–185, the same thresholds as the line colours.
 - **Home screen**: value card → 12 h chart directly below, above the fold down to 360×640 dp, the rest below
-  ([wearer](../spikes/showcase-android/evidence/n5-home-wearer.png), [follower](../spikes/showcase-android/evidence/n5-home-follower-small-phone.png)).
+  ([wearer](../poc/spikes/showcase-android/evidence/n5-home-wearer.png), [follower](../poc/spikes/showcase-android/evidence/n5-home-follower-small-phone.png)).
 - **Thin history**, **Home Assistant** and the Garmin state label: see Known issues and the gap audit.
 - **Hide Sukrara's notification icon** (root): see "Root status bar".
 - **Animations** (`ui/Motion.kt`): M3 shared-axis screen transitions with **predictive back** (NavigationEvent +
@@ -306,9 +306,9 @@ Bluetooth within seconds, its marker showed in the phone's Live Update graph, th
   rolling digits for the value, colour cross-fade, the trend arrow turning with a spring, new chart points growing in,
   list rows expanding in/out, status labels cross-fading. Everything runs on Compose's frame clock: it respects
   *Remove animations* and stops in the background (idle home: 14 frames in 20 s)
-  ([navigation](../spikes/showcase-android/evidence/n7-nav-shared-axis-predictive-back.gif),
-  [value](../spikes/showcase-android/evidence/n7-value-rolling-digits.gif),
-  [rows](../spikes/showcase-android/evidence/n7-treatment-row-add-delete.gif)).
+  ([navigation](../poc/spikes/showcase-android/evidence/n7-nav-shared-axis-predictive-back.gif),
+  [value](../poc/spikes/showcase-android/evidence/n7-value-rolling-digits.gif),
+  [rows](../poc/spikes/showcase-android/evidence/n7-treatment-row-add-delete.gif)).
 - Released as **v0.10.2** (`versionName` 0.10.2 / Mac 0.10.2), with the Juggluco-port fix from the morning.
 - **v0.10.3**: the legacy Mac link is read-only for entries; the *Accept entries over the unencrypted Mac link*
   switch and the Mac's legacy entry path are gone (Mac entries go over v2 only). Also ships the macOS widgets (docs/13).
@@ -330,7 +330,7 @@ User report: the 4×2 *Glucose + graph* on the phone lost the bottom and right o
 65/185). Glance's Exact mode composes for the size the launcher reports (`OPTION_APPWIDGET_SIZES`), and the Glance
 docs warn that *"the available size might differ depending on the launcher's implementation"*. On the user's Pixel
 10 Pro (Pixel Launcher, 6-column grid) it reports **296×202 dp** and lays the widget out at **244×149 dp**: 82 % of
-the width, 74 % of the height ([sizes](../spikes/showcase-android/evidence/n9-phone-widget-sizes.txt)). The emulator's
+the width, 74 % of the height ([sizes](../poc/spikes/showcase-android/evidence/n9-phone-widget-sizes.txt)). The emulator's
 launcher lays widgets out at the reported size and scales them down evenly, so nothing was ever clipped there.
 
 - **First fix** (graph image fills the remaining space, bitmap scaled into it): no longer clipped, but the bitmap,
@@ -349,13 +349,13 @@ launcher lays widgets out at the reported size and scales them down evenly, so n
 
 | Before (0.10.5): clipped | First fix: stretched | Measured (0.10.6) |
 |---|---|---|
-| ![clipped](../spikes/showcase-android/evidence/n9-phone-combined-4x2-clipped-before.png) | ![stretched](../spikes/showcase-android/evidence/n9-phone-combined-4x2-stretched.png) | ![measured](../spikes/showcase-android/evidence/n9-phone-combined-4x2-measured.png) |
+| ![clipped](../poc/spikes/showcase-android/evidence/n9-phone-combined-4x2-clipped-before.png) | ![stretched](../poc/spikes/showcase-android/evidence/n9-phone-combined-4x2-stretched.png) | ![measured](../poc/spikes/showcase-android/evidence/n9-phone-combined-4x2-measured.png) |
 
 **Then (v0.10.7): the y-axis fits the readings.** At the right size the graph still looked squeezed: the y-axis
 was fixed at 40 to ≥ 250 mg/dL, so in an ≈ 80 dp plot the line used a thin strip. It now runs from just below
 min(65, lowest reading) to just above max(185, highest reading), keeps a strip at the bottom only when treatment
 marks are shown, and the *Glucose + graph* header is 6 dp shorter (value 32 sp). Same renderer for the status-bar
-card's graph. ![fitted axis](../spikes/showcase-android/evidence/n9-phone-combined-4x2-fitted-axis.png)
+card's graph. ![fitted axis](../poc/spikes/showcase-android/evidence/n9-phone-combined-4x2-fitted-axis.png)
 
 **Still squashed in 0.10.6 / 0.10.7 (fixed in v0.10.8).** The user saw the current-value dot as an
 ellipse. A temporary test pattern in place of the graph (a square with an inscribed circle) measured it on the
@@ -366,7 +366,7 @@ stored only under the first. The launcher fits neither, so it applies the smalle
 
 | Test square, before | Test square, after | Graph, after |
 |---|---|---|
-| ![before](../spikes/showcase-android/evidence/n9-phone-test-square-before.png) | ![after](../spikes/showcase-android/evidence/n9-phone-test-square-after.png) | ![graph](../spikes/showcase-android/evidence/n9-phone-combined-4x2-round.png) |
+| ![before](../poc/spikes/showcase-android/evidence/n9-phone-test-square-before.png) | ![after](../poc/spikes/showcase-android/evidence/n9-phone-test-square-after.png) | ![graph](../poc/spikes/showcase-android/evidence/n9-phone-combined-4x2-round.png) |
 
 ### Widgets: offer the big widget on home (2026-10-21)
 
@@ -397,10 +397,10 @@ Nostr):
 
 | | | |
 |---|---|---|
-| ![wearer widgets](../spikes/showcase-android/evidence/n8-wearer-widgets-after-process-kill.png) | ![follower combined](../spikes/showcase-android/evidence/n8-follower-combined-after-update-r8.png) | ![stop following](../spikes/showcase-android/evidence/n8-follower-widget-after-stop-following.png) |
+| ![wearer widgets](../poc/spikes/showcase-android/evidence/n8-wearer-widgets-after-process-kill.png) | ![follower combined](../poc/spikes/showcase-android/evidence/n8-follower-combined-after-update-r8.png) | ![stop following](../poc/spikes/showcase-android/evidence/n8-follower-widget-after-stop-following.png) |
 | Wearer: *Glucose* + *Glucose graph* after `kill -9` of the process: history from `owner.db`, the 30 g carbs from `treatments.json` | Follower, release (R8): *Glucose + graph* after an in-place update (process restart), data from `follower.db`; the keep rule still holds | Follower after *Stop following*: "No data" at once |
 
-The status-bar card's graph also reads the new window ([screenshot](../spikes/showcase-android/evidence/n8-wearer-notification-graph.png)).
+The status-bar card's graph also reads the new window ([screenshot](../poc/spikes/showcase-android/evidence/n8-wearer-notification-graph.png)).
 
 ## Sensor scan (NFC), 2026-10-16 evening
 
@@ -574,7 +574,7 @@ asked for the same numbers in the app and the widgets, e.g. GMI in the third wid
   ("How they will see you") and *You appear as … Edit*. Shown in the home header, the follower list, the approval
   dialog, the share screen, the follower's header and waiting screen, and on the Mac (menu line, pairing window,
   nearby dialog). They travel only inside the encrypted invite, request, roster, `profile` message and owner
-  backup ([PROTOCOL-v2 → Profiles](../spikes/nostr/PROTOCOL-v2.md#profiles)). The picture is versioned numbers
+  backup ([PROTOCOL-v2 → Profiles](../poc/spikes/nostr/PROTOCOL-v2.md#profiles)). The picture is versioned numbers
   (`v`), and each app keeps every renderer version; an unknown version shows a grey initial.
 - **Relay set**: nos.lol, relay.primal.net, nostr.mom, **relay.snort.social** (was relay.nostr.net, which can't serve
   gift wraps). The wearer no longer stores a relay list: it always uses the current set, and the roster tells
@@ -586,7 +586,7 @@ asked for the same numbers in the app and the widgets, e.g. GMI in the third wid
 
 - **Mac editing** (2026-10-21): Settings › Following › Edit… (`IdentityUI.swift`, `FollowerV2.setProfile`) edits the
   Mac's own name and picture with Android's options and sends the same `profile` message. Shared fixture
-  `spikes/nostr/identity/profile-v1.json` (Android `ProfileFixtureTest`, Mac `-identityselftest`, CI).
+  `poc/spikes/nostr/identity/profile-v1.json` (Android `ProfileFixtureTest`, Mac `-identityselftest`, CI).
 
 **Left out**: public kind 0 / profile key, Blossom and photo upload (also on the Mac: no photo picking / cropping,
 profiles carry numbers, never an image), Nostr login (nsec / words / Amber), "Delete account everywhere".
@@ -605,11 +605,11 @@ Keychain item; the Mac was overloaded at load ≈ 25, so some steps used the Deb
 
 | | | |
 |---|---|---|
-| ![upgrade](../spikes/showcase-android/evidence/p1-upgrade-request-fallback-avatar.png) | ![customize](../spikes/showcase-android/evidence/p2-profile-customize.png) | ![home](../spikes/showcase-android/evidence/p3-wearer-home-profile.png) |
+| ![upgrade](../poc/spikes/showcase-android/evidence/p1-upgrade-request-fallback-avatar.png) | ![customize](../poc/spikes/showcase-android/evidence/p2-profile-customize.png) | ![home](../poc/spikes/showcase-android/evidence/p3-wearer-home-profile.png) |
 | After the upgrade: "Add your name", random picture; an old request shows the grey initial | *Your profile* → Customize | Header with name and picture |
-| ![share](../spikes/showcase-android/evidence/p4-share-v3-qr.png) | ![request](../spikes/showcase-android/evidence/p5-request-from-mac.png) | ![preview](../spikes/showcase-android/evidence/p6-follower-invite-preview.png) |
+| ![share](../poc/spikes/showcase-android/evidence/p4-share-v3-qr.png) | ![request](../poc/spikes/showcase-android/evidence/p5-request-from-mac.png) | ![preview](../poc/spikes/showcase-android/evidence/p6-follower-invite-preview.png) |
 | Share: QR version 5, "They'll see Alex" | Request from the Mac with its generated picture | Follower: who is inviting, before asking |
-| ![follower home](../spikes/showcase-android/evidence/p7-follower-home-header.png) | ![followers](../spikes/showcase-android/evidence/p8-followers-avatars.png) | ![mac](../spikes/showcase-android/evidence/p9-mac-waiting.png) |
+| ![follower home](../poc/spikes/showcase-android/evidence/p7-follower-home-header.png) | ![followers](../poc/spikes/showcase-android/evidence/p8-followers-avatars.png) | ![mac](../poc/spikes/showcase-android/evidence/p9-mac-waiting.png) |
 | Follower header after the wearer renamed to "Alexa" | Follower list with pictures | Sukrara for Mac waiting, with the wearer's picture |
 
 **Match code**: replaced in 0.11.6, see "Single-use invites" below.
@@ -664,9 +664,9 @@ emulators (system, launcher and Digital Wellbeing too; WorkManager / startup tim
 
 | | | |
 |---|---|---|
-| ![match](../spikes/showcase-android/evidence/q1-allow-dialog-matches.png) | ![warning](../spikes/showcase-android/evidence/q2-allow-dialog-another-phone.png) | ![used](../spikes/showcase-android/evidence/q3-mac-invite-already-used.png) |
+| ![match](../poc/spikes/showcase-android/evidence/q1-allow-dialog-matches.png) | ![warning](../poc/spikes/showcase-android/evidence/q2-allow-dialog-another-phone.png) | ![used](../poc/spikes/showcase-android/evidence/q3-mac-invite-already-used.png) |
 | Allow dialog: name as headline, your label, ✓ *Matches* | Another phone (also calling itself "Mom") tried the same invite | Sukrara for Mac: the second requester is told |
-| ![declined](../spikes/showcase-android/evidence/q4-mac-declined.png) | ![sent](../spikes/showcase-android/evidence/q5-mac-request-sent.png) | |
+| ![declined](../poc/spikes/showcase-android/evidence/q4-mac-declined.png) | ![sent](../poc/spikes/showcase-android/evidence/q5-mac-request-sent.png) | |
 | Denied: the requester is told | Waiting on the Mac: no code for a link | |
 
 ## Lock screen widget and quick treatments (investigation 17, v0.11.10)
@@ -803,7 +803,7 @@ Details, spec and pictures: [16 → Treatment labels](16-graph.md#treatment-labe
 |---|---|---|
 | Labels under the markers (axis row + a second row when needed), hour labels give way, never over the line | `TreatmentMarks.layout/place/draw`, `GlucoseGraph.draw`; Mac `SukraraGraph.swift` | labels above the markers inside the plot (they covered the data) |
 | Close entries share a label, slide, row 2, then no time, then no label (newest first) | same | chained pixel merging (a run of snacks became one label) |
-| Width model shared by Android and Mac; label fixtures with a layout dump on both | `graph/TextModel.kt`, `spikes/graph-fixtures/labels/`, `GraphFixtureTest.labels`, `-graphselftest` | measuring each platform's font (different decisions) |
+| Width model shared by Android and Mac; label fixtures with a layout dump on both | `graph/TextModel.kt`, `poc/spikes/graph-fixtures/labels/`, `GraphFixtureTest.labels`, `-graphselftest` | measuring each platform's font (different decisions) |
 | Label halo cut out of the chart (any background) | chart drawn in one layer + `DST_OUT` / `.destinationOut` | a background-coloured stroke (wrong on transparent / tinted surfaces) |
 | Rounded big numbers on Android: Google Sans Flex, ROND 100 (OFL), notification value drawn as a picture | `graph/RoundedFont.kt`, `assets/fonts/`, `GlucoseCard`, `RollingNumber`, `GlucoseNotification.valueBitmap` | Nunito / M PLUS Rounded (further from SF Pro Rounded); a downloadable font (background canvas drawing) |
 
@@ -864,7 +864,7 @@ Old menu [light](img/mac-ux/menu-before-light.png) · no platter, same wallpaper
 | Open at login (SMAppService) | HIG The menu bar: let people decide whether the extra is in the menu bar | `GeneralModel` |
 | A main menu (⌘W, ⌘Q, Edit) for the windows | A menubar-only app has no Edit menu, so ⌘V didn't paste the invite link and ⌘W didn't close windows | `MainMenu` |
 | Backfilled readings kept (graph gaps) + PROTOCOL-v2 *Missing history* request + chunk window from the newest stored reading | The gaps were data the Mac had received and dropped (see below) | `main.swift`, `NostrV2.swift` |
-| Developer ID + notarization path in `bundle.sh` / `dmg.sh`; first-open steps in the README and site | Gatekeeper (below) | `spikes/menubar` |
+| Developer ID + notarization path in `bundle.sh` / `dmg.sh`; first-open steps in the README and site | Gatekeeper (below) | `poc/spikes/menubar` |
 
 **Gaps.** The data existed and arrived: every missing hour came in as full 72-reading chunks over relays and
 Bluetooth, many times. `Store.ingest(history:)` merged them into the 3 h live window, trimmed it, and only then copied
@@ -911,7 +911,7 @@ Before: [the first round's menu](img/mac-ux/menu-light.png).*
 |---|---|---|
 | A window-style panel under the item (borderless, non-activating, menu material, closes on Escape / click outside) | A text field can't live in a menu; the panel is what `MenuBarExtra(.window)` and Control Center use | `Panel.swift` (`GlancePanel`, `KeyPanel`) |
 | The card in a recessed module instead of the solid platter: black 18 % in dark, white 50 % in light; no bright surface in the dark; the palette without its background colour, grid one step stronger | The user's ask; the module keeps the graph's ink on its side of the appearance (light ink on darker, dark ink on lighter) over any wallpaper, like Control Center's modules (HIG Materials) | `ModuleBackground`, `MacSurface.materialPalette` |
-| *Add Treatment…* (first menu-like row, Return) opens the Add Treatment window: rapid, long, carbs and a note at once like Android's dialog (same order, units, limits, time chip, quiet line; Tab between fields, Return saves, Escape cancels). Replaced the one-line quick log (`4.5u` grammar, kind segments, *Now ▾*, Undo line), which logged one entry at a time | The user (2026-10-21): enter long, fast, carbs and notes all at once like on Android; a plain menu row instead of a pill ("doesn't seem native"). HIG Windows (auxiliary window for one task); Sheets need a parent window, Popovers close on interaction, Panels avoid typing | `TreatmentDialog.swift` (`TreatmentForm`, cases shared with Android in `spikes/libreview/treatment-form.json`, `-treatmentsselftest`) |
+| *Add Treatment…* (first menu-like row, Return) opens the Add Treatment window: rapid, long, carbs and a note at once like Android's dialog (same order, units, limits, time chip, quiet line; Tab between fields, Return saves, Escape cancels). Replaced the one-line quick log (`4.5u` grammar, kind segments, *Now ▾*, Undo line), which logged one entry at a time | The user (2026-10-21): enter long, fast, carbs and notes all at once like on Android; a plain menu row instead of a pill ("doesn't seem native"). HIG Windows (auxiliary window for one task); Sheets need a parent window, Popovers close on interaction, Panels avoid typing | `TreatmentDialog.swift` (`TreatmentForm`, cases shared with Android in `poc/spikes/libreview/treatment-form.json`, `-treatmentsselftest`) |
 | *Treatments…* (panel row and right-click menu) opens its own Treatments window: the last 7 days by day, delivery state, delete (⌫ / context menu). The Glucose Report window keeps only the report; its *Report \| Treatments* switch is gone | The user (2026-10-21): "treatments should not be inside glucose report, it has to be its own menu item"; Android keeps the treatments list apart from the report too | `TreatmentsWindow.swift` (`TreatmentsModel`, `-treatmentsselftest`), `ReportWindow.swift` |
 | Right-click menu: Glucose Report…, Settings…, Quit | The familiar secondary path for menu bar items; Quit is also in Settings › General | `StatusController` |
 | `-openPanel`, `-appearance dark|light`, the logged capture rect | Real captures of the running build (Screen Recording granted to the terminal) | `StatusController.openPanel`, `main.swift` |
@@ -968,7 +968,7 @@ screenshots and the full added / discarded tables: [docs/21](21-new-sensor-flow.
 The spec audit of investigation 24 found that a writer could delete or change the wearer's entries, that the phone
 broadcast its Bluetooth name and identity key to anyone in range, that the Android follower wrote to the first
 Sukrara phone it found, that Bluetooth had no limits, and four Mac follower gaps. Fixed on Android and Mac together,
-with `spec/` (draft 1), the test vectors and `spec/reference` updated. Details: [docs/24](24-open-standard.md#in-sukrara).
+with `poc/spec/` (draft 1), the test vectors and `poc/spec/reference` updated. Details: [docs/24](24-open-standard.md#in-sukrara).
 
 | Added | Where |
 |---|---|
@@ -977,7 +977,7 @@ with `spec/` (draft 1), the test vectors and `spec/reference` updated. Details: 
 | No phone name over Bluetooth; blinded `INFO` (`nonce`, `m`); follower checks the owner before writing | `core/Ble.kt`, `BleOwner.kt`, `BleFollower.kt`; Mac `BLEV2Central.swift`, `main.swift`; `BleTest`, `-bleselftest` |
 | Bluetooth limits: reassembly, rate, centrals, backlog pacing, no expired backlog | `Ble.Reassembler`, `Ble.RateLimit`, `BleOwner`; Mac `BLEV2Central.Reassembler` |
 | Mac: wrap expiration, `sid` fixed, chunk `c`/`d` checks, rekey only for the wearer's keys | `NostrV2.swift` |
-| Python v2 CLI owner/follower removed | `spikes/nostr/v2` |
+| Python v2 CLI owner/follower removed | `poc/spikes/nostr/v2` |
 
 | Discarded / left | Why |
 |---|---|
@@ -1019,7 +1019,7 @@ the Mac. Format choice, added / discarded tables and the Tidepool check: [docs/2
 
 | Added | Where |
 |---|---|
-| CSV writer + shared cases (Android + Mac) | `export/GlucoseCsv.kt`, `GlucoseCsvTest`; `menubar/…/GlucoseCsv.swift`, `-exportselftest`; `spikes/export-fixtures` |
+| CSV writer + shared cases (Android + Mac) | `export/GlucoseCsv.kt`, `GlucoseCsvTest`; `menubar/…/GlucoseCsv.swift`, `-exportselftest`; `poc/spikes/export-fixtures` |
 | Settings → Export data (period, count, *Save file* / *Share* pills) | `ui/ExportScreen.kt`, `export/Export.kt`, FileProvider `${applicationId}.export` |
 | Mac Glucose Report › *Export CSV…* (report's period, save panel) | `ReportWindow.swift`, `GlucoseCsv.save` |
 
@@ -1164,7 +1164,7 @@ replaced 0.11.50's *Supported pens* rows, which looked like the user's own pens)
 tunes the rules (0.11.50). 0.11.52: the per-read notification is an opt-in (*Notification after each read*, off by
 default; own group, so Android 16+ never bundles it with the glucose card or an alert) and the treatment dialog has no
 pen icon any more (it still reads a held pen; *Nothing new* / *Couldn't read the pen* under the fields). Research, rules (59 scenarios), what was added and discarded: [docs/29](29-novopen.md#in-sukrara). Product spec:
-`spikes/novopen-android/PRODUCT.md`; contract: `DESIGN.md`. Debug-only fake pen: `DebugReceiver --es cmd penRead --es
+`poc/spikes/novopen-android/PRODUCT.md`; contract: `DESIGN.md`. Debug-only fake pen: `DebugReceiver --es cmd penRead --es
 doses "1,0.5,8,0.5" --ei agoMin 3 [--ei older 412] [--ez fail true] [--es model novopen6]`, `penReset [--es penReading
 ask|on|off]`, `penOpen --es what penEntry|penQuestion|penHistory|penSetup|penPage|penReview`.
 
@@ -1194,7 +1194,7 @@ Value/effort: H/M/L.
 | 02 | Sensor activation (NFC) | no | n/a | never proven anywhere | H / H | out of scope (new spike) |
 | 03 | E2E Nostr stream, hourly chunks, 12 h backfill | yes | yes (v2) | thin backfill for a new follower until the wearer republishes (Known issues) | M / M | **fixed** (republish on approval + `history` request; not yet seen end to end) |
 | 03 | **Nightscout read API (tier 1)**, HA / xDrip+ / Nightguard / clocks / Garmin | only the xDrip subset on 17580, and never on the phone (Juggluco holds the port) | no | API on its own port, in both roles | **H / M** | **done**: `127.0.0.1:17581`, LAN opt-in with API secret, 17/17 on the phone and on the follower |
-| 03 | Home Assistant validated (stock `nightscout` integration) | — | — | re-run against Sukrara on the phone (loopback via `adb forward`) | M / L | **done** (polish round 2: HA 2026.10.1, `sensor.blood_sugar` matched, [log](../spikes/showcase-android/evidence/n-ha-check-phone.txt)) |
+| 03 | Home Assistant validated (stock `nightscout` integration) | — | — | re-run against Sukrara on the phone (loopback via `adb forward`) | M / L | **done** (polish round 2: HA 2026.10.1, `sensor.blood_sugar` matched, [log](../poc/spikes/showcase-android/evidence/n-ha-check-phone.txt)) |
 | 03 | HA add-on as always-on follower / "no data" watchdog | no | no | separate product | M / H | out of scope |
 | 03 | Tier 2 upload endpoint (xDrip+/AAPS → Sukrara) | no | no | not built anywhere | M / M | open |
 | 04 | Phone → LibreView (treatments + glucose) | yes, off | yes | real-account run is the user's call | M / L | ok (off by design) |
@@ -1232,4 +1232,4 @@ in-range reading, the separate one-tap mute button.
 ## What's left
 
 The remaining polish (user requests, known issues, rules for whoever continues) is tracked in
-[`spikes/showcase-android/NEXT.md`](../spikes/showcase-android/NEXT.md).
+[`poc/spikes/showcase-android/NEXT.md`](../poc/spikes/showcase-android/NEXT.md).

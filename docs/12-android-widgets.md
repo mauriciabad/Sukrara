@@ -7,7 +7,7 @@
 Glucose on the home screen with native-feeling widgets: **current value** (number, continuous trend arrow, age,
 colour by range, stale state), **graph** (last hours, 70–180 target band, coloured by range, more hours when wider)
 and **graph + value**, several sizes each, picker previews, tap → app — updated **every minute** without hurting the
-battery. Spike code: [`spikes/widgets-android`](../spikes/widgets-android) (app *Glucose Widgets*,
+battery. Spike code: [`poc/spikes/widgets-android`](../poc/spikes/widgets-android) (app *Glucose Widgets*,
 `dev.spike.glucowidgets`, Kotlin + Glance only).
 
 ## Result
@@ -30,17 +30,17 @@ battery. Spike code: [`spikes/widgets-android`](../spikes/widgets-android) (app 
 | Real phone screenshot | **Not done** | An outage stopped the run; afterwards the phone was reserved for the showcase install. Never installed on the phone |
 | CPU measurement (10 min) | **Done (emulator)** | 3.8 s CPU in 10 min (≈ 0.6 % of one core) with 3 widgets on screen, screen on, 10 renders — see "Battery" |
 
-Screenshots ([`spikes/widgets-android/evidence`](../spikes/widgets-android/evidence)):
+Screenshots ([`poc/spikes/widgets-android/evidence`](../poc/spikes/widgets-android/evidence)):
 
 | | |
 |---|---|
-| ![value 2×1 + graph 4×2](../spikes/widgets-android/evidence/01-value-2x1-graph-4x2-light.png) | ![same, dark](../spikes/widgets-android/evidence/04-value-2x1-graph-4x2-dark.png) |
+| ![value 2×1 + graph 4×2](../poc/spikes/widgets-android/evidence/01-value-2x1-graph-4x2-light.png) | ![same, dark](../poc/spikes/widgets-android/evidence/04-value-2x1-graph-4x2-dark.png) |
 | Value 2×1 (218 mg/dL, falling) + graph 4×2, light | Same in dark mode (−3.6/min → double arrow) |
-| ![combined](../spikes/widgets-android/evidence/02-combined-4x4-light.png) | ![picker](../spikes/widgets-android/evidence/03-picker-generated-previews.png) |
+| ![combined](../poc/spikes/widgets-android/evidence/02-combined-4x4-light.png) | ![picker](../poc/spikes/widgets-android/evidence/03-picker-generated-previews.png) |
 | Graph + value | Widget picker with generated previews |
-| ![low](../spikes/widgets-android/evidence/05-low-57-light.png) | ![stale](../spikes/widgets-android/evidence/06-stale-dark.png) |
+| ![low](../poc/spikes/widgets-android/evidence/05-low-57-light.png) | ![stale](../poc/spikes/widgets-android/evidence/06-stale-dark.png) |
 | Low (57, red) | Stale: last reading 12 min ago, struck through and grey |
-| ![release](../spikes/widgets-android/evidence/07-release-in-range-light.png) | |
+| ![release](../poc/spikes/widgets-android/evidence/07-release-in-range-light.png) | |
 | Release (R8) build, in range (theme colour), falling fast | |
 
 ## How updates work
@@ -121,7 +121,7 @@ Screenshots ([`spikes/widgets-android/evidence`](../spikes/widgets-android/evide
 
 ## Integration notes for the showcase app (`app.mauri.sukrara.poc`)
 
-Copy from `spikes/widgets-android/app/src/main/`:
+Copy from `poc/spikes/widgets-android/app/src/main/`:
 
 | File | What | Changes needed |
 |---|---|---|
@@ -154,11 +154,11 @@ What the widgets need from Sukrara's data layer:
 - Integrated in Sukrara ([10](10-showcase.md)). The widgets now work in **both roles**. The wearer feeds them from
   its source, and a follower from its own `follower.db` (`FollowerExtras`: it loads the last 8 h on start, then adds
   every stored batch, and clears them on "Stop following"). Verified on an emulator following the real phone over
-  Nostr ([screenshot](../spikes/showcase-android/evidence/10-follower-widget-combined-real-data.png)).
+  Nostr ([screenshot](../poc/spikes/showcase-android/evidence/10-follower-widget-combined-real-data.png)).
 - **R8 trap:** in Sukrara's release build R8 merged `GraphWidget` into `CombinedWidget`. Glance keys its
   bookkeeping by the `GlanceAppWidget` class name, so after a process restart the graph + value widget was drawn as
-  the plain graph ([before](../spikes/showcase-android/evidence/13b-combined-widget-r8-merge-bug.png),
-  [after](../spikes/showcase-android/evidence/13-follower-widget-combined-after-r8-fix.png)). An app with more than
+  the plain graph ([before](../poc/spikes/showcase-android/evidence/13b-combined-widget-r8-merge-bug.png),
+  [after](../poc/spikes/showcase-android/evidence/13-follower-widget-combined-after-r8-fix.png)). An app with more than
   one Glance widget needs `-keep,allowoptimization class * extends androidx.glance.appwidget.GlanceAppWidget { <init>(); }`
   (and a keep for the receivers).
 - **Review + cleanup (v0.10.4).** Worth keeping in Sukrara: the code is small and self-contained, and both the

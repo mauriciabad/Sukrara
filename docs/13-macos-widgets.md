@@ -22,9 +22,9 @@ the user's Apple ID?
 | Assemble `.app` + `PlugIns/*.appex` by hand, sign ad hoc, register | **Yes.** `pluginkit -m` lists it and chronod sees it ("Added extensions") |
 | macOS loads it (widget gallery, desktop) | **Yes, with a free Apple Development certificate + `_NSExtensionMain` entry point.** Ad hoc, chronod drops it within 7 ms: *"Extension is not entitled to run in the App Sandbox"* |
 | Can we get past that without an Apple-issued certificate? | **No.** Eight signing and install variants all fail the same way (table below). A free Apple ID personal team is enough |
-| Widget views | **Done**, rendered to PNG with `ImageRenderer` from the same SwiftUI code ([evidence](../spikes/widgets-macos/evidence/)) |
+| Widget views | **Done**, rendered to PNG with `ImageRenderer` from the same SwiftUI code ([evidence](../poc/spikes/widgets-macos/evidence/)) |
 | Data sharing host → sandboxed widget | Ad hoc: localhost HTTP, a `/Users/Shared` file and the widget's own container work, the App Group does not. **With a Team ID the team-prefixed App Group works too** (no provisioning profile) |
-| Refresh cadence the system honours | **Every reload, once a minute, for an hour**: 68 host reloads → 62 `getTimeline` per placed widget ([evidence](../spikes/widgets-macos/evidence/refresh-1h.log)) |
+| Refresh cadence the system honours | **Every reload, once a minute, for an hour**: 68 host reloads → 62 `getTimeline` per placed widget ([evidence](../poc/spikes/widgets-macos/evidence/refresh-1h.log)) |
 | Same widget inside Sukrara for Mac | **Works** with the user's real readings via the App Group ([below](#sukrara-for-mac-hosts-the-widgets-works)) |
 
 So the CLI-only route stopped at one wall, signing, plus a hidden second one, the entry point (see [Resolved](#resolved-the-widgets-run)). Everything else (compiler, SDK, Swift
@@ -56,9 +56,9 @@ widgets then appeared in *Edit Widgets…*, on the desktop, with live data from 
    `-e _NSExtensionMain` is needed" was wrong: launched by hand, the binary only *looked* fine because the trap
    comes right after WidgetKit's first log lines.
 
-Then [`evidence/chronod-accepted.log`](../spikes/widgets-macos/evidence/chronod-accepted.log) shows
+Then [`evidence/chronod-accepted.log`](../poc/spikes/widgets-macos/evidence/chronod-accepted.log) shows
 `getAllDescriptors` returning all three kinds and chronod precaching placeholders for every family. Once a widget
-was placed, [`evidence/widget-gettimeline.log`](../spikes/widgets-macos/evidence/widget-gettimeline.log) shows
+was placed, [`evidence/widget-gettimeline.log`](../poc/spikes/widgets-macos/evidence/widget-gettimeline.log) shows
 `getTimeline` with every transport readable: `appgroup-api=ok appgroup-path=ok own-container=ok users-shared=ok`
 and HTTP.
 
@@ -80,13 +80,13 @@ extra large 746×382.
 
 | | |
 |---|---|
-| Combined, medium | ![](../spikes/widgets-macos/evidence/combined-medium-dark.png) |
-| Value small / Combined medium, **low** | ![](../spikes/widgets-macos/evidence/state-low.png) |
-| **Stale** (> 5 min): strikethrough, grey, dot instead of the arrow | ![](../spikes/widgets-macos/evidence/state-stale.png) |
-| **Accented** rendering mode (tinted desktop) | ![](../spikes/widgets-macos/evidence/mode-accented.png) |
-| Combined, large (6 h, time in range) | ![](../spikes/widgets-macos/evidence/combined-large-light.png) |
-| Combined, extra large (12 h) | ![](../spikes/widgets-macos/evidence/combined-xl-light.png) |
-| Trend arrow, −4 … +4 mg/dL/min | ![](../spikes/widgets-macos/evidence/trend-arrows.png) |
+| Combined, medium | ![](../poc/spikes/widgets-macos/evidence/combined-medium-dark.png) |
+| Value small / Combined medium, **low** | ![](../poc/spikes/widgets-macos/evidence/state-low.png) |
+| **Stale** (> 5 min): strikethrough, grey, dot instead of the arrow | ![](../poc/spikes/widgets-macos/evidence/state-stale.png) |
+| **Accented** rendering mode (tinted desktop) | ![](../poc/spikes/widgets-macos/evidence/mode-accented.png) |
+| Combined, large (6 h, time in range) | ![](../poc/spikes/widgets-macos/evidence/combined-large-light.png) |
+| Combined, extra large (12 h) | ![](../poc/spikes/widgets-macos/evidence/combined-xl-light.png) |
+| Trend arrow, −4 … +4 mg/dL/min | ![](../poc/spikes/widgets-macos/evidence/trend-arrows.png) |
 
 All families × light/dark: `value-{small,medium}`, `graph-{small,medium,large,xl}`, `combined-{small,medium,large,xl}`
 `-{light,dark}.png`, plus `state-{low,high,flat,stale,nodata}.png`.
@@ -112,7 +112,7 @@ What the widgets do:
 
 ## How it is built (no Xcode)
 
-`spikes/widgets-macos/build.sh`:
+`poc/spikes/widgets-macos/build.sh`:
 
 ```
 swiftc -parse-as-library -application-extension  Shared/*.swift Widget/GlucoseWidgets.swift -Xlinker -e -Xlinker _NSExtensionMain
@@ -135,7 +135,7 @@ lsregister -f -R ~/Applications/GlucoseWidgets.app;  pluginkit -a …/GlucoseWid
 
 ### What blocks it
 
-[`evidence/chronod-rejection.log`](../spikes/widgets-macos/evidence/chronod-rejection.log):
+[`evidence/chronod-rejection.log`](../poc/spikes/widgets-macos/evidence/chronod-rejection.log):
 
 ```
 chronod [com.apple.extensionkit:discovery] Extension is not entitled to run in the App Sandbox : <_EXExtensionIdentity: …>
@@ -160,7 +160,7 @@ process is never launched.
 | Installed in `/Applications` instead of `~/Applications` | rejected (then removed again) |
 
 **Why.** The in-process check passes. ExtensionFoundation's own `_EXExtensionIdentity`, built from our
-LaunchServices record, says `hasSandboxEntitlement = true` and `app-sandbox = 1` ([`evidence/exid.txt`](../spikes/widgets-macos/evidence/exid.txt),
+LaunchServices record, says `hasSandboxEntitlement = true` and `app-sandbox = 1` ([`evidence/exid.txt`](../poc/spikes/widgets-macos/evidence/exid.txt),
 `Diag/exid.swift`). So chronod is not reading a missing entitlement; it does not trust entitlements from this
 signature. The one difference LaunchServices shows between our extension and the two working third-party widgets
 on this Mac (CodexBar `Y5PE65HELJ`, BetterTouchTool `DAFVSXZ82P`) is **`teamIdentifier = nil`**. A Team ID only
@@ -183,7 +183,7 @@ Requested to add extension, but purging instead because we shouldn't cache it: <
 This is **not a rejection**. chronod just doesn't preload descriptors for non-Apple extensions. It fetches them
 when a host asks, e.g. `Reloading descriptors for reason: "host requested: NotificationCenter"` when the user opens
 the widget gallery. The spike's 16:47 install happened to be fetched straight away. Later installs (Sukrara, test
-bundles, an XcodeGen build in `spikes/widgets-macos/xcode/`) only logged the purge, and that was read as a block
+bundles, an XcodeGen build in `poc/spikes/widgets-macos/xcode/`) only logged the purge, and that was read as a block
 for an hour of experiments. Likewise `Extension is not entitled to run in the App Sandbox` and `Ignoring
 restricted or unknown extension` keep appearing for extensions that work. **To check a widget, open *Edit
 Widgets…* and look, or look for `getTimeline` in the widget's log, not for chronod's install messages.**
@@ -197,7 +197,7 @@ settings rewrites the snapshot.
 
 Tested with **`Probe/`**: the widget's exact loader (`Shared/Loader.swift`) in a CLI. It is signed ad hoc with the
 widget's entitlements and runs inside the App Sandbox. With `PROBE_ID=dev.spike.GlucoseWidgets.widget` it runs *as*
-the widget and gets the same container ([`evidence/probe-sandbox.txt`](../spikes/widgets-macos/evidence/probe-sandbox.txt)).
+the widget and gets the same container ([`evidence/probe-sandbox.txt`](../poc/spikes/widgets-macos/evidence/probe-sandbox.txt)).
 
 | Transport | Ad hoc result | Notes |
 |---|---|---|
@@ -214,12 +214,12 @@ That is the standard way: no profile needed on macOS, and no server needed. Code
 ## Refresh cadence
 
 - **Measured**: `reloadAllTimelines()` from the headless host, once a minute, reaches chronod in **1–3 ms** every
-  time ([`evidence/reload-delivery.log`](../spikes/widgets-macos/evidence/reload-delivery.log)). Reload IPC works
+  time ([`evidence/reload-delivery.log`](../poc/spikes/widgets-macos/evidence/reload-delivery.log)). Reload IPC works
   from an ad hoc, unsandboxed `LSUIElement` app.
 - **Measured (Team ID, 2026-10-16 16:55–17:55)**: two widgets on the desktop (combined, small + extra large), host
   reloading once a minute. 68 `reloadAllTimelines()` → **62 `getTimeline` per widget**: every minute's reload was
   honoured, none skipped, with no sign of a budget in the first hour (the extras came from re-registrations and a
-  chronod restart). [`evidence/refresh-1h.log`](../spikes/widgets-macos/evidence/refresh-1h.log). Apple's budget
+  chronod restart). [`evidence/refresh-1h.log`](../poc/spikes/widgets-macos/evidence/refresh-1h.log). Apple's budget
   is daily, so a full day may still throttle; the design below covers that.
 - **Design that doesn't depend on the budget**. Apple documents a daily budget of roughly 40–70 reloads for a
   frequently viewed widget, about one every 15–60 min, so a 1/min reload can't be relied on. The widget is built
@@ -251,7 +251,7 @@ That is the standard way: no profile needed on macOS, and no server needed. Code
 
 ## Files
 
-`spikes/widgets-macos/`:
+`poc/spikes/widgets-macos/`:
 - `Shared/GlucoseData.swift`: model, synthetic generator, thresholds, paths.
 - `Shared/GlucoseViews.swift`: all widget SwiftUI/Charts views.
 - `Shared/Loader.swift`: the transports.

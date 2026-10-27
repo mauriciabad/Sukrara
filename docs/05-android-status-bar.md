@@ -7,7 +7,7 @@
 Show the glucose number and trend **permanently in the phone's status bar**, like the Mac menubar item. Three
 candidate approaches were given (Live Update chip, number as the notification icon, an icon among the system icons
 with a choosable position), plus the question of whether there are others. Spike code:
-[`spikes/statusbar-android`](../spikes/statusbar-android) (GlucoStatus, one APK that is the app *and* the LSPosed
+[`poc/spikes/statusbar-android`](../poc/spikes/statusbar-android) (GlucoStatus, one APK that is the app *and* the LSPosed
 module).
 
 ## Result
@@ -102,7 +102,7 @@ Findings:
   the rest — and it **ignores the icon level**, so a single level-list drawable can't select the number. The app
   therefore ships **one vector per value**: `sb_n40 … sb_n400`, `sb_lo/sb_hi`, and the arrow every 5°
   (`sb_t00 … sb_t36` + double arrows), generated from Google Sans Flex (SIL OFL) by
-  [`tools/gen-slot-drawables.swift`](../spikes/statusbar-android/tools/gen-slot-drawables.swift). ~400 small
+  [`tools/gen-slot-drawables.swift`](../poc/spikes/statusbar-android/tools/gen-slot-drawables.swift). ~400 small
   drawables; number and arrow are two slots so the arrow angle stays fine-grained.
 - Implementation: a tiny Kotlin `main()` in the APK, started with `app_process` (`SlotDaemon`), reading
   `set …`/`remove …` lines on stdin. The app launches it through `su`; the same command works over adb as the shell

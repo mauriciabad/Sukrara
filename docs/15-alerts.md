@@ -16,7 +16,7 @@ Alerts when glucose leaves your range, in **every Sukrara app** (Android wearer,
 
 ## Result
 
-**It works on Android and on the Mac.** One rule set ([`spikes/alerts/SPEC.md`](../spikes/alerts/SPEC.md)) is
+**It works on Android and on the Mac.** One rule set ([`poc/spikes/alerts/SPEC.md`](../poc/spikes/alerts/SPEC.md)) is
 implemented twice (Kotlin and Swift) and tested the same way. The wearer sends a new encrypted `alert` event to its
 followers over relays and Bluetooth.
 
@@ -25,7 +25,7 @@ variants, plus each alert's vibration pattern drawn to scale).
 
 | What | How it was checked | Result |
 |---|---|---|
-| Rules (thresholds, severity, episodes, treatment mutes and repeats, headlines, rate alerts, no data, stale readings, master switch, settings JSON) | the 31 shared timelines in [`spikes/alerts/scenarios`](../spikes/alerts/scenarios/) on both engines; Android [`AlertEngineTest`](../spikes/showcase-android/app/src/test/kotlin/app/mauri/sukrara/alerts/AlertEngineTest.kt) + `AlertStatusTest` + `AlertScenarioTest`; Mac `swift run GlucoseBar -alerts-selftest` | Android **61/61** (26 + 4 + 31), Mac **49/49** (31 scenarios + 18 checks), 2026-10-18 |
+| Rules (thresholds, severity, episodes, treatment mutes and repeats, headlines, rate alerts, no data, stale readings, master switch, settings JSON) | the 31 shared timelines in [`poc/spikes/alerts/scenarios`](../poc/spikes/alerts/scenarios/) on both engines; Android [`AlertEngineTest`](../poc/spikes/showcase-android/app/src/test/kotlin/app/mauri/sukrara/alerts/AlertEngineTest.kt) + `AlertStatusTest` + `AlertScenarioTest`; Mac `swift run GlucoseBar -alerts-selftest` | Android **61/61** (26 + 4 + 31), Mac **49/49** (31 scenarios + 18 checks), 2026-10-18 |
 | Sound packs through the native channel | emulator: SystemUI's `RingtonePlayer` plays `content://app.mauri.sukrara.poc.alertsound/<kind>`; our provider logs every open | `sound high → arcade_high_2 for com.android.systemui`, `sound very_high → arcade_very_high_1`, `sound no_data → arcade_no_data_1`, `sound urgent_low → arcade_urgent_low_3` |
 | Channel keeps our sound and vibration | `dumpsys notification` | `mSound=content://…alertsound/urgent_low`, `mVibrationEffect=Composed{…QUICK_FALL…}` (not reset to the default sound) |
 | Insulin mute, live | emulator wearer: reading 214 → high fires; `cmd treat k=rapid`; next reading | `High · 214 mg/dL` → `High cleared`, state `muted: "insulin 0 min ago"` |
@@ -38,9 +38,9 @@ Screenshots (emulator, debug build):
 
 | | | |
 |---|---|---|
-| ![alerts](../spikes/alerts/evidence/a1-alerts-top.png) | ![dialog](../spikes/alerts/evidence/a4-high-dialog.png) | ![shade](../spikes/alerts/evidence/a5-shade-urgent-low.png) |
+| ![alerts](../poc/spikes/alerts/evidence/a1-alerts-top.png) | ![dialog](../poc/spikes/alerts/evidence/a4-high-dialog.png) | ![shade](../poc/spikes/alerts/evidence/a5-shade-urgent-low.png) |
 | Settings → Alerts: what's active now, the master switch, one row per alert | One alert: threshold, reminders, sound (pack or any pack just for this alert, ▶ to listen), Test, *Vibration & more* opens the system channel | Urgent low in red with the alarm icon (alarm stream); high-side alerts in orange |
-| ![mid](../spikes/alerts/evidence/a2-alerts-mid.png) | ![bottom](../spikes/alerts/evidence/a3-alerts-bottom.png) | ![mac](../spikes/menubar/evidence/alerts-window.png) |
+| ![mid](../poc/spikes/alerts/evidence/a2-alerts-mid.png) | ![bottom](../poc/spikes/alerts/evidence/a3-alerts-bottom.png) | ![mac](../poc/spikes/menubar/evidence/alerts-window.png) |
 | Quiet highs: after rapid insulin, when falling back into range | Sounds: pack, "a different sound each time", system notification settings | Sukrara for Mac → **Alerts…** (here mirroring the wearer: the rules are greyed out, sounds stay editable) |
 
 ## The rules
@@ -112,7 +112,7 @@ They wrote down what should happen (repeat 5 min, carbs mute 5 min):
 | 20–21 | 70, then 69 | nothing |
 | 24 | | **Low glucose · eat more again** |
 
-**Rules** (both platforms, [SPEC §1–§2](../spikes/alerts/SPEC.md)):
+**Rules** (both platforms, [SPEC §1–§2](../poc/spikes/alerts/SPEC.md)):
 
 - **Episodes.** One per group and side (lows, highs, falling fast, rising fast, no data). It ends once nothing of that
   side has matched for the **hold time**, the kind's repeat interval (at least 5 min). A brief exit clears the
@@ -145,9 +145,9 @@ old code did get wrong:
   reading, i.e. on the 5-minute grid.
 
 **Scenarios as the regression guard.** The rules are now timelines in
-[`spikes/alerts/scenarios/`](../spikes/alerts/scenarios/) (the user's table verbatim first, then one per rule), run by
+[`poc/spikes/alerts/scenarios/`](../poc/spikes/alerts/scenarios/) (the user's table verbatim first, then one per rule), run by
 both platforms: Android `AlertScenarioTest` and the Mac `-alerts-selftest`. Every change to the rules adds or updates
-one ([SPEC §7](../spikes/alerts/SPEC.md#7-scenarios-the-regression-guard)).
+one ([SPEC §7](../poc/spikes/alerts/SPEC.md#7-scenarios-the-regression-guard)).
 
 ## Mirroring (wearer → follower)
 
@@ -210,7 +210,7 @@ Conditions found in AOSP:
 - If the user picks another sound in the channel settings, that wins, as with any app (the Alerts screen then says
   "sound set in system settings").
 
-**The packs** ([`gen.py`](../spikes/alerts/sounds/gen.py)): everything is synthesised with numpy (polyBLEP pulse/saw,
+**The packs** ([`gen.py`](../poc/spikes/alerts/sounds/gen.py)): everything is synthesised with numpy (polyBLEP pulse/saw,
 stepped triangle, additive brass, FM bells, Karplus-Strong harp, marimba, noise drums, echo/reverb). The melodies are
 original, and loudness is normalised per kind. 84 files: OGG Vorbis for Android (1.5 MB in `res/raw`), IMA4 CAF for
 the Mac (in the app bundle; files must be < 30 s), AAC for the web page. **Mac fix (2026-10-21):** naming the bundled
@@ -331,7 +331,7 @@ could hide the low after insulin, no global mute, very low / extremely high exce
   (10 mg/dL for 10 min, settings `backMgdl` / `backMin`), not with the episode.
 - *Mute all* (30 min … 8 h, Never, custom) on the Android home card and the Mac dropdown, a *Muted* pill on every
   card surface, the Mac menu bar's bell.slash.
-- One duration formatter per platform (`Durations`, fixture `spikes/durations/durations.json`) and a `durations`
+- One duration formatter per platform (`Durations`, fixture `poc/spikes/durations/durations.json`) and a `durations`
   check: on the code before this round it reported 98 hand-written minute texts.
 
 **Discarded**: an *Until tomorrow morning* length (8 h covers a night without clock rules); ending a mute when merely
@@ -342,8 +342,8 @@ mixed chip styles the user found confusing); the very-low / extremely-high excep
 
 | Where | What |
 |---|---|
-| [`spikes/alerts/SPEC.md`](../spikes/alerts/SPEC.md) | the shared contract: kinds, mutes, settings JSON, `alert` event, platform notes |
-| `spikes/alerts/sounds/` | `gen.py` (packs), `preview.py` (the sound test page, inline or for the site) |
+| [`poc/spikes/alerts/SPEC.md`](../poc/spikes/alerts/SPEC.md) | the shared contract: kinds, mutes, settings JSON, `alert` event, platform notes |
+| `poc/spikes/alerts/sounds/` | `gen.py` (packs), `preview.py` (the sound test page, inline or for the site) |
 | `showcase-android/…/alerts/` | `AlertEngine` (pure rules), `AlertSettings`, `Alerts` (roles, timer, mirroring), `AlertNotifier` (channels), `AlertSounds` (provider + preview), `AlertHaptics` |
 | `showcase-android/…/ui/AlertsScreen.kt` | settings screen; Settings → Alerts (wearer), home → Alerts (follower) |
 | `menubar/Sources/GlucoseBar/Alerts*.swift` | the Mac engine, window and self-test |
