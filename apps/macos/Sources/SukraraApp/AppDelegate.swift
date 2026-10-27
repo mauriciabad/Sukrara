@@ -20,7 +20,8 @@ public final class AppDelegate: NSObject, NSApplicationDelegate {
         plan.services.start(using: services)
         self.services = services
         model = AppModel(
-            plan: plan, alerts: services.alerts, updates: services.updates, loginItem: services.loginItem)
+            plan: plan, alerts: services.alerts, updates: services.updates, loginItem: services.loginItem,
+            follower: services.follower)
     }
 
     public func applicationDidFinishLaunching(_ notification: Notification) {
@@ -31,6 +32,7 @@ public final class AppDelegate: NSObject, NSApplicationDelegate {
         statusItem = StatusItemController(model: model, menu: contextMenu)
         observeSystemTime()
         refreshNotificationPermission()
+        model.run()
         AppLog.app.info("launched (offline: \(self.model.plan.isOffline, privacy: .public))")
     }
 

@@ -55,6 +55,10 @@
     {
       "path": "apps/android/sensor/src/main/kotlin/app/mauri/sukrara/sensor/libreview/LibreViewAccount.kt",
       "reason": "LibreView receiver-ID sign-in: https only, fixed host api.libreview.io or api-<region>.libreview.io (region validated as 2-3 lower-case letters)"
+    },
+    {
+      "path": "apps/android/share/src/main/kotlin/app/mauri/sukrara/share/transport/WebSocket.kt",
+      "reason": "Nostr sharing: relay WebSockets; RelayPool passes only wss:// URLs (Wire.secureRelays), never cleartext"
     }
   ],
   "durations_ok": {},

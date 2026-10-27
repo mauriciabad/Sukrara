@@ -143,7 +143,7 @@ import Testing
         let recorder = Recorder()
         ServicesPlan(ble: true, relays: false, alerts: true, widgetFeed: false, notifications: true).start(
             using: recorder)
-        #expect(recorder.started == [.ble, .alerts, .notifications])
+        #expect(recorder.started == [.notifications, .ble, .alerts])
         let all = Recorder()
         ServicesPlan.all.start(using: all)
         #expect(all.started == Service.allCases)

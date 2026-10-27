@@ -17,7 +17,7 @@ public final class AppModel {
     /// The wearer's readings, oldest first.
     private(set) var readings: [Reading] = []
     private(set) var sensor: SensorInfo?
-    var link: LinkState = .notLinked
+    private(set) var link: LinkState = .notFollowing
     var unit: GlucoseUnit = .mgdl
     /// "Now" for the card: moved by the freshness ticker at each freshness step, so a value greys and strikes on time.
     private(set) var now: Date
@@ -26,19 +26,64 @@ public final class AppModel {
     @ObservationIgnored let alerts: AlertController?
     @ObservationIgnored let updates: UpdateCheck?
     @ObservationIgnored let loginItem: LoginItem?
+    @ObservationIgnored let follower: (any FollowerService)?
     @ObservationIgnored private let clock: any TimeSource
     @ObservationIgnored private var ticker: Task<Void, Never>?
+    @ObservationIgnored private var feeds: [Task<Void, Never>] = []
 
     init(
         plan: LaunchPlan, clock: any TimeSource = SystemClock(), alerts: AlertController? = nil,
-        updates: UpdateCheck? = nil, loginItem: LoginItem? = nil
+        updates: UpdateCheck? = nil, loginItem: LoginItem? = nil, follower: (any FollowerService)? = nil
     ) {
         self.plan = plan
         self.clock = clock
         self.alerts = alerts
         self.updates = updates
         self.loginItem = loginItem
+        self.follower = follower
         now = clock.now
+    }
+
+    /// Starts the follower runtime and feeds its snapshots and the wearer's alerts into the model and the alert rules.
+    func run() {
+        guard let follower, feeds.isEmpty else { return }
+        feeds.append(
+            Task { [weak self] in
+                for await snapshot in await follower.snapshots() { self?.apply(snapshot) }
+            })
+        feeds.append(
+            Task { [weak self] in
+                for await alert in await follower.alerts() { self?.alerts?.wearerAlert(alert) }
+            })
+        Task { await follower.start() }
+    }
+
+    /// One follower snapshot: the link, readings, sensor and treatments, and whether the wearer's alerts are mirrored.
+    func apply(_ snapshot: FollowerSnapshot) {
+        let wasFollowing = link.isFollowing
+        link = snapshot.link
+        if wasFollowing && !link.isFollowing { alerts?.resetMonitoring() }
+        if let alerts {
+            alerts.setMirroring(link.isFollowing && alerts.settings.source == .wearer)
+            alerts.sensor(
+                snapshot.sensor.map {
+                    SensorWindow(
+                        start: Date(timeIntervalSince1970: TimeInterval($0.start)),
+                        end: Date(timeIntervalSince1970: TimeInterval($0.end)),
+                        warmupEnd: Date(timeIntervalSince1970: TimeInterval($0.warmupEnd)))
+                })
+            alerts.treatments(
+                snapshot.treatments.compactMap { t in
+                    let kind: TreatmentKind? = t.k == .carbs ? .carbs : t.k == .rapid ? .rapidInsulin : nil
+                    guard !t.del, let kind else { return nil }
+                    return AlertTreatment(kind: kind, at: Date(timeIntervalSince1970: TimeInterval(t.t)))
+                })
+        }
+        sensor = snapshot.sensor.map {
+            SensorInfo(start: TimeInterval($0.start), end: TimeInterval($0.end), warmupEnd: TimeInterval($0.warmupEnd))
+        }
+        // only a followed wearer's readings are shown or alerted on
+        apply(readings: link.isFollowing ? snapshot.readings : [])
     }
 
     public convenience init(plan: LaunchPlan) { self.init(plan: plan, clock: SystemClock()) }
@@ -83,7 +128,13 @@ public final class AppModel {
         if plan.isOffline { return "Not monitoring: offline dev build (no sensor, relays or alerts)" }
         guard readings.isEmpty else { return nil }
         switch link {
-        case .notLinked: return "Not monitoring: not following anyone yet"
+        case .notFollowing, .joining: return "Not monitoring: not following anyone yet"
+        case .requested: return "Not monitoring: waiting for the wearer to allow this Mac"
+        case .following: return "Waiting for the first reading from the wearer"
+        case .declined: return "Not monitoring: the wearer declined"
+        case .inviteUsed: return "Not monitoring: the invite was used by another device"
+        case .revoked: return "Not monitoring: the wearer stopped sharing"
+        case .broken(let why): return "Not monitoring: \(why)"
         }
     }
 
@@ -110,11 +161,14 @@ public final class AppModel {
         now = clock.now
         alerts?.tick()
         restartTicker()
+        if let follower { Task { await follower.reconnect() } }
     }
 
     func stop() {
         ticker?.cancel()
+        feeds.forEach { $0.cancel() }
         alerts?.stop()
+        if let follower { Task { await follower.stop() } }
     }
 }
 

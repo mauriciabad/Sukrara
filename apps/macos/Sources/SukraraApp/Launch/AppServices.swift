@@ -5,6 +5,7 @@ import Foundation
 import ServiceManagement
 import SukraraAlerts
 import SukraraCore
+import SukraraShare
 @preconcurrency import UserNotifications
 
 /// The app's `ServiceStarting`: the only code that creates the notification center, copies alert sounds, runs the
@@ -18,6 +19,8 @@ final class AppServices: ServiceStarting {
     private(set) var updates: UpdateCheck?
     private(set) var loginItem: LoginItem?
     private(set) var sounds: SoundLibrary?
+    /// The follower runtime (relays, and Bluetooth when the plan allows it). Created here, started by `AppModel`.
+    private(set) var follower: FollowerRuntime?
     let responder = NotificationResponder()
     private let defaults: UserDefaults
 
@@ -76,8 +79,18 @@ final class AppServices: ServiceStarting {
             }
         case .loginItem:
             loginItem = LoginItem(service: SMAppService.mainApp)
-        case .ble, .relays, .widgetFeed:
-            break  // started by the follower runtime / widget feed chunks
+        case .relays:
+            let crypto = NostrSDKCrypto()
+            let nearby: FollowerRuntime.NearbyFactory? =
+                plan.services.ble ? { @Sendable identity in NearbyCentral(identity: identity, crypto: crypto) } : nil
+            follower = FollowerRuntime(
+                secrets: KeychainStore(service: plan.data.keychainService),
+                stores: .files(plan.data.paths, clock: SystemClock()), crypto: crypto, clock: SystemClock(),
+                me: Profile(name: Host.current().localizedName ?? "Mac", avatar: nil),
+                makeRelays: { relays, key in RelayPool(relays: relays, authKey: key, crypto: crypto) },
+                makeNearby: nearby)
+        case .ble, .widgetFeed:
+            break  // Bluetooth runs inside the follower runtime (`relays`); the widget feed is chunk 22's
         }
     }
 }

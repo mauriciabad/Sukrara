@@ -30,7 +30,8 @@ public struct SnapshotRequest: Equatable, Sendable {
 /// Something that reaches outside the process: the user's sensor or phone, relays, notifications, the widget, the
 /// network (update check) and the system's login items.
 public enum Service: CaseIterable, Sendable {
-    case ble, relays, alerts, widgetFeed, notifications, updateCheck, loginItem
+    // notifications first: the alert notifier needs the center when `alerts` starts
+    case notifications, ble, relays, alerts, widgetFeed, updateCheck, loginItem
 }
 
 /// The services a launch MAY start: an upper limit. The app ANDs it with the user's settings

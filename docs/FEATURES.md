@@ -125,6 +125,9 @@ Rules: [poc/spikes/alerts/SPEC.md](../poc/spikes/alerts/SPEC.md); timelines: [po
 
 - Mac launch guard (`LaunchGuard`): an argument the binary doesn't understand (an unknown `-…selftest`, a bare unknown `-flag`, a stray word) prints why and exits 2 without starting anything; a dev build (the `swift build` executable, or an app inside a git checkout such as `build/Sukrara.app`) starts the full app only with `SUKRARA_DEV=1` (else exit 3), so it can't share the installed app's Keychain item, data files and settings by accident. Installed and downloaded copies start as before.
 
+- Mac following (V1 runtime, `FollowerRuntime`): the follower key and trust state live in the login Keychain (service `app.mauri.sukrara`, account `follower`); readings (`readings.csv`, 31 days), treatments (`treatments.json`, with each entry's delivery *sending → sent → accepted*), the wearer's sensor and mirrored settings in `~/Library/Application Support/app.mauri.sukrara/`. The V1 Mac starts empty (no PoC migration): the owner follows again once through the follow window, and it follows a Sukrara 0.11.53 wearer as well as a V1 one. Joining: invite link / QR text (looked up on the relays for up to 25 s) or a phone nearby with *Pair nearby* open (Bluetooth; the Mac shows the 4-digit code the wearer types). When the wearer restores their identity on a new phone, the Mac takes the new key and keeps following with no action; late messages from the old phone are ignored. *Stop following* wipes the wearer's readings, treatments, sensor and settings before the key, so two people's data never mix (a crash in between is healed at the next start). An unreadable Keychain keeps the history and shows why. The widget gets `glucose.json` in the App Group and is reloaded only when its value (at most every 5 min) or state changes.
+- Mac following states and exits: *Not following* → Follow with Invite Link / QR / nearby; *Looking up the invite* → Cancel; *Waiting for the wearer* (code shown for nearby) → Cancel request (= Stop following); *Following* → Stop following (warns when entries written here aren't sent yet); *Declined* / *Invite used* / *Removed by the wearer* / *Broken (Keychain, damaged state)* → Stop following, then follow again.
+
 **States and exits**: *Add Treatment… dimmed* (this Mac can't log) → the reason is on the row and its tooltip and in Settings › Following; it becomes available as soon as the wearer approves / allows entries (nothing to undo here). *Panel open* (Sukrara in front) → Escape, a second click or the right-click menu close it and return to the app you were in; a click outside closes it and leaves you where you clicked; a row's window keeps Sukrara in front until you close or leave that window. *Quiet alerts* → the rows under the card (Alerts › States and exits). *A pen entry's doses shown* (Treatments window) → the disclosure triangle again (or ← / VoiceOver *collapse*) hides them; closing the window resets it. *Already logged by the pen?* (Add Treatment) → *Cancel* returns to the form with the insulin still typed (clear it or close the window), *Log Anyway* saves it.
 
 ## Readings and backfill
@@ -436,6 +439,41 @@ Wearer only (`sensorend/`; rules in `SensorEndPlan`, tests `SensorEndPlanTest`);
 - Only the wearer's app writes events; followers never do (no serial on the wire).
 - Research and options weighed (Juggluco's ACTION_INSERT, local vs Google account vs picked calendar vs Google Calendar API): `features/SensorCalendar.kt` header.
 
+## Share with followers (wearer)
+
+The wearer's phone shares readings, alerts and the stream's roster with approved followers over Nostr relays
+(contracts/protocol/PROTOCOL-v2.md; `apps/android/share`, chunk 13 — the screens are chunk 24's).
+
+- **Identity**: one sharing identity (key I) per wearer, created on first use or **restored from a recovery code**
+  (the `ncryptsec` / `nsec` the showcase's Backup page exports, or V1's own *Export recovery code*). Kept encrypted
+  with the Android Keystore (`sukrara.identity.owner`), never in backups or logs.
+- **Restore** (switching phones or from Sukrara Showcase): the code → the newest owner backup on the relays →
+  followers, invites, writers and profile come back; this phone gets a new device key and a new epoch, every follower
+  gets the new read key before the new roster, so existing followers (Mac included) keep following without doing
+  anything. Allowed only when the showcase isn't installed or the person confirms its sharing is off.
+  Credential Manager password-save is optional (P1): the showcase's saved entry doesn't carry the new device.
+- **Invite** → single-use link (`https://sukrara.mauri.app/join#…`, 24 h, a label for who it's for); the first phone
+  to use it claims it, later ones get *invite used* and the request shows how many others tried.
+- **Approve / Deny** a request (4-digit match code); **Remove** a follower → *revoked* notice + new epoch, so it
+  can't read anything new. Writers (followers allowed to add treatments) are named in the roster.
+- **Readings**: live event per new reading (< 10 min old), hour chunks of the last 25 h (current hour at most every
+  5 min), all of the last 24 h again on start, approval and rotation. **Alerts** go out at once.
+- **Relays**: `wss://nos.lol`, `wss://relay.primal.net`, `wss://nostr.mom`, `wss://relay.snort.social`; reconnect
+  2 s doubling to 5 min (random 50–100 %), at once when the network comes back; per-relay status, never an error
+  thrown at the person. Roster and backup are refreshed every 6 days.
+- **Another app sharing as you** (A3): a newer roster / backup signed by this identity from another device (the
+  showcase still running after a restore) blocks roster, backup, rotation and follower changes instead of
+  republishing back and forth; readings and alerts continue.
+
+**States and exits**: *No identity* → *Share with followers* (create) or *Restore from recovery code*. *Restore*
+errors → *Needs password* (type it), *Wrong password* / *Not a recovery code* (edit and retry), *Relays unreachable*
+(retry when online), *No backup found* (check the code; nothing changed), *Backup unreadable*; none of them changes
+anything. *Identity unreadable* (blocking; the file is never replaced silently) → *Retry* (when the Keystore was busy)
+or *Restore from recovery code*. *Sharing* → invite, approve / deny, remove, export recovery code. *Request waiting* →
+*Allow* (needs unlock) / *Deny*. *Another app is sharing as you* (home + Settings › Sharing; says whether followers
+still get readings) → turn off the showcase's sharing or uninstall it, then *I turned it off — retry* (republishes once,
+past the other app's event; blocks again if it's still running) or *Help*.
+
 ## Sharing over Bluetooth
 
 - Settings → Share with people (wearer): *How readings travel* has *Over the internet* (a globe icon; *Encrypted, through Nostr relays*), the upload interval and *Over Bluetooth nearby* (*2 connected*). While Bluetooth sharing is on, *Nearby devices* lists the follower devices connected now (*Connected*, oldest link first; the title is the follower's name and the device type, *Sam · Mac* / *Robin · Phone*, with their picture) and then the followers paired with *Pair nearby* that aren't (*Disconnected*), like Settings' Connected devices (`owner/NearbyDevices`, `NearbyDevicesTest`). A connection is named by the identity proof in its `HELLO` (poc/spec/ogs-ble.md B§5/B§6, 2026-10-21): every follower that knows `sid` (Android and Mac) signs a kind-21080 event with content `H("cgm2:ble-id:"+sid+":"+nonce+":"+dev)` with its follower key, and the wearer's phone checks it against each roster follower and device type (`Ble.identify`, plain-Kotlin BIP-340 `Schnorr.verify`; `BleTest`, Mac `-bleselftest`, vector `ble.hello_id`). An unnamed link is not listed (no made-up name); a replayed `HELLO` names nothing. Strangers learn nothing new: without `sid` the signature can't be tested against any key. Which followers paired nearby is kept on this phone only (`OwnerState.nearbyPaired`, not in the backup). Removed followers are folded under a *2 Removed* pill (tap: their group and *See less*).
@@ -513,6 +551,7 @@ Wearer only (`sensorend/`; rules in `SensorEndPlan`, tests `SensorEndPlanTest`);
 
 ## Not in V1
 
+- Mac: Juggluco over Wi-Fi (LAN source and subnet discovery) and the Nostr v1 `cgmnostr:` follow link are not in V1 (the owner's setup has neither; v1 links carried plaintext secrets and had no UI). Follow the wearer with a protocol v2 invite instead.
 - Sensors: Dexcom G6 / ONE, Dexcom G7 / ONE+ / G7 15 Day / Stelo, Aidex X, Accu-Chek SmartGuide, the "other sensors" scan and the untested-sensor banner; the Libre 3 experiment preferences (minimal subscription set, connection priority, screen-off skip). Reason: no hardware to test them, the owner uses a Libre 3 (chunk 12; issues filed).
 
 **States and exits**: none (these features aren't in the app).
