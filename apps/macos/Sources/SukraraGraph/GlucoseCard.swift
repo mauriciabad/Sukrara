@@ -149,7 +149,9 @@ public enum GlucoseCard {
                                   sensor: SensorBadge.Look?, hour24: Bool, rec: CardLayout) {
         let small = Ink.font(max(11 * d, box.height * 0.17), .regular)
         let face = face(r, now: now, sensor: sensor)
-        if face.state == .warmingUp, let sensor { return drawWarmup(ctx, box, sensor, small, now, pal, d: d, rec: rec) }
+        if face.state == .warmingUp, let sensor {
+            return drawWarmup(ctx, box, sensor, small, now, pal, d: d, hour24: hour24, rec: rec)
+        }
         // an ended sensor says so as soon as it has ended, instead of a value or "No reading since" (not an error)
         if face.state == .ended { return drawEnded(ctx, box, pal, d: d, rec: rec) }
         guard let r, face.shown, let s = face.text else {
@@ -270,9 +272,9 @@ public enum GlucoseCard {
     /// A new sensor warming up: the time left ("42m") where the number goes, in the secondary colour, the sensor disc
     /// beside it filling up, and "Ready at 19:45" under it (GlucoseCard.drawWarmup on Android).
     private static func drawWarmup(_ ctx: CGContext, _ box: CGRect, _ look: SensorBadge.Look, _ small: CTFont, _ now: TimeInterval,
-                                   _ pal: GraphPalette, d: CGFloat, rec: CardLayout) {
+                                   _ pal: GraphPalette, d: CGFloat, hour24: Bool, rec: CardLayout) {
         guard let s = look.warmup else { return }
-        let line = look.warmupLine(now: now)
+        let line = look.warmupLine(now: now, hour24: hour24)
         let numBox = CGRect(x: box.minX, y: box.minY, width: box.width, height: box.height - CTFontGetSize(small) * 1.25)
         var numSize = numBox.height * 1.18
         let need = Ink.width(s, Ink.font(numSize, .bold, rounded: true)) + numSize * 0.6
