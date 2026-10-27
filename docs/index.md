@@ -2,7 +2,7 @@
 title: Sukrara (alpha)
 ---
 
-<img src="https://raw.githubusercontent.com/mauriciabad/Sukrara/main/poc/spikes/brand/assets/sukrara/macos/AppIcon-1024.png" alt="Sukrara icon" width="96">
+<img src="https://raw.githubusercontent.com/mauriciabad/Sukrara/main/assets/brand/sukrara/macos/AppIcon-1024.png" alt="Sukrara icon" width="96">
 
 # Sukrara — your sugar, now
 

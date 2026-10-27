@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="poc/spikes/brand/assets/sukrara/macos/AppIcon-1024.png" alt="Sukrara icon" width="120">
+  <img src="assets/brand/sukrara/macos/AppIcon-1024.png" alt="Sukrara icon" width="120">
 </p>
 
 <h1 align="center">Sukrara — your sugar, now</h1>
