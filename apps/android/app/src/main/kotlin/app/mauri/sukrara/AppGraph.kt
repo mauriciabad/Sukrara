@@ -17,6 +17,7 @@ import app.mauri.sukrara.feature.sensor.SensorUiModule
 import app.mauri.sukrara.feature.sharing.SharingDeps
 import app.mauri.sukrara.feature.treatments.LocalTreatmentSync
 import app.mauri.sukrara.feature.treatments.TreatmentsModule
+import app.mauri.sukrara.graph.GraphConfig
 import app.mauri.sukrara.monitor.MonitorModule
 import app.mauri.sukrara.monitor.alerts.AlertRecord
 import app.mauri.sukrara.monitor.alerts.AlertsModule
@@ -27,6 +28,8 @@ import app.mauri.sukrara.sensor.SensorModule
 import app.mauri.sukrara.sensor.pairing.PairingLoad
 import app.mauri.sukrara.sensor.pairing.ReceiverIdState
 import app.mauri.sukrara.sensor.source.SensorSourceKind
+import app.mauri.sukrara.widgets.WidgetPlacements
+import app.mauri.sukrara.widgets.WidgetsModule
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
@@ -39,6 +42,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import java.time.Duration
@@ -118,7 +122,16 @@ class AppGraph(
         )
     }
 
-    val sensorUi by lazy { SensorUiModule(app, sensor, data.settings, clock, scope, startMonitoring = { startMonitoring(StartReason.App) }) }
+    val sensorUi by lazy {
+        SensorUiModule(
+            app,
+            sensor,
+            data.settings,
+            clock,
+            scope,
+            startMonitoring = { startMonitoring(StartReason.App) },
+        )
+    }
 
     val sensorSettings by lazy { SensorSettingsBridge(sensor, data.settings, SensorSource) { startMonitoring(StartReason.App) } }
 
@@ -133,6 +146,24 @@ class AppGraph(
             readinessSource = null,
             unmuteAlerts = { scope.launch { alerts.controls.unmuteAll() } },
             resume = { scope.launch { startMonitoring(StartReason.Resume) } },
+            widgetPlaced = {
+                widgets.presence.refresh()
+                widgets.presence.placed.value
+            },
+        )
+    }
+
+    // the graph settings join when the settings repository builds GraphConfig (OPS issue c20)
+    val widgets by lazy {
+        WidgetsModule(
+            context = app,
+            scope = scope,
+            clock = clock,
+            glucose = monitor.hub.state,
+            treatments = recentTreatments(),
+            graphConfig = flowOf(GraphConfig()),
+            freshnessTicks = monitor.freshnessTicks,
+            store = data.typedStore("widgets", WidgetPlacements.serializer(), WidgetPlacements(), whenCorrupt = WidgetPlacements()),
         )
     }
 
@@ -160,6 +191,7 @@ class AppGraph(
             // (and so the service, the notification and the alerts) from starting
             step("data") { data.ready() }
             step("monitor") { monitor.ready() }
+            step("widgets") { widgets.start() }
         }
 
     /**
