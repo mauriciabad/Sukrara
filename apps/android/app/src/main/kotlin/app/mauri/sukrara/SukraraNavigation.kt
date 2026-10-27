@@ -38,17 +38,18 @@ fun SukraraNavigation(
         modifier = modifier,
         onBack = { backStack.removeLastOrNull() },
         entryDecorators = listOf(rememberSaveableStateHolderNavEntryDecorator(), rememberViewModelStoreNavEntryDecorator()),
-        entryProvider = entryProvider {
-            entry<HomeRoute> {
-                HomeScreen(
-                    viewModel = viewModel(factory = HomeViewModel.factory(graph)),
-                    onOpenSetup = { backStack.add(SetupRoute) },
-                    modifier = Modifier.padding(contentPadding),
-                )
-            }
-            entry<SetupRoute> {
-                SetupScreen(onDone = { backStack.removeLastOrNull() }, modifier = Modifier.padding(contentPadding))
-            }
-        },
+        entryProvider =
+            entryProvider {
+                entry<HomeRoute> {
+                    HomeScreen(
+                        viewModel = viewModel(factory = HomeViewModel.factory(graph)),
+                        onOpenSetup = { backStack.add(SetupRoute) },
+                        modifier = Modifier.padding(contentPadding),
+                    )
+                }
+                entry<SetupRoute> {
+                    SetupScreen(onDone = { backStack.removeLastOrNull() }, modifier = Modifier.padding(contentPadding))
+                }
+            },
     )
 }
