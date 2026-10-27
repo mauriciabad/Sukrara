@@ -42,7 +42,12 @@
   ],
   "strings_warn_only": [],
   "cleartext_ok": [],
-  "network_ok": [],
+  "network_ok": [
+    {
+      "path": "apps/android/share/src/main/kotlin/app/mauri/sukrara/share/transport/WebSocket.kt",
+      "reason": "Nostr sharing: relay WebSockets; RelayPool passes only wss:// URLs (Wire.secureRelays), never cleartext"
+    }
+  ],
   "durations_ok": {},
   "states_pending": [
     {
