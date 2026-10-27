@@ -11,6 +11,8 @@ plugins {
 dependencies {
     api(project(":core:model"))
     implementation(project(":core:designsystem"))
+    implementation(project(":sensor"))
+    implementation(libs.androidx.lifecycle.runtime.compose)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
     testImplementation(project(":core:testing"))
 }
