@@ -16,6 +16,8 @@ public final class AppDelegate: NSObject, NSApplicationDelegate {
     private var statusItem: StatusItemController?
     private var observers: [NSObjectProtocol] = []
     private let network = NWPathMonitor()
+    /// The last path status (nil before the monitor's first report).
+    private var networkSatisfied: Bool?
     private let store: DefaultsSettingsStore
     private var windows: WindowCoordinator?
     /// The wearer's mirrored settings while following (nil otherwise).
@@ -100,7 +102,7 @@ public final class AppDelegate: NSObject, NSApplicationDelegate {
         observers.append(
             workspace.addObserver(forName: NSWorkspace.didWakeNotification, object: nil, queue: .main) {
                 [weak self] _ in
-                Task { @MainActor in self?.model.systemTimeChanged() }
+                Task { @MainActor in self?.model.didWake() }
             })
         observers.append(
             NotificationCenter.default.addObserver(
@@ -118,11 +120,18 @@ public final class AppDelegate: NSObject, NSApplicationDelegate {
     /// The network came back: reconnect the relays now instead of waiting for the pool's watchdog (up to 270 s).
     private func observeNetwork() {
         guard model.follower != nil else { return }
+        // only a transition to satisfied: the monitor's first callback (at start) reports the current path, and the
+        // runtime is connecting then anyway
         network.pathUpdateHandler = { [weak self] path in
-            guard path.status == .satisfied else { return }
-            Task { @MainActor in self?.model.networkCameBack() }
+            let satisfied = path.status == .satisfied
+            Task { @MainActor in self?.pathChanged(satisfied: satisfied) }
         }
         network.start(queue: .main)
+    }
+
+    private func pathChanged(satisfied: Bool) {
+        defer { networkSatisfied = satisfied }
+        if satisfied && networkSatisfied == false { model.networkCameBack() }
     }
 
     /// A defaults change (Settings window, another process): the alert rules, the unit and the card follow.
@@ -146,6 +155,7 @@ public final class AppDelegate: NSObject, NSApplicationDelegate {
         Task {
             let permission = await center.refresh()
             model.notificationPermission = permission
+            model.focusCanHoldAlerts = permission == .allowed && !center.timeSensitiveAllowed
         }
     }
 }

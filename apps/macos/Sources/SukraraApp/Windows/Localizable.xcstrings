@@ -65,6 +65,22 @@
         }
       }
     },
+    "A Focus (Do Not Disturb, Sleep…) can hold back Sukrara's alarms on this Mac. Allow Sukrara in each Focus, and keep the phone as the alarm." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A Focus (Do Not Disturb, Sleep…) can hold back Sukrara's alarms on this Mac. Allow Sukrara in each Focus, and keep the phone as the alarm."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Un modo de concentración (No molestar, Dormir…) puede retener las alarmas de Sukrara en este Mac. Permite Sukrara en cada modo y deja que el móvil sea la alarma."
+          }
+        }
+      }
+    },
     "A phone" : {
       "localizations" : {
         "en" : {
@@ -765,6 +781,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Sigue a alguien"
+          }
+        }
+      }
+    },
+    "Follow someone to see and add their treatments" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Follow someone to see and add their treatments"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sigue a alguien para ver y añadir sus tratamientos"
           }
         }
       }
@@ -1485,6 +1517,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Solo una vez"
+          }
+        }
+      }
+    },
+    "Open Focus Settings" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open Focus Settings"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Abrir ajustes de concentración"
           }
         }
       }

@@ -95,6 +95,16 @@ import Testing
         #expect(FollowerAdapter.failure(.alreadyFollowing) == .alreadyFollowing)
     }
 
+    @Test func anInviteWhileFollowingKeepsTheStatus() async {
+        let following = FollowStatus.following(wearer: "Marta", lastReading: nil, canWrite: false)
+        let model = FollowModel(status: following, actions: nil)
+        model.linkText = Wire.inviteScheme + String(repeating: "a", count: 32)
+        #expect(InviteLink.parse(model.linkText) != nil)
+        await model.follow()
+        #expect(model.status == following)
+        #expect(model.failure == .alreadyFollowing)
+    }
+
     @Test func wearerSettingsOnlyWhileFollowing() {
         var s = FollowerSnapshot.empty
         s.wearerSettings = MirroredSettings(u: 1, json: #"{"graph":{"low":72}}"#)
