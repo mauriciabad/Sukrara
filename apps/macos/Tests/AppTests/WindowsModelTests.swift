@@ -75,6 +75,52 @@ func scratchStore() -> DefaultsSettingsStore {
         item.set(true)
         guard case .failed = item.status else { Issue.record("expected .failed, got \(item.status)"); return }
     }
+
+    @Test func notFoundIsItsOwnStateAndARegistrationThatDoesntTakeFails() {
+        let fake = FakeLogin()
+        fake.status = .notFound
+        let item = LoginItem(service: fake)
+        #expect(item.status == .notFound && !item.status.isOn && !item.status.offersLoginItems)
+        fake.next = .notFound  // register returned, but macOS still has no login item
+        item.set(true)
+        guard case .failed = item.status else { Issue.record("expected .failed, got \(item.status)"); return }
+        #expect(item.status.offersLoginItems && !item.status.isOn)
+    }
+
+    @Test func aFailureStaysUntilTheServiceSaysSomethingDefinite() {
+        let fake = FakeLogin()
+        fake.fail = true
+        let item = LoginItem(service: fake)
+        item.set(true)
+        item.refresh()  // becoming active: still not registered, the reason stays on screen
+        guard case .failed = item.status else { Issue.record("expected .failed, got \(item.status)"); return }
+        fake.status = .requiresApproval  // the user added it by hand in Login Items
+        item.refresh()
+        #expect(item.status == .needsApproval && item.status.isOn && item.status.offersLoginItems)
+        fake.fail = false
+        fake.next = .enabled
+        item.set(true)
+        #expect(item.status == .on)
+    }
+
+    @Test func everyStateBeyondOnAndOffHasALine() {
+        #expect(OpenAtLoginRows.note(.on) == nil && OpenAtLoginRows.note(.off) == nil)
+        #expect(OpenAtLoginRows.note(.needsApproval)?.warning == true)
+        #expect(OpenAtLoginRows.note(.notFound)?.warning == false)
+        #expect(OpenAtLoginRows.note(.failed("Operation not permitted"))?.text.contains("Operation not permitted") == true)
+    }
+}
+
+/// The panel's Add Treatment… row: available only while following with the wearer's permission, else the reason.
+@Suite struct AddTreatmentAvailabilityTests {
+    @Test func dimmedWithItsReasonUnlessAllowed() {
+        #expect(AddTreatmentAvailability(isFollowing: true, canWrite: true) == .available)
+        #expect(AddTreatmentAvailability(isFollowing: true, canWrite: true).reason == nil)
+        #expect(AddTreatmentAvailability(isFollowing: true, canWrite: false) == .notAllowed)
+        #expect(AddTreatmentAvailability(isFollowing: false, canWrite: true) == .notFollowing)
+        #expect(AddTreatmentAvailability(isFollowing: false, canWrite: false).reason != nil)
+        #expect(AddTreatmentAvailability(isFollowing: true, canWrite: false).reason != nil)
+    }
 }
 
 @Suite struct SetupFlowTests {

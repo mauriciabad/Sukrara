@@ -147,8 +147,7 @@ private struct SettingsWindowContent: View {
     var body: some View {
         SettingsView(
             model: model,
-            openAtLogin: Binding(
-                get: { app.loginItem?.status == .on }, set: { app.loginItem?.set($0) }),
+            loginItem: app.loginItem,
             updateResult: app.updates.flatMap { Self.text($0.state) },
             checkForUpdates: { [updates = app.updates] in Task { await updates?.check(userAsked: true) } },
             openFollow: openFollow)

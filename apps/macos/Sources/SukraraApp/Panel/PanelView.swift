@@ -8,7 +8,9 @@ import SwiftUI
 
 /// The dropdown under the status item. Every state it shows has its way out right here: not monitoring → why (and
 /// Finish setup); Mute all → countdown + Unmute; a side muted → its line + Unmute; Remind less → Remind as usual;
-/// notifications off → Open Notification Settings; an update → Download / Later.
+/// notifications off → Open Notification Settings; an update → Download / Later. Under them, like a menu: Add
+/// Treatment… (Return; dimmed with the reason when this Mac can't log), Treatments…, Settings… (⌘,), so a left click
+/// reaches every window without the right-click menu.
 struct PanelView: View {
     let model: AppModel
     /// The window layer's entry points (nil in a render without windows).
@@ -39,6 +41,7 @@ struct PanelView: View {
                 if model.focusCanHoldAlerts { focusNote }
                 if let alerts = model.alerts { AlertBlocks(alerts: alerts, now: context.date) }
                 if let updates = model.updates { UpdateRow(updates: updates) }
+                if let links { ActionRows(links: links) }
             }
             .padding(14)
             .frame(width: Self.cardSize.width + 28, alignment: .leading)
@@ -95,11 +98,118 @@ struct PanelView: View {
     }
 }
 
-/// What the window layer opens from the panel.
+/// What the window layer opens from the panel (each closes the panel first).
 struct PanelLinks {
     let setup: SetupModel
+    /// Whether this Mac may log (`AddTreatmentAvailability`).
+    let treatments: TreatmentsModel
     let openSetup: () -> Void
     let openFollow: () -> Void
+    let openAddTreatment: () -> Void
+    let openTreatments: () -> Void
+    let openSettings: () -> Void
+}
+
+/// Whether the panel's Add Treatment… can open, and why not in words (on the row, its tooltip and VoiceOver hint).
+enum AddTreatmentAvailability: Equatable {
+    case available
+    /// Following nobody: there's no wearer to log for.
+    case notFollowing
+    /// Following, but the wearer hasn't allowed this Mac to add entries.
+    case notAllowed
+
+    init(isFollowing: Bool, canWrite: Bool) {
+        self = !isFollowing ? .notFollowing : canWrite ? .available : .notAllowed
+    }
+
+    var reason: String? {
+        switch self {
+        case .available: nil
+        case .notFollowing: L10n.t("Follow someone to add treatments.")
+        case .notAllowed: L10n.t("Can't add treatments (the wearer decides)")
+        }
+    }
+}
+
+/// The panel's menu-like rows: Add Treatment… (the default button: Return), Treatments…, Settings… ⌘,.
+private struct ActionRows: View {
+    let links: PanelLinks
+
+    var body: some View {
+        let add = AddTreatmentAvailability(
+            isFollowing: links.treatments.isFollowing, canWrite: links.treatments.canWrite)
+        VStack(alignment: .leading, spacing: 2) {
+            Divider().padding(.bottom, 4)
+            Button(action: links.openAddTreatment) {
+                PanelRowLabel(title: L10n.t("Add Treatment…"), symbol: "plus.circle", shortcut: "↩")
+            }
+            .keyboardShortcut(add == .available ? .defaultAction : nil)
+            .disabled(add != .available)
+            .help(add.reason ?? "")
+            .accessibilityHint(add.reason ?? "")
+            if let reason = add.reason {
+                Text(reason)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .padding(.leading, 32)
+                    .accessibilityHidden(true)  // already the row's hint
+            }
+            Button(action: links.openTreatments) {
+                PanelRowLabel(title: L10n.t("Treatments…"), symbol: "list.bullet", shortcut: nil)
+            }
+            Divider().padding(.vertical, 4)
+            Button(action: links.openSettings) {
+                PanelRowLabel(title: L10n.t("Settings…"), symbol: "gearshape", shortcut: "⌘,")
+            }
+            .keyboardShortcut(",", modifiers: .command)
+        }
+        .buttonStyle(PanelRowStyle())
+    }
+}
+
+/// A menu item's look: symbol, title, the shortcut on the trailing edge (hidden from VoiceOver: it reads the
+/// shortcut from the button itself).
+private struct PanelRowLabel: View {
+    let title: String
+    let symbol: String
+    let shortcut: String?
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Image(systemName: symbol).frame(width: 18).accessibilityHidden(true)
+            Text(title)
+            Spacer(minLength: 8)
+            if let shortcut { Text(shortcut).foregroundStyle(.secondary).accessibilityHidden(true) }
+        }
+        .contentShape(Rectangle())
+    }
+}
+
+/// Full-width rows highlighted on hover and press like menu items, dimmed when disabled.
+private struct PanelRowStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View { Row(configuration: configuration) }
+
+    private struct Row: View {
+        let configuration: ButtonStyleConfiguration
+        @Environment(\.isEnabled) private var isEnabled
+        @State private var hovering = false
+
+        var body: some View {
+            let lit = hovering && isEnabled
+            configuration.label
+                .padding(.horizontal, 6)
+                .padding(.vertical, 4)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .foregroundStyle(lit ? AnyShapeStyle(.white) : AnyShapeStyle(.primary))
+                .background(
+                    RoundedRectangle(cornerRadius: 5)
+                        .fill(lit ? AnyShapeStyle(.tint) : AnyShapeStyle(.clear))
+                        .opacity(configuration.isPressed ? 0.8 : 1)
+                )
+                .opacity(isEnabled ? 1 : 0.45)
+                .onHover { hovering = $0 }
+        }
+    }
 }
 
 /// "Finish setup…" while a setup step is skipped or not reached; "Follow Someone…" when the walk is done but this
@@ -175,7 +285,6 @@ private struct UpdateRow: View {
                     // only the project's own release page
                     if release.htmlURL.host() == "github.com" { NSWorkspace.shared.open(release.htmlURL) }
                 }
-                .keyboardShortcut(.defaultAction)
             }
         case .failed:
             HStack {

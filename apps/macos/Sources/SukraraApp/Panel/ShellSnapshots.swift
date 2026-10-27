@@ -73,7 +73,12 @@
                 model.focusCanHoldAlerts = focus
                 let setupModel = SetupModel(store: store, follow: FollowModel(status: .notFollowing, actions: nil))
                 setupModel.flow = setup
-                let links = PanelLinks(setup: setupModel, openSetup: {}, openFollow: {})
+                let treatments = TreatmentsModel(rows: [], canWrite: false, actions: nil)
+                treatments.isFollowing = link.isFollowing
+                if case .following(_, true) = link { treatments.canWrite = true }
+                let links = PanelLinks(
+                    setup: setupModel, treatments: treatments, openSetup: {}, openFollow: {}, openAddTreatment: {},
+                    openTreatments: {}, openSettings: {})
                 return Scene(
                     view: AnyView(
                         VStack(alignment: .leading, spacing: 8) {
@@ -92,6 +97,10 @@
                     scene(readings: ending(118, rate: 0.2)) {
                         $0.perform(.muteAll(until: now.addingTimeInterval(3600)))
                     }
+                ),
+                (
+                    "panel-cant-add-treatments",
+                    scene(link: .following(wearer: "Marta", canWrite: false), readings: ending(108, rate: 0.1))
                 ),
                 ("panel-low-muted", scene(readings: ending(64, rate: -0.8)) { $0.perform(.mute(.low, minutes: 30)) }),
                 ("panel-waiting-first-reading", scene(readings: [])),
