@@ -242,7 +242,7 @@ Wearer only (`ui/NewSensorScreen.kt`; rules in `ui/NewSensorFlow.kt`, tests `New
 
 Android (`:feature:home`: `HomeScreen`, `HomeViewModel`, `NoDataReason`, `banners/HomeBanners`, `HomeCard` = the
 registered `app-panel` card surface; tests `NoDataReasonTest`, `BannerSlotTest`, `HomeViewModelTest`, `HomeGallery`).
-Glucose first: the card (value, arrow, slots, 6 h chart through the one renderer; drag to scroll back, pinch to zoom,
+Glucose first: the card (value, arrow, slots, 6 h chart through the one renderer; drag sideways to scroll back,
 *Now* to return) with the sensor's end date under it; then at most **one** non-glucose banner; the Mute alerts strip
 (time left + *Unmute*); the last 24 h of treatments (delete → *Treatment deleted* snackbar with *Undo* for 5 s; the
 delete is a tombstone version so sync carries it, Undo a newer version); *Add treatment* (floating pill, opens chunk
@@ -260,11 +260,11 @@ off* → Turn on Bluetooth; follower *No readings from the wearer's phone* (last
 sensor* (last reading …) → Sensor details. Not in V1 yet: "sensor owned by Sukrara Showcase" and "NFC scan needed"
 (the hub has no such states yet).
 
-**One banner slot**, by priority: (1) *Alerts may not ring* + the alert checklist's first problem (`AlertReadiness`,
+**One banner slot**, by priority: (0) *Monitoring stopped* (Android stopped the service; shown even while the last value is on screen) → Resume monitoring; (1) *Alerts may not ring* + the alert checklist's first problem (`AlertReadiness`,
 the same items and order as setup's permission step) → Fix; (2) *Turn off Sukrara Showcase* while
 `app.mauri.sukrara.poc` is installed (re-checked on resume) → Open its app info; (3) *Some saved data was damaged*
 (`DataModule.corruption`) → Review; (4) *Finish setup* (next step) → Continue; (5) *Not backed up*; (6) *Add the glucose
-widget*; (7) *Share with your clinic*. 1–3 can't be dismissed; Finish setup's close = later (back after 24 h until
+widget*; (7) *Share with your clinic*. 0–3 can't be dismissed; Finish setup's close = later (back after 24 h until
 done); 5–7 close for good (typed state `home-banners`). A banner whose input isn't known on this build yet is never
 shown. Not in V1 yet: tips, the quiet all-green reliability row, the clinic report card.
 
@@ -275,7 +275,7 @@ left), Back.
 **States and exits**: *value* → scroll/zoom the chart → *Now*; *no data* → the reason's action (or wait: warming up,
 core missing explains why); *banner* → its action, or close (non-safety), safety banners leave when fixed; *muted* →
 Unmute (button and TalkBack action); *treatment deleted* → Undo (5 s) or let it go; *damaged data* → Review → Got it /
-Back; *first launch* (no role) → setup opens over home and Back returns home; invite links open setup's join step.
+Back; *not set up* → the reason panel's Set up; invite links open setup over home (Back returns home).
 
 ## Untested sensor banner
 

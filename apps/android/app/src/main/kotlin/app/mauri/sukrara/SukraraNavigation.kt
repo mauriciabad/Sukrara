@@ -4,6 +4,7 @@
 package app.mauri.sukrara
 
 import android.content.ClipData
+import android.content.ActivityNotFoundException
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
@@ -12,6 +13,9 @@ import android.provider.Settings
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -54,10 +58,14 @@ fun SukraraNavigation(
     modifier: Modifier = Modifier,
 ) {
     val backStack = rememberNavBackStack(HomeRoute)
-    val glucose by graph.home.glucose.collectAsStateWithLifecycle()
-    // first launch (no role yet) or an invite link: setup on top of home, so Back always lands on home
+    // an invite link opens setup on top of home (Back lands on home), once per link: a recreated activity keeps it
+    var handledLink by rememberSaveable { mutableStateOf<String?>(null) }
     LaunchedEffect(deepLink) {
-        if ((isInviteLink(deepLink) || glucose.role == null) && backStack.last() != SetupRoute) backStack.add(SetupRoute)
+        val link = deepLink?.toString()
+        if (isInviteLink(deepLink) && link != handledLink) {
+            handledLink = link
+            if (backStack.last() != SetupRoute) backStack.add(SetupRoute)
+        }
     }
     val context = LocalContext.current
     NavDisplay(
@@ -99,14 +107,14 @@ private fun route(
     home: HomeModule,
 ) {
     when (action) {
-        HomeAction.OpenSetup, HomeAction.OpenBackup, HomeAction.OpenClinicUpload -> backStack.add(SetupRoute)
+        HomeAction.OpenSetup -> backStack.add(SetupRoute)
         HomeAction.PairSensor, HomeAction.OpenSensor -> open(context, Intent(NavTargets.ACTION_SENSOR_SETUP)) { backStack.add(SetupRoute) }
         HomeAction.AddTreatment -> open(context, Intent(NavTargets.ACTION_QUICK_TREATMENT)) {}
         HomeAction.EnableBluetooth -> open(context, Intent(Settings.ACTION_BLUETOOTH_SETTINGS)) {}
         HomeAction.OpenShowcaseInfo -> open(context, Showcase.appInfo()) {}
         HomeAction.ResumeMonitoring -> home.resumeMonitoring()
-        // the widget picker belongs to the widgets (chunk 20); the banner stays dismissible meanwhile
-        HomeAction.AddWidget -> Unit
+        // their banners stay hidden until the owning chunks (13, 20, integrations) provide the inputs and the route
+        HomeAction.AddWidget, HomeAction.OpenBackup, HomeAction.OpenClinicUpload -> Unit
     }
 }
 
@@ -117,7 +125,11 @@ private fun open(
     otherwise: () -> Unit,
 ) {
     if (intent.action?.startsWith("app.mauri.sukrara.") == true) intent.setPackage(context.packageName)
-    if (intent.resolveActivity(context.packageManager) != null) context.startActivity(intent) else otherwise()
+    try {
+        context.startActivity(intent)
+    } catch (_: ActivityNotFoundException) {
+        otherwise()
+    }
 }
 
 private fun copy(

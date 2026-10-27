@@ -13,6 +13,9 @@ import java.time.Instant
  * and their glucose. [safety] banners can't be dismissed: they go away only when the problem is fixed.
  */
 enum class BannerKind(val safety: Boolean) {
+    /** Android stopped monitoring: readings and alerts are paused even while the last value still shows. */
+    MonitoringStopped(safety = true),
+
     /** Something alerts need is missing (notifications, exact alarm, …): alerts may not ring. */
     AlertsUnreliable(safety = true),
 
@@ -72,6 +75,7 @@ object HomeBanners {
     fun pick(
         readiness: AlertReadiness?,
         env: HomeEnvironment,
+        monitoringStopped: Boolean,
         dataProblems: Int,
         memory: BannerMemory,
         now: Instant,
@@ -79,6 +83,7 @@ object HomeBanners {
         BannerKind.entries.firstOrNull { kind ->
             val wanted =
                 when (kind) {
+                    BannerKind.MonitoringStopped -> monitoringStopped
                     BannerKind.AlertsUnreliable -> readiness?.ready == false
                     BannerKind.TurnOffShowcase -> env.showcaseInstalled
                     BannerKind.DataProblem -> dataProblems > 0

@@ -27,7 +27,8 @@ class BannerSlotTest {
         problems: Int = 0,
         memory: BannerMemory = BannerMemory(),
         at: java.time.Instant = NOW,
-    ) = HomeBanners.pick(readiness, env, problems, memory, at)
+        stopped: Boolean = false,
+    ) = HomeBanners.pick(readiness, env, stopped, problems, memory, at)
 
     @Test fun `nothing to say shows no banner`() = assertNull(pick())
 
@@ -37,6 +38,9 @@ class BannerSlotTest {
         assertEquals(BannerKind.AlertsUnreliable, pick(broken, everything, problems = 2))
         assertEquals(AlertRequirement.Notifications, broken.firstProblem)
     }
+
+    @Test fun `monitoring stopped outranks everything, even with a value on screen`() =
+        assertEquals(BannerKind.MonitoringStopped, pick(broken, everything, problems = 1, stopped = true))
 
     @Test fun `the showcase banner outranks setup, data and the nudges`() =
         assertEquals(BannerKind.TurnOffShowcase, pick(env = everything, problems = 1))

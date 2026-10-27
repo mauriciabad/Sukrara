@@ -192,8 +192,8 @@ private fun GlucoseSection(
 ) {
     val resources = LocalContext.current.resources
     val unmuteLabel = stringResource(R.string.home_a11y_unmute)
-    // a reason replaces the value; the swap cross-fades (reduced motion: snaps) and is announced politely
-    Swap(state.reason, Modifier.semantics { liveRegion = LiveRegionMode.Polite }) { reason ->
+    // a reason replaces the value; the swap cross-fades (reduced motion: snaps); the reason is announced politely
+    Swap(state.reason) { reason ->
         if (reason == null) {
             Column(Modifier.padding(horizontal = 16.dp)) {
                 PanelCard(
@@ -235,6 +235,7 @@ private fun ReasonPanel(
 ) {
     val text = reasonText(reason, now)
     StateScreen(
+        modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
         kind = if (reason is NoDataReason.WarmingUp) StateKind.Empty else StateKind.NoData,
         title = text.first,
         reason = text.second,
@@ -305,6 +306,11 @@ private fun banner(
         }
     fun open(action: HomeAction): () -> Unit = { callbacks.onAction(action) }
     return when (kind) {
+        BannerKind.MonitoringStopped ->
+            Banner(
+                kind.name, R.drawable.home_ic_warning, stringResource(R.string.reason_stopped_title), stringResource(R.string.reason_stopped_body),
+                stringResource(R.string.reason_stopped_action), open(HomeAction.ResumeMonitoring), null,
+            )
         BannerKind.AlertsUnreliable -> {
             val problem = state.firstProblem ?: return null
             Banner(
@@ -419,7 +425,7 @@ private fun Treatments(
 
 @Composable
 private fun treatmentLabel(t: Treatment): String {
-    val amount = if (t.amount % 1.0 == 0.0) t.amount.toLong().toString() else t.amount.toString()
+    val amount = java.text.NumberFormat.getNumberInstance(LocalContext.current.resources.configuration.locales[0]).format(t.amount)
     val kind =
         when (t.kind) {
             TreatmentKind.RapidInsulin -> stringResource(R.string.home_treatment_rapid, amount)

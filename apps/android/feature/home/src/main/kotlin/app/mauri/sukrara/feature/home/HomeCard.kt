@@ -5,7 +5,7 @@ package app.mauri.sukrara.feature.home
 
 import android.content.res.Resources
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.gestures.detectTransformGestures
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -17,6 +17,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -91,7 +92,7 @@ private val SENSOR_LIFE = Duration.ofDays(15)
 private val WARMUP = Duration.ofHours(1)
 
 /**
- * The card for [glucose] and [treatments] at [now]: drag to scroll back in time, pinch to zoom, "Now" to come back.
+ * The card for [glucose] and [treatments] at [now]: drag sideways to scroll back in time, "Now" to come back.
  * TalkBack reads [description] (the value sentence and the chart summary) as one node; [actions] are its custom
  * actions (Unmute).
  */
@@ -116,14 +117,14 @@ fun PanelCard(
                 treatments = treatments,
                 nowS = nowS,
                 words = words,
-                status = glucose.alerts.mutedUntil?.let { CardStatus.Muted(it.epochSecond) } ?: CardStatus.None,
+                status = glucose.alerts.mutedUntil?.takeIf { it > now }?.let { CardStatus.Muted(it.epochSecond) } ?: CardStatus.None,
                 sensor = glucose.sensor.info(),
             )
         }
     val style = remember { CardStyle(graph = GraphStyle(windowS = DEFAULT_SPAN_S), sensorTime = true) }
     // null = following now; otherwise the end of the scrolled window
     var endS by rememberSaveable { mutableStateOf<Long?>(null) }
-    var spanS by rememberSaveable { mutableStateOf(DEFAULT_SPAN_S) }
+    val currentNow by rememberUpdatedState(nowS)
     val density = LocalDensity.current.density
     Box(modifier.fillMaxWidth()) {
         Canvas(
@@ -134,24 +135,22 @@ fun PanelCard(
                     contentDescription = description
                     if (actions.isNotEmpty()) customActions = actions
                 }.pointerInput(Unit) {
-                    detectTransformGestures { _, pan, zoom, _ ->
-                        spanS = (spanS / zoom).toLong().coerceIn(ChartView.MIN_SPAN_S, ChartView.MAX_SPAN_S)
-                        val shifted = (endS ?: nowS) - (pan.x / size.width * spanS).toLong()
-                        endS = shifted.takeIf { it < nowS - NOW_SNAP_S }
+                    // horizontal only, so a vertical swipe that starts on the card still scrolls the page
+                    detectHorizontalDragGestures { _, dx ->
+                        val now = currentNow
+                        val shifted = ((endS ?: now) - (dx / size.width * DEFAULT_SPAN_S).toLong()).coerceAtMost(now)
+                        endS = shifted.takeIf { it < now - NOW_SNAP_S }
                     }
                 },
         ) {
-            val view = ChartView(endS = endS ?: nowS, spanS = spanS)
+            val view = ChartView(endS = endS ?: nowS)
             drawIntoCanvas { canvas ->
                 GlucoseCard.draw(canvas.nativeCanvas, size.width, size.height, model, style, palette, density, CardSurface.APP_PANEL, CardPart.ALL, view = view)
             }
         }
-        if (endS != null || spanS != DEFAULT_SPAN_S) {
+        if (endS != null) {
             FilledTonalButton(
-                onClick = {
-                    endS = null
-                    spanS = DEFAULT_SPAN_S
-                },
+                onClick = { endS = null },
                 modifier = Modifier.align(Alignment.BottomEnd).padding(8.dp),
             ) { Text(stringResource(R.string.home_chart_now)) }
         }

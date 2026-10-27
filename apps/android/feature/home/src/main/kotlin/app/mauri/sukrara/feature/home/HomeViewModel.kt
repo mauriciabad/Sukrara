@@ -11,6 +11,7 @@ import app.mauri.sukrara.core.model.AlertReadiness
 import app.mauri.sukrara.core.model.AlertRequirement
 import app.mauri.sukrara.core.model.Clock
 import app.mauri.sukrara.core.model.GlucoseState
+import app.mauri.sukrara.core.model.ServiceState
 import app.mauri.sukrara.core.model.Treatment
 import app.mauri.sukrara.core.model.storage.StateStore
 import app.mauri.sukrara.core.model.storage.TreatmentRecord
@@ -125,7 +126,7 @@ class HomeViewModel(
                 now = now,
                 look = look,
                 reason = NoDataReason.of(glucose, look),
-                banner = HomeBanners.pick(readiness, env, problems.size, memory, now),
+                banner = HomeBanners.pick(readiness, env, glucose.service is ServiceState.Stopped, problems.size, memory, now),
                 firstProblem = readiness?.firstProblem,
                 nextSetupStep = env.nextSetupStep,
                 dataProblems = problems,
