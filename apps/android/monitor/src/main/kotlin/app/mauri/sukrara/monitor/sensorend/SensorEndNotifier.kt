@@ -4,8 +4,6 @@
 package app.mauri.sukrara.monitor.sensorend
 
 import android.app.Notification
-import android.app.NotificationChannel
-import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
@@ -14,7 +12,9 @@ import app.mauri.sukrara.core.model.SensorState
 import app.mauri.sukrara.core.model.storage.StateStore
 import app.mauri.sukrara.monitor.R
 import app.mauri.sukrara.monitor.alerts.AlertAlarm
+import app.mauri.sukrara.monitor.notify.Channels
 import app.mauri.sukrara.monitor.notify.NotificationGroups
+import app.mauri.sukrara.monitor.notify.NotificationIds
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -68,8 +68,6 @@ class SensorEndNotifier(
 
 /** The sensor notifications on channel `sensor`, in the `info` group (never bundled with alerts). */
 class AndroidSensorEndPresenter(private val ctx: Context) : SensorEndPresenter {
-    private val nm get() = ctx.getSystemService(NotificationManager::class.java)
-
     override fun warn(endsAt: Long, now: Long) {
         val hours = ((endsAt - now + 1799) / 3600).coerceAtLeast(1)
         val left = ctx.getString(app.mauri.sukrara.core.graph.R.string.duration_text_hours, hours)
@@ -99,8 +97,13 @@ class AndroidSensorEndPresenter(private val ctx: Context) : SensorEndPresenter {
 
     override fun clear() = NotificationGroups.cancel(ctx, ID, NotificationGroups.Group.INFO)
 
+    @Volatile private var channelsReady = false
+
     private fun builder(): Notification.Builder {
-        ensureChannel()
+        if (!channelsReady) {
+            Channels.create(ctx) // idempotent; the alarm receiver may post before the app made them
+            channelsReady = true
+        }
         return Notification.Builder(ctx, CHANNEL)
             .setSmallIcon(ctx.applicationInfo.icon)
             .setCategory(Notification.CATEGORY_REMINDER)
@@ -111,13 +114,6 @@ class AndroidSensorEndPresenter(private val ctx: Context) : SensorEndPresenter {
 
     private fun post(n: Notification) = NotificationGroups.post(ctx, ID, n, NotificationGroups.Group.INFO, CHANNEL)
 
-    private fun ensureChannel() {
-        nm.createNotificationChannel(
-            NotificationChannel(CHANNEL, ctx.getString(R.string.channel_sensor), NotificationManager.IMPORTANCE_DEFAULT).apply {
-                description = ctx.getString(R.string.channel_sensor_description)
-            },
-        )
-    }
 
     /** The app at its start screen, or with [action] (the sensor flow of chunk 18 handles [ACTION_PAIR_SENSOR]). */
     private fun openApp(action: String?): PendingIntent {
@@ -127,9 +123,8 @@ class AndroidSensorEndPresenter(private val ctx: Context) : SensorEndPresenter {
     }
 
     companion object {
-        /** Chunk 10's channel registry id for sensor notices. */
-        const val CHANNEL = "sensor"
-        const val ID = 1101
+        const val CHANNEL = Channels.SENSOR
+        const val ID = NotificationIds.SENSOR
         const val ACTION_PAIR_SENSOR = "app.mauri.sukrara.action.PAIR_SENSOR"
     }
 }

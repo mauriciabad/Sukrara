@@ -20,8 +20,8 @@ import app.mauri.sukrara.monitor.R
  */
 object NotificationGroups {
     enum class Group(val key: String, val summaryId: Int, private val nameRes: Int) {
-        ALERTS("app.mauri.sukrara.ALERTS", 1000, R.string.notification_group_alerts),
-        INFO("app.mauri.sukrara.INFO", 1100, R.string.notification_group_info),
+        ALERTS("app.mauri.sukrara.ALERTS", NotificationIds.ALERTS_SUMMARY, R.string.monitor_group_alerts),
+        INFO("app.mauri.sukrara.INFO", NotificationIds.INFO_SUMMARY, R.string.notification_group_info),
         ;
 
         fun name(ctx: Context): String = ctx.getString(nameRes)

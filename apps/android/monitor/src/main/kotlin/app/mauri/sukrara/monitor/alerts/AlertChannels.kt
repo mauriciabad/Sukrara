@@ -4,14 +4,13 @@
 package app.mauri.sukrara.monitor.alerts
 
 import android.app.NotificationChannel
-import android.app.NotificationChannelGroup
-import android.app.NotificationManager
+import android.app.Notification
 import android.content.Context
 import android.media.AudioAttributes
 import android.net.Uri
 import androidx.core.net.toUri
 import app.mauri.sukrara.alerts.AlertKind
-import app.mauri.sukrara.monitor.R
+import app.mauri.sukrara.monitor.notify.Channels
 
 /**
  * Two channels per alert kind, one per volume, so the person can set each kind's sound, vibration and Do Not
@@ -21,14 +20,11 @@ import app.mauri.sukrara.monitor.R
  *   from notification cooldowns; `setBypassDnd(true)` takes effect for Priority mode when the person granted DND access.
  * - `alert.<kind>`: `USAGE_NOTIFICATION_EVENT` + `CATEGORY_REMINDER` — notification volume, exempt from the cross-app
  *   "avalanche" cooldown after unlocking (PoC docs/15).
- * Both IMPORTANCE_HIGH (heads-up), sound `content://<appId>.alertsound/<kind>` ([AlertSoundProvider] picks the file at
+ * Both IMPORTANCE_HIGH (heads-up; ids, names and groups in [Channels]), sound `content://<appId>.alertsound/<kind>` ([AlertSoundProvider] picks the file at
  * play time), the kind's vibration. Ids never change: renaming a channel resets the person's choices.
  */
 object AlertChannels {
-    const val GROUP = "alerts"
-    const val GROUP_ALARM = "alerts_alarm"
-
-    fun id(kind: AlertKind, alarm: Boolean) = if (alarm) "alert_alarm.${kind.wire}" else "alert.${kind.wire}"
+    fun id(kind: AlertKind, alarm: Boolean) = if (alarm) Channels.alarm(kind.wire) else Channels.alert(kind.wire)
 
     val ALL: List<String> = AlertKind.entries.flatMap { listOf(id(it, false), id(it, true)) }
 
@@ -39,28 +35,16 @@ object AlertChannels {
 
     fun soundUri(ctx: Context, kind: AlertKind): Uri = "content://${ctx.packageName}.alertsound/${kind.wire}".toUri()
 
-    /** Creates (or renames, in the current language) the groups and channels; idempotent. */
-    fun ensure(ctx: Context) {
-        val nm = ctx.getSystemService(NotificationManager::class.java)
-        nm.createNotificationChannelGroup(NotificationChannelGroup(GROUP, ctx.getString(R.string.channel_group_alerts)))
-        nm.createNotificationChannelGroup(NotificationChannelGroup(GROUP_ALARM, ctx.getString(R.string.channel_group_alerts_alarm)))
-        for (kind in AlertKind.entries) for (alarm in listOf(false, true)) {
-            val label = AlertNotifier.kindLabel(ctx, kind)
-            nm.createNotificationChannel(
-                NotificationChannel(id(kind, alarm), label, NotificationManager.IMPORTANCE_HIGH).apply {
-                    group = if (alarm) GROUP_ALARM else GROUP
-                    description = ctx.getString(
-                        if (alarm) R.string.channel_alert_description_alarm else R.string.channel_alert_description,
-                        label,
-                    )
-                    setSound(soundUri(ctx, kind), audioAttributes(alarm))
-                    enableVibration(true)
-                    vibrationEffect = AlertHaptics.effect(ctx, kind)
-                    setBypassDnd(alarm)
-                    setShowBadge(false)
-                    lockscreenVisibility = android.app.Notification.VISIBILITY_PUBLIC
-                },
-            )
-        }
+    /** The alert setup of a channel [Channels] creates (sound, usage, vibration, Do Not Disturb for alarms). */
+    fun configure(channel: NotificationChannel, ctx: Context, kind: AlertKind, alarm: Boolean) = channel.apply {
+        setSound(soundUri(ctx, kind), audioAttributes(alarm))
+        enableVibration(true)
+        vibrationEffect = AlertHaptics.effect(ctx, kind)
+        setBypassDnd(alarm)
+        setShowBadge(false)
+        lockscreenVisibility = Notification.VISIBILITY_PUBLIC
     }
+
+    /** Creates the app's channels (chunk 10's registry, idempotent), the alert ones with [configure]. */
+    fun ensure(ctx: Context) = Channels.create(ctx)
 }

@@ -2,6 +2,7 @@
 <!-- Sukrara — https://github.com/mauriciabad/Sukrara
      Copyright (C) 2026 Maurici Abad
      SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- The monitor's components (docs/ARCHITECTURE.md "State + services"). Permissions are the app's (app manifest). -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
@@ -11,18 +12,28 @@
     <uses-permission android:name="android.permission.VIBRATE" />
 
     <application>
+        <!-- the one monitoring service of both roles; connectedDevice (not dataSync: capped at 6 h a day) -->
         <service
             android:name=".MonitoringService"
             android:exported="false"
             android:foregroundServiceType="connectedDevice" />
+        <!-- boot, update, time changes, exact-alarm permission → start the service, reschedule the health check.
+             Not exported: the system broadcasts listed still arrive. -->
         <receiver
             android:name=".BootReceiver"
             android:exported="false">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
                 <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+                <action android:name="android.intent.action.TIME_SET" />
+                <action android:name="android.intent.action.TIMEZONE_CHANGED" />
+                <action android:name="android.app.action.SCHEDULE_EXACT_ALARM_PERMISSION_STATE_CHANGED" />
             </intent-filter>
         </receiver>
+        <!-- the monitor's own alarms and intents: health check, freshness step, glucose notification swiped away -->
+        <receiver
+            android:name=".HealthCheckReceiver"
+            android:exported="false" />
         <receiver
             android:name=".AlertCheckReceiver"
             android:exported="false">
@@ -35,9 +46,6 @@
         </receiver>
         <receiver
             android:name=".AlertActionReceiver"
-            android:exported="false" />
-        <receiver
-            android:name=".HealthCheckReceiver"
             android:exported="false" />
         <!-- System UI opens the channel sounds from here (no permission possible); it serves only bundled sounds. -->
         <provider

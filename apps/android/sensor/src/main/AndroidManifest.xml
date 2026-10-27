@@ -4,8 +4,24 @@
      SPDX-License-Identifier: GPL-3.0-or-later -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
+    <!-- The Libre 3 link (connect by address from the NFC tap: no scanning, so no BLUETOOTH_SCAN / location). -->
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+    <!-- Starting / taking over a Libre 3 with one tap. -->
+    <uses-permission android:name="android.permission.NFC" />
+    <!-- LibreView sign-in (receiver ID) and Juggluco's local web server (loopback). -->
+    <uses-permission android:name="android.permission.INTERNET" />
+
+    <uses-feature android:name="android.hardware.bluetooth_le" android:required="false" />
+    <uses-feature android:name="android.hardware.nfc" android:required="false" />
+
+    <!-- The Sukrara showcase may own the sensor while both apps are installed (SensorModule.showcaseInstalled). -->
+    <queries>
+        <package android:name="app.mauri.sukrara.poc" />
+    </queries>
+
     <application>
-        <!-- Android 17: NFC intents reach only activities protected by DISPATCH_NFC_MESSAGE. Disabled until chunk 12/18. -->
+        <!-- Android 17: NFC intents reach only activities protected by DISPATCH_NFC_MESSAGE. Disabled until chunk 18
+             adds the activity (it hands the tag to NfcPairing). -->
         <activity
             android:name=".SensorTapActivity"
             android:enabled="false"

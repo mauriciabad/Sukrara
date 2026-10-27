@@ -22,8 +22,8 @@ data class GlucoseState(
     /** The follower's link to the wearer; null on a wearer phone. */
     val link: LinkState?,
     /**
-     * When monitoring started: the first reading from the current source (persisted; cleared when the source reports
-     * no sensor). Null = not monitoring yet, so no "no data" alarm can be armed (CHANGES P3).
+     * When monitoring started: the first reading from the current source (persisted; cleared only when the person
+     * removes the sensor or changes the role). Null = not monitoring yet, so no "no data" alarm can be armed (CHANGES P3).
      */
     val monitoringStartedAt: Instant? = null,
     /** Whether the monitoring service runs. */
@@ -68,6 +68,24 @@ sealed interface SensorState {
     data object CoreMissing : SensorState
 
     data object BluetoothOff : SensorState
+
+    /** The sensor can't be read until the person does something (added by chunk 12; the UI words live in chunk 18). */
+    data class ActionNeeded(val action: SensorAction) : SensorState
+}
+
+/** What the person has to do so the sensor can be read again. */
+enum class SensorAction {
+    /** Scan the sensor with the phone (NFC): a new sensor, a lost or unreadable pairing, or taking it over. */
+    ScanSensor,
+
+    /** Sign in to LibreView so V1 can start / take over the sensor with the account's receiver ID. */
+    SignInLibreView,
+
+    /** Another app (the Sukrara showcase) owns the sensor: stop it there or uninstall it, then scan again. */
+    StopOtherApp,
+
+    /** Grant the Nearby devices (Bluetooth) permission. */
+    GrantBluetooth,
 }
 
 /** Why the app isn't monitoring yet. Shown as "Not monitoring: no sensor yet" with the action "Set up sensor". */

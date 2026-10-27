@@ -22,6 +22,7 @@ import app.mauri.sukrara.graph.Clock
 import app.mauri.sukrara.monitor.AlertActionReceiver
 import app.mauri.sukrara.monitor.R
 import app.mauri.sukrara.monitor.notify.NotificationGroups
+import app.mauri.sukrara.monitor.notify.NotificationIds
 import java.util.Locale
 
 /**
@@ -177,8 +178,8 @@ class AlertNotifier(private val ctx: Context) : AlertPresenter {
     }
 
     companion object {
-        /** Notification ids: one per alert group (chunk 10's table reserves 1000+ for alerts; 1000 is the summary). */
-        fun idOf(group: AlertGroup): Int = 1001 + group.ordinal
+        /** One notification id per alert group ([NotificationIds]). */
+        fun idOf(group: AlertGroup): Int = NotificationIds.ALERTS_BASE + group.ordinal
 
         private fun requestCode(kind: AlertKind, what: String) = 2000 + kind.ordinal * 16 + AlertActionReceiver.ACTIONS.indexOf(what)
 
