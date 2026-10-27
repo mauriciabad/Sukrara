@@ -146,6 +146,7 @@ object SettingsSpec {
         SettingInfo("alerts.sounds.shuffle", "bool", null, false, null, "alerts:alerts", "defaults:alerts", "sounds.shuffle", null, null),
         SettingInfo("alerts.source", "enum", null, false, null, "alerts:alerts", "defaults:alerts", "source", null, null),
         SettingInfo("alerts.v", "format", null, false, null, "alerts:alerts", "defaults:alerts", "v", null, null),
+        SettingInfo("alerts.thresholdsConfirmedAt", "state", null, false, null, "alerts:thresholdsConfirmedAt", "", null, "android", "The wearer confirms the alert thresholds during the phone's first-run setup; the Mac follower takes the wearer's alerts"),
         SettingInfo("general.unit", "enum", null, false, null, "settings:unit", "defaults:unit", null, null, null),
         SettingInfo("setup.steps", "setup", null, false, null, "", "defaults:setupSteps", null, "mac", "The Mac's first-run walk (welcome, follow, alerts, notifications, open at login); Android's first run is its own role / permission flow with its own state"),
         SettingInfo("general.openAtLogin", "bool", null, false, null, "", "system:SMAppService.mainApp", null, "mac", "A menu bar app starts as a login item; Android starts Sukrara's service on boot by itself"),
@@ -230,6 +231,7 @@ object SettingsSpec {
         const val COUNTDOWN_HOURS = "countdownHours"
         const val SETTINGS_FROM = "settingsFrom"
         const val ALERTS = "alerts"
+        const val THRESHOLDS_CONFIRMED_AT = "thresholdsConfirmedAt"
         const val UNIT = "unit"
         const val SOURCE = "source"
         const val RELAY_SHARING = "relaySharing"
