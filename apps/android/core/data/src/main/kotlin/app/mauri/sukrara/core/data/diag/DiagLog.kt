@@ -9,13 +9,15 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
+import java.io.IOException
 
 /**
  * The app's diagnostic log (`files/diag/diag.log` + one rotated `diag.log.1`, each at most [maxBytes]): what the
  * "Copy report" button shares. Every module logs here instead of its own files.
  *
- * Rule for callers: log events and states, never glucose values, treatment amounts, keys, tokens or serials.
- * [Redact] still scrubs what looks like a key, token or secret query parameter, as a second line of defence.
+ * Rule for callers: log events and states, never glucose values, treatment amounts, keys, tokens or serials (free
+ * text can't be scrubbed of those reliably: a number may be a glucose value or a retry count). [Redact] still scrubs
+ * what looks like a key, token, secret query parameter or sensor serial, as a second line of defence.
  */
 class DiagLog(
     private val dir: File,
@@ -43,13 +45,19 @@ class DiagLog(
         listOf(previous, current).filter { it.exists() }.joinToString("") { it.readText() }
     }
 
+    /** A failing write (disk full) loses the line, never crashes the app. */
     private fun append(line: String) {
-        dir.mkdirs()
-        if (current.exists() && current.length() + line.length > maxBytes) {
-            previous.delete()
-            current.renameTo(previous)
+        val bytes = line.encodeToByteArray()
+        try {
+            dir.mkdirs()
+            if (current.exists() && current.length() + bytes.size > maxBytes) {
+                previous.delete()
+                current.renameTo(previous)
+            }
+            current.appendBytes(bytes)
+        } catch (_: IOException) {
+            // nowhere left to report it; the next line tries again
         }
-        current.appendText(line)
     }
 
     private companion object {
@@ -70,6 +78,8 @@ object Redact {
         Regex("\\b[0-9a-fA-F]{16,}\\b") to "<hex>",
         Regex("\\b[A-Za-z0-9_-]{8,}\\.[A-Za-z0-9_-]{8,}\\.[A-Za-z0-9_-]{8,}\\b") to "<token>",
         Regex("[A-Za-z0-9+/]{32,}={0,2}") to "<token>",
+        // sensor serials (Libre: 9–11 upper-case letters and digits with at least two of each)
+        Regex("\\b(?=[A-Z0-9]*[0-9][A-Z0-9]*[0-9])(?=[A-Z0-9]*[A-Z][A-Z0-9]*[A-Z])[A-Z0-9]{9,11}\\b") to "<serial>",
     )
 
     fun scrub(text: String): String = rules.fold(text) { acc, (pattern, replacement) -> pattern.replace(acc, replacement) }

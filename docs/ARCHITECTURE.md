@@ -1,5 +1,54 @@
 # Sukrara V1 architecture
 
+How Sukrara V1 is built. Each part is filled in by the work that builds it; the rules are in
+[`CLAUDE.md`](../CLAUDE.md), the day-to-day know-how in [`DEVELOPMENT.md`](DEVELOPMENT.md), what the apps do in
+[`FEATURES.md`](FEATURES.md).
+
+## Repository layout
+
+| Path | What |
+|---|---|
+| `apps/android/` | the Android app (Gradle root: own `settings.gradle.kts`, wrapper, `build-logic/`) |
+| `apps/macos/` | the Mac app (SwiftPM root: `Package.swift`, `Sources/`, `Tests/`, `Bundle/`) |
+| `contracts/` | what both apps agree on and are tested against: alert spec + scenarios, graph fixtures + surface registry, settings schema, protocols + vectors, treatment / export / pen fixtures ([README](../contracts/README.md)) |
+| `assets/brand/` | icons and brand art for both apps and the docs |
+| `poc/` | the frozen showcase PoC (0.11.x) and its investigations; buildable, never changed |
+| `tools/` | `check/` (the rules as checks), `hooks/`, `settings/gen.py`, `release/`, `install.sh` |
+| `VERSION` | the one version source (`0.90.0` → versionCode / CFBundleVersion 90000) |
+
+## Identity and storage
+
+- Android `app.mauri.sukrara`; Mac `app.mauri.sukrara`, widget `app.mauri.sukrara.widget`, App Group
+  `QWUV9H4A3G.app.mauri.sukrara`. V1 installs next to the PoC (`app.mauri.sukrara.poc`) and reads none of its data.
+- Settings: [`contracts/settings/settings.json`](../contracts/settings/settings.json) → generated `SettingsSpec`
+  (Android Preferences DataStore files by area, Mac UserDefaults). Every persisted format carries a version.
+
+## Android (`apps/android`)
+
+### Build
+<!-- Chunk 02: Gradle / AGP / Kotlin versions, convention plugins, signing, native core guard. -->
+
+### Modules
+<!-- Chunk 02: the module graph and what each module owns. -->
+
+### State and dependency injection
+<!-- Chunks 02 / 10: AppGraph, GlucoseHub, dispatchers, error policy. -->
+
+### Services, alerts and notifications
+<!-- Chunks 10 / 11: MonitoringService, alert runtime, channel registry. -->
+
+### Sensor
+<!-- Chunks 12 / 18: GattLink, Libre 3, pairing store, new-sensor flow. -->
+
+### Sharing
+<!-- Chunks 06 / 13 / 24 / 25: protocol, owner / follower engines, nearby share, first-run setup. -->
+
+### Card, widgets and UI
+<!-- Chunks 08 / 16 / 17 / 20: the one renderer, home, settings, widgets. -->
+
+### Integrations and pens
+<!-- Chunks 19 / 26. -->
+
 ## Mac (`apps/macos`)
 
 One SwiftPM package (swift-tools 6.2, Swift 6 language mode, macOS 15, arm64). Build, test and bundle commands:
@@ -178,3 +227,83 @@ core); the app shell (chunk 21) owns notifications, sounds, timers and storage.
   the SPEC §7 driver; also run with an `AlertMirror` for `mirror` scenarios), `SettingsCodecTests`,
   `EpisodesRestoreTests`, `EngineTests` (safety invariants, effect order, clock jumps, deterministic ids),
   `MuteCopyTests`.
+
+## Android storage (`apps/android/core/data`)
+
+Ports live in `:core:model` (`storage/Storage.kt`, in-memory fakes in `:core:testing`); `:core:data` implements them
+and `DataModule` (built lazily by `AppGraph`, `ready()` opens the database on IO) exposes them. No PoC files or keys are
+read (new app id, no migration). Nothing is in cloud backup or device transfer (`allowBackup=false`,
+`data_extraction_rules.xml` excludes every domain).
+
+| What | Where | API |
+|---|---|---|
+| Settings | `datastore/<store>.preferences_pb`, one per schema store, keys from `contracts/settings/settings.json` | `SettingsRepository` + `SchemaSettings.number/bool/text(id)` |
+| Typed state (alert episodes, sensor pairing, …) | `files/state/<name>.json` (DataStore + kotlinx JSON) | `DataModule.typedStore(name, serializer, initial, whenCorrupt)` |
+| Secrets | `files/secure/<name>.bin` = `0x01` ‖ IV ‖ AES-256-GCM (AAD = name); Keystore alias `sukrara.<name>`, one key per purpose: `identity.owner`, `identity.follower`, `nightscout`, `tidepool`, `libreview`, `sensor` | `SecureStore` (`KeystoreSecureStore` on `SecretBox`) |
+| History | `databases/sukrara.db` (Room v1, schema in `core/data/schemas/`): `readings` (PK t+source), `treatments` (LWW on `modified_at`, tombstones), `seen_wraps`, `rejects`, `outbox` | `ReadingsRepository`, `TreatmentsRepository`, DAOs for the sharing ledger |
+| Other files | `files/<path>` atomic tmp + fsync + rename | `DataModule.fileStore(path, codec)` → `Loaded / Missing / Corrupt` |
+| Diagnostics | `files/diag/diag.log` + `.1`, 512 KB each, `Redact` scrubs keys / tokens | `DiagLog` |
+| Network | one OkHttp client (15 s connect, 30 s read, 60 s call, UA `Sukrara/<version>`, no body logging); one `SukraraJson` (`ignoreUnknownKeys`, `explicitNulls = false`) | `DataModule.http`, `DataModule.json` |
+
+Retention (`Retention`, applied in `ready()`): readings 90 days, seen wraps / rejects / sent outbox 14 days.
+
+**Corruption is never silent.** A file that can't be decoded is copied to `<file>.corrupt-<epochMs>` and reported to
+`DataModule.corruption` (`CorruptionLog`), which `AppGraph.startupState` turns into a visible problem with *Copy
+report*. `ready()` re-reports every kept copy at each start until the person acknowledges it (renamed `.seen-…`, still
+kept), so a crash or a background start can't hide it. Typed stores continue from the owner's explicit `whenCorrupt`
+value and expose their own `corruption` flow; a `FileStore` keeps the damaged file in place and returns `Corrupt` on
+every load (never `Missing`) until a deliberate save or delete; settings read as defaults. A secret that can't be opened throws
+`SecretUnreadableException` on every read and stays in place (an unreadable identity is never "no identity"); a
+transient Keystore error (busy after an OS update) throws `transient = true`, is not reported and deletes nothing; keys
+are never deleted by an error path. A damaged database is copied aside (with its WAL) and reported by
+`QuarantiningOpenHelperFactory` before SQLite recreates it. The database is not encrypted yet (issue: SQLCipher).
+
+## Android protocol (`apps/android/core/protocol`)
+
+Nostr protocol v2 + identity ([`contracts/protocol`](../contracts/protocol/)) as one pure-JVM module: no Android, no
+I/O, no clock (time is a parameter), no nostr-sdk. The wire formats are the PoC's byte for byte (kinds, tag order,
+TTLs, JSON field names and number forms, invite link `https://sukrara.mauri.app/join#…`, BLE framing), so a restored
+identity keeps working with followers on Sukrara 0.11 (Android and Mac).
+
+- **Crypto seam**: `NostrCrypto` (sign / verify, NIP-44 v2, NIP-59 gift wraps, nsec / npub, NIP-49). `:share`
+  implements it with `org.nostrdevkit:nostr-sdk` (AAR, chunk 13). The module's tests use the JVM build of the same
+  library (`nostr-sdk-jvm`, test classpath only). `testFixtures` ships `NostrCryptoContractTest` (OGS vectors: every
+  event verifies / decrypts, wraps open to their rumor and its `created_at`, a rumor whose author isn't the seal signer
+  is refused, NIP-49 and nsec round trips, the BLE HELLO proof); every implementation subclasses it. The PoC's
+  hand-written BIP-340 verifier is gone: the HELLO proof is checked by the library's `Event.verify()`. HKDF is RFC 5869
+  over the JCA's HMAC, pinned by RFC 5869 case 1 and `identity/vectors.json`.
+- **Keys**: `PublicKeyHex`, `SecretKey` (redacted `toString`, hex only via `revealHex()`), `KeyPair`, `Derive.inviteKey`.
+- **Events** (`event/`): payload codecs per family (`ReadingsCodec` live / sensor / chunk, `AlertCodec`,
+  `TreatmentCodec` + `WriterScope`, `SettingsCodec`, `RosterCodec`, `BackupCodec` — reads what the showcase writes,
+  `RumorCodec` for 30500 / 30501 / 30502, `Profile` / `Avatar`) and `EventFactory`, which signs every event the
+  wearer and writers publish. Decoders throw only `InvalidPayload`; health payloads redact `toString`.
+- **Follower acceptance** (`follow/StreamFollower`): the transport-independent judge for relays and Bluetooth: verdict
+  `Accepted(item) | Rejected(reason) | Ignored(reason, rekey?)` with the codes of the OGS / sync fixtures. It keeps only
+  trust and dedupe state (`FollowerState`: status, sid, epochs, roster, writer-scope creators, settings `u`, seen ids
+  pruned at their expiry, rekey throttle); storing readings / treatments / settings is the follower engine's (25).
+  A port of the reference follower plus, from the PoC `FollowerEngine`: the settings rule, a key delivery newer than
+  the revoked notice re-approves (older notices ignored), a newer epoch's key outranks older-epoch rosters, rekey only
+  for events newer than the latest key with `have` = newest held `gk`. Events rejected only because the author isn't
+  in the roster yet aren't remembered, so they're judged again after the roster arrives. Dropped from the PoC engine:
+  the 24 h treatment window and the `via` tag (UI / engine concerns).
+- **Owner side** (`owner/`): `IdentityConflict.check` (A3: a newer roster without this device, under an epoch we
+  don't hold, or a newer backup with other epochs = another app publishing as this identity → `Conflict`; our own
+  echoes, our own rotation and late old events are `Fine`; the engine persists `OwnerMarks`), `RecoveryCode` (NIP-49
+  export log_n 18 / key_security 0x01; import of ncryptsec, nsec or hex for the first-run restore).
+- **Invites** (`invite/`): `InviteLink` parse / build, `Invites.create` / `open` (fingerprint, expiry, typed failure),
+  match code. **BLE** (`ble/`): UUIDs, framing, `Reassembler` and `RateLimit` (limits of B§4.3 / B§8), HELLO / INFO
+  messages, `HelloProof`.
+- **Fixtures**: `contracts/protocol/{identity,ogs}` vectors and `contracts/protocol/sync/*.json` (owner → follower
+  sequences and the owner-conflict cases, generated here with `-Psukrara.regen=true`, replayed by the Mac too).
+
+## Contracts and tests
+
+Both apps' tests read `contracts/` (Android: the `sukrara.contracts` system property from the convention plugin;
+Mac: `Contracts.url(…)`). A contract change lands with both implementations (`tools/check` parity groups, CI runs
+both apps). Alert scenario expectations change only with the owner's OK.
+
+## Release
+
+`VERSION` → both apps. Android: `tools/release/android-release.sh` (assembleRelease with the release key +
+`verify-apk.sh`); Mac: `tools/release/mac-release.sh` (bundle + dmg + `verify-app.sh`). 0.x versions are GitHub
+prereleases; both apps' update checks include prereleases only on a prerelease build.

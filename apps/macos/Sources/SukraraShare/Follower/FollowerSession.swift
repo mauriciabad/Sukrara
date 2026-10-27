@@ -370,8 +370,8 @@ public struct FollowerSession: Sendable {
             if !delivery.devices.isEmpty { state.devices = delivery.devices }
             if !delivery.relays.isEmpty { state.relays = delivery.relays }
         }
-        // A newer epoch's key outranks every roster of older epochs (phone change, identity restore): a refreshed or
-        // late roster from the replaced device can't bring its devices back before the new epoch's roster arrives.
+        // A newer epoch's key outranks every roster of older epochs (PoC FollowerEngine; sync/rotation.json): a late
+        // or refreshed roster from the replaced device can't bring its devices back before the new roster arrives.
         if delivery.epoch > state.rosterEpoch {
             state.rosterEpoch = delivery.epoch
             state.rosterCreatedAt = -1

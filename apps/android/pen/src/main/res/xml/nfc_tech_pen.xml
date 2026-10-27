@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Sukrara — https://github.com/mauriciabad/Sukrara
+     Copyright (C) 2026 Maurici Abad
+     SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- NovoPen 6 / Echo Plus: an NFC Forum Type 4 tag whose NDEF check times out, so it is dispatched as IsoDep + NfcA.
+     This also matches bank/transit cards: the read activity finishes silently for any tag that isn't a pen. -->
+<resources>
+    <tech-list>
+        <tech>android.nfc.tech.IsoDep</tech>
+        <tech>android.nfc.tech.NfcA</tech>
+    </tech-list>
+</resources>

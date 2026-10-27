@@ -12,4 +12,10 @@ plugins {
     alias(libs.plugins.kotlin.serialization) apply false
     alias(libs.plugins.ksp) apply false
     alias(libs.plugins.room) apply false
+    alias(libs.plugins.spotless) apply false
+}
+
+// `./gradlew check` also runs the convention plugins' own tests (AppVersionTest…).
+tasks.register("check") {
+    dependsOn(gradle.includedBuild("build-logic").task(":convention:test"))
 }

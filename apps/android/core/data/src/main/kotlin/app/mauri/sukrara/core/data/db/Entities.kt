@@ -15,7 +15,7 @@ data class ReadingEntity(
     val source: String,
     val mgdl: Int,
     /** Trend rate in mg/dL/min when the source sends one. */
-    val rate: Float?,
+    val rate: Double?,
 )
 
 /** A Nostr gift wrap already processed (dedupe across relays); pruned with the readings. */
