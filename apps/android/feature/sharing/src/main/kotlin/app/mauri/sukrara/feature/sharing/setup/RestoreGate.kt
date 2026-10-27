@@ -17,9 +17,6 @@ enum class RestoreBlock {
 
     /** A3: Sukrara Showcase is installed and the person hasn't confirmed its sharing is off. */
     ShowcaseMayBeSharing,
-
-    /** The restore hasn't been verified against the Showcase's followers in this build yet (chunk 13b). */
-    NotVerifiedYet,
 }
 
 /**
@@ -40,13 +37,11 @@ data class RestoreGate(val blocks: Set<RestoreBlock>) {
             ownSensorLive: Boolean,
             showcaseInstalled: Boolean,
             showcaseSharingOffConfirmed: Boolean,
-            wireVerified: Boolean,
         ): RestoreGate =
             RestoreGate(
                 buildSet {
                     if (!ownSensorLive) add(RestoreBlock.NoLiveReading)
                     if (!RestoreIdentity.restoreAllowed(showcaseInstalled, showcaseSharingOffConfirmed)) add(RestoreBlock.ShowcaseMayBeSharing)
-                    if (!wireVerified) add(RestoreBlock.NotVerifiedYet)
                 },
             )
 

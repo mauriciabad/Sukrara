@@ -18,8 +18,7 @@ class RestoreGateTest {
         live: Boolean = true,
         installed: Boolean = false,
         confirmed: Boolean = false,
-        verified: Boolean = true,
-    ) = RestoreGate.evaluate(live, installed, confirmed, verified)
+    ) = RestoreGate.evaluate(live, installed, confirmed)
 
     @Test
     fun `disabled without a live reading`() {
@@ -33,11 +32,6 @@ class RestoreGateTest {
     }
 
     @Test
-    fun `disabled until the restore is verified against the Showcase's followers`() {
-        assertEquals(setOf(RestoreBlock.NotVerifiedYet), gate(verified = false).blocks)
-    }
-
-    @Test
     fun `enabled when every condition holds`() {
         assertTrue(gate().open)
         assertTrue(gate(installed = true, confirmed = true).open)
@@ -45,7 +39,7 @@ class RestoreGateTest {
 
     @Test
     fun `every block at once`() {
-        assertEquals(RestoreBlock.entries.toSet(), gate(live = false, installed = true, verified = false).blocks)
+        assertEquals(RestoreBlock.entries.toSet(), gate(live = false, installed = true).blocks)
     }
 
     private val now = Instant.parse("2026-10-27T08:00:00Z")
