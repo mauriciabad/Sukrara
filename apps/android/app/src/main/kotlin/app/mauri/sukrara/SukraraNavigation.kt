@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara
 
+import android.app.Activity
 import android.content.ActivityNotFoundException
 import android.content.ClipData
 import android.content.ClipboardManager
@@ -159,8 +160,11 @@ private fun route(
 
         HomeAction.ResumeMonitoring -> home.resumeMonitoring()
 
-        // their banners stay hidden until the owning chunks (13, 20, integrations) provide the inputs and the route
-        HomeAction.AddWidget, HomeAction.OpenBackup, HomeAction.OpenClinicUpload -> Unit
+        // the launcher's own dialog places the combined widget; home re-checks on resume and the pin callback
+        HomeAction.AddWidget -> (context as? Activity)?.let { context.graph.widgets.presence.pin(it) }
+
+        // their banners stay hidden until the owning chunks (13, integrations) provide the inputs and the route
+        HomeAction.OpenBackup, HomeAction.OpenClinicUpload -> Unit
     }
 }
 

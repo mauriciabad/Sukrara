@@ -196,11 +196,9 @@ class CardLayoutTest {
         c: GraphConfig,
         p: GraphPlace,
         graph: Boolean = true,
-        value: Boolean = true,
     ) = CardStyle(
         graph = if (graph) c.graphStyle(c.hours(p)) else null,
         rings = c.rings(),
-        value = value,
         last = c.lastPlace,
         lastElse = c.lastElseRing(),
         sensorTime = c.sensorTime(p),
@@ -211,18 +209,16 @@ class CardLayoutTest {
     /** The registered card surfaces' shapes (surfaces.json parts and sizes). */
     private fun shapes() =
         listOf(
+            // the widgets' real style (WidgetStyle.kt, what :widgets draws with)
             Shape("widget-value", GraphPlace.WIDGETS, listOf(CardPart.ALL to 0f), sizes("widget-value")) {
-                full(it, GraphPlace.WIDGETS, graph = false)
+                widgetCardStyle(CardSurface.WIDGET_VALUE, it)
             },
             Shape("widget-graph", GraphPlace.WIDGETS, listOf(CardPart.ALL to 0f), sizes("widget-graph")) {
-                full(it, GraphPlace.WIDGETS, value = false)
+                widgetCardStyle(CardSurface.WIDGET_GRAPH, it)
             },
-            Shape(
-                "widget-combined",
-                GraphPlace.WIDGETS,
-                listOf(CardPart.ALL to 0f),
-                sizes("widget-combined"),
-            ) { full(it, GraphPlace.WIDGETS) },
+            Shape("widget-combined", GraphPlace.WIDGETS, listOf(CardPart.ALL to 0f), sizes("widget-combined")) {
+                widgetCardStyle(CardSurface.WIDGET_COMBINED, it)
+            },
             Shape("lockscreen", GraphPlace.WIDGETS, listOf(CardPart.ALL to 0f), sizes("lockscreen")) { full(it, GraphPlace.WIDGETS) },
             Shape(
                 "first-reading",
