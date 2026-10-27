@@ -82,7 +82,8 @@ public enum GlucoseCard {
             }
         }
         if age != .none, let latest {
-            drawAgeLabel(ctx, chart, latest, now, age, pal, d: d, rec: rec)
+            // over the plot itself, clear of the % column and the y axis labels
+            drawAgeLabel(ctx, rec.first("chart.plot")?.box ?? chart, latest, now, age, pal, d: d, rec: rec)
         }
         // a graph-only card without its chart: the value's face alone
         if noChart && !st.value {
@@ -191,23 +192,25 @@ public enum GlucoseCard {
         return cx.last.map { x - ($0 - size / 2) + gap + Slots.leftInset(items, r: size / 2) } ?? 0
     }
 
-    /// The number + arrow, and under it the late reading's time and/or the status badge (`look`). The badge takes a
-    /// row under the number when the box is tall enough to keep the number at least 26 pt; otherwise it shrinks to its
-    /// icon beside the arrow, or is left out when there's no room there either.
-    /// A card without a value: the reading's time centred over the top of `chart` on a background pill, after the
-    /// "no readings" icon from 20 min (`age`, freshness.json `graph_only`; GlucoseCard.kt `drawAgeLabel`).
+    /// A card without a value: the reading's time centred over the top of the chart's `plot` on a background pill,
+    /// after the "no readings" icon from 20 min (`age`, freshness.json `graph_only`; GlucoseCard.kt `drawAgeLabel`).
+    /// The text shrinks to fit the plot's width.
     private static func drawAgeLabel(
-        _ ctx: CGContext, _ chart: CGRect, _ r: GraphReading, _ now: TimeInterval, _ age: Freshness.AgeMark,
+        _ ctx: CGContext, _ plot: CGRect, _ r: GraphReading, _ now: TimeInterval, _ age: Freshness.AgeMark,
         _ pal: GraphPalette, d: CGFloat, rec: CardLayout
     ) {
         let text = Freshness.timeText(r.t, now: now)
-        let size = min(max(11 * d, chart.height * 0.11), 18 * d)
+        var size = min(max(10 * d, plot.height * 0.12), 16 * d)
+        func width(_ s: CGFloat) -> CGFloat {
+            (age == .noReadings ? s * 1.45 : 0) + Ink.width(text, Ink.font(s, .semibold)) + s
+        }
+        if width(size) > plot.width { size *= max(0.6, plot.width / width(size)) }
         let font = Ink.font(size, .semibold)
         let icon = age == .noReadings ? size * 1.15 : 0
         let gap = icon > 0 ? size * 0.3 : 0
         let padX = size * 0.5, padY = size * 0.25
         let w = icon + gap + Ink.width(text, font) + 2 * padX, h = size * 1.2 + 2 * padY
-        let box = CGRect(x: chart.midX - w / 2, y: chart.minY + 2 * d, width: w, height: h)
+        let box = CGRect(x: plot.midX - w / 2, y: plot.minY + 2 * d, width: w, height: h)
         if !pal.knockout {
             ctx.setFillColor(pal.bg.copy(alpha: 0.9) ?? pal.bg)
             ctx.addPath(CGPath(roundedRect: box, cornerWidth: h / 2, cornerHeight: h / 2, transform: nil))
@@ -223,6 +226,9 @@ public enum GlucoseCard {
         rec.add("time.text", nil, text)
     }
 
+    /// The number + arrow, and under it the late reading's time and/or the status badge (`look`). The badge takes a
+    /// row under the number when the box is tall enough to keep the number at least 26 pt; otherwise it shrinks to its
+    /// icon beside the arrow, or is left out when there's no room there either.
     private static func drawValue(
         _ ctx: CGContext, _ box: CGRect, _ r: GraphReading?, _ fr: Freshness, _ now: TimeInterval,
         _ bands: Bands, _ pal: GraphPalette, d: CGFloat, look: StatusBadge.Look?,

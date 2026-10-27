@@ -52,12 +52,15 @@ import Testing
         #expect(WidgetTimeline.reloadAfter(dates) == nil)
     }
 
-    @Test func aMuteTicksEachMinuteOfItsLastHourAndEnds() {
+    @Test func aMuteCountsDownAndEnds() {
         let alerts = CardAlerts(status: .paused(.high, until: now + 5400))
         let o = offsets(WidgetTimeline.dates(snapshot(readingAge: nil, alerts: alerts), now: nowDate))
         #expect(o.contains(5400))
-        #expect(o.contains(5400 - 60) && o.contains(5400 - 3600))
+        // each minute of the last 15, every 5 min of the hour before, nothing earlier
+        #expect((1...15).allSatisfy { o.contains(5400 - Double($0 * 60)) })
+        #expect(o.contains(5400 - 1200) && !o.contains(5400 - 960) && o.contains(5400 - 3600))
         #expect(!o.contains(5400 - 3660))
+        #expect(o.count == 1 + 1 + 15 + 9)
         // Mute all without an end never adds entries
         let forever = CardAlerts(status: .muted(until: AlertStatus.never))
         #expect(offsets(WidgetTimeline.dates(snapshot(readingAge: nil, alerts: forever), now: nowDate)) == [0])
@@ -73,7 +76,7 @@ import Testing
         var ends: [String: TimeInterval] = [:]
         for k in 0..<20 { ends["t\(k)"] = now + 600 + TimeInterval(k * 17 * 60) }
         let dates = WidgetTimeline.dates(snapshot(readingAge: 30, alerts: CardAlerts(muteEnds: ends)), now: nowDate)
-        #expect(dates.count <= 200)
+        #expect(dates.count == 100)
         #expect(dates == dates.sorted())
         #expect(dates.first == nowDate)
         #expect(dates.last! <= nowDate.addingTimeInterval(24 * 3600))

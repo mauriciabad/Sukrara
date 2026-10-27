@@ -11,9 +11,10 @@ import Foundation
 public enum WidgetTimeline {
     /// No timeline reaches further than this or holds more entries (a snapshot with far-off ends stays small).
     static let horizon: TimeInterval = 24 * 3600
-    static let maxEntries = 200
-    /// The card counts a mute down in whole minutes: a tick each minute of the last hour before it ends.
-    static let countdownTicks = 60
+    static let maxEntries = 100
+    /// The card counts a mute down in whole minutes: a tick each minute of its last 15 min, every 5 min in the 45 before
+    /// (each entry is a full picture; between ticks the count is at most 4 min high, never low).
+    static let countdownTicks: [Int] = Array(1...15) + stride(from: 20, through: 60, by: 5)
 
     /// The entry dates for `snapshot` seen at `now`: `now` first, then every later moment the card's picture changes,
     /// ascending. Without a snapshot only `now` (the "Open Sukrara" state, which nothing ages).
@@ -33,7 +34,7 @@ public enum WidgetTimeline {
         // mute ends, each with its countdown
         for end in muteEnds(data.alerts) where end > t0 && end <= t0 + horizon {
             changes.append(end)
-            for k in 1...countdownTicks { changes.append(end - TimeInterval(k * 60)) }
+            for k in countdownTicks { changes.append(end - TimeInterval(k * 60)) }
         }
         // the sensor's own states
         if let sensor = data.sensor { changes += [sensor.warmupEnd, sensor.end] }

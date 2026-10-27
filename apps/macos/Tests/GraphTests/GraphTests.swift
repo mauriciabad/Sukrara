@@ -130,6 +130,12 @@ func fixtureSetHasCases(_ set: String) {
             #expect(lay.first("graph.age")?.info == want)
             #expect(lay.first("chart") != nil)
         }
+        // VoiceOver hears the same age (nothing extra while fresh)
+        let spoken = GlucoseCard.accessibilityLabel(
+            CardData(readings: readings, now: now), unit: .mgdl, surface: .widgetGraph, config: GraphConfig(),
+            words: .en)
+        #expect(spoken.hasPrefix("Glucose:") == (want != "none"), "\(spoken)")
+        #expect(spoken.contains("old reading") == (want == "dimmed"), "\(spoken)")
     }
 }
 
