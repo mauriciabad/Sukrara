@@ -153,6 +153,7 @@ class AppGraph(
             alertSettings = AppAlertSettings(alerts.store),
             settings = data.settings,
             resetAlerts = alerts::reset,
+            startMonitoring = { scope.launch { startMonitoring(StartReason.App) } },
             // until the monitor's checklist is composed here (cW2), setup reads the phone directly
             readiness = AndroidAlertReadiness(app, { AlertChannels.ALL }, wearer = { monitor.hub.state.value.role != Role.Follower }),
             clock = clock,

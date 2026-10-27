@@ -64,6 +64,8 @@ class SetupModule(
     /** The app's schema settings: setup records `alerts.thresholdsConfirmedAt` (shared with Settings › Alerts). */
     private val settings: SettingsRepository,
     val resetAlerts: suspend () -> Unit,
+    /** Starts monitoring once the role is stored (the monitor decides whether a source exists yet). */
+    val startMonitoring: () -> Unit,
     val readiness: AlertReadinessSource,
     val clock: Clock,
     /** Following on Android (chunk 25) is in this build. */

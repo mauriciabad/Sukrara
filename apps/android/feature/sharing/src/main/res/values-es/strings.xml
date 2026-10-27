@@ -22,7 +22,7 @@
     <string name="sh_setup_role_wearer_means">Este móvil lee tu sensor y lo comparte.</string>
     <string name="sh_setup_role_follower">Sigo a alguien</string>
     <string name="sh_setup_role_follower_means">Este móvil muestra la glucosa de otra persona.</string>
-    <string name="sh_setup_role_follower_later">Seguir desde Android llega en la 0.90.x. De momento, usa Sukrara Showcase para seguir.</string>
+    <string name="sh_setup_role_follower_later">Seguir desde Android llegará en una versión posterior. Usa Sukrara para Mac para seguir.</string>
     <string name="sh_setup_role_confirm_title">¿%1$s?</string>
     <string name="sh_setup_role_confirm_text">Un papel por instalación. Para cambiarlo después hay que reinstalar Sukrara.</string>
     <string name="sh_setup_role_confirm">Confirmar</string>

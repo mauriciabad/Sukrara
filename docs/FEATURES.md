@@ -155,8 +155,9 @@ damaged setup file never asks for the role again or turns alerts off.
 
 - **Role**: *I wear the sensor* ("This phone reads your sensor and shares it") / *I follow someone* ("This phone shows
   someone else's glucose"), confirmed: "One role per install. Changing it later means reinstalling Sukrara." Choosing
-  or changing the role resets the alert runtime first (no phantom no-data alarm). Following on Android isn't in this
-  build: choosing it says "Following on Android comes in 0.90.x. Use Sukrara Showcase to follow for now." and setup
+  or changing the role resets the alert runtime first (no phantom no-data alarm), stores it where the hub and the
+  alerts read it (`role`) and starts monitoring (the monitor runs once a sensor source exists). Following on Android isn't in this
+  build: choosing it says "Following on Android comes in a later version. Use Sukrara for Mac to follow." and setup
   stays on the role step.
 - **Permissions**: the same checklist as the home reliability row (`AlertReadinessSource`, `AndroidAlertReadiness`):
   notifications, full-screen alerts, alarms on time, battery unrestricted, alert sound (alert channels still urgent),
@@ -201,9 +202,9 @@ System back on the first step leaves setup (home shows "Not monitoring: setup in
 ## Following (Android)
 
 Not in this build (chunk 25, P1): the role step says so and keeps the person on it; invite links opened on a wearer
-phone open setup. Follow with Sukrara Showcase or the Mac meanwhile.
+phone open setup. Follow with Sukrara for Mac meanwhile.
 
-**States and exits**: Role step with *I follow someone* selected → the note "Following on Android comes in 0.90.x" →
+**States and exits**: Role step with *I follow someone* selected → the note "Following on Android comes in a later version" →
 choose *I wear the sensor* or leave setup.
 
 ## Readings and backfill

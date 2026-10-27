@@ -42,7 +42,7 @@
     <!-- Setup role: what the follower option means -->
     <string name="sh_setup_role_follower_means">This phone shows someone else\'s glucose.</string>
     <!-- Setup role: following is not in this build yet -->
-    <string name="sh_setup_role_follower_later">Following on Android comes in 0.90.x. Use Sukrara Showcase to follow for now.</string>
+    <string name="sh_setup_role_follower_later">Following on Android comes in a later version. Use Sukrara for Mac to follow.</string>
     <!-- Setup role confirmation title; %1$s = the chosen option -->
     <string name="sh_setup_role_confirm_title">%1$s?</string>
     <!-- Setup role confirmation: what it means -->

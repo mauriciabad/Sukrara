@@ -69,6 +69,7 @@ class SetupViewModelTest {
                 alerts,
                 settings,
                 resetAlerts = { events += "reset" },
+                startMonitoring = { events += "start" },
                 readiness = AndroidAlertReadiness(ApplicationProvider.getApplicationContext(), { emptyList() }, { true }),
                 clock = clock,
             )
@@ -89,7 +90,7 @@ class SetupViewModelTest {
             vm.continueWelcome()
             assertEquals(SetupStep.Role, vm.ui.first { it != null }!!.step)
             vm.chooseRole(Role.Wearer)
-            assertEquals(listOf("reset", "role:Wearer"), events)
+            assertEquals(listOf("reset", "role:Wearer", "start"), events)
             assertEquals(SetupStep.Permissions, vm.ui.first { it?.step == SetupStep.Permissions }!!.step)
         }
 

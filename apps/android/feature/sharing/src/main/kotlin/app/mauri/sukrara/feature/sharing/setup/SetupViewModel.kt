@@ -164,6 +164,7 @@ class SetupViewModel(private val m: SetupModule) : ViewModel() {
             val chosen = SetupMachine.chooseRole(role, confirmed = true, facts) as? Result.Done ?: return@act
             if (facts.role != chosen.value) m.resetAlerts()
             m.roles.set(chosen.value)
+            m.startMonitoring()
         }
 
     fun completePermissions() = record(SetupMachine::completePermissions)
