@@ -62,7 +62,7 @@ class NoDataReasonTest {
     @Test fun `ended and warming up replace any number`() {
         assertEquals(NoDataReason.SensorEnded, reason(Samples.wearer(sensor = SensorState.Ended)))
         val ready = NOW.plus(Duration.ofMinutes(40))
-        assertEquals(NoDataReason.WarmingUp(ready), reason(Samples.wearer(sensor = SensorState.WarmingUp(ready))))
+        assertEquals(NoDataReason.WarmingUp(ready), reason(Samples.wearer(ageMin = 25, sensor = SensorState.WarmingUp(ready))))
     }
 
     @Test fun `native core missing has no action but says why`() {
@@ -89,7 +89,7 @@ class NoDataReasonTest {
             listOf(
                 Samples.wearer(ageMin = 25),
                 Samples.wearer(sensor = SensorState.Ended),
-                Samples.wearer(sensor = SensorState.WarmingUp(NOW.plus(Duration.ofMinutes(40)))),
+                Samples.wearer(ageMin = 25, sensor = SensorState.WarmingUp(NOW.plus(Duration.ofMinutes(40)))),
                 Samples.wearer(ageMin = 30).copy(role = Role.Follower, link = LinkState("Ana", NOW.minus(Duration.ofMinutes(30)))),
                 Samples.wearer(ageMin = 25).copy(service = ServiceState.Stopped(StopReason.StartDenied)),
             )

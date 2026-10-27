@@ -98,7 +98,7 @@ sealed interface NoDataReason {
                 state.link?.revoked == true -> LinkRevoked
                 state.sensor == SensorState.CoreMissing -> CoreMissing
                 state.sensor == SensorState.Ended -> SensorEnded
-                sensor is SensorState.WarmingUp -> WarmingUp(sensor.readyAt)
+                sensor is SensorState.WarmingUp && look.state == GlucoseLook.State.WARMING_UP -> WarmingUp(sensor.readyAt)
                 valueShown -> null
                 state.service is ServiceState.Stopped -> MonitoringStopped
                 state.sensor == SensorState.BluetoothOff && !follower -> BluetoothOff

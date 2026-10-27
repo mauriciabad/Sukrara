@@ -32,6 +32,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -145,7 +146,8 @@ fun HomeContent(
         floatingActionButton = {
             if (state.glucose.role != null) {
                 // icon-only while a safety banner shows or the page is scrolled, so it never covers what matters
-                val expanded = safetyBanner == null && scroll.value == 0
+                val atTop by remember { derivedStateOf { scroll.value == 0 } }
+                val expanded = safetyBanner == null && atTop
                 val label = stringResource(R.string.home_add_treatment)
                 ExtendedFloatingActionButton(
                     onClick = { callbacks.onAction(HomeAction.AddTreatment) },
@@ -191,7 +193,12 @@ private fun FollowerHeader(state: HomeUiState) {
     val name = link?.wearerName
     Column {
         Text(
-            name?.let { stringResource(R.string.home_following, it) } ?: stringResource(R.string.home_following_unnamed),
+            when {
+                // removed: just the name, so the title never says "Following" over "No longer following"
+                state.reason == NoDataReason.LinkRevoked -> name ?: stringResource(R.string.home_following_unnamed)
+                name != null -> stringResource(R.string.home_following, name)
+                else -> stringResource(R.string.home_following_unnamed)
+            },
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )
@@ -235,7 +242,11 @@ private fun GlucoseSection(
     val unmuteLabel = stringResource(R.string.home_a11y_unmute)
     Swap(state.reason?.takeIf { it.fullPage }) { fullPage ->
         if (fullPage != null) {
-            ReasonPage(fullPage, state.now) { callbacks.onAction(it) }
+            Column {
+                ReasonPage(fullPage, state.now) { callbacks.onAction(it) }
+                // safety banners show in every state (e.g. the showcase still installed before the first sensor)
+                BannerSlot(safetyBanner)
+            }
         } else {
             Column {
                 PanelCard(

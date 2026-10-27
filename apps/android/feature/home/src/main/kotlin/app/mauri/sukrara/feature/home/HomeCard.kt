@@ -51,6 +51,7 @@ import app.mauri.sukrara.graph.GraphPalette
 import app.mauri.sukrara.graph.GraphStyle
 import app.mauri.sukrara.graph.SensorBadge
 import app.mauri.sukrara.graph.SensorInfo
+import app.mauri.sukrara.graph.SensorLife
 import app.mauri.sukrara.graph.TrendMark
 import app.mauri.sukrara.graph.stats.Band
 import app.mauri.sukrara.graph.stats.Bands
@@ -68,10 +69,14 @@ fun homeLook(
     state: GlucoseState,
     now: Instant,
 ): GlucoseLook {
+    // the same sensor dates and warm-up rule the drawn card uses (a reading since the sensor's start ends the warm-up)
+    val info = state.sensor.info(now)
+    val warming = info != null && SensorLife.warming(info, state.latest?.t?.epochSecond, now.epochSecond)
     val sensor =
         when (val s = state.sensor) {
             SensorState.Ended -> SensorBadge.Look(label = "", life = 0f, ended = true)
-            is SensorState.WarmingUp -> SensorBadge.Look(label = "", life = 1f, ended = false, warmup = "", readyAt = s.readyAt.epochSecond)
+            is SensorState.WarmingUp ->
+                if (warming) SensorBadge.Look(label = "", life = 1f, ended = false, warmup = "", readyAt = s.readyAt.epochSecond) else null
             else -> null
         }
     return GlucoseCard.face(state.latest?.toPoint(), now.epochSecond, sensor, CardSurface.APP_PANEL)
