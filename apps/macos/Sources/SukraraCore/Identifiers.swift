@@ -17,6 +17,14 @@ public enum SukraraIDs {
     public static let defaultsDomain = appBundleID
     public static let urlScheme = "sukrara"
 
+    /// The app links a widget tap opens (Info.plist CFBundleURLTypes; the app routes them in `AppLink`).
+    public enum Link {
+        /// Quick Add treatment (it focuses carbs while low).
+        public static let newTreatment = "\(urlScheme)://treatment/new"
+        /// The menu bar panel (the widget has no data).
+        public static let panel = "\(urlScheme)://open"
+    }
+
     /// WidgetKit kinds. Renaming one removes the widgets people placed.
     public enum WidgetKind {
         public static let value = "app.mauri.sukrara.widget.value"
