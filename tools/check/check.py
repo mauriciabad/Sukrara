@@ -470,7 +470,7 @@ def check_card(ch, rep):
         value_ok = {e["path"] for e in cfg.get("value_text_ok", [])}
         for e in cfg.get("value_text_ok", []):
             rep.pending(files, e["path"], "card-text", "value_text_ok (%s)" % plat)
-        names = governed([ch.blob(o) for o in owners], swift) | set(api)
+        names = governed([ch.blob(o) for o in owners if o.endswith((".kt", ".swift"))], swift) | set(api)  # owners hold fonts too
         ref = re.compile(r"(?<![\w])(?:[A-Za-z_][\w]*\.)*(%s)\.(\w+)" % "|".join(sorted(names))) if names else None
         for p, text in texts.items():
             code = [(n, l) for n, l in code_lines(text)]

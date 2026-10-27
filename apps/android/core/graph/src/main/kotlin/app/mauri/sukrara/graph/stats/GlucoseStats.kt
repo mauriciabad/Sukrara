@@ -235,4 +235,55 @@ enum class Goal(
             GMI -> m.gmi < 7.0
             CV -> m.cv <= 36.0
         }
+
+    /** Whether a time share [x] meets this goal (null for the goals that aren't shares). */
+    fun metShare(x: Double): Boolean? =
+        when (this) {
+            VERY_HIGH -> x < 0.05
+            ABOVE -> x < 0.25
+            IN_RANGE -> x > 0.70
+            BELOW -> x < 0.04
+            VERY_LOW -> x < 0.01
+            else -> null
+        }
+
+    companion object {
+        /** The report's minimum data in a window (70 %): below it the rings wear no mark. */
+        const val MIN_COVERAGE = 0.70
+    }
+}
+
+/**
+ * A time share as the number of a percentage, without the "%": whole percent from 10 %, one decimal under 10 %, and
+ * more decimals (up to two) whenever rounding would put the number on the other side of its goal than the value (or
+ * turn a share that isn't all into "100"); a non-zero share that rounds to 0 is "<0.1". contracts/graph/share.
+ */
+object ShareText {
+    private fun format(
+        x: Double,
+        met: ((Double) -> Boolean)?,
+        locale: java.util.Locale,
+    ): String {
+        fun shown(d: Int): Double {
+            val k = Math.pow(10.0, d + 2.0)
+            return Math.round(x * k) / k
+        }
+        var d = if (x < 0.095) 1 else 0
+        while (d < 2 && ((met != null && met(shown(d)) != met(x)) || (x < 1.0 && shown(d) >= 1.0))) d++
+        if (x > 0 && shown(d) == 0.0) return "<" + "%.1f".format(locale, 0.1)
+        if (x < 1.0 && shown(d) >= 1.0) return ">" + "%.1f".format(locale, 99.9)
+        return "%.${d}f".format(locale, shown(d) * 100)
+    }
+
+    fun of(
+        x: Double,
+        goal: Goal? = null,
+        locale: java.util.Locale = java.util.Locale.getDefault(),
+    ) = format(x, goal?.let { g -> { v: Double -> g.metShare(v) ?: true } }, locale)
+
+    /** Coverage against the report's 70 % (the "only … % has data" note). */
+    fun coverage(
+        x: Double,
+        locale: java.util.Locale = java.util.Locale.getDefault(),
+    ) = format(x, { v: Double -> v >= Goal.MIN_COVERAGE }, locale)
 }
