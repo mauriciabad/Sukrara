@@ -30,6 +30,8 @@ class PocFollower(private val f: Keys, private val iPub: String) {
     var rosterCreatedAt = 0L
     var lastKeyAt = 0L
     var revoked = false
+    var revokedAt = 0L
+    var sensorCreatedAt = 0L
     var wearerName: String? = null
     val readings = sortedMapOf<Long, Pair<Int, Double?>>()
     var sensor: SensorInfo? = null
@@ -71,11 +73,14 @@ class PocFollower(private val f: Keys, private val iPub: String) {
                     rosterCreatedAt = 0
                 }
                 Proto.strings(u.body.optJSONArray("relays")).takeIf { it.isNotEmpty() }?.let { relays = it }
+                if (revokedAt < lastKeyAt) revoked = false // a newer key re-approves (:470-471)
                 "accepted:key"
             }
             "revoked" -> {
                 if (u.createdAt < lastKeyAt) return "ignored:revoked-before-key"
+                if (revoked) return "ignored:already-revoked"
                 revoked = true
+                revokedAt = u.createdAt
                 "accepted:revoked"
             }
             else -> "ignored:${u.body.optString("type")}"
@@ -110,11 +115,17 @@ class PocFollower(private val f: Keys, private val iPub: String) {
         }
         if (kind == Proto.ALERT) {
             if (body.optString("type") != "alert") return "rejected:alert-type"
+            // Alerts.onRemote drops a kind it doesn't know (alerts/AlertSettings.kt Kind.ALL)
+            if (body.optString("k") !in ALERT_KINDS) return "ignored:alert-kind"
             alerts += body.optString("k")
             return "accepted:alert"
         }
         if (kind == Proto.LIVE) {
-            sensor = Proto.sensorOf(body)
+            val created = ev.optLong("created_at")
+            if (created >= sensorCreatedAt) { // the sensor from the live event signed last (:553-554)
+                sensorCreatedAt = created
+                sensor = Proto.sensorOf(body)
+            }
             if (!body.has("sgv")) return "accepted:sensor"
             readings.putIfAbsent(body.getLong("t"), body.getInt("sgv") to if (body.isNull("r")) null else body.getDouble("r"))
             return "accepted:live"
@@ -172,15 +183,23 @@ class PocFollower(private val f: Keys, private val iPub: String) {
         val author = ev.optString("pubkey")
         val fromOwner = author in devices
         if (!fromOwner && author !in writers) return "rejected:treatment-author"
-        val epoch = epochs[Proto.tagValue(ev, "gk") ?: return "ignored:no-gk"] ?: return "ignored:unknown-epoch"
+        val gk = Proto.tagValue(ev, "gk") ?: return "ignored:no-gk"
+        val epoch = epochs[gk] ?: return "ignored:unknown-epoch".also { if (fromOwner) rekeyFor += gk } // maybeRekey (:641)
         val e = runCatching { Event.fromJson(ev.toString()) }.getOrNull() ?: return "rejected:malformed"
         if (!e.verify()) return "rejected:signature"
         val body = runCatching { Proto.dec(epoch.g, author, ev.getString("content")) }.getOrNull() ?: return "rejected:decrypt"
         val id = body.optString("id")
-        // Treatment.fromWire (treatments/Treatments.kt:52): k in KINDS, numeric a, u, the id the d tag names
-        if (body.optString("k") !in setOf("rapid", "long", "carbs", "note") || !body.has("u")) return "rejected:treatment-body"
+        // Treatment.fromWire (treatments/Treatments.kt:52-57): id, k in KINDS, t and u (pen keys: chunk 19)
+        val wellFormed = id.isNotEmpty() && body.optString("k") in TREATMENT_KINDS &&
+            listOf("t", "u").all { body.opt(it) is Number }
+        if (!wellFormed) return "rejected:treatment-body"
         if (Proto.tagValue(ev, "d") != Proto.treatmentD(sid, id)) return "rejected:treatment-d"
         treatments[id] = body
         return "accepted:treatment"
+    }
+
+    private companion object {
+        val ALERT_KINDS = setOf("very_low", "low", "high", "very_high", "extremely_high", "falling_fast", "rising_fast", "no_data")
+        val TREATMENT_KINDS = setOf("rapid", "long", "carbs", "note")
     }
 }
