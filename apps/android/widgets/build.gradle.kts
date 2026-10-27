@@ -19,6 +19,8 @@ dependencies {
     api(project(":core:model"))
     implementation(project(":core:graph"))
     implementation(project(":core:designsystem"))
+    // the quick Add treatment dialog a tap opens (QuickTreatmentIntents)
+    implementation(project(":feature:treatments"))
     implementation(libs.androidx.glance.appwidget)
     implementation(libs.androidx.glance.material3)
     implementation(libs.kotlinx.serialization.json)
