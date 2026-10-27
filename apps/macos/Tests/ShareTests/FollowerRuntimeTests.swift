@@ -93,6 +93,24 @@ struct FollowerRuntimeTests {
         await h.runtime.stop()
     }
 
+    /// Wake, the network coming back and a relay change can reconnect at once: the changes run one after another, so
+    /// exactly one relay connection stays open (overlapping ones leaked pools that kept their sockets).
+    @Test func overlappingReconnectsLeaveOneConnection() async throws {
+        let h = RuntimeHarness(now: v.now, hub: FakeRelayHub(stored: [v.event("invite")]))
+        await h.runtime.start()
+        try await h.runtime.join(link: (v.derivations["invite"] as! [String: Any])["link"] as! String)
+        await withTaskGroup(of: Void.self) { group in
+            for _ in 0..<8 { group.addTask { await h.runtime.reconnect() } }
+        }
+        var open = 0
+        for relay in h.hub.relays where await !relay.isStopped { open += 1 }
+        #expect(open == 1)
+        // the triggers that arrived while one was queued joined it
+        #expect(h.hub.relays.count < 2 + 8)
+        await h.runtime.stop()
+        for relay in h.hub.relays { #expect(await relay.isStopped) }
+    }
+
     @Test func unfollowWipesTheWearersDataAndTheKey() async throws {
         let h = RuntimeHarness(now: v.now, hub: FakeRelayHub(stored: [v.event("invite")]))
         await h.runtime.start()

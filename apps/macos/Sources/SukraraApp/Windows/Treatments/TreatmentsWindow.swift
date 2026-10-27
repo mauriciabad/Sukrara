@@ -91,7 +91,11 @@ public struct TreatmentsView: View {
                 List(model.rows) { row in rowView(row) }
             }
             if !model.canWrite {
-                Label(L10n.t("The wearer hasn't allowed this Mac to add treatments"), systemImage: "lock")
+                Label(
+                    model.isFollowing
+                        ? L10n.t("The wearer hasn't allowed this Mac to add treatments")
+                        : L10n.t("Follow someone to see and add their treatments"),
+                    systemImage: model.isFollowing ? "lock" : "person.badge.plus")
                     .font(.callout)
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity, alignment: .leading)

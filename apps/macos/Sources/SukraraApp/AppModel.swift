@@ -24,6 +24,8 @@ public final class AppModel {
     /// "Now" for the card: moved by the freshness ticker at each freshness step, so a value greys and strikes on time.
     private(set) var now: Date
     var notificationPermission: NotificationPermission = .allowed
+    /// Alerts can't break through Focus / Do Not Disturb (no Time Sensitive permission): the panel says so.
+    var focusCanHoldAlerts = false
 
     @ObservationIgnored let alerts: AlertController?
     @ObservationIgnored let updates: UpdateCheck?
@@ -180,11 +182,17 @@ public final class AppModel {
         if let follower { Task { await follower.reconnect() } }
     }
 
+    /// The clock changed (also small NTP corrections): re-read the time and re-check the alerts; the connections stay.
     func systemTimeChanged() {
         now = clock.now
         alerts?.tick()
         restartTicker()
-        if let follower { Task { await follower.reconnect() } }
+    }
+
+    /// The Mac woke: the time moved and the sockets are likely dead; reconnect now instead of after the watchdog.
+    func didWake() {
+        systemTimeChanged()
+        networkCameBack()
     }
 
     func stop() {
