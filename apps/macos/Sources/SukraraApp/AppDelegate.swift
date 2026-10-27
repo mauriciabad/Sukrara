@@ -4,6 +4,7 @@
 import AppKit
 import Network
 import SukraraCore
+import SukraraGraph
 import SukraraShare
 
 /// The menu bar app shell. Services start only through `plan.services.start(using:)` (`AppServices`), before the
@@ -17,6 +18,8 @@ public final class AppDelegate: NSObject, NSApplicationDelegate {
     private let network = NWPathMonitor()
     private let store: DefaultsSettingsStore
     private var windows: WindowCoordinator?
+    /// The wearer's mirrored settings while following (nil otherwise).
+    private var wearer: WearerSettings?
 
     public init(plan: LaunchPlan) {
         let services = AppServices(plan: plan)
@@ -31,6 +34,7 @@ public final class AppDelegate: NSObject, NSApplicationDelegate {
             plan: plan, alerts: services.alerts, updates: services.updates, loginItem: services.loginItem,
             follower: follower)
         model.unit = store.unit
+        model.graph = GraphConfig.load(from: store, wearer: nil)
     }
 
     public func applicationDidFinishLaunching(_ notification: Notification) {
@@ -41,7 +45,7 @@ public final class AppDelegate: NSObject, NSApplicationDelegate {
         self.windows = windows
         model.onSnapshot = { [weak self, weak windows] snapshot in
             windows?.apply(snapshot)
-            self?.services.wearerSettings(WindowCoordinator.wearerSettings(snapshot))
+            self?.wearerChanged(WindowCoordinator.wearerSettings(snapshot))
         }
         contextMenu.openSettings = { [weak windows] in windows?.openSettings() }
         contextMenu.openTreatments = { [weak windows] in windows?.openTreatments() }
@@ -121,10 +125,20 @@ public final class AppDelegate: NSObject, NSApplicationDelegate {
         network.start(queue: .main)
     }
 
-    /// A defaults change (Settings window, another process): the alert rules and the unit follow.
+    /// A defaults change (Settings window, another process): the alert rules, the unit and the card follow.
     private func settingsChanged() {
         services.settingsChanged()
         if model.unit != store.unit { model.unit = store.unit }
+        let graph = GraphConfig.load(from: store, wearer: wearer)
+        if model.graph != graph { model.graph = graph }
+    }
+
+    /// The wearer's mirrored settings arrived, changed or went away (stopped following).
+    private func wearerChanged(_ settings: WearerSettings?) {
+        guard settings != wearer else { return }
+        wearer = settings
+        services.wearerSettings(settings)
+        settingsChanged()
     }
 
     private func refreshNotificationPermission() {

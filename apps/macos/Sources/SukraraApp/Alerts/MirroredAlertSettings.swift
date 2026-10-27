@@ -11,7 +11,8 @@ extension AlertSettings {
     /// notification actions) is always this Mac's, so a mirrored payload can't silence this Mac.
     func mirroring(_ wearer: WearerSettings) -> AlertSettings {
         var s = self
-        for kind in AlertKind.allCases {
+        // no data is this Mac's own alarm (schema `mirrorExcept`): a wearer's payload never changes or silences it
+        for kind in AlertKind.allCases where kind != .noData {
             var rule = s[kind]
             if let on = wearer.bool("alerts.kind.on", kind: kind.rawValue) { rule.on = on }
             if let threshold = wearer.number("alerts.threshold.\(kind.rawValue)") { rule.threshold = threshold }

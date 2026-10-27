@@ -25,8 +25,13 @@ import Foundation
         FileHandle.standardError.write(Data("sukrara-snap: \(error.message)\n".utf8))
         exit(error.exitCode)
     }
-    // Surfaces are registered by the chunks that build them.
-    switch args[0] {
+    // Surfaces are registered by the chunks that build them; `…-es` renders the same surface in Spanish.
+    var surface = args[0]
+    if surface.hasSuffix("-es") {
+        surface.removeLast(3)
+        WindowSnapshots.useLanguage("es")
+    }
+    switch surface {
     case "card":
         do {
             let n = try CardSnapshots.render(to: URL(fileURLWithPath: args[1]))
@@ -39,6 +44,14 @@ import Foundation
         do {
             let n = try WindowSnapshots.render(to: URL(fileURLWithPath: args[1]))
             print("sukrara-snap: \(n) window pictures in \(args[1])")
+        } catch {
+            FileHandle.standardError.write(Data("sukrara-snap: \(error)\n".utf8))
+            exit(1)
+        }
+    case "shell":
+        do {
+            let n = try ShellSnapshots.render(to: URL(fileURLWithPath: args[1]))
+            print("sukrara-snap: \(n) menu bar and panel pictures in \(args[1])")
         } catch {
             FileHandle.standardError.write(Data("sukrara-snap: \(error)\n".utf8))
             exit(1)

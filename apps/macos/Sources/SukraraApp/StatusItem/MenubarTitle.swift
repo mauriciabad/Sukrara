@@ -30,12 +30,12 @@ struct MenubarTitle: Equatable {
         case .value:
             text = [look.text ?? GlucoseCard.noValueText, look.trend == .arrow ? TrendGlyph.of(look.rate) : nil]
                 .compactMap { $0 }.joined(separator: " ")
-        case .warmingUp: text = "Warming up" + (look.warmup.map { " \($0)" } ?? "")
-        case .ended: text = "Sensor ended"
+        case .warmingUp: text = L10n.t("Warming up") + (look.warmup.map { " \($0)" } ?? "")
+        case .ended: text = L10n.t("Sensor ended")
         case .noReadings, .none: text = GlucoseCard.noValueText
         }
         var label = reason.map { look.state == .value ? spoken : $0 } ?? spoken
-        if muted { label += ". Alerts muted" }
+        if muted { label += ". " + L10n.t("Alerts muted") }
         return MenubarTitle(text: text, strike: look.strike, muted: muted, accessibilityLabel: label)
     }
 }

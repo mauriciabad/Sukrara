@@ -9,6 +9,9 @@
     /// `sukrara-snap windows <dir>`: every window state with synthetic data, light + dark, default + large text.
     /// Offline: a scratch defaults suite, no runtime behind the models (actions nil).
     public enum WindowSnapshots {
+        /// Renders the windows' text in one language (`es`), whatever the Mac's.
+        public static func useLanguage(_ language: String) { L10n.use(language: language) }
+
         public static func render(to dir: URL) throws -> Int {
             try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
             var n = 0

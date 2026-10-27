@@ -19,6 +19,8 @@ public final class AppModel {
     private(set) var sensor: SensorInfo?
     private(set) var link: LinkState = .notFollowing
     var unit: GlucoseUnit = .mgdl
+    /// The card's settings (bands, hours…): this Mac's, or the wearer's mirrored ones (`GraphConfig.load`).
+    var graph = GraphConfig()
     /// "Now" for the card: moved by the freshness ticker at each freshness step, so a value greys and strikes on time.
     private(set) var now: Date
     var notificationPermission: NotificationPermission = .allowed
@@ -129,7 +131,8 @@ public final class AppModel {
 
     var menubarTitle: MenubarTitle {
         MenubarTitle.of(
-            look: look, spoken: GlucoseCard.accessibilityLabel(cardData, unit: unit, surface: .menubarTitle, config: GraphConfig()),
+            look: look,
+            spoken: GlucoseCard.accessibilityLabel(cardData, unit: unit, surface: .menubarTitle, config: graph),
             alerts: alerts?.ui ?? .idle, reason: notMonitoringReason)
     }
 
@@ -140,17 +143,17 @@ public final class AppModel {
     /// first reading the app says so instead of "no data" — and no no-data alarm is armed (CHANGES P3).
     public var notMonitoringReason: String? {
         if plan.isOffline && plan.mode != .fixture {
-            return "Not monitoring: offline dev build (no sensor, relays or alerts)"
+            return L10n.t("Not monitoring: offline dev build (no sensor, relays or alerts)")
         }
         guard readings.isEmpty else { return nil }
         switch link {
-        case .notFollowing, .joining: return "Not monitoring: not following anyone yet"
-        case .requested: return "Not monitoring: waiting for the wearer to allow this Mac"
-        case .following: return "Waiting for the first reading from the wearer"
-        case .declined: return "Not monitoring: the wearer declined"
-        case .inviteUsed: return "Not monitoring: the invite was used by another device"
-        case .revoked: return "Not monitoring: the wearer stopped sharing"
-        case .broken(let why): return "Not monitoring: \(why)"
+        case .notFollowing, .joining: return L10n.t("Not monitoring: not following anyone yet")
+        case .requested: return L10n.t("Not monitoring: waiting for the wearer to allow this Mac")
+        case .following: return L10n.t("Waiting for the first reading from the wearer")
+        case .declined: return L10n.t("Not monitoring: the wearer declined")
+        case .inviteUsed: return L10n.t("Not monitoring: the invite was used by another device")
+        case .revoked: return L10n.t("Not monitoring: the wearer stopped sharing")
+        case .broken(let why): return L10n.t("Not monitoring: \(why)")
         }
     }
 

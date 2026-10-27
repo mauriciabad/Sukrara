@@ -12,7 +12,7 @@ nonisolated enum L10n {
         nonisolated(unsafe) static var bundle: Bundle = .module
 
         /// Snapshots render one language whatever the Mac's (`sukrara-snap windows-es`). Debug builds only.
-        public static func use(language: String) {
+        static func use(language: String) {
             guard let path = Bundle.module.path(forResource: language, ofType: "lproj"), let b = Bundle(path: path)
             else { return }
             bundle = b

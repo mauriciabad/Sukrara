@@ -129,6 +129,22 @@
         }
       }
     },
+    "Alert banners or sounds are off: alerts may go unnoticed." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Alert banners or sounds are off: alerts may go unnoticed."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Los avisos o los sonidos de las alertas están desactivados: puede que no las notes."
+          }
+        }
+      }
+    },
     "Alert settings couldn't be read. Sukrara keeps using the last ones it read." : {
       "localizations" : {
         "en" : {
@@ -157,6 +173,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Alertas"
+          }
+        }
+      }
+    },
+    "Alerts muted" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Alerts muted"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Alertas silenciadas"
           }
         }
       }
@@ -557,6 +589,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Hecho"
+          }
+        }
+      }
+    },
+    "Download" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Download"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Descargar"
           }
         }
       }
@@ -977,6 +1025,22 @@
         }
       }
     },
+    "Later" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Later"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Más tarde"
+          }
+        }
+      }
+    },
     "Long" : {
       "localizations" : {
         "en" : {
@@ -1057,18 +1121,18 @@
         }
       }
     },
-    "Name the wearer sees" : {
+    "Mute All Alerts" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Name the wearer sees"
+            "value" : "Mute All Alerts"
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Nombre que verá quien lleva el sensor"
+            "value" : "Silenciar todas las alertas"
           }
         }
       }
@@ -1185,6 +1249,118 @@
         }
       }
     },
+    "Not monitoring: %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Not monitoring: %@"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sin vigilancia: %@"
+          }
+        }
+      }
+    },
+    "Not monitoring: not following anyone yet" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Not monitoring: not following anyone yet"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sin vigilancia: aún no sigues a nadie"
+          }
+        }
+      }
+    },
+    "Not monitoring: offline dev build (no sensor, relays or alerts)" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Not monitoring: offline dev build (no sensor, relays or alerts)"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sin vigilancia: versión de desarrollo sin conexión (sin sensor, relés ni alertas)"
+          }
+        }
+      }
+    },
+    "Not monitoring: the invite was used by another device" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Not monitoring: the invite was used by another device"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sin vigilancia: otro dispositivo ha usado la invitación"
+          }
+        }
+      }
+    },
+    "Not monitoring: the wearer declined" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Not monitoring: the wearer declined"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sin vigilancia: quien lleva el sensor lo ha rechazado"
+          }
+        }
+      }
+    },
+    "Not monitoring: the wearer stopped sharing" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Not monitoring: the wearer stopped sharing"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sin vigilancia: quien lleva el sensor ha dejado de compartir"
+          }
+        }
+      }
+    },
+    "Not monitoring: waiting for the wearer to allow this Mac" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Not monitoring: waiting for the wearer to allow this Mac"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sin vigilancia: esperando a que quien lleva el sensor permita este Mac"
+          }
+        }
+      }
+    },
     "Not now" : {
       "localizations" : {
         "en" : {
@@ -1233,6 +1409,38 @@
         }
       }
     },
+    "Notifications are off: alerts can't reach you." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Notifications are off: alerts can't reach you."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Las notificaciones están desactivadas: las alertas no te pueden llegar."
+          }
+        }
+      }
+    },
+    "OK" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "OK"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "OK"
+          }
+        }
+      }
+    },
     "Off" : {
       "localizations" : {
         "en" : {
@@ -1277,6 +1485,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Solo una vez"
+          }
+        }
+      }
+    },
+    "Open Notification Settings" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open Notification Settings"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Abrir ajustes de notificaciones"
           }
         }
       }
@@ -1425,6 +1649,22 @@
         }
       }
     },
+    "Remind as Usual" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Remind as Usual"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Recordar como siempre"
+          }
+        }
+      }
+    },
     "Repeat" : {
       "localizations" : {
         "en" : {
@@ -1533,6 +1773,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Enviando"
+          }
+        }
+      }
+    },
+    "Sensor ended" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sensor ended"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sensor terminado"
           }
         }
       }
@@ -1741,6 +1997,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Dejar de seguir…"
+          }
+        }
+      }
+    },
+    "Sukrara %@ is available" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sukrara %@ is available"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sukrara %@ está disponible"
           }
         }
       }
@@ -1969,6 +2241,22 @@
         }
       }
     },
+    "They'll see this Mac as “%@”." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "They'll see this Mac as “%@”."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Verá este Mac como «%@»."
+          }
+        }
+      }
+    },
     "This Mac already follows someone. Stop following in Settings › General first, then open the link again." : {
       "localizations" : {
         "en" : {
@@ -2125,6 +2413,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Unidad"
+          }
+        }
+      }
+    },
+    "Unmute" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unmute"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reactivar"
           }
         }
       }
@@ -2365,6 +2669,38 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Esperando la aprobación de %@"
+          }
+        }
+      }
+    },
+    "Waiting for the first reading from the wearer" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Waiting for the first reading from the wearer"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Esperando la primera lectura de quien lleva el sensor"
+          }
+        }
+      }
+    },
+    "Warming up" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Warming up"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Calentando"
           }
         }
       }

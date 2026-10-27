@@ -32,13 +32,21 @@ struct FollowStep: View {
                     Button(L10n.t("Cancel")) { Task { await follow.cancel() } }
                 }
             }
+            if case .waiting(let wearer, let code) = follow.status, follow.nearby == nil {
+                HStack {
+                    ProgressView().controlSize(.small)
+                    Text(L10n.t("Waiting for \(wearer ?? L10n.t("the wearer")) to approve"))
+                    Button(L10n.t("Cancel")) { Task { await follow.cancel() } }
+                }
+                if let code { Text(L10n.t("Code to type on the phone: \(code)")).font(.title3.monospaced()) }
+            }
             if let failure = follow.failure {
                 Label(failure.message, systemImage: "exclamationmark.triangle.fill")
                     .foregroundStyle(.red)
                     .accessibilityAddTraits(.isStaticText)
             }
         }
-        .onAppear { follow.searchNearby(follow.status == .notFollowing) }
+        .onChange(of: follow.canFollow, initial: true) { _, can in follow.searchNearby(can) }
         .onDisappear { follow.searchNearby(false) }
         .fileImporter(isPresented: $importing, allowedContentTypes: [.image]) { result in
             let text = (try? result.get()).flatMap { url -> String? in
@@ -71,8 +79,8 @@ struct NearbyPairingDialog: View {
                         Button(L10n.t("Cancel")) { Task { await follow.cancel() } }
                     } else {
                         Text(L10n.t("\(phone.wearer)'s phone is nearby")).font(.headline)
-                        TextField(L10n.t("Name the wearer sees"), text: $follow.macName)
-                            .textFieldStyle(.roundedBorder)
+                        Text(L10n.t("They'll see this Mac as “\(follow.macName)”."))
+                            .foregroundStyle(.secondary)
                         HStack {
                             Button(L10n.t("Ask to follow")) { Task { await follow.askNearby() } }
                             Button(L10n.t("Not now")) { follow.nearby = nil }

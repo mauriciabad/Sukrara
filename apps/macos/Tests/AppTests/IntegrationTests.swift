@@ -63,7 +63,7 @@ import Testing
         let wearer = try #require(
             WearerSettings(
                 json: #"""
-                    {"alerts":{"alerts":{"low":{"on":false,"mgdl":65,"repeatMin":10},"no_data":{"min":60}},
+                    {"alerts":{"alerts":{"low":{"on":false,"mgdl":65,"repeatMin":10},"no_data":{"on":false,"min":60,"repeatMin":1}},
                      "muteAfterCarbs":{"on":false,"min":30}}}
                     """#, wearer: "Marta"))
         let s = own.mirroring(wearer)
@@ -71,7 +71,7 @@ import Testing
         #expect(s[.low].threshold == 65)
         #expect(s[.low].repeatMin == 10)
         #expect(s[.low].alarm == true)  // alarm is this Mac's
-        #expect(s[.noData].threshold == 25)  // no data is always this Mac's
+        #expect(s[.noData] == own[.noData])  // no data is always this Mac's: never silenced by the wearer
         #expect(s.sounds.pack == "kart")
         #expect(s.muteAfterCarbs == QuietRule(on: false, min: 30))
         #expect(s[.high] == own[.high])  // not sent: own value

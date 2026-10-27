@@ -85,7 +85,8 @@ public final class FollowModel {
             try await actions?.join(link: link)
         } catch {
             failure = error
-            status = .notFollowing
+            // already following: the link changes nothing, the status stays what it is
+            if error != .alreadyFollowing { status = .notFollowing }
         }
     }
 
@@ -124,4 +125,12 @@ public final class FollowModel {
     }
 
     public func clearFailure() { failure = nil }
+
+    /// Nobody followed and nothing on its way: the states where a nearby phone may be offered.
+    public var canFollow: Bool {
+        switch status {
+        case .notFollowing, .declined, .inviteUsed, .revoked, .broken: true
+        case .joining, .waiting, .following: false
+        }
+    }
 }
