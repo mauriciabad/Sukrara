@@ -9,6 +9,7 @@ import android.app.NotificationManager
 import android.content.Context
 import android.media.AudioAttributes
 import android.net.Uri
+import androidx.core.net.toUri
 import app.mauri.sukrara.alerts.AlertKind
 import app.mauri.sukrara.monitor.R
 
@@ -36,7 +37,7 @@ object AlertChannels {
         .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
         .build()
 
-    fun soundUri(ctx: Context, kind: AlertKind): Uri = Uri.parse("content://${ctx.packageName}.alertsound/${kind.wire}")
+    fun soundUri(ctx: Context, kind: AlertKind): Uri = "content://${ctx.packageName}.alertsound/${kind.wire}".toUri()
 
     /** Creates (or renames, in the current language) the groups and channels; idempotent. */
     fun ensure(ctx: Context) {

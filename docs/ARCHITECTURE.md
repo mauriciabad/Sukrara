@@ -37,6 +37,24 @@ How Sukrara V1 is built. Each part is filled in by the work that builds it; the 
 ### Services, alerts and notifications
 <!-- Chunks 10 / 11: MonitoringService, alert runtime, channel registry. -->
 
+**Alerts (chunk 11, `:monitor` `monitor/alerts/`).** The rules are `:core:alerts` (`AlertMachine`); the runtime only
+applies them.
+- `AlertRuntime` — the one owner of the machine per process, behind one `Mutex`. Inputs: hub state (role, latest
+  reading, `monitoringStartedAt`, sensor), alert settings (store `alerts`, key `alerts`, SPEC §3 JSON via
+  `AlertStateStore`), treatments (→ `Doses`), the wearer's mirrored settings and `alert` events (25), this device's
+  actions (`AlertControls` in `:core:model`, also the notification buttons). Per input: machine → effects applied
+  (`AlertPresenter`, `AlertEventSink`, `AlertAlarm`) → `AlertRecord` saved (typed store) → `AlertUiState` published to
+  the hub. Role `null` is ignored (setup / hub loading); `monitoringStartedAt == null` switches `no_data` off.
+- `AlertCheckReceiver` (exact alarm, boot, update, clock / zone change) → `runtime.tick()` from the saved record with
+  the service dead → `sensorEnd.check()` → `MonitorRestarter.restart()` (10's starter). `AlertActionReceiver` (Mute… /
+  Change time direct reply, Remind less / as usual, Unmute, swipe tidy). Both non-exported, `goAsync` with a 9 s budget.
+- `AlertNotifier` + `AlertChannels` (`alert.<kind>` / `alert_alarm.<kind>`) + `NotificationGroups` (`notify/`: the
+  `alerts` and `info` notification groups with summaries; every alerting notification of the app belongs to one) +
+  `AlertSoundProvider` (`${applicationId}.alertsound`, exported read-only for System UI) + `AlertHaptics`.
+- `SensorEndNotifier` (`monitor/sensorend/`): `SensorEndPlan` (pure) + its own exact alarm.
+- `AlertsModule` (A4) wires it; the Application implements `AlertsHost` so receivers and the provider reach it; the
+  monitoring service calls `attach(scope)`.
+
 ### Sensor
 <!-- Chunks 12 / 18: GattLink, Libre 3, pairing store, new-sensor flow. -->
 
