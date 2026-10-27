@@ -498,34 +498,15 @@ extension GlucoseCard {
             format: unit.format)
     }
 
-    /// What VoiceOver says for the card's value: "Glucose 112 milligrams per decilitre, falling, 2 min ago" (the
-    /// time once the reading is late), "Glucose 141 milligrams per decilitre (old), trend unknown, at 14:05", "Glucose:
-    /// no reading since 14:05", "Glucose: no readings yet", "Warming up", "Sensor ended. Replace sensor"; then the
-    /// alert badge's sentence when there is one.
-    public static func accessibilityLabel(_ data: CardData, unit: GlucoseUnit, surface: CardSurface) -> String {
-        let look = face(data, unit: unit, surface: surface)
-        let value: String
-        switch look.state {
-        case .ended: return "Sensor ended. \(StatusBadge.replaceSensor.text)"
-        case .warmingUp: value = "Warming up"
-        case .none: value = "Glucose: no readings yet"
-        case .noReadings:
-            value = "Glucose: no reading since \(data.latest.map { Freshness.timeText($0.t, now: data.now) } ?? "")"
-        case .value:
-            let number = (look.text ?? noValueText) + (look.strike ? " (old)" : "")
-            let trend = Trend.words(rate: look.trend == .arrow ? look.rate : nil)
-            let time = look.fresh.showTime ? data.latest.map { ", " + ago($0.t, now: data.now) } ?? "" : ""
-            value = "Glucose \(number) \(unit.spoken), \(trend)\(time)"
-        }
-        // the card draws the badge only under a shown value
-        let badge = look.state == .value ? StatusBadge.describe(data.alerts.status, now: data.now) : nil
-        return value + (badge.map { ". " + $0 } ?? "")
-    }
-
-    /// "2 min ago" within the hour, else the clock time ("at 14:05").
-    private static func ago(_ t: TimeInterval, now: TimeInterval) -> String {
-        let minutes = Int(max(0, now - t) / 60)
-        if minutes < 60 { return "\(Durations.text(minutes)) ago" }
-        return "at \(Freshness.timeText(t, now: now))"
+    /// What VoiceOver says for `surface`'s card with the user's settings `config` (its ranges and chart window):
+    /// "112 milligrams per decilitre, falling, in range, 2 min ago. Eat carbs. Last 12 hours: 82% in range, 3% below,
+    /// 15% above" (`A11y`; Android's A11y.card). The menu bar title says the value sentence only.
+    public static func accessibilityLabel(
+        _ data: CardData, unit: GlucoseUnit, surface: CardSurface, config: GraphConfig,
+        overrides: PlaceOverrides = PlaceOverrides(), words: CardWords = .current
+    ) -> String {
+        A11y.card(
+            data, unit: unit, surface: surface, style: surface.style(config, overrides, sensor: data.sensor),
+            words: words)
     }
 }

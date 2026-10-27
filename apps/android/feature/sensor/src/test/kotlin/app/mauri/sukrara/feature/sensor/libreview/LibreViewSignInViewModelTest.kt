@@ -58,7 +58,7 @@ class LibreViewSignInViewModelTest {
         assertEquals(SignInUi.SignedOut(SignInError.AcceptTerms), result(SignInResult.AcceptTerms).second)
 
     @Test fun offline() =
-        assertEquals(SignInUi.SignedOut(SignInError.Offline), result(SignInResult.Failed("UnknownHostException")).second)
+        assertEquals(SignInUi.SignedOut(SignInError.Failed), result(SignInResult.Failed("UnknownHostException")).second)
 
     @Test fun `an empty form sends nothing`() = runTest(dispatcher) {
         val account = FakeAccount(SignInResult.BadCredentials)

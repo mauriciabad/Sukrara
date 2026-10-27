@@ -126,21 +126,30 @@ object TreatmentMarks {
     fun onColor(dark: Boolean) = if (dark) 0xFF1C1C1E.toInt() else 0xFFFFFFFF.toInt()
 
     /**
-     * Words and icon on a tonal (faintly tinted) pill of colour [c]. Light theme: [c] darkened by a quarter, so the
-     * words reach 4.5:1 on the tint (the bare light colours fail it, e.g. carbs 3.8:1); dark theme: [c] itself.
+     * Words and icon on a tonal (faintly tinted) pill of kind [k]. Light theme: a deeper shade of the kind's colour, so
+     * the words reach 4.5:1 on the tint (the bare light colours fail it, e.g. carbs 3.8:1); dark theme: the colour
+     * itself. The same values as Mac `TreatmentMarks.tonalInk`.
      */
     fun tonalInk(
-        c: Int,
+        k: String,
         dark: Boolean,
-    ) = if (dark) c else ColorUtils.blendARGB(c, 0xFF000000.toInt(), TONAL_DARKEN)
+    ): Int =
+        if (dark) {
+            color(palette(true), k)
+        } else {
+            when (k) {
+                "rapid" -> 0xFF1550B4.toInt()
+                "long" -> 0xFF5A32A8.toInt()
+                "carbs" -> 0xFF8A4A00.toInt()
+                else -> 0xFF555555.toInt()
+            }
+        }
 
-    /** Alpha of a tonal pill's tint over the card (dark, light). */
+    /** A tonal pill's tint: [c] at 0x3D (dark) / 0x2E (light) alpha over the card. */
     fun tonalTint(
         c: Int,
         dark: Boolean,
     ) = ColorUtils.setAlphaComponent(c, if (dark) 0x3D else 0x2E)
-
-    private const val TONAL_DARKEN = 0.25f
 
     /** "4.5u", "12u", "30g"; null for notes. */
     fun amount(tr: Treatment): String? =

@@ -30,7 +30,7 @@ class PillContrastTest {
             assertTrue("$k filled pill (dark=$dark): $filled", filled >= 4.5)
             for (ground in grounds(dark)) {
                 val tint = ColorUtils.compositeColors(TreatmentMarks.tonalTint(c, dark), ground)
-                val tonal = ColorUtils.calculateContrast(TreatmentMarks.tonalInk(c, dark), tint)
+                val tonal = ColorUtils.calculateContrast(TreatmentMarks.tonalInk(k, dark), tint)
                 assertTrue("$k tonal pill on ${Integer.toHexString(ground)} (dark=$dark): $tonal", tonal >= 4.5)
             }
         }

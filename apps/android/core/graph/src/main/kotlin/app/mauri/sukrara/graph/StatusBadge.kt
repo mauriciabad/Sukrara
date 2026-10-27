@@ -149,7 +149,7 @@ object StatusBadge {
     ): Paints {
         val c = TreatmentMarks.color(TreatmentMarks.palette(dark), look.kind)
         val bg = if (look.tonal) TreatmentMarks.tonalTint(c, dark) else c
-        val fg = if (look.tonal) TreatmentMarks.tonalInk(c, dark) else TreatmentMarks.onColor(dark)
+        val fg = if (look.tonal) TreatmentMarks.tonalInk(look.kind, dark) else TreatmentMarks.onColor(dark)
         val text =
             Paint(Paint.ANTI_ALIAS_FLAG).apply {
                 color = fg

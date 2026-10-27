@@ -35,8 +35,8 @@ struct PillContrastTests {
             let c = TreatmentMarks.color(k, dark: dark)
             let filled = ratio(rgb(TreatmentMarks.onColor(dark: dark)), rgb(c))
             #expect(filled >= 4.5, "\(k) filled pill dark=\(dark): \(filled)")
-            let tint = over(TreatmentMarks.tonalTint(c, dark: dark), card)
-            let tonal = ratio(rgb(TreatmentMarks.tonalInk(c, dark: dark)), tint)
+            let tint = over(c.copy(alpha: (dark ? 0x3D : 0x2E) / 255.0)!, card)
+            let tonal = ratio(rgb(TreatmentMarks.tonalInk(k, dark: dark)), tint)
             #expect(tonal >= 4.5, "\(k) tonal pill dark=\(dark): \(tonal)")
         }
     }
