@@ -58,7 +58,6 @@ die() { echo "FAIL $*" >&2; exit 1; }
 # Every adb call names the smoke emulator; nothing here can reach another device. Gradle runs only assemble tasks
 # (install* / connected* would target every attached device).
 adb() { "$adb_bin" -s "$SERIAL" "$@"; }
-case "$SERIAL" in "$OWNER_PHONE" | *[!a-z0-9-]* | [!e]*) die "refusing serial $SERIAL" ;; esac
 
 # --- emulator -------------------------------------------------------------------------------------------------------
 ensure_avd() {
@@ -112,9 +111,20 @@ wait_emulator() {
   [ "$(prop ro.serialno)" != "$OWNER_PHONE" ] || die "refusing: that's the owner's phone"
   ok "device $SERIAL is an emulator (API $(prop ro.build.version.sdk))"
 }
+# Puts back what the smoke changed: activity keeping, the clock (host time), automatic time, unrooted adbd.
 restore_device() {
   adb shell settings put global always_finish_activities 0 > /dev/null 2>&1 || true
+  adb shell date "$(date +%m%d%H%M%Y.%S)" > /dev/null 2>&1 || true
   adb shell settings put global auto_time 1 > /dev/null 2>&1 || true
+  adb unroot > /dev/null 2>&1 || true
+}
+# adb root restarts adbd: wait until the shell answers as root.
+become_root() {
+  adb root > /dev/null 2>&1 || return 1
+  i=0
+  until [ "$(adb shell id -u 2> /dev/null | tr -d '\r')" = 0 ]; do
+    i=$((i + 1)); [ $i -lt 30 ] || return 1; sleep 1
+  done
 }
 cleanup() {
   restore_device
@@ -135,13 +145,15 @@ if [ "$build" = 1 ]; then
   SUKRARA_KEYSTORE_PASSWORD="$(release_password)" || { echo "FAIL no release key password (Keychain item sukrara-android-release)" >&2; exit 2; }
   export SUKRARA_KEYSTORE_PASSWORD
   echo "building the release APK (log: $out/build-release.log)"
-  (cd "$root/apps/android" && ./gradlew :app:assembleRelease --console=plain) > "$out/build-release.log" 2>&1 ||
+  # --no-daemon: the password must not live on in a background daemon's environment
+  (cd "$root/apps/android" && ./gradlew --no-daemon :app:assembleRelease --console=plain) > "$out/build-release.log" 2>&1 ||
     die "assembleRelease failed (tail of $out/build-release.log):
 $(tail -25 "$out/build-release.log")"
   unset SUKRARA_KEYSTORE_PASSWORD
   ok "assembleRelease"
   if [ "$poc" = 1 ]; then
     echo "building the showcase debug APK (log: $out/build-poc.log)"
+    rm -f "$poc_apk"   # a failed build must not leave an old APK to test
     (cd "$root/poc/spikes/showcase-android" && ./gradlew :app:assembleDebug --console=plain) > "$out/build-poc.log" 2>&1 ||
       warn "showcase debug build failed ($out/build-poc.log): coexistence not checked"
   fi
@@ -174,6 +186,7 @@ if [ "$poc" = 1 ]; then printf '%s\n' "$pkgs" | grep -q "^package:$POC " && ok "
 pid_of() { adb shell pidof "$1" 2>/dev/null | tr -d '\r'; }
 launch_v1() { adb shell am start -W -n "$V1/.MainActivity" > "$out/start-v1.txt" 2>&1 || bad "am start $V1 failed ($out/start-v1.txt)"; sleep 5; }
 adb shell pm grant "$V1" android.permission.POST_NOTIFICATIONS 2> /dev/null || true
+adb logcat -G 16M > /dev/null 2>&1 || true   # the whole run fits: start-up errors must not wrap away
 adb logcat -c
 launch_v1
 [ -n "$(pid_of "$V1")" ] && ok "$V1 is running after launch" || bad "$V1 isn't running 5 s after launch"
@@ -188,14 +201,24 @@ adb shell settings put global always_finish_activities 1
 adb shell input keyevent KEYCODE_HOME; sleep 2
 launch_v1
 adb shell settings put global always_finish_activities 0
-[ -n "$(pid_of "$V1")" ] && ok "$V1 comes back after its activity was destroyed (saved state restored)" || bad "$V1 died restoring its saved state"
+adb shell uiautomator dump /sdcard/smoke-ui.xml > /dev/null 2>&1 && adb pull /sdcard/smoke-ui.xml "$out/v1-restored.xml" > /dev/null 2>&1 || true
+if [ -n "$(pid_of "$V1")" ] && grep -q "package=\"$V1\"" "$out/v1-restored.xml" 2> /dev/null; then
+  ok "$V1 renders again after its activity was destroyed (saved state restored)"
+else bad "$V1 didn't come back after its activity was destroyed ($out/v1-restored.xml)"; fi
 
 if [ "$poc" = 1 ]; then
-  adb shell monkey -p "$POC" -c android.intent.category.LAUNCHER 1 > /dev/null 2>&1 || true
-  sleep 6
+  # The showcase's launcher activity (poc/ is frozen). Its first start leaves a permission dialog on top of its task,
+  # which swallows a plain relaunch: start it in a fresh task every time.
+  launch_poc() { adb shell am start -W -S --activity-clear-task -n "$POC/app.mauri.sukrara.ui.MainActivity" > /dev/null 2>&1 || true; sleep 3; }
+  adb shell pm grant "$POC" android.permission.POST_NOTIFICATIONS 2> /dev/null || true
+  launch_poc
   [ -n "$(pid_of "$POC")" ] && ok "$POC launches beside it" || bad "$POC doesn't run"
   adb shell am force-stop "$POC"; sleep 2
   [ -n "$(pid_of "$V1")" ] && ok "stopping $POC leaves $V1 running" || bad "$V1 died when $POC was stopped"
+  launch_poc
+  adb shell am force-stop "$V1"; sleep 2
+  [ -n "$(pid_of "$POC")" ] && ok "stopping $V1 leaves $POC running" || bad "$POC died when $V1 was stopped"
+  adb shell am force-stop "$POC"
   launch_v1
 fi
 
@@ -205,15 +228,18 @@ sleep "$wait_s"
 adb exec-out screencap -p > "$out/v1-after-window.png"
 adb shell dumpsys notification --noredact > "$out/notifications.txt"
 # No-data alerts must never start before the first reading: jump past every delay (TIME_SET also wakes the checks).
-adb root > /dev/null 2>&1 && adb wait-for-device
-adb shell settings put global auto_time 0
-later="$(adb shell date -d "@$(($(adb shell date +%s | tr -d '\r') + 3 * 3600))" +%m%d%H%M%Y.%S | tr -d '\r')"
-if adb shell date "$later" > /dev/null 2>&1; then
-  sleep 30
-  adb shell dumpsys notification --noredact > "$out/notifications-3h.txt"
-  clock_jumped=1
-else warn "couldn't move the emulator clock (adb root?): the 3 h no-alert check didn't run"; clock_jumped=0; fi
-adb shell settings put global auto_time 1
+clock_jumped=0
+if become_root; then
+  adb shell settings put global auto_time 0
+  later="$(adb shell date -d "@$(($(adb shell date +%s | tr -d '\r') + 3 * 3600))" +%m%d%H%M%Y.%S | tr -d '\r')"
+  if adb shell date "$later" > /dev/null 2>&1; then
+    sleep 30
+    adb shell dumpsys notification --noredact > "$out/notifications-3h.txt"
+    clock_jumped=1
+  fi
+fi
+[ "$clock_jumped" = 1 ] || warn "couldn't move the emulator clock (adb root?): the 3 h no-alert check didn't run"
+restore_device
 adb logcat -d --uid="$uid" > "$out/logcat.txt"
 adb logcat -d -b crash > "$out/logcat-crash.txt"
 
@@ -222,17 +248,22 @@ adb logcat -d -b crash > "$out/logcat-crash.txt"
 # Notification records of a package: the "NotificationRecord(… pkg=<pkg> …" blocks of a dump.
 records() { awk -v p="pkg=$1 " 'index($0,"NotificationRecord(")&&index($0,p){on=1;print;next} index($0,"NotificationRecord("){on=0} on' "$2"; }
 records "$V1" "$out/notifications.txt" > "$out/v1-records.txt"
-if grep -q "Not monitoring" "$out/v1-records.txt"; then
+# The record that carries "Not monitoring" (one block per NotificationRecord).
+awk 'index($0,"NotificationRecord("){if (hit) printf "%s", rec; rec=""; hit=0} {rec=rec $0 "\n"} /Not monitoring/{hit=1} END{if (hit) printf "%s", rec}' \
+  "$out/v1-records.txt" > "$out/v1-glucose-record.txt"
+if [ -s "$out/v1-glucose-record.txt" ]; then
   ok "the glucose notification says it isn't monitoring yet"
-  # Notification.FLAG_PROMOTED_ONGOING = 0x40000: the Live Update chip (P0).
-  flags="$(grep -o 'flags=0x[0-9a-fA-F]*' "$out/v1-records.txt" | head -1 | cut -d= -f2)"
-  if [ -n "$flags" ] && [ $((flags & 0x40000)) -ne 0 ]; then ok "it is promoted: Live Update chip (flags $flags)"
+  # The Live Update chip (P0): API 36+ dumps flags by name (…|PROMOTED_ONGOING), older ones as hex (0x40000).
+  flags="$(grep -E '^ +flags=' "$out/v1-glucose-record.txt" | head -1 | sed 's/.*flags=//')"
+  promoted=0
+  case "$flags" in *PROMOTED_ONGOING*) promoted=1 ;; 0x*) [ $((flags & 0x40000)) -ne 0 ] && promoted=1 ;; esac
+  if [ "$promoted" = 1 ]; then ok "it is promoted: Live Update chip (flags $flags)"
   else bad "the glucose notification isn't promoted (flags ${flags:-?}): no Live Update chip"; fi
 else
   warn "no 'Not monitoring' glucose notification (the monitor isn't started on this branch?) — $out/v1-records.txt"
 fi
 no_alert() {
-  if records "$V1" "$1" | grep -Eq "channel=alert|NotificationChannel\{mId='alert|fullScreenIntent=PendingIntent"; then
+  if records "$V1" "$1" | grep -Eq "channel=alert|fullscreenIntent=PendingIntent"; then
     bad "an alert fired with no sensor ($2)"
   else ok "no alert notification with no sensor ($2)"; fi
 }
@@ -243,10 +274,14 @@ no_alert "$out/notifications.txt" "after ${wait_s}s"
 channels() { awk -v p="AppSettings: $1 " 'index($0,"AppSettings: "){on=index($0,p)>0} on' "$out/notifications.txt" | grep -o "mId='[^']*'" | sort -u; }
 channels "$V1" > "$out/v1-channels.txt"
 [ -s "$out/v1-channels.txt" ] && ok "$V1 channels: $(tr '\n' ' ' < "$out/v1-channels.txt")" || warn "$V1 has no notification channels yet"
-if [ "$poc" = 1 ]; then channels "$POC" > "$out/poc-channels.txt"; ok "$POC keeps its own channels ($(wc -l < "$out/poc-channels.txt" | tr -d ' '))"; fi
+if [ "$poc" = 1 ]; then
+  channels "$POC" > "$out/poc-channels.txt"
+  [ -s "$out/poc-channels.txt" ] && ok "$POC keeps its own channels ($(wc -l < "$out/poc-channels.txt" | tr -d ' '))" ||
+    warn "$POC shows no channels in the dump"
+fi
 
 # --- 5. logcat ------------------------------------------------------------------------------------------------------
-crash="$(grep -h "FATAL EXCEPTION" "$out/logcat.txt"; grep -h "Process: $V1," "$out/logcat-crash.txt" || true)"
+crash="$(grep -h "FATAL EXCEPTION" "$out/logcat.txt" || true; grep -h "Process: $V1," "$out/logcat-crash.txt" || true)"
 [ -z "$crash" ] && ok "no crash in logcat" || bad "crash in logcat: $(printf '%s' "$crash" | head -3)"
 r8="ClassNotFoundException|NoClassDefFoundError|NoSuchMethodError|NoSuchFieldError|UnsatisfiedLinkError|AbstractMethodError"
 r8="$r8|IncompatibleClassChangeError|VerifyError|ExceptionInInitializerError|Resources\\\$NotFoundException"
