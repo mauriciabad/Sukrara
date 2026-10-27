@@ -22,6 +22,10 @@ class QualityConventionPlugin : Plugin<Project> {
         val ktlint = libs.findVersion("ktlint").get().requiredVersion
         val composeRules = libs.lib("compose-rules-ktlint").get().toString()
         extensions.configure<SpotlessExtension> {
+            // Not yet part of `check`: several chunks write code in parallel tonight; reformatting their files now would
+            // only make merge conflicts. Run `./gradlew spotlessApply` on your module; the orchestrator formats the whole
+            // tree once and turns this on (OPS issue c02).
+            isEnforceCheck = false
             kotlin {
                 target("src/**/*.kt")
                 ktlint(ktlint).customRuleSets(listOf(composeRules))
