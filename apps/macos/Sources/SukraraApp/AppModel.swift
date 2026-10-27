@@ -157,6 +157,10 @@ public final class AppModel {
     }
 
     /// The Mac woke or the clock changed: re-read the time, re-check the alerts.
+    func networkCameBack() {
+        if let follower { Task { await follower.reconnect() } }
+    }
+
     func systemTimeChanged() {
         now = clock.now
         alerts?.tick()

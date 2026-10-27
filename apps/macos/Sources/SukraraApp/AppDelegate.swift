@@ -2,6 +2,7 @@
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
 import AppKit
+import Network
 import SukraraCore
 
 /// The menu bar app shell. Services start only through `plan.services.start(using:)` (`AppServices`), before the
@@ -12,6 +13,7 @@ public final class AppDelegate: NSObject, NSApplicationDelegate {
     private let contextMenu = ContextMenu()
     private var statusItem: StatusItemController?
     private var observers: [NSObjectProtocol] = []
+    private let network = NWPathMonitor()
     /// Join links (`sukrara:` / web) handed to the follow window (chunk 23 / follower runtime 15 set this).
     var openJoinLink: ((URL) -> Void)?
 
@@ -31,6 +33,7 @@ public final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         statusItem = StatusItemController(model: model, menu: contextMenu)
         observeSystemTime()
+        observeNetwork()
         refreshNotificationPermission()
         model.run()
         AppLog.app.info("launched (offline: \(self.model.plan.isOffline, privacy: .public))")
@@ -68,6 +71,16 @@ public final class AppDelegate: NSObject, NSApplicationDelegate {
                 [weak self] _ in
                 Task { @MainActor in self?.model.systemTimeChanged() }
             })
+    }
+
+    /// The network came back: reconnect the relays now instead of waiting for the pool's watchdog (up to 270 s).
+    private func observeNetwork() {
+        guard model.follower != nil else { return }
+        network.pathUpdateHandler = { [weak self] path in
+            guard path.status == .satisfied else { return }
+            Task { @MainActor in self?.model.networkCameBack() }
+        }
+        network.start(queue: .main)
     }
 
     private func refreshNotificationPermission() {
