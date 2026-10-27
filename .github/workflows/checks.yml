@@ -86,7 +86,9 @@ jobs:
       - name: ./gradlew check (unit + contract tests, lint, spotless, Roborazzi verify)
         if: steps.present.outputs.build == 'true'
         working-directory: apps/android
-        run: ./gradlew --no-daemon check
+        # verifyReleaseSigning guards real release outputs and needs the owner's key; CI has none and ships no
+        # release artifact, so it is excluded here (release builds are checked by tools/release/verify-apk.sh).
+        run: ./gradlew --no-daemon check -x verifyReleaseSigning
 
   mac:
     needs: changes

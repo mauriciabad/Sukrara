@@ -57,7 +57,8 @@ Items) and makes V1 the `sukrara:` link handler.
 
 - **Android release key**: `~/.android/sukrara-release.jks` (alias `sukrara`), made once by
   `tools/release/make-keystore.sh`; its password lives in the Keychain item `sukrara-android-release`. The release
-  build reads `SUKRARA_KEYSTORE` (default that path) and `SUKRARA_KEYSTORE_PASSWORD` (default: the Keychain item).
+  build reads `SUKRARA_KEYSTORE` (default that path) and the env `SUKRARA_KEYSTORE_PASSWORD` only; `tools/install.sh` and
+  the release scripts export it from the Keychain item.
   Its public SHA-256 is `tools/release/android-cert.sha256`. Backup procedure: [docs/20](20-publishing.md#the-v1-android-release-key).
   Debug builds use `~/.android/debug.keystore` (`tools/release/android-debug-cert.sha256`, also in assetlinks).
 - **Mac**: the Apple Development identity of team `QWUV9H4A3G` (no notarization yet); App Group

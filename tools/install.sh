@@ -49,13 +49,19 @@ if [ -f "$RECORD" ]; then
 fi
 tools/check/run.sh --range origin/main..HEAD || die "tools/check/run.sh failed (see above)."
 
-set -- $(version_info)
+VI=$(version_info) || die "VERSION is not a valid MAJOR.MINOR.PATCH (see above)."
+set -- $VI
 VERSION=$1
 HEAD=$(git rev-parse --short HEAD)
 if [ "$TARGET" = phone ]; then
-  # 2a. Signed release APK, verified, in-place update (keeps identity, followers, settings).
+  # 2a. Signed release APK, verified, in-place update (keeps identity, followers, settings). Gradle reads the key's
+  # password only from the environment; it comes from the Keychain here and never goes on a command line.
   APK=apps/android/app/build/outputs/apk/release/app-release.apk
   MAPPING=apps/android/app/build/outputs/mapping/release/mapping.txt
+  if [ $DRY = 0 ]; then
+    SUKRARA_KEYSTORE_PASSWORD=$(release_password) || die "no release key password (Keychain item sukrara-android-release, docs/20-publishing.md)."
+    export SUKRARA_KEYSTORE_PASSWORD
+  fi
   run sh -c "cd apps/android && ./gradlew -q :app:assembleRelease"
   run tools/release/verify-apk.sh "$APK" "$MAPPING"
   run adb -s "$SERIAL" install -r "$APK"
@@ -64,39 +70,50 @@ if [ "$TARGET" = phone ]; then
     [ "$GOT" = "$VERSION" ] || die "phone reports versionName '$GOT' for app.mauri.sukrara, expected '$VERSION'."
   fi
 else
-  # 2b. Team-signed bundle with the widget; the showcase steps aside first.
+  # 2b. Team-signed bundle with the widget; the showcase steps aside (it must not alert next to V1: double alarms).
   DEST="$HOME/Applications/Sukrara.app"
   SHOWCASE="$HOME/Applications/Sukrara Showcase.app"
   BUILT=apps/macos/build/Sukrara.app
+  id_of() { /usr/libexec/PlistBuddy -c "Print :CFBundleIdentifier" "$1/Contents/Info.plist" 2>/dev/null || true; }
+  # Every refusal comes before anything changes on the Mac (the owner keeps an alerting app either way).
+  MOVE_SHOWCASE=0
+  if [ -d "$DEST" ]; then
+    case "$(id_of "$DEST")" in
+      app.mauri.sukrara) ;;
+      app.mauri.sukrara.poc)
+        [ -e "$SHOWCASE" ] && die "$SHOWCASE already exists and $DEST is also the showcase: keep one of them (never deleted here)."
+        MOVE_SHOWCASE=1 ;;
+      *) die "$DEST is neither V1 nor the showcase ($(id_of "$DEST")): move it away by hand." ;;
+    esac
+  fi
   run sh -c "cd apps/macos && Bundle/bundle.sh"
   run tools/release/verify-app.sh "$BUILT"
-  id_of() { /usr/libexec/PlistBuddy -c "Print :CFBundleIdentifier" "$1/Contents/Info.plist" 2>/dev/null || true; }
-  # The showcase must not alert next to V1 (double alarms): quit it, keep it as the fallback under another name.
+  # Quit the showcase only now; if anything below fails, reopen it so glucose alerts never stop.
   if osascript -e 'application id "app.mauri.sukrara.poc" is running' 2>/dev/null | grep -q true; then
     run osascript -e 'tell application id "app.mauri.sukrara.poc" to quit'
+    if [ $DRY = 0 ]; then
+      trap 'echo "install failed: reopening the showcase"; open -b app.mauri.sukrara.poc' EXIT
+    fi
   fi
-  if [ -d "$DEST" ] && [ "$(id_of "$DEST")" = app.mauri.sukrara.poc ]; then
-    [ -e "$SHOWCASE" ] && die "$SHOWCASE already exists and $DEST is also the showcase: keep one of them (never deleted here)."
-    run mv "$DEST" "$SHOWCASE"
-  elif [ -d "$DEST" ] && [ "$(id_of "$DEST")" != app.mauri.sukrara ]; then
-    die "$DEST is neither V1 nor the showcase ($(id_of "$DEST")): move it away by hand."
-  fi
-  # Its login item (SMAppService of the showcase) can only be turned off by the showcase or in System Settings.
-  if sfltool dumpbtm 2>/dev/null | grep -q 'app.mauri.sukrara.poc'; then
-    echo "ACTION: the showcase is still a login item. Turn off 'Sukrara' (Sukrara Showcase) in System Settings ›"
-    echo "        General › Login Items & Extensions, or it opens at login and alerts next to V1."
-    run open "x-apple.systempreferences:com.apple.LoginItems-Settings.extension"
-  fi
+  if [ $MOVE_SHOWCASE = 1 ]; then run mv "$DEST" "$SHOWCASE"; fi
   run pkill -x Sukrara || true
   run rm -rf "$DEST"
   run ditto "$BUILT" "$DEST"
   run /System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -f "$DEST"
   run swift tools/release/url-handler.swift "$DEST" || echo "WARN: sukrara: links may still open the showcase (see above)."
   run open "$DEST"
+  trap - EXIT
   run pkill -f SukraraWidget.appex || true
   # Unregister every other registered V1 copy (worktree / test builds), or chronod may run their stale extension.
   pluginkit -mAv 2>/dev/null | grep 'app.mauri.sukrara.widget' | awk -F'\t' '{print $NF}' | grep -v "^$DEST/" |
     while IFS= read -r p; do run pluginkit -r "$p"; done
+  # The showcase's login item (its own SMAppService) can only be turned off by the showcase or in System Settings,
+  # and macOS doesn't reliably say whether it is on: remind whenever the showcase is still installed.
+  if [ -d "$SHOWCASE" ] || mdfind "kMDItemCFBundleIdentifier == 'app.mauri.sukrara.poc'" 2>/dev/null | grep -q .; then
+    echo "ACTION: if Sukrara Showcase opens at login, turn it off in System Settings › General › Login Items &"
+    echo "        Extensions, or it starts again after a restart and alerts next to V1."
+    run open "x-apple.systempreferences:com.apple.LoginItems-Settings.extension"
+  fi
   GOT=$VERSION
 fi
 

@@ -3,17 +3,17 @@
 # Copyright (C) 2026 Maurici Abad
 # SPDX-License-Identifier: GPL-3.0-or-later
 # Checks a V1 release APK before it reaches a phone or a GitHub release:
-#   tools/release/verify-apk.sh <apk> [mapping.txt]
+#   tools/release/verify-apk.sh <apk> <mapping.txt>
 # - signature verifies and the signer certificate is THE release key (tools/release/android-cert.sha256)
 # - package app.mauri.sukrara, versionName / versionCode = tools/release/version.sh, not debuggable
 # - the Libre 3 native core lib/arm64-v8a/libsukrara_libre3.so is inside
 # - no debug code: the merged manifest names no DebugReceiver, and (R8 renames classes, so the dex names prove
-#   nothing) the R8 mapping, when given, lists no DebugReceiver / DebugFakes / Synthetic* class
+#   nothing) the build's R8 mapping lists no DebugReceiver / DebugFakes / Synthetic* class
 set -eu
 here="$(cd "$(dirname "$0")" && pwd)"
 . "$here/lib.sh"
-apk="${1:?usage: verify-apk.sh <apk> [mapping.txt]}"
-mapping="${2:-}"
+apk="${1:?usage: verify-apk.sh <apk> <mapping.txt>}"
+mapping="${2:?usage: verify-apk.sh <apk> <mapping.txt> (R8 renames classes: only the mapping shows them)}"
 fail=0
 bad() { echo "FAIL $*"; fail=1; }
 ok() { echo "ok   $*"; }
@@ -21,7 +21,8 @@ ok() { echo "ok   $*"; }
 apksigner="$(sdk_tool apksigner)"
 aapt2="$(sdk_tool aapt2)"
 want_cert="$(cat "$here/android-cert.sha256")"
-set -- $(version_info)
+VI=$(version_info) || exit 1
+set -- $VI
 want_name="$1" want_code="$2"
 
 certs="$("$apksigner" verify --print-certs "$apk" 2>&1)" || { bad "signature doesn't verify: $certs"; certs=""; }
@@ -44,10 +45,7 @@ manifest="$("$aapt2" dump xmltree --file AndroidManifest.xml "$apk")"
 if printf '%s\n' "$manifest" | grep -Eq 'DebugReceiver|DebugFakes|Synthetic'; then bad "the manifest registers debug components"
 else ok "manifest has no debug components"; fi
 
-if [ -n "$mapping" ]; then
-  if grep -Eq '^[^ ].*\.(DebugReceiver|DebugFakes|Synthetic[A-Za-z]*) ->' "$mapping"; then bad "R8 mapping lists debug classes"
-  else ok "R8 mapping lists no debug classes"; fi
-else
-  echo "note no R8 mapping given: debug classes only checked through the manifest"
-fi
+if [ ! -f "$mapping" ]; then bad "no R8 mapping at $mapping (a minified release build writes one)"
+elif grep -Eq '^[^ ].*\.(DebugReceiver|DebugFakes|Synthetic[A-Za-z]*) ->' "$mapping"; then bad "R8 mapping lists debug classes"
+else ok "R8 mapping lists no debug classes"; fi
 exit $fail

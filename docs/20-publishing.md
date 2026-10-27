@@ -237,7 +237,8 @@ the showcase stays installed next to it until the owner uninstalls it).
   `tools/release/android-cert.sha256` (also in `docs/.well-known/assetlinks.json` for `app.mauri.sukrara`, with the
   debug key's for debug builds).
 - **How a release build finds it:** the keystore from `SUKRARA_KEYSTORE` (default the path above), the password from
-  `SUKRARA_KEYSTORE_PASSWORD`, else `security find-generic-password -s sukrara-android-release -w`.
+  the environment variable `SUKRARA_KEYSTORE_PASSWORD` only (Gradle never reads the Keychain); `tools/install.sh` and the
+  release scripts fill it from the Keychain item (`security find-generic-password -s sukrara-android-release -w`).
   `tools/release/verify-apk.sh` refuses an APK signed by anything else.
 - **Back it up now** (once, and after any change): copy the `.jks` file and the password
   (`security find-generic-password -s sukrara-android-release -w`) into the password manager, plus one offline copy.
