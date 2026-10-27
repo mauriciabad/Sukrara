@@ -213,33 +213,52 @@ internal object Blooms {
                     forgetMeNot(cv, x + a * u, y + bb * u, u * 0.6f)
                 }
             }
+
             Bloom.DAISY -> {
                 leafPair(cv, x, y, u, pal)
-                for ((a, bb, s) in listOf(Triple(-1.85f, .55f, .5f), Triple(1.85f, .55f, .5f), Triple(-1.2f, -1.25f, .34f), Triple(1.2f, -1.25f, .34f))) {
+                for ((a, bb, s) in listOf(
+                    Triple(-1.85f, .55f, .5f),
+                    Triple(1.85f, .55f, .5f),
+                    Triple(-1.2f, -1.25f, .34f),
+                    Triple(1.2f, -1.25f, .34f),
+                )) {
                     daisy(cv, x + a * u, y + bb * u, u * s, false, pal)
                 }
                 daisy(cv, x, y, u * 0.85f, true, pal)
             }
+
             Bloom.CHERRY -> {
                 leafPair(cv, x, y, u, pal)
                 blossom(cv, x - u * 1.6f, y + u * .55f, u * .58f, 20f)
                 blossom(cv, x + u * 1.6f, y + u * .55f, u * .58f, -20f)
                 blossom(cv, x, y - u * .2f, u, 0f)
             }
+
             Bloom.ROSETTE -> {
                 // an award rosette with two ribbon tails hanging into the gap
                 val pts = listOf(-.25f to .3f, -1.35f to 2.75f, -.9f to 2.45f, -.62f to 3.0f, .35f to .55f)
                 for ((s, color) in listOf(1 to GOLD_DARK, -1 to RIBBON)) {
                     val p =
                         Path().apply {
-                            pts.forEachIndexed { i, (a, bb) -> if (i == 0) moveTo(x + s * a * u, y + bb * u) else lineTo(x + s * a * u, y + bb * u) }
+                            pts.forEachIndexed { i, (a, bb) ->
+                                if (i ==
+                                    0
+                                ) {
+                                    moveTo(x + s * a * u, y + bb * u)
+                                } else {
+                                    lineTo(x + s * a * u, y + bb * u)
+                                }
+                            }
                             close()
                         }
                     cv.drawPath(p, fill(color))
                 }
                 rosette(cv, x, y, u * 1.1f)
             }
-            Bloom.LAVENDER -> spike(cv, x, y, u / 0.14f, -90f, pal)
+
+            Bloom.LAVENDER -> {
+                spike(cv, x, y, u / 0.14f, -90f, pal)
+            }
         }
     }
 

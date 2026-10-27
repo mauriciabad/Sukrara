@@ -8,13 +8,15 @@ import app.mauri.sukrara.core.model.Clock
 import app.mauri.sukrara.core.model.DefaultDispatchers
 import app.mauri.sukrara.core.model.DispatcherProvider
 import app.mauri.sukrara.core.model.SystemClock
-import app.mauri.sukrara.feature.home.HomeDeps
+import app.mauri.sukrara.core.data.DataModule
+import app.mauri.sukrara.core.model.GlucoseState
 import app.mauri.sukrara.feature.sharing.SharingDeps
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
+import kotlinx.coroutines.flow.MutableStateFlow
 
 /**
  * The app's object graph (manual DI, docs/ARCHITECTURE.md §Android DI).
@@ -30,10 +32,17 @@ class AppGraph(
     val app: Application,
     val dispatchers: DispatcherProvider = DefaultDispatchers,
     val clock: Clock = SystemClock,
-) : HomeDeps, SharingDeps {
+) : SharingDeps {
     val scope = CoroutineScope(SupervisorJob() + dispatchers.default)
 
-    override val appVersion: String = BuildConfig.VERSION_NAME
+    val appVersion: String = BuildConfig.VERSION_NAME
+
+    val data by lazy { DataModule(app, appVersion, dispatchers, clock) }
+
+    // the hub's state and the alert checklist come from :monitor / the alert runtime once they are composed here
+    val home by lazy {
+        HomeModule(app, data, clock, scope, MutableStateFlow(GlucoseState.Initial), readinessSource = null, unmuteAlerts = {}, resume = {})
+    }
 
     /**
      * Loads what the modules need from disk, once, off the main thread. [App] starts it; anything that reads state
@@ -42,5 +51,6 @@ class AppGraph(
     val ready: Deferred<Unit> =
         scope.async(dispatchers.io, CoroutineStart.LAZY) {
             // modules' load calls go here, in dependency order
+            data.ready()
         }
 }

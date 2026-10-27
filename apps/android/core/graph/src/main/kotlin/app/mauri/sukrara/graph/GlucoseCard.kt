@@ -82,7 +82,17 @@ object GlucoseCard {
                 else -> RectF(0f, headerH + if (st.value) 6 * d else 0f, w, h)
             }
         if ((part == CardPart.ALL || part == CardPart.GRAPH) && graph != null) {
-            val input = GlucoseGraph.Input(model.readings, model.treatments, nowS, model.muteRule?.let { r -> r::muteUntil }, model.words, latest?.t)
+            val input =
+                GlucoseGraph.Input(
+                    model.readings,
+                    model.treatments,
+                    nowS,
+                    model.muteRule?.let { r ->
+                        r::muteUntil
+                    },
+                    model.words,
+                    latest?.t,
+                )
             GlucoseGraph.draw(cv, chart, input, graph, pal, d, sl.takeIf { spot == SensorSpot.GRAPH }, rec, view)
         }
         // a graph-only card without its chart: the value's face alone (a graph card has no slots or badge)
@@ -90,7 +100,13 @@ object GlucoseCard {
         if (st.value && part != CardPart.GRAPH) {
             val box = RectF(0f, 0f, valueRight, if (sideBySide) h else headerH)
             val slotsW =
-                if (sideBySide || part == CardPart.VALUE) 0f else drawSlots(cv, box, st, last, model, bands, pal, d, countdown, rec, dedicated = false)
+                if (sideBySide ||
+                    part == CardPart.VALUE
+                ) {
+                    0f
+                } else {
+                    drawSlots(cv, box, st, last, model, bands, pal, d, countdown, rec, dedicated = false)
+                }
             val look = if (st.badge) StatusBadge.look(model.status, nowS, model.words) else null
             value.draw(cv, if (stacked) chart else RectF(box.left, box.top, box.right - slotsW, box.bottom), look, st.valueInk)
         }
@@ -133,7 +149,8 @@ object GlucoseCard {
         sensor: SensorBadge.Look?,
         surface: CardSurface,
     ): GlucoseLook =
-        Freshness.look(latest?.sgv, latest?.t, latest?.rate, nowS, ended = sensor?.ended == true, warmup = sensor?.warmup)
+        Freshness
+            .look(latest?.sgv, latest?.t, latest?.rate, nowS, ended = sensor?.ended == true, warmup = sensor?.warmup)
             .also { f -> faceObserver?.invoke(surface, f) }
 
     /**
@@ -189,7 +206,9 @@ object GlucoseCard {
         var items = Slots.arrange(rings, st.last, last, fallback, fit)
         // in a box of their own every slot fits whole, the laurels' extra room included
         if (dedicated) {
-            while (items.isNotEmpty() && items.size * size + (items.size - 1) * gap + Slots.extraWidth(items, size / 2) > box.width() + 0.5f) {
+            while (items.isNotEmpty() &&
+                items.size * size + (items.size - 1) * gap + Slots.extraWidth(items, size / 2) > box.width() + 0.5f
+            ) {
                 items = Slots.arrange(rings, st.last, last, fallback, items.size - 1)
             }
         }
@@ -199,13 +218,29 @@ object GlucoseCard {
         val cy = box.centerY()
         val disc = st.slotDisc
         val marked = items.any(Slots::hasLaurel)
-        val ringR = if (disc == null) size / 2 else if (marked) size / 2 / 1.5f else size / 2 - 3 * d
+        val ringR =
+            if (disc == null) {
+                size / 2
+            } else if (marked) {
+                size / 2 / 1.5f
+            } else {
+                size / 2 - 3 * d
+            }
         Slots.drawUnder(cv, items, cx, cy, ringR, pal)
         for ((i, item) in items.withIndex()) {
-            if (disc != null) cv.drawCircle(cx[i], cy, if (marked) ringR + 3 * d else size / 2, Paint(Paint.ANTI_ALIAS_FLAG).apply { color = disc })
+            if (disc !=
+                null
+            ) {
+                cv.drawCircle(cx[i], cy, if (marked) ringR + 3 * d else size / 2, Paint(Paint.ANTI_ALIAS_FLAG).apply { color = disc })
+            }
             val ring = countdown.takeIf { i == main }
             Slots.draw(cv, item, cx[i], cy, ringR, model.nowS, pal, d, model.words, ring)
-            rec.add("slot", RectF(cx[i] - ringR, cy - ringR, cx[i] + ringR, cy + ringR), Slots.describe(item, i == main, ring), exact = true)
+            rec.add(
+                "slot",
+                RectF(cx[i] - ringR, cy - ringR, cx[i] + ringR, cy + ringR),
+                Slots.describe(item, i == main, ring),
+                exact = true,
+            )
         }
         rec.add("slots", RectF(cx.last() - size / 2, box.top, box.right, box.bottom), "${items.size}", exact = true)
         rec.add("slots.box", box, exact = true)

@@ -27,25 +27,34 @@ public struct SnapshotRequest: Equatable, Sendable {
     }
 }
 
-/// Something that reaches outside the process: the user's sensor or phone, relays, notifications, the widget.
+/// Something that reaches outside the process: the user's sensor or phone, relays, notifications, the widget, the
+/// network (update check) and the system's login items.
 public enum Service: CaseIterable, Sendable {
-    case ble, relays, alerts, widgetFeed, notifications
+    // notifications first: the alert notifier needs the center when `alerts` starts
+    case notifications, ble, relays, alerts, widgetFeed, updateCheck, loginItem
 }
 
 /// The services a launch MAY start: an upper limit. The app ANDs it with the user's settings
 /// (`limited(by:)`) and starts services only through `ServicesPlan.start(using:)`.
 public struct ServicesPlan: Equatable, Sendable {
-    public var ble, relays, alerts, widgetFeed, notifications: Bool
+    public var ble, relays, alerts, widgetFeed, notifications, updateCheck, loginItem: Bool
 
-    public init(ble: Bool, relays: Bool, alerts: Bool, widgetFeed: Bool, notifications: Bool) {
+    public init(
+        ble: Bool, relays: Bool, alerts: Bool, widgetFeed: Bool, notifications: Bool, updateCheck: Bool = false,
+        loginItem: Bool = false
+    ) {
         self.ble = ble
         self.relays = relays
         self.alerts = alerts
         self.widgetFeed = widgetFeed
         self.notifications = notifications
+        self.updateCheck = updateCheck
+        self.loginItem = loginItem
     }
 
-    public static let all = ServicesPlan(ble: true, relays: true, alerts: true, widgetFeed: true, notifications: true)
+    public static let all = ServicesPlan(
+        ble: true, relays: true, alerts: true, widgetFeed: true, notifications: true, updateCheck: true,
+        loginItem: true)
     public static let none = ServicesPlan(
         ble: false, relays: false, alerts: false, widgetFeed: false, notifications: false)
 
@@ -56,6 +65,8 @@ public struct ServicesPlan: Equatable, Sendable {
         case .alerts: alerts
         case .widgetFeed: widgetFeed
         case .notifications: notifications
+        case .updateCheck: updateCheck
+        case .loginItem: loginItem
         }
     }
 
@@ -69,7 +80,9 @@ public struct ServicesPlan: Equatable, Sendable {
             relays: relays && wanted.relays,
             alerts: alerts && wanted.alerts,
             widgetFeed: widgetFeed && wanted.widgetFeed,
-            notifications: notifications && wanted.notifications
+            notifications: notifications && wanted.notifications,
+            updateCheck: updateCheck && wanted.updateCheck,
+            loginItem: loginItem && wanted.loginItem
         )
     }
 

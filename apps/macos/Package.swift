@@ -16,6 +16,7 @@ let mainActorByDefault: [SwiftSetting] = [
 
 let package = Package(
     name: "Sukrara",
+    defaultLocalization: "en",
     platforms: [.macOS(.v15)],
     products: [
         .executable(name: "Sukrara", targets: ["Sukrara"]),
@@ -42,6 +43,7 @@ let package = Package(
         .target(
             name: "SukraraApp",
             dependencies: ["SukraraCore", "SukraraGraph", "SukraraAlerts", "SukraraShare"],
+            resources: [.process("Windows/Localizable.xcstrings")],
             swiftSettings: mainActorByDefault
         ),
         .executableTarget(name: "Sukrara", dependencies: ["SukraraApp"], swiftSettings: mainActorByDefault),

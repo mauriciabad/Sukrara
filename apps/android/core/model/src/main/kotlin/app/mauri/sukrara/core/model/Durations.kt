@@ -77,7 +77,15 @@ object Durations {
     /** The plural quantity of [whole]. */
     fun wholeQuantity(min: Long): Int {
         val m = min.coerceAtLeast(0)
-        return (if (m >= 1440) m / 1440 else if (m >= 60) m / 60 else m).toQuantity()
+        return (
+            if (m >= 1440) {
+                m / 1440
+            } else if (m >= 60) {
+                m / 60
+            } else {
+                m
+            }
+        ).toQuantity()
     }
 
     /** The plural quantity of [text]. */
