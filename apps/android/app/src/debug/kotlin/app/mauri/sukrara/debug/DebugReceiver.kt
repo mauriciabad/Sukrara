@@ -53,8 +53,9 @@ object DebugFakes {
     }
 
     /**
-     * `SYNTHETIC --ez on true|false [--ez frozen true]`: the synthetic wearer source replaces the sensor (and makes this
-     * phone the wearer if setup hasn't chosen a role), or goes away again. The monitoring service restarts with the
+     * `SYNTHETIC --ez on true|false [--ez frozen true] [--ei cycle M]`: the synthetic wearer source replaces the sensor (and makes this
+     * phone the wearer if setup hasn't chosen a role), or goes away again. `cycle` puts "now" at minute M of the curve's
+     * 3-hour cycle (135 = its lowest point, 45 mg/dL; 45 = its highest). The monitoring service restarts with the
      * new source; from the background Android may refuse that start (then "Monitoring stopped" shows: open the app).
      */
     private fun synthetic(
@@ -65,7 +66,9 @@ object DebugFakes {
         val graph = context.graph
         graph.scope.launch {
             graph.ready.await()
-            SyntheticSource.set(context, on, frozen = intent.getBooleanExtra("frozen", false))
+            val cycleMinute = intent.getIntExtra("cycle", -1)
+            val shift = if (cycleMinute >= 0) SyntheticSource.shiftFor(graph.clock.now(), cycleMinute) else 0L
+            SyntheticSource.set(context, on, frozen = intent.getBooleanExtra("frozen", false), shift = shift)
             if (on) graph.role.update { if (it.role == null) RoleRecord(Role.Wearer) else it }
             context.stopService(Intent(context, MonitoringService::class.java))
             graph.monitor.starter.start(StartReason.App)

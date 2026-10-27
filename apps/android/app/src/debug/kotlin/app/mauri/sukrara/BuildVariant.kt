@@ -11,6 +11,12 @@ import kotlinx.coroutines.withContext
 internal object BuildVariant {
     suspend fun wearerSource(graph: AppGraph): ReadingSource? =
         withContext(graph.dispatchers.io) {
-            if (SyntheticSource.isOn(graph.app)) SyntheticSource(graph.clock) { SyntheticSource.isFrozen(graph.app) } else null
+            if (SyntheticSource.isOn(graph.app)) {
+                SyntheticSource(graph.clock, SyntheticSource.shift(graph.app)) {
+                    SyntheticSource.isFrozen(graph.app)
+                }
+            } else {
+                null
+            }
         }
 }

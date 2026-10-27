@@ -5,17 +5,25 @@ package app.mauri.sukrara
 
 import android.app.Application
 import android.content.Context
+import app.mauri.sukrara.monitor.AlertsHost
 import app.mauri.sukrara.monitor.MonitorHost
 import app.mauri.sukrara.monitor.MonitorModule
+import app.mauri.sukrara.monitor.alerts.AlertsModule
 
-/** Builds the [AppGraph] and hands the runtime modules to their Android components (service, receivers). */
+/**
+ * Builds the [AppGraph] and hands the runtime modules to their Android components (service, receivers): one `XxxHost`
+ * interface per runtime module, each member one line delegating to the graph.
+ */
 class App :
     Application(),
-    MonitorHost {
+    MonitorHost,
+    AlertsHost {
     lateinit var graph: AppGraph
         private set
 
     override val monitor: MonitorModule get() = graph.monitor
+
+    override val alerts: AlertsModule get() = graph.alerts
 
     override suspend fun awaitReady() = graph.ready.await()
 

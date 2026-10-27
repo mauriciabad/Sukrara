@@ -51,11 +51,23 @@ Packages follow the module path: `:feature:home` → `app.mauri.sukrara.feature.
 - **Dependencies between modules point down**: features → core/runtime modules → `:core:model`. Features never
   depend on each other or on `:app`; they declare what they need as an `XxxDeps` interface (see `HomeDeps`).
 - **DI**: your area gets ONE module class in your module (e.g. `class MonitorModule(…)`) that builds its objects
-  from constructor parameters. Add one `val monitor by lazy { MonitorModule(…) }` line to `AppGraph` and implement
-  the feature `XxxDeps` members by delegating to it. No I/O in constructors: disk work goes in a load function
-  called from `AppGraph.ready` (a lazy `Deferred` on the IO dispatcher; `await()` it before reading state).
-  ViewModels are created with
-  `viewModelFactory { initializer { … } }` from the deps.
+  from constructor parameters. `AppGraph` composes them, one `by lazy` block each, in dependency order
+  (`data` → `role` → `sensor` → `monitor` → `alerts` → …); a new area adds:
+  1. one `val share by lazy { ShareModule(…) }` in `AppGraph`, its inputs taken from the modules above it
+     (`data.settings`, `data.typedStore("<name>", …, whenCorrupt = …)`, `monitor.hub`, `clock`, `dispatchers`);
+  2. if it has a load function, one call in `AppGraph.ready` (a lazy `Deferred` on the IO dispatcher, started by
+     `App`; `await()` it before reading state). No I/O in constructors;
+  3. if Android components (service, receivers, provider) need it, an `XxxHost` interface in its module that `App`
+     implements with one line (`override val alerts get() = graph.alerts`, like `MonitorHost` / `AlertsHost`);
+  4. feature screens get it through their `XxxDeps` interface, implemented by `AppGraph` delegating to the module.
+  ViewModels are created with `viewModelFactory { initializer { … } }` from the deps.
+- **Who starts what**: `App.onCreate` builds the graph and starts `ready`; `MainActivity.onResume` calls
+  `monitor.starter.start(StartReason.App)`; the service attaches the role's `ReadingSource` (wearer: the sensor's
+  `SourceManager`, run only while attached — `RunWhileAttached`; follower: chunk 25) and the alert runtime.
+- **Debug fakes**: `app/src/debug` has `DebugReceiver` / `DebugFakes` and `BuildVariant` (the release copy in
+  `app/src/release` returns no test source). `adb shell am broadcast -n app.mauri.sukrara/.debug.DebugReceiver
+  -a app.mauri.sukrara.debug.SYNTHETIC --ez on true [--ei cycle 135] [--ez frozen true]` replaces the sensor with a
+  made-up 45–215 mg/dL curve on the emulator (`cycle 135` = its lowest point now); `--ez on false` removes it.
 - **Manifest**: a module declares its own components in its `src/main/AndroidManifest.xml`. Exported components
   need a permission (ManifestTest lists the allowed exceptions). Debug-only tools live in `app/src/debug`.
 - **Strings**: every user-visible text in the module's `res/values/strings.xml` and `res/values-es/strings.xml`.
