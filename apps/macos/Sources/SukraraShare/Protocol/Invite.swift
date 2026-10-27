@@ -25,7 +25,9 @@ public struct InviteLink: Equatable, Sendable {
             return nil
         }
         guard code.count == 32,
-            code.unicodeScalars.allSatisfy({ $0.isASCII && (CharacterSet.alphanumerics.contains($0) || $0 == "-" || $0 == "_") }),
+            code.unicodeScalars.allSatisfy({
+                $0.isASCII && (CharacterSet.alphanumerics.contains($0) || $0 == "-" || $0 == "_")
+            }),
             let raw = Base64URL.decode(String(code)), raw.count == 24
         else { return nil }
         return InviteLink(fingerprint: Hex.encode(raw[0..<8]), secret: Array(raw[8..<24]))

@@ -84,7 +84,9 @@ struct OgsVectorsTests {
     }
 
     private func recipientSecret(_ pub: String) -> SecretKeyHex? {
-        if let name = ["I", "D", "F", "W", "X", "G1", "G2"].first(where: { v.pub($0) == pub }) { return v.secret(name) }
+        if let name = ["I", "D", "F", "W", "X", "G1", "G2"].first(where: { v.pub($0) == pub }) {
+            return v.secret(name)
+        }
         let invite = v.derivations["invite"] as! [String: Any]
         return invite["invite_key_pub"] as? String == pub ? SecretKeyHex(invite["invite_key_sec"] as! String) : nil
     }

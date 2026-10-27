@@ -31,7 +31,8 @@ public struct FollowerMessages: Sendable {
     }
 
     /// A rumor (kind 30500) to the identity, wrapped with an absolute expiration of now + `ttl`.
-    public func toOwner(_ body: [String: Any], identity: String, ttl: Int, now: Int) throws(CryptoError) -> SignedEvent {
+    public func toOwner(_ body: [String: Any], identity: String, ttl: Int, now: Int) throws(CryptoError) -> SignedEvent
+    {
         try crypto.giftWrap(
             kind: Wire.kindToOwner, content: JSONText.encode(body), from: follower, to: identity, expiration: now + ttl)
     }
@@ -58,6 +59,7 @@ public struct FollowerMessages: Sendable {
 public enum JSONText {
     public static func encode(_ object: Any) -> String {
         let options: JSONSerialization.WritingOptions = [.sortedKeys, .withoutEscapingSlashes, .fragmentsAllowed]
-        return String(decoding: (try? JSONSerialization.data(withJSONObject: object, options: options)) ?? Data(), as: UTF8.self)
+        return String(
+            decoding: (try? JSONSerialization.data(withJSONObject: object, options: options)) ?? Data(), as: UTF8.self)
     }
 }

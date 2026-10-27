@@ -35,7 +35,9 @@ public enum Wire {
     public static let rekeyInterval = 300
 
     /// The only default relays (Sukrara 0.11 set, measured 2026-10-17: take new keys' events and serve gift wraps).
-    public static let defaultRelays = ["wss://nos.lol", "wss://relay.primal.net", "wss://nostr.mom", "wss://relay.snort.social"]
+    public static let defaultRelays = [
+        "wss://nos.lol", "wss://relay.primal.net", "wss://nostr.mom", "wss://relay.snort.social",
+    ]
 
     /// Invite link prefixes (PROTOCOL-identity "Short invites"): the web link and the app's own scheme.
     public static let inviteBase = "https://sukrara.mauri.app/join#"

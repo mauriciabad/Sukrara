@@ -255,7 +255,8 @@ public struct TreatmentPayload: Equatable, Sendable {
     public static func decode(_ json: String) throws(PayloadError) -> TreatmentPayload {
         let o = try JSONObject(json: json)
         try o.requireVersion(Wire.treatmentVersion)
-        guard let id = o.string("id"), id.wholeMatch(of: /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/) != nil
+        guard let id = o.string("id"),
+            id.wholeMatch(of: /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/) != nil
         else { throw PayloadError("id must be a lowercase UUID") }
         guard let kind = o.string("k"), kinds.contains(kind) else { throw PayloadError("unknown treatment kind") }
         let note = o.has("n") ? o.string("n") : ""
@@ -352,7 +353,8 @@ public struct KeyDelivery: Equatable, Sendable {
         guard let sid = o.string("sid"), Hex.isKey(sid) else { throw PayloadError("bad sid") }
         guard let g = o.string("g") else { throw PayloadError("missing g") }
         let devices = (o.raw["devices"] as? [String] ?? []).filter(Hex.isKey)
-        return KeyDelivery(sid: sid, epoch: try o.int("epoch"), nsec: g, devices: devices, relays: Relays.secure(o.raw["relays"]))
+        return KeyDelivery(
+            sid: sid, epoch: try o.int("epoch"), nsec: g, devices: devices, relays: Relays.secure(o.raw["relays"]))
     }
 }
 

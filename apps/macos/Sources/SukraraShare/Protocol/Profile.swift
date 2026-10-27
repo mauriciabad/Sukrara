@@ -17,7 +17,8 @@ public struct Avatar: Hashable, Sendable, Codable {
     /// From the wire: any object with a positive integer `v` whose JSON is at most 512 bytes; nil otherwise.
     public init?(wire: Any?) {
         guard let object = wire as? [String: Any], let v = object["v"] as? Int, v > 0,
-            let data = try? JSONSerialization.data(withJSONObject: object, options: [.sortedKeys, .withoutEscapingSlashes]),
+            let data = try? JSONSerialization.data(
+                withJSONObject: object, options: [.sortedKeys, .withoutEscapingSlashes]),
             data.count <= Self.maxWireBytes
         else { return nil }
         json = String(decoding: data, as: UTF8.self)
@@ -52,7 +53,8 @@ public struct Avatar: Hashable, Sendable, Codable {
     public func with(colors: Int? = nil, shape: String? = nil, angle: Int? = nil, seed: Int64? = nil) -> Avatar {
         let o = object
         return Self.v1(
-            c: colors ?? (o["c"] as? Int ?? 0), s: shape ?? (o["s"] as? String ?? "cube"), a: angle ?? (o["a"] as? Int ?? 0),
+            c: colors ?? (o["c"] as? Int ?? 0), s: shape ?? (o["s"] as? String ?? "cube"),
+            a: angle ?? (o["a"] as? Int ?? 0),
             n: seed ?? Int64(o["n"] as? Int ?? 0))
     }
 

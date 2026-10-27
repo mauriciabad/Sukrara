@@ -25,8 +25,10 @@ public protocol NostrCrypto: Sendable {
     func verify(_ event: SignedEvent) -> Bool
     func sign(kind: UInt16, content: String, tags: [[String]], createdAt: Int, with secret: SecretKeyHex)
         throws(CryptoError) -> SignedEvent
-    func nip44Encrypt(_ plaintext: String, from secret: SecretKeyHex, to publicKey: String) throws(CryptoError) -> String
-    func nip44Decrypt(_ payload: String, with secret: SecretKeyHex, from publicKey: String) throws(CryptoError) -> String
+    func nip44Encrypt(_ plaintext: String, from secret: SecretKeyHex, to publicKey: String) throws(CryptoError)
+        -> String
+    func nip44Decrypt(_ payload: String, with secret: SecretKeyHex, from publicKey: String) throws(CryptoError)
+        -> String
     /// NIP-59: rumor `kind`/`content` by `sender`, sealed by `sender`, wrapped to `recipient`, with an **absolute**
     /// NIP-40 expiration (NIP-59 backdates created_at by up to 2 days, so a relative one could arrive expired).
     func giftWrap(kind: UInt16, content: String, from sender: SecretKeyHex, to recipient: String, expiration: Int)

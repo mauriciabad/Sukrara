@@ -58,9 +58,10 @@ struct AcceptanceRulesTests {
         #expect(outcome.deltas == [.status(.active)])
         #expect(outcome.resubscribe)
         #expect(follower.state.sid == v.sid)
-        #expect(follower.filters(now: v.now, newestStored: nil).keys.sorted() == [
-            "chunks", "inbox", "live", "roster", "settings", "treatments",
-        ])
+        #expect(
+            follower.filters(now: v.now, newestStored: nil).keys.sorted() == [
+                "chunks", "inbox", "live", "roster", "settings", "treatments",
+            ])
     }
 
     @Test func unknownEpochIsReadableAfterTheKeyArrives() throws {
@@ -117,14 +118,18 @@ struct AcceptanceRulesTests {
         #expect(first.verdict == .accepted("settings"))
         guard case .settings(let s) = first.deltas.first else { Issue.record("no settings delta"); return }
         #expect(s.u == 100)
-        #expect(follower.receive(try settings(u: 100, by: "D", createdAt: v.now - 9), now: v.now).verdict
-            == .ignored("settings-older"))
-        #expect(follower.receive(try settings(u: 99, by: "D", createdAt: v.now - 8), now: v.now).verdict
-            == .ignored("settings-older"))
-        #expect(follower.receive(try settings(u: 200, by: "X", createdAt: v.now - 7), now: v.now).verdict
-            == .rejected("author-not-device"))
-        #expect(follower.receive(try settings(u: 201, by: "D", createdAt: v.now - 6), now: v.now).verdict
-            == .accepted("settings"))
+        #expect(
+            follower.receive(try settings(u: 100, by: "D", createdAt: v.now - 9), now: v.now).verdict
+                == .ignored("settings-older"))
+        #expect(
+            follower.receive(try settings(u: 99, by: "D", createdAt: v.now - 8), now: v.now).verdict
+                == .ignored("settings-older"))
+        #expect(
+            follower.receive(try settings(u: 200, by: "X", createdAt: v.now - 7), now: v.now).verdict
+                == .rejected("author-not-device"))
+        #expect(
+            follower.receive(try settings(u: 201, by: "D", createdAt: v.now - 6), now: v.now).verdict
+                == .accepted("settings"))
         #expect(follower.state.settingsU == 201)
     }
 
@@ -175,7 +180,8 @@ struct AcceptanceRulesTests {
         #expect(restored == follower.state)
         var again = try FollowerSession(state: restored, crypto: crypto)
         // trust survives: the hijack is still refused after a restart
-        #expect(again.receive(v.event("treatment-writer-hijack"), now: v.now).verdict == .rejected("writer-not-creator"))
+        #expect(
+            again.receive(v.event("treatment-writer-hijack"), now: v.now).verdict == .rejected("writer-not-creator"))
         #expect(again.receive(v.event("live"), now: v.now).verdict == .accepted("live"))
     }
 

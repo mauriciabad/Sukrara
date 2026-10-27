@@ -55,7 +55,9 @@ public struct NostrSDKCrypto: NostrCrypto {
         }
     }
 
-    public func giftWrap(kind: UInt16, content: String, from sender: SecretKeyHex, to recipient: String, expiration: Int)
+    public func giftWrap(
+        kind: UInt16, content: String, from sender: SecretKeyHex, to recipient: String, expiration: Int
+    )
         throws(CryptoError) -> SignedEvent
     {
         let signer = try keys(sender)

@@ -31,6 +31,20 @@ public struct RelayFilter: Codable, Hashable, Sendable {
         case c = "#c"
     }
 
+    /// Whether a relay would deliver `event` for this filter (the fake relay and BLE backlogs use it).
+    public func matches(_ event: SignedEvent) -> Bool {
+        if let kinds, !kinds.contains(event.kind) { return false }
+        if let authors, !authors.contains(event.pubkey) { return false }
+        if let since, event.createdAt < since { return false }
+        for (name, values) in [("p", p), ("d", d), ("c", c)] {
+            guard let values else { continue }
+            guard event.tags.contains(where: { $0.count > 1 && $0[0] == name && values.contains($0[1]) }) else {
+                return false
+            }
+        }
+        return true
+    }
+
     public func json() -> String {
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.sortedKeys, .withoutEscapingSlashes]

@@ -30,6 +30,11 @@ public struct FollowerState: Codable, Equatable, Sendable {
     public struct Epoch: Codable, Equatable, Sendable {
         public let n: Int
         public let g: SecretKeyHex
+
+        public init(n: Int, g: SecretKeyHex) {
+            self.n = n
+            self.g = g
+        }
     }
 
     /// Who created a treatment id (the first accepted signer) and which version this follower holds.

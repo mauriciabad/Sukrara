@@ -14,7 +14,9 @@ public struct SignedEvent: Codable, Hashable, Sendable {
     public var content: String
     public var sig: String
 
-    public init(id: String, pubkey: String, createdAt: Int, kind: UInt16, tags: [[String]], content: String, sig: String) {
+    public init(
+        id: String, pubkey: String, createdAt: Int, kind: UInt16, tags: [[String]], content: String, sig: String
+    ) {
         self.id = id
         self.pubkey = pubkey
         self.createdAt = createdAt
