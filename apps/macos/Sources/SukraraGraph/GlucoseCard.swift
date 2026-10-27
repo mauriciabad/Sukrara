@@ -4,11 +4,12 @@
 import CoreGraphics
 import CoreText
 import Foundation
+import SukraraCore
 
 // MARK: - Card
 
 /// Value + trend arrow + rings + chart in one drawing (GlucoseCard.kt), adapting to the size.
-enum GlucoseCard {
+public enum GlucoseCard {
     static let minCoverage = 0.25
 
     /// Draw `part` of the card `st` for `surface` and return what was laid out. `metricsOf` gives a slot's numbers; by
@@ -328,3 +329,98 @@ enum GlucoseCard {
 
 /// A believable history (meals with bolus, dawn rise, an afternoon dip, noise), seeded: the same picture every run.
 /// Port of the Android gallery's Synthetic (GraphGallery.kt), for widget previews and evidence renders.
+
+// MARK: - Public entry points (every Mac surface draws and words the card only through these)
+
+/// What a card shows at `now`: the history (oldest first is not required), the treatments, the sensor and what the
+/// alert rules decided. Never made-up data on a release build: the app fills it from its stores only.
+public struct CardData: Sendable, Equatable {
+    public var readings: [GraphReading]
+    public var marks: [GraphMark]
+    public var sensor: SensorInfo?
+    public var alerts: CardAlerts
+    public var now: TimeInterval
+
+    public init(
+        readings: [GraphReading], marks: [GraphMark] = [], sensor: SensorInfo? = nil, alerts: CardAlerts = .none,
+        now: TimeInterval
+    ) {
+        self.readings = readings
+        self.marks = marks
+        self.sensor = sensor
+        self.alerts = alerts
+        self.now = now
+    }
+
+    /// The newest reading, or nil.
+    public var latest: GraphReading? { readings.max { $0.t < $1.t } }
+}
+
+extension GlucoseCard {
+    /// What a surface shows while there is no reading to show (never a made-up value).
+    public static let noValueText = "—"
+
+    /// `surface`'s card at `size` (points) as a bitmap, `scale` px per point, with the app's graph settings `config`
+    /// and the placement's `overrides`. `tinted` = a tinted widget rendering mode (accented / vibrant). `overflow`: room
+    /// around the card for what overflows it (a ring's laurel or crown).
+    public static func image(
+        _ surface: CardSurface, size: CGSize, config: GraphConfig, overrides: PlaceOverrides = PlaceOverrides(),
+        data: CardData, dark: Bool, tinted: Bool = false, scale: CGFloat = 2, overflow: CGFloat = 0
+    ) -> CGImage? {
+        let palette = GraphPalette.of(dark: dark)
+        return image(
+            size: size, scale: scale, readings: data.readings, marks: data.marks, now: data.now,
+            surface.style(config, overrides, sensor: data.sensor), tinted ? palette.tinted() : palette,
+            surface: surface, alerts: data.alerts, overflow: overflow)
+    }
+
+    /// Draws `part` of `surface`'s card into `ctx` (y-down, points) at `size`: for surfaces that paint into a view.
+    public static func draw(
+        _ surface: CardSurface, in ctx: CGContext, size: CGSize, part: CardPart = .all, config: GraphConfig,
+        overrides: PlaceOverrides = PlaceOverrides(), data: CardData, dark: Bool
+    ) {
+        draw(
+            ctx, size: size, readings: data.readings, marks: data.marks, now: data.now,
+            surface.style(config, overrides, sensor: data.sensor), GraphPalette.of(dark: dark), surface: surface,
+            part: part, alerts: data.alerts)
+    }
+
+    /// The value's decision for text places (the menu bar title, notifications): the state, the value in `unit`, the
+    /// strike and the trend mark, from the same rule the card draws with.
+    public static func face(_ data: CardData, unit: GlucoseUnit = .mgdl) -> GlucoseLook {
+        let latest = data.latest
+        return face(
+            latest, now: data.now, sensor: SensorBadge.look(data.sensor, now: data.now, latest: latest?.t),
+            format: unit.format)
+    }
+
+    /// What VoiceOver says for the card's value: "Glucose 112 milligrams per decilitre, falling, 2 minutes ago" (the
+    /// time once the reading is late), "Glucose 141 milligrams per decilitre (old), trend unknown, at 14:05", "Glucose:
+    /// no reading since 14:05", "Glucose: no readings yet", "Warming up", "Sensor ended. Replace sensor"; then the
+    /// alert badge's sentence when there is one.
+    public static func accessibilityLabel(_ data: CardData, unit: GlucoseUnit = .mgdl) -> String {
+        let look = face(data, unit: unit)
+        let value: String
+        switch look.state {
+        case .ended: return "Sensor ended. \(StatusBadge.replaceSensor.text)"
+        case .warmingUp: value = "Warming up"
+        case .none: value = "Glucose: no readings yet"
+        case .noReadings:
+            value = "Glucose: no reading since \(data.latest.map { Freshness.timeText($0.t, now: data.now) } ?? "")"
+        case .value:
+            let number = (look.text ?? noValueText) + (look.strike ? " (old)" : "")
+            let trend = Trend.words(rate: look.trend == .arrow ? look.rate : nil)
+            let time = look.fresh.showTime ? data.latest.map { ", " + ago($0.t, now: data.now) } ?? "" : ""
+            value = "Glucose \(number) \(unit.spoken), \(trend)\(time)"
+        }
+        let badge = StatusBadge.describe(data.alerts.status, now: data.now)
+        return value + (badge.map { ". " + $0 } ?? "")
+    }
+
+    /// "2 minutes ago" within the hour, else the clock time ("at 14:05").
+    private static func ago(_ t: TimeInterval, now: TimeInterval) -> String {
+        let minutes = Int(max(0, now - t) / 60)
+        if minutes < 60 { return minutes == 1 ? "1 minute ago" : "\(minutes) minutes ago" }
+        return "at \(Freshness.timeText(t, now: now))"
+    }
+}

@@ -122,7 +122,7 @@ enum StatusBadge {
 
 /// Where the last-treatment slot sits among the slots beside the value: one more slot, not a slot kind, so the user's
 /// rings stay as they are. `nearValue` = leftmost, next to the number; `end` = rightmost. Raw values = Android's.
-enum LastPlace: String, Codable, CaseIterable {
+public enum LastPlace: String, Codable, CaseIterable, Sendable {
     case off = "OFF", nearValue = "NEAR_VALUE", end = "END"
     var label: String { switch self { case .off: "Off"; case .nearValue: "Next to the number"; case .end: "At the right end" } }
 }

@@ -11,8 +11,8 @@ import Foundation
 /// "very good" (tight) = `low`…`tight`, inside in range.
 /// `extremelyHigh` (≥, like the extremely high alert) only colours the line and the number; time in range counts it as
 /// very high (LibreView's five ranges).
-struct Bands: Codable, Equatable, Hashable {
-    var veryLow = 54, low = 70, tight = 140, high = 180, veryHigh = 250, extremelyHigh = 300
+public struct Bands: Codable, Equatable, Hashable, Sendable {
+    public var veryLow = 54, low = 70, tight = 140, high = 180, veryHigh = 250, extremelyHigh = 300
 
     func of(_ mgdl: Double) -> Band {
         if mgdl < Double(veryLow) { return .veryLow }
@@ -31,11 +31,19 @@ struct Bands: Codable, Equatable, Hashable {
         return Bands(veryLow: min(max(veryLow, 30), l - 5), low: l, tight: min(max(tight, l + 10), h), high: h,
                      veryHigh: vh, extremelyHigh: min(max(extremelyHigh, vh + 10), 450))
     }
+    public init(veryLow: Int = 54, low: Int = 70, tight: Int = 140, high: Int = 180, veryHigh: Int = 250, extremelyHigh: Int = 300) {
+        self.veryLow = veryLow
+        self.low = low
+        self.tight = tight
+        self.high = high
+        self.veryHigh = veryHigh
+        self.extremelyHigh = extremelyHigh
+    }
 }
 
 /// `.target` = in range but above the tight band; "in range" = tight + target; below = veryLow + low; above =
 /// high + veryHigh.
-enum Band: Int, CaseIterable, Codable {
+public enum Band: Int, CaseIterable, Codable, Sendable {
     case veryLow, low, tight, target, high, veryHigh
     /// 0 = below range, 1 = in range, 2 = above.
     var group: Int { switch self { case .veryLow, .low: 0; case .tight, .target: 1; case .high, .veryHigh: 2 } }
@@ -50,7 +58,7 @@ enum Band: Int, CaseIterable, Codable {
 
 /// The time-in-range ring's segments clockwise from 12 o'clock (the user's order): the good part first, then down
 /// through the lows and back up through the highs.
-let DEFAULT_RING_ORDER: [Band] = [.tight, .target, .low, .veryLow, .high, .veryHigh]
+public let DEFAULT_RING_ORDER: [Band] = [.tight, .target, .low, .veryLow, .high, .veryHigh]
 
 /// "TIGHT,TARGET,…" with each of the six bands exactly once, else nil.
 func parseRingOrder(_ text: String) -> [Band]? {
@@ -59,7 +67,7 @@ func parseRingOrder(_ text: String) -> [Band]? {
 }
 func ringOrderText(_ o: [Band]) -> String { o.map(\.name).joined(separator: ",") }
 
-enum TirRange: String, Codable, CaseIterable {
+public enum TirRange: String, Codable, CaseIterable, Sendable {
     case inRange = "IN_RANGE", tight = "TIGHT"
     var label: String { self == .tight ? "Very good" : "In range" }
 }
@@ -83,11 +91,16 @@ struct TimeInRange: Codable, Equatable {
 }
 
 /// One reading for the graph: epoch seconds, mg/dL, rate mg/dL/min.
-struct GraphReading: Equatable {
-    var t: TimeInterval
-    var v: Double
-    var rate: Double? = nil
-    var sgv: Int { Int(v.rounded()) }
+public struct GraphReading: Equatable, Sendable {
+    public var t: TimeInterval
+    public var v: Double
+    public var rate: Double? = nil
+    public var sgv: Int { Int(v.rounded()) }
+    public init(t: TimeInterval, v: Double, rate: Double? = nil) {
+        self.t = t
+        self.v = v
+        self.rate = rate
+    }
 }
 
 /// A treatment as the chart draws it (rapid | long | carbs | note).

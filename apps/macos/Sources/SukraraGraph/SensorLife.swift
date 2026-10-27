@@ -10,10 +10,15 @@ import SukraraCore
 // MARK: - Sensor life (SensorLife.kt, SensorBadge.kt)
 
 /// The wearer's current sensor (unix s), from the live event's `ss`/`se`/`sw` (PROTOCOL-v2 "Sensor life").
-struct SensorInfo: Codable, Equatable {
-    var start: TimeInterval
-    var end: TimeInterval
-    var warmupEnd: TimeInterval
+public struct SensorInfo: Codable, Equatable, Sendable {
+    public var start: TimeInterval
+    public var end: TimeInterval
+    public var warmupEnd: TimeInterval
+    public init(start: TimeInterval, end: TimeInterval, warmupEnd: TimeInterval) {
+        self.start = start
+        self.end = end
+        self.warmupEnd = warmupEnd
+    }
 }
 
 /// The sensor's remaining life and warm-up; the same rules as Android's core/SensorLife (spikes/graph-fixtures/sensor).

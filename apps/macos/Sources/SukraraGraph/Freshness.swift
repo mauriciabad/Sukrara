@@ -6,7 +6,7 @@ import CoreText
 import Foundation
 
 /// How old the latest reading is decides what a surface shows (see Freshness.kt for the table).
-enum Freshness {
+public enum Freshness: Sendable {
     case fresh, late, stale, old, gone
     static let lateS: TimeInterval = 90, staleS: TimeInterval = 5 * 60, oldS: TimeInterval = 20 * 60, goneS: TimeInterval = 3 * 3600
 
@@ -62,7 +62,7 @@ enum Freshness {
 /// The trend beside a value: the arrow, or `.noTrend` = no trend to show (no rate, or the value is struck through): a
 /// hollow ring of the arrow's size (graph/Freshness.kt TrendMark: a circle has no direction, so it can't read as steady,
 /// and unlike the old dot it doesn't look like a speck). Text places write it as `ring`.
-enum TrendMark: String {
+public enum TrendMark: String, Sendable {
     case arrow, noTrend = "none"
     static let ring = "○"
     static func ringRadius(_ size: CGFloat) -> CGFloat { size * 0.24 }
@@ -71,22 +71,22 @@ enum TrendMark: String {
 
 /// `Freshness.look`'s answer (graph/Freshness.kt GlucoseLook): the state; for a value its text, whether it's struck
 /// through and grey (5–20 min) and its trend (nil without a value).
-struct GlucoseLook: Equatable {
-    enum State: String {
+public struct GlucoseLook: Equatable, Sendable {
+    public enum State: String, Sendable {
         case value, noReadings = "no_readings", none, ended, warmingUp = "warming_up"
         /// The name the layout report uses (Android's enum names).
         var layoutName: String { rawValue.uppercased() }
     }
-    var state: State
-    var fresh: Freshness
-    var text: String?
-    var strike: Bool
-    var trend: TrendMark?
+    public var state: State
+    public var fresh: Freshness
+    public var text: String?
+    public var strike: Bool
+    public var trend: TrendMark?
     /// While warming up: the time left ("42m").
-    var warmup: String? = nil
-    var rate: Double? = nil
-    var grey: Bool { strike }
-    var shown: Bool { state == .value }
+    public var warmup: String? = nil
+    public var rate: Double? = nil
+    public var grey: Bool { strike }
+    public var shown: Bool { state == .value }
     /// SF Symbol for "no readings for 20 min" (Android: Material Symbols sensors_off): the menubar and the card.
     static let noReadingsSymbol = "antenna.radiowaves.left.and.right.slash"
 }
