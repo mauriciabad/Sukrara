@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 import CoreGraphics
 import Foundation
+import SukraraCore
 import SukraraGraph
 import Testing
 
@@ -35,32 +36,78 @@ import Testing
         #expect(GlucoseCard.face(CardData(readings: [], now: now), unit: .mgdl, surface: .menubarTitle).text == nil)
     }
 
+    /// The value widget's sentence (no chart) in `words`, with the default settings unless `config` says otherwise.
+    private func spoken(
+        _ data: CardData, _ unit: GlucoseUnit = .mgdl, surface: CardSurface = .widgetValue,
+        config: GraphConfig = GraphConfig(), words: CardWords = .en
+    ) -> String {
+        GlucoseCard.accessibilityLabel(data, unit: unit, surface: surface, config: config, words: words)
+    }
+
     @Test func voiceOverSentence() {
         #expect(
-            GlucoseCard.accessibilityLabel(
-                CardData(readings: [reading], now: now), unit: .mgdl, surface: .widgetCombined)
-                == "Glucose 112 milligrams per decilitre, falling")
-        let late = CardData(readings: [GraphReading(t: now - 200, v: 112, rate: 0.2)], now: now)
-        #expect(
-            GlucoseCard.accessibilityLabel(late, unit: .mgdl, surface: .widgetCombined)
-                == "Glucose 112 milligrams per decilitre, steady, 3 min ago")
+            spoken(CardData(readings: [reading], now: now))
+                == "112 milligrams per decilitre, falling, in range, 1 min ago")
+        let fresh = CardData(readings: [GraphReading(t: now - 20, v: 112, rate: 0.2)], now: now)
+        #expect(spoken(fresh) == "112 milligrams per decilitre, steady, in range, just now")
         let stale = CardData(readings: [GraphReading(t: now - 600, v: 141, rate: 2)], now: now)
         #expect(
-            GlucoseCard.accessibilityLabel(stale, unit: .mmol, surface: .widgetCombined)
-                == "Glucose 7.8 (old) millimoles per litre, trend unknown, 10 min ago")
-        #expect(
-            GlucoseCard.accessibilityLabel(CardData(readings: [], now: now), unit: .mgdl, surface: .widgetCombined)
-                == "Glucose: no readings yet")
+            spoken(stale, .mmol) == "7.8 millimoles per litre, old reading, trend unknown, in range, 10 min ago")
+        #expect(spoken(CardData(readings: [], now: now)) == "Glucose: no readings yet")
         let low = CardData(
             readings: [GraphReading(t: now - 60, v: 64, rate: -1)], alerts: CardAlerts(status: .needed(.low)), now: now)
-        #expect(
-            GlucoseCard.accessibilityLabel(low, unit: .mgdl, surface: .widgetCombined)
-                == "Glucose 64 milligrams per decilitre, falling. Eat carbs")
+        #expect(spoken(low) == "64 milligrams per decilitre, falling, low, 1 min ago. Eat carbs")
         // no shown value, no badge sentence (the card draws the badge only under a value)
         let gone = CardData(
             readings: [GraphReading(t: now - 3600, v: 64, rate: -1)], alerts: CardAlerts(status: .needed(.low)),
             now: now)
-        #expect(!GlucoseCard.accessibilityLabel(gone, unit: .mgdl, surface: .widgetCombined).contains("Eat carbs"))
+        #expect(!spoken(gone).contains("Eat carbs"))
+    }
+
+    /// Never by colour alone: every band in words, at the user's bounds (UX review F6).
+    @Test func voiceOverSaysTheRange() {
+        func band(_ v: Double, _ config: GraphConfig = GraphConfig()) -> String {
+            spoken(CardData(readings: [GraphReading(t: now - 60, v: v, rate: 0)], now: now), config: config)
+        }
+        #expect(band(50).contains(", very low, "))
+        #expect(band(65).contains(", low, "))
+        #expect(band(100).contains(", in range, "))
+        #expect(band(150).contains(", in range, "))
+        #expect(band(200).contains(", high, "))
+        #expect(band(260).contains(", very high, "))
+        #expect(band(320).contains(", extremely high, "))
+        var raised = GraphConfig()
+        raised.bands.high = 220
+        #expect(band(200, raised).contains(", in range, "))
+        #expect(band(30) == "below 40 milligrams per decilitre, steady, very low, 1 min ago")
+        #expect(band(420).hasPrefix("above 400 milligrams per decilitre, steady, extremely high"))
+    }
+
+    @Test func voiceOverSummarisesTheChart() {
+        // every 5 min: the newest 9 h in range, the 3 h before high
+        let rs = (0..<144).map { GraphReading(t: now - Double($0) * 300, v: $0 < 108 ? 120 : 200, rate: 0) }
+        let data = CardData(readings: rs, now: now)
+        #expect(
+            spoken(data, surface: .widgetCombined)
+                == "120 milligrams per decilitre, steady, in range, just now. Last 12 hours: 75% in range, 0% below, 25% above")
+        var six = GraphConfig()
+        six.hours = 6
+        #expect(spoken(data, surface: .menubarCard, config: six).hasSuffix("Last 6 hours: 100% in range, 0% below, 0% above"))
+        // the graph widget shows no value: the summary only; the menu bar title: the value only
+        #expect(spoken(data, surface: .widgetGraph).hasPrefix("Last 12 hours: "))
+        #expect(!spoken(data, surface: .menubarTitle).contains("Last"))
+        #expect(
+            spoken(CardData(readings: [], now: now), surface: .widgetCombined)
+                == "Glucose: no readings yet. Last 12 hours: no data")
+    }
+
+    @Test func voiceOverInSpanish() {
+        let low = CardData(
+            readings: [GraphReading(t: now - 120, v: 64, rate: -2.5)], alerts: CardAlerts(status: .none), now: now)
+        #expect(
+            spoken(low, surface: .widgetCombined, words: .es)
+                == "64 miligramos por decilitro, bajando rápido, baja, hace 2 min. Últimas 12 horas: 0% en rango, 100% por debajo, 0% por encima")
+        #expect(spoken(CardData(readings: [], now: now), words: .es) == "Glucosa: aún no hay lecturas")
     }
 
     @Test func anExpiredMuteSaysNothing() {
@@ -68,15 +115,11 @@ import Testing
         let data = CardData(
             readings: [GraphReading(t: now - 60, v: 210, rate: 0)],
             alerts: CardAlerts(status: .taken(.high, treatment: bolus, until: now - 400)), now: now)
-        #expect(
-            GlucoseCard.accessibilityLabel(data, unit: .mgdl, surface: .widgetCombined)
-                == "Glucose 210 milligrams per decilitre, steady")
+        #expect(spoken(data) == "210 milligrams per decilitre, steady, high, 1 min ago")
         let running = CardData(
             readings: data.readings, alerts: CardAlerts(status: .taken(.high, treatment: bolus, until: now + 600)),
             now: now)
-        #expect(
-            GlucoseCard.accessibilityLabel(running, unit: .mgdl, surface: .widgetCombined).hasSuffix(
-                "muted after insulin · 10 min left"))
+        #expect(spoken(running).hasSuffix("muted after insulin · 10 min left"))
     }
 
     @Test func everyCardSurfaceRendersABitmap() {

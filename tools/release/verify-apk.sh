@@ -9,6 +9,7 @@
 # - the Libre 3 native core lib/arm64-v8a/libsukrara_libre3.so is inside
 # - no debug code: the merged manifest names no DebugReceiver, and (R8 renames classes, so the dex names prove
 #   nothing) the build's R8 mapping lists no DebugReceiver / DebugFakes / Synthetic* class
+# - no exported component without a permission except the launcher activity, the alert sound provider and widgets
 set -eu
 here="$(cd "$(dirname "$0")" && pwd)"
 . "$here/lib.sh"
@@ -48,7 +49,44 @@ manifest="$("$aapt2" dump xmltree --file AndroidManifest.xml "$apk")"
 if printf '%s\n' "$manifest" | grep -Eq 'DebugReceiver|DebugFakes|Synthetic'; then bad "the manifest registers debug components"
 else ok "manifest has no debug components"; fi
 
+# Exported components without a permission (the merged manifest: libraries' components too). Allowed, by exact name:
+# the launcher / App Link activity, and the alert sound provider (System UI reads channel sounds from it and can hold
+# no permission; it serves only bundled sounds). Home-screen widget receivers join this list by name when they land
+# (they must be exported for the launcher to bind them). Anything else exported needs a permission.
+allowed_open='app.mauri.sukrara.MainActivity
+app.mauri.sukrara.monitor.AlertSoundProvider'
+open_components="$(printf '%s\n' "$manifest" | awk '
+  function flush() { if (comp != "" && exported && !perm) print comp; comp = "" }
+  /E: (activity|activity-alias|service|receiver|provider) / { flush(); depth = index($0, "E:"); exported = perm = 0; comp = "?"; next }
+  /E: / && comp != "" && index($0, "E:") <= depth { flush() }
+  comp == "?" && /android:name\(/ { match($0, /="[^"]*"/); comp = substr($0, RSTART + 2, RLENGTH - 3) }
+  comp != "" && /android:exported\(/ { exported = ($0 ~ /=(true|0xffffffff)/) }
+  comp != "" && /android:permission\(/ { perm = 1 }
+  END { flush() }' | grep -vxF "$allowed_open" || true)"
+if [ -z "$open_components" ]; then ok "no exported component without a permission beyond the allowed ones"
+else bad "exported without a permission: $(printf '%s' "$open_components" | tr '\n' ' ')"; fi
+
+# The Live Update chip (P0): the promoted glucose notification needs this install-time permission.
+if printf '%s\n' "$manifest" | grep -q '"android.permission.POST_PROMOTED_NOTIFICATIONS"'; then ok "POST_PROMOTED_NOTIFICATIONS declared (Live Update chip)"
+else bad "POST_PROMOTED_NOTIFICATIONS missing: no Live Update chip"; fi
+
+# R8 full mode, release compilation, and the mapping belongs to THIS APK (a stale mapping would hide debug classes).
+marker="$(unzip -p "$apk" 'classes*.dex' | LC_ALL=C grep -ao '~~R8{[^}]*}' | head -1)"
+case "$marker" in
+  *'"compilation-mode":"release"'*'"r8-mode":"full"'*) ok "R8 full mode, release compilation" ;;
+  *) bad "not an R8 full-mode release dex (marker: ${marker:-none})" ;;
+esac
+dex_map_id="$(printf '%s' "$marker" | sed -n 's/.*"pg-map-id":"\([0-9a-f]*\)".*/\1/p')"
+
 if [ ! -f "$mapping" ]; then bad "no R8 mapping at $mapping (a minified release build writes one)"
-elif grep -Eq '^[^ ].*\.(DebugReceiver|DebugFakes|Synthetic[A-Za-z]*) ->' "$mapping"; then bad "R8 mapping lists debug classes"
-else ok "R8 mapping lists no debug classes"; fi
+else
+  map_id="$(sed -n 's/^# pg_map_id: //p' "$mapping" | head -1)"
+  if [ -n "$map_id" ] && [ "$map_id" = "$dex_map_id" ]; then ok "mapping matches the APK (pg_map_id $map_id)"
+  else bad "mapping pg_map_id '$map_id' isn't the APK's '$dex_map_id' (stale mapping)"; fi
+  if grep -Eq '^[^ ].*\.(DebugReceiver|DebugFakes|Synthetic[A-Za-z]*)(\$[^ ]*)? ->' "$mapping"; then bad "R8 mapping lists debug classes"
+  else ok "R8 mapping lists no debug classes"; fi
+fi
+# A second net that survives renaming: the debug tools' log tag and registry name are string constants.
+if unzip -p "$apk" 'classes*.dex' | LC_ALL=C grep -aq -e 'SukraraDebug' -e 'DebugFakes'; then bad "dex contains debug-tool strings"
+else ok "dex has no debug-tool strings"; fi
 exit $fail

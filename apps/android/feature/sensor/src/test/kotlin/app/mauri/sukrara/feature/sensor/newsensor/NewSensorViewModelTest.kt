@@ -46,12 +46,14 @@ class NewSensorViewModelTest {
         var env = SensorEnv(true, true, true, true, false, false, true, true, true)
         var retries = 0
         var juggluco = 0
+        var libre3 = 0
         override suspend fun env() = env
         override suspend fun pair(tag: Tag): PairOutcome = error("tests pass the read directly")
         override val detail = MutableStateFlow<SensorStatus>(SensorStatus.NoSensor)
         override val sensor = MutableStateFlow<SensorState>(SensorState.None)
         override fun retryLink() { retries++ }
         override suspend fun useJuggluco() { juggluco++ }
+        override suspend fun onPaired() { libre3++ }
     }
 
     @Before fun setUp() = Dispatchers.setMain(dispatcher)
@@ -74,6 +76,24 @@ class NewSensorViewModelTest {
         runCurrent()
         assertEquals(NewSensorStep.Ready, vm.state.value.step)
         assertEquals(listOf(NewSensorEffect.TapSucceeded, NewSensorEffect.Ready), effects)
+    }
+
+    @Test fun `a paired sensor becomes the source and monitoring starts, a failed tap changes nothing`() = runTest(dispatcher) {
+        val port = FakePort()
+        val vm = vm(port)
+        vm.onTagRead { PairOutcome.Failed("tag lost") }
+        runCurrent()
+        assertEquals(0, port.libre3)
+        vm.onTagRead { PairOutcome.Paired("ABC", activated = true) }
+        runCurrent()
+        assertEquals(1, port.libre3)
+    }
+
+    @Test fun `a read that throws ends the tap page as a failed tap (it has no other way out)`() = runTest(dispatcher) {
+        val vm = vm(FakePort())
+        vm.onTagRead { throw java.io.IOException("datastore") }
+        runCurrent()
+        assertEquals(NewSensorStep.NfcFailed(NfcFailure.MovedTooSoon), vm.state.value.step)
     }
 
     @Test fun `a second tag during a read is ignored`() = runTest(dispatcher) {

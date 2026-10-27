@@ -19,7 +19,8 @@ import Testing
         let data = CardData(readings: readings, sensor: sensor, now: now)
         return MenubarTitle.of(
             look: GlucoseCard.face(data, unit: .mgdl, surface: .menubarTitle),
-            spoken: GlucoseCard.accessibilityLabel(data, unit: .mgdl, surface: .menubarTitle), alerts: alerts,
+            spoken: GlucoseCard.accessibilityLabel(data, unit: .mgdl, surface: .menubarTitle, config: GraphConfig()),
+            alerts: alerts,
             reason: nil)
     }
 

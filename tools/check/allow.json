@@ -59,6 +59,10 @@
     {
       "path": "apps/android/share/src/main/kotlin/app/mauri/sukrara/share/transport/WebSocket.kt",
       "reason": "Nostr sharing: relay WebSockets; RelayPool passes only wss:// URLs (Wire.secureRelays), never cleartext"
+    },
+    {
+      "path": "apps/android/feature/settings/src/main/kotlin/app/mauri/sukrara/feature/settings/UpdateCheck.kt",
+      "reason": "About page update check: GET the fixed https URL api.github.com/repos/mauriciabad/Sukrara/releases once per page open (no user-entered host, nothing sent)"
     }
   ],
   "durations_ok": {},
@@ -73,10 +77,6 @@
     },
     {
       "section": "Freshness (every glucose surface)",
-      "reason": "written before the Complete flows rule (round f29): audit its states and exits, then add the paragraph"
-    },
-    {
-      "section": "New sensor (pairing flow)",
       "reason": "written before the Complete flows rule (round f29): audit its states and exits, then add the paragraph"
     },
     {

@@ -42,6 +42,7 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.put
 import org.json.JSONArray
 import org.json.JSONObject
+import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertTrue
@@ -181,7 +182,7 @@ class PocWireCompatTest {
         val outsider = Proto.liveEvent(poc(v.key("X")), g1.public.hex, PocReading(now - 30, 300, null), now - 20, null).asJson()
         assertEquals("rejected:author-not-in-roster", f.feed(outsider))
         assertTrue(!f.wouldReceive(outsider))
-        // an older roster (:607)
+        // an older roster (:608)
         assertEquals("ignored:roster-older", f.feed(Proto.rosterEvent(poc(i), g1.public.hex, v.sid, 1, listOf(d.public.hex), relays, now - 500).asJson()))
     }
 
@@ -193,7 +194,6 @@ class PocWireCompatTest {
         val mac = Keys.generate()
         val offline = Keys.generate()
         val removed = Keys.generate()
-        val writer = Keys.generate()
         // the showcase's own state: a phone change behind it (epoch 2), two followers, one removed, a writer, an open invite
         val showcase = PocOwnerState(
             Keys.generate(), Keys.generate(), Proto.newSid(), mutableListOf(Epoch(1, Keys.generate()), Epoch(2, Keys.generate())),
@@ -217,10 +217,12 @@ class PocWireCompatTest {
         val macFollower = approvedOnShowcase(mac)
         val offlineFollower = approvedOnShowcase(offline)
 
-        // V1 restores from what the relays hold: the showcase's own backup and roster
+        // V1 restores later (the 0.11.53 gift rumors carry the wall clock, so the switch must come after them): from what
+        // the relays hold, the showcase's own backup and roster
+        val at = now + 10
         val identity = crypto.keyPair(SecretKey.ofHex(showcase.i.secretKey().toHex())!!)!!
-        val found = listOf(v1(Proto.backupEvent(showcase.i, showcase.backupBody(), now - 3600)), v1(roster2))
-        val restored = RestoreIdentity(ctx).restore(identity, found, 1, now) as RestoreIdentity.Result.Restored
+        val found = listOf(v1(Proto.backupEvent(showcase.i, showcase.backupBody(), at - 3600)), v1(roster2))
+        val restored = RestoreIdentity(ctx).restore(identity, found, 1, at) as RestoreIdentity.Result.Restored
         val s = restored.step.state
         assertEquals(2, restored.followers)
         assertEquals(showcase.sid, s.sid)
@@ -243,26 +245,36 @@ class PocWireCompatTest {
 
         // V1's data after the switch: readings (live + an earlier hour's chunk), an alert, settings and a treatment
         val readings = PublishReadings(ctx)
-        val data = readings.onReadings(s, listOf(reading(now - 3700, 100, null), reading(now - 60, 140, 1.25)), now) +
-            readings.publishAlert(s, AlertPayload("00112233445566ff", "low", true, now, now - 60, 62, -1.0, 70.0, 1, 0), now) +
-            EventFactory(crypto).settings(s.device(crypto), s.readKey(crypto).public, s.sid, SettingsPayload(now, JsonObject(mapOf("low" to JsonPrimitive(70))), JsonObject(emptyMap())), now) +
-            EventFactory(crypto).treatment(s.device(crypto), s.readKey(crypto).public, s.sid, TreatmentPayload("c0000000-0000-4000-8000-00000000000c", "carbs", 30.0, now - 600, "", now - 600, false, "phone"), now)
+        val data = readings.onReadings(s, listOf(reading(at - 3700, 100, null), reading(at - 60, 140, 1.25)), at) +
+            readings.publishAlert(s, AlertPayload("00112233445566ff", "low", true, at, at - 60, 62, -1.0, 70.0, 1, 0), at) +
+            EventFactory(crypto).settings(s.device(crypto), s.readKey(crypto).public, s.sid, SettingsPayload(at, JsonObject(mapOf("low" to JsonPrimitive(70))), JsonObject(emptyMap())), at) +
+            EventFactory(crypto).treatment(s.device(crypto), s.readKey(crypto).public, s.sid, TreatmentPayload("c0000000-0000-4000-8000-00000000000c", "carbs", 30.0, at - 600, "", at - 600, false, "phone"), at)
+        val roster3 = restored.step.publish.first { it.tag("d") == Proto.rosterD(s.sid) }.toJson()
         val verdicts = data.map { ev -> ev.toJson().let { assertTrue(it, macFollower.wouldReceive(it)); macFollower.feed(it) } }
         assertEquals(listOf("accepted:alert", "accepted:chunk", "accepted:live", "accepted:settings", "accepted:treatment"), verdicts.distinct().sorted())
         assertTrue(verdicts.toString(), verdicts.all { it.startsWith("accepted") })
-        assertEquals(140 to 1.25, macFollower.readings[now - 60])
-        assertEquals(100 to null, macFollower.readings[now - 3700])
-        assertIntegerFields(data, s.readKey(crypto).secret.revealHex(), newDevice)
+        assertEquals(140 to 1.25, macFollower.readings[at - 60])
+        assertEquals(100 to null, macFollower.readings[at - 3700])
+        assertIntegerFields(data + SignedEvent.parse(roster3)!!, s.readKey(crypto).secret.revealHex())
 
         // a follower offline during the restore missed its key: the new roster's unknown gk makes 0.11.53 ask (rekey)
-        val roster3 = restored.step.publish.first { it.tag("d") == Proto.rosterD(s.sid) }.toJson()
         assertEquals("ignored:unknown-epoch", offlineFollower.feed(roster3))
+        assertEquals(listOf(s.readKey(crypto).public.hex.let(Proto::gk)), offlineFollower.rekeyFor)
         val have = offlineFollower.epochs.values.maxBy { it.n }.gk
         val rekey = Proto.gift(offline, iPub, Proto.RUMOR_TO_OWNER, JSONObject().put("v", 2).put("type", "rekey").put("have", have))
-        val answer = HandleInbox(ctx)(s, v1(rekey), now).step.publish
+        val answer = HandleInbox(ctx)(s, v1(rekey), at).step.publish
         assertEquals(listOf("accepted:key"), answer.map { offlineFollower.feed(it.toJson()) })
         assertEquals("accepted:roster", offlineFollower.feed(roster3))
         assertEquals("accepted:live", offlineFollower.feed(data.first { it.kind == Proto.LIVE }.toJson()))
+
+        // the follower removed on the showcase asks too: V1 answers with the revoked notice, never a key
+        val removedAsks = Proto.gift(removed, iPub, Proto.RUMOR_TO_OWNER, JSONObject().put("v", 2).put("type", "rekey").put("have", have))
+        assertEquals(listOf("accepted:revoked"), HandleInbox(ctx)(s, v1(removedAsks), at).step.publish.map { removedFollower.feed(it.toJson()) })
+        assertTrue(removedFollower.epochs.isEmpty())
+    }
+
+    @After fun resetClock() {
+        Proto.clock = { System.currentTimeMillis() / 1000 }
     }
 
     private fun reading(t: Long, mgdl: Int, rate: Double?) = Reading(Instant.ofEpochSecond(t), mgdl, rate, SourceId.Libre3)
@@ -271,11 +283,11 @@ class PocWireCompatTest {
      * The 0.11.53 Mac follower reads numbers with `as? Int` (poc/spikes/menubar NostrV2.swift): V1 must write the integer
      * fields as JSON integers, never `140.0`.
      */
-    private fun assertIntegerFields(events: List<SignedEvent>, readKeyHex: String, device: String) {
+    private fun assertIntegerFields(events: List<SignedEvent>, readKeyHex: String) {
         val g = Keys.parse(readKeyHex)
         events.forEach { ev ->
-            val body = Proto.dec(g, device, ev.content)
-            listOf("v", "t", "sgv", "h", "at", "n", "tr", "u").filter { body.opt(it) is Number }.forEach { k ->
+            val body = Proto.dec(g, ev.pubkey, ev.content)
+            listOf("v", "t", "sgv", "h", "at", "n", "tr", "u", "epoch").filter { body.opt(it) is Number }.forEach { k ->
                 assertTrue("${ev.kind} $k = ${body.get(k)}", body.get(k) is Int || body.get(k) is Long)
             }
             body.optJSONArray("r")?.let { rows ->
