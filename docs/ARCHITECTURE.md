@@ -72,7 +72,7 @@ applies them.
 - Ports from the app: `OwnerSharing` (adapter `EngineOwnerSharing` over chunk 13's `OwnerEngine`), `AlertSettingsAccess`
   (chunk 11's alert settings store), `RoleStore`, `resetAlerts` (`AlertsModule.reset`, on a role change only — at the
   identity step the sensor already runs and a reset would pause alerts), the alert channel ids.
-- `SetupModule` (A4) is composed by `AppGraph` (`SharingDeps.setup`); screens get callbacks for other features
+- `SetupModule` (A4) is composed by `AppGraph` (`SharingDeps.setup`) over `shareOwner`'s engine (started for a wearer by `followRole`); screens get callbacks for other features
   (the sensor flow) instead of depending on them.
 
 ### Card, widgets and UI
@@ -244,7 +244,15 @@ AppModel (21, @MainActor) ── snapshots()/alerts() ──► FollowerService 
                                       └─ NearbyTransport (NearbyCentral | fake) ─ NearbyLink (pure BLE protocol)
           stores: ReadingsFileStore · TreatmentFileStore · SensorStateStore · WearerSettingsStore (actors)
 WidgetFeed (SukraraApp) ── glucose.json in the App Group + WidgetReloadPolicy (≤ 1 value reload / 5 min)
+   └──► SukraraWidget.appex: SnapshotProvider (reads only glucose.json) → WidgetTimeline → WidgetEntryView
 ```
+
+- **Widget reloads**: the reload budget is about 40–70 a day, so the app never reloads per reading or per minute.
+  `WidgetReloadPolicy` reloads all three kinds when the shown state changes (at once) or the shown value changes (at
+  most once per 5 min; a deferred reload carries the last value). Ageing needs no reload: `WidgetTimeline`
+  (SukraraGraph, pure, `TimelineTests`) gives the timeline an entry at each future freshness step, mute end (and the
+  countdown's minutes in its last hour) and sensor warm-up / end, each drawing the same snapshot with `now` = the
+  entry's date; the policy is `.after(last entry)`, `.never` when there is nothing to age.
 
 - **Stores** (`SukraraCore/Stores`): `readings.csv` (`t_ms,mgdl,rate`, appended, atomic rewrite for backfill,
   31 days, first reading per `t` kept), `treatments.json` (`TreatmentLog` v1: entry + creator + delivery),

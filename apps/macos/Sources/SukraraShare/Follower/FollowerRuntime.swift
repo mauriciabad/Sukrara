@@ -79,6 +79,12 @@ public actor FollowerRuntime: FollowerService {
     private var persistedAt = Date.distantPast
     private var started = false
     private var stopped = false
+    /// The last connection change (connect / disconnect / reconnect): each one waits for the one before, because an
+    /// actor only serializes between awaits and these suspend (overlapping ones leaked relay pools and Bluetooth
+    /// centrals).
+    private var lifecycle: Task<Void, Never>?
+    /// A reconnect is queued and hasn't started: more triggers (wake, network, clock) join it instead of adding one.
+    private var reconnectQueued = false
     private var snapshotSubscribers: [UUID: AsyncStream<FollowerSnapshot>.Continuation] = [:]
     private var alertSubscribers: [UUID: AsyncStream<AlertPayload>.Continuation] = [:]
     private var current = FollowerSnapshot.empty
@@ -154,14 +160,14 @@ public actor FollowerRuntime: FollowerService {
             link = .broken("The follower state is damaged; stop following and join again")
             return await publishSnapshot()
         }
-        await connect()
+        await serially(.connect)
     }
 
     public func stop() async {
         guard !stopped else { return }
         stopped = true
         joinTask?.cancel()
-        await disconnect()
+        await serially(.disconnect)
         persist(force: true)
         for continuation in snapshotSubscribers.values { continuation.finish() }
         for continuation in alertSubscribers.values { continuation.finish() }
@@ -170,9 +176,29 @@ public actor FollowerRuntime: FollowerService {
     }
 
     public func reconnect() async {
-        guard !stopped, session != nil else { return }
-        await disconnect()
-        await connect()
+        guard !stopped, session != nil, !reconnectQueued else { return }
+        reconnectQueued = true
+        await serially(.reconnect)
+    }
+
+    private enum ConnectionChange { case connect, disconnect, reconnect }
+
+    /// Runs `change` after every earlier connection change has finished.
+    private func serially(_ change: ConnectionChange) async {
+        let previous = lifecycle
+        let task = Task {
+            await previous?.value
+            switch change {
+            case .connect: await connect()
+            case .disconnect: await disconnect()
+            case .reconnect:
+                reconnectQueued = false
+                await disconnect()
+                await connect()
+            }
+        }
+        lifecycle = task
+        await task.value
     }
 
     // MARK: - joining
@@ -280,8 +306,7 @@ public actor FollowerRuntime: FollowerService {
         persistedAt = clock.now
         nearbyOffer = nil
         Self.log.info("joined a wearer (nearby: \(nearby, privacy: .public))")
-        await disconnect()
-        await connect()
+        await serially(.reconnect)
     }
 
     // MARK: - unfollowing
@@ -289,7 +314,7 @@ public actor FollowerRuntime: FollowerService {
     public func unfollow() async {
         generation += 1
         joinTask?.cancel()
-        await disconnect()
+        await serially(.disconnect)
         session = nil
         persisted = nil
         lastHistoryRequest = nil
@@ -596,7 +621,8 @@ public actor FollowerRuntime: FollowerService {
         let snapshot = FollowerSnapshot(
             link: link, readings: (try? await stores.readings.load(since: since)) ?? [],
             sensor: await stores.sensor.load(), treatments: log.log.live.reversed(), unsentTreatments: log.unsentCount,
-            wearerSettings: await stores.settings.load(), storeIssues: issues, nearby: nearbyState,
+            deliveries: log.entries.compactMapValues(\.delivery), wearerSettings: await stores.settings.load(),
+            storeIssues: issues, nearby: nearbyState,
             nearbyOffer: session == nil ? nearbyOffer : nil)
         guard snapshot != current else { return }
         current = snapshot

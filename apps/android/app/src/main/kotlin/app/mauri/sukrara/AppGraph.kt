@@ -21,20 +21,25 @@ import app.mauri.sukrara.feature.sharing.setup.AndroidAlertReadiness
 import app.mauri.sukrara.feature.sharing.setup.SetupRecord
 import app.mauri.sukrara.feature.sharing.setup.label
 import app.mauri.sukrara.monitor.alerts.AlertChannels
-import app.mauri.sukrara.share.ShareOwnerModule
-import app.mauri.sukrara.feature.treatments.LocalTreatmentSync
+import app.mauri.sukrara.graph.Clock as ClockText
 import app.mauri.sukrara.feature.treatments.TreatmentsModule
 import app.mauri.sukrara.graph.GraphConfig
 import app.mauri.sukrara.monitor.MonitorModule
 import app.mauri.sukrara.monitor.alerts.AlertRecord
 import app.mauri.sukrara.monitor.alerts.AlertsModule
 import app.mauri.sukrara.monitor.hub.MonitorRecord
+import app.mauri.sukrara.monitor.notify.Channels
+import app.mauri.sukrara.monitor.notify.NotificationGroups
+import app.mauri.sukrara.monitor.notify.NotificationIds
 import app.mauri.sukrara.monitor.sensorend.SensorEndMemory
 import app.mauri.sukrara.monitor.service.StartReason
 import app.mauri.sukrara.sensor.SensorModule
 import app.mauri.sukrara.sensor.pairing.PairingLoad
 import app.mauri.sukrara.sensor.pairing.ReceiverIdState
 import app.mauri.sukrara.sensor.source.SensorSourceKind
+import app.mauri.sukrara.share.ShareOwnerModule
+import app.mauri.sukrara.share.owner.followRole
+import app.mauri.sukrara.share.owner.requests.AndroidRequestNotifications
 import app.mauri.sukrara.widgets.WidgetPlacements
 import app.mauri.sukrara.widgets.WidgetsModule
 import kotlinx.coroutines.CancellationException
@@ -140,16 +145,13 @@ class AppGraph(
         )
     }
 
-    /** The wearer's sharing engine (chunk 13); access requests are reviewed in Followers until the notification lands. */
-    val share by lazy { ShareOwnerModule(app, data, data.secureStore, monitor.hub, clock, dispatchers, data.http, onRequest = {}) }
-
     override val setup by lazy {
         SetupModule(
             context = app,
             setupStore = data.typedStore("setup", SetupRecord.serializer(), SetupRecord(), whenCorrupt = SetupRecord()),
             roles = AppRoles(role),
             hub = monitor.hub,
-            sharing = EngineOwnerSharing(share.ownerEngine, scope) { clock.now().epochSecond },
+            sharing = EngineOwnerSharing(shareOwner.ownerEngine, scope) { clock.now().epochSecond },
             alertSettings = AppAlertSettings(alerts.store),
             settings = data.settings,
             resetAlerts = alerts::reset,
@@ -159,6 +161,7 @@ class AppGraph(
             clock = clock,
         )
     }
+    val sensorSettings by lazy { SensorSettingsBridge(sensor, data.settings, SensorSource, scope) { startMonitoring(StartReason.App) } }
 
     val home by lazy {
         HomeModule(
@@ -206,7 +209,29 @@ class AppGraph(
         monitor.starter.start(reason)
     }
 
-    val treatments by lazy { TreatmentsModule(data.treatments, LocalTreatmentSync(), clock, home.glucose, data.settings, scope) }
+    /** The wearer's sharing (relays, followers, treatments and settings to them); started by the sharing UI / service. */
+    val shareOwner by lazy {
+        val info = NotificationGroups.Group.INFO
+        ShareOwnerModule(
+            context = app,
+            data = data,
+            hub = monitor.hub,
+            clock = clock,
+            dispatchers = dispatchers,
+            scope = scope,
+            requestNotifications =
+                AndroidRequestNotifications(
+                    context = app,
+                    channel = Channels.REQUESTS,
+                    group = info.key,
+                    time = { ClockText.time(it) },
+                    post = { NotificationGroups.post(app, NotificationIds.REQUESTS, it, info, Channels.REQUESTS) },
+                    remove = { NotificationGroups.cancel(app, NotificationIds.REQUESTS, info) },
+                ),
+        )
+    }
+
+    val treatments by lazy { TreatmentsModule(data.treatments, ShareTreatmentSync(shareOwner), clock, home.glucose, data.settings, scope) }
 
     /**
      * Loads what the modules need from disk, once, off the main thread. [App] starts it; anything that reads state
@@ -219,6 +244,8 @@ class AppGraph(
             step("data") { data.ready() }
             step("monitor") { monitor.ready() }
             step("widgets") { widgets.start() }
+            // sharing runs while this phone is the wearer (needs an identity: created / restored in Settings › Sharing)
+            step("share") { scope.launch { shareOwner.ownerEngine.followRole(role.data.map { it.role }, scope) } }
         }
 
     /**

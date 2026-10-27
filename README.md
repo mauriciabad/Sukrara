@@ -35,6 +35,9 @@ The full catalog, with every rule and number, is [docs/FEATURES.md](docs/FEATURE
   Sukrara, the showcase and Abbott's app. Or read from **Juggluco's local web server** if Juggluco keeps the sensor.
 - A guided **new sensor** screen: where the NFC antenna is, warm-up countdown, every failure handled on the same screen
   (ended sensor, Libre 1/2, another app holding the sensor, Bluetooth off).
+- **Settings › Sensor**: the current sensor (status, serial, start, end and time left), the reading source (Libre 3
+  directly or Juggluco, saying first what changes), the LibreView account (email and receiver ID, sign in / out; the
+  password is never stored) and *Pair new sensor*.
 - **Home screen**, glucose first: the value, trend arrow and a 6 h chart you can scroll back, the sensor's end date,
   one banner at a time for what needs you (monitoring stopped, alerts may not ring, turn off Sukrara Showcase,
   damaged saved data, finish setup), and the last 24 h of treatments with delete + undo. Never a bare "---": when
@@ -73,6 +76,9 @@ The full catalog, with every rule and number, is [docs/FEATURES.md](docs/FEATURE
 - **Treatments**: add rapid / long / carbs / note, see the phone's entries, delete your own with undo.
 - **Settings**: General (following, unit, open at login, update check) and Alerts (per alert, quiet times, sounds,
   ranges); it can mirror the wearer's alert settings.
+- **Desktop widgets** (Glucose, Glucose graph, Glucose + graph) with the same card; they age by themselves (struck
+  through at 5 min, the graph dimmed with the reading's time, no value at 20 min) and a tap opens Add treatment.
+  After switching from the showcase, remove the showcase's widgets and add Sukrara's.
 - VoiceOver reads the value as one sentence with the range in words.
 
 **Not in 0.90.0** (keep the showcase if you rely on these; see
@@ -80,8 +86,8 @@ The full catalog, with every rule and number, is [docs/FEATURES.md](docs/FEATURE
 icons and the LSPosed lock-screen widget, Dexcom / Aidex / SmartGuide (untested) sensors, Garmin via the local xDrip+
 server, Nightscout / Tidepool / LibreView uploads, Health Connect and broadcasts, insulin pens, the full sensor
 reminders page and calendar event, the glucose report and CSV export, settings export / import, following on
-Android and Bluetooth sharing from the phone, the Mac's Juggluco-over-Wi-Fi source, and home-screen and desktop
-widgets until they land in a 0.90.x release.
+Android and Bluetooth sharing from the phone, the Mac's Juggluco-over-Wi-Fi source, and home-screen widgets
+until they land in a 0.90.x release.
 
 ## Install
 
