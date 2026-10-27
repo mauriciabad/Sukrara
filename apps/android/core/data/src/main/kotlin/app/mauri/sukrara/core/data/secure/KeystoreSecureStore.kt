@@ -94,9 +94,10 @@ class KeystoreSecureStore(
         file: File,
         error: SecretOpenException,
     ): SecretUnreadableException {
-        if (!error.transient && reported.add(name)) {
+        if (!error.transient && name !in reported) {
             val now = clock.now()
             val copy = file.copyTo(FileStore.quarantineTarget(file, now.toEpochMilli()), overwrite = true)
+            reported.add(name)
             corruption.report(CorruptFile(store = "secret:$name", quarantinedTo = copy, at = now, reason = error.message.orEmpty()))
         }
         return SecretUnreadableException(name, error.transient, error)
