@@ -3,6 +3,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.monitor.notify
 
+import app.mauri.sukrara.alerts.AlertGroup
+import app.mauri.sukrara.monitor.alerts.AlertNotifier
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -47,8 +49,9 @@ class ChannelsTest {
 
     @Test
     fun `notification ids never collide and alerts start at 1000`() {
-        val alertIds = Channels.ALERT_KINDS.map(NotificationIds::alert)
-        assertEquals((1000..1007).toList(), alertIds)
+        val alertIds = listOf(NotificationIds.ALERTS_SUMMARY) + AlertGroup.entries.map(AlertNotifier::idOf)
+        assertEquals((1000..1003).toList(), alertIds)
+        assertTrue(NotificationIds.INFO_SUMMARY > alertIds.max())
         val fixed =
             listOf(
                 NotificationIds.GLUCOSE,

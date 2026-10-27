@@ -4,7 +4,6 @@
 package app.mauri.sukrara.monitor
 
 import android.content.Context
-import android.net.Uri
 import app.mauri.sukrara.core.model.Clock
 import app.mauri.sukrara.core.model.DispatcherProvider
 import app.mauri.sukrara.core.model.GlucoseHub
@@ -33,7 +32,6 @@ import kotlinx.coroutines.flow.SharedFlow
  *
  * [source] is the role's one reading source: wearer → the sensor module's source, follower → the follower engine;
  * null = nothing set up to monitor (no sensor paired, not following anyone), so the service doesn't run.
- * [alertSound] is chunk 11's sound provider for the alert channels.
  */
 class MonitorModule(
     private val context: Context,
@@ -44,7 +42,6 @@ class MonitorModule(
     record: StateStore<MonitorRecord>,
     role: Flow<Role?>,
     val source: suspend (Role) -> ReadingSource?,
-    private val alertSound: (kind: String, alarm: Boolean) -> Uri? = { _, _ -> null },
 ) {
     val hubImpl = GlucoseHubImpl(scope, dispatchers, clock, readings, record, role)
 
@@ -77,7 +74,7 @@ class MonitorModule(
 
     /** Channels and the hub's inputs; call from `AppGraph.ready()` (after storage is ready, off the main thread). */
     suspend fun ready() {
-        Channels.create(context, alertSound)
+        Channels.create(context)
         hubImpl.start()
         // starters must see the real role from disk, not the initial "setup not done"
         hubImpl.awaitInputs()
