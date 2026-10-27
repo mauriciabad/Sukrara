@@ -3,9 +3,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.graph
 
+import app.mauri.sukrara.core.model.TreatmentKind
 import app.mauri.sukrara.graph.stats.Bands
 import app.mauri.sukrara.graph.stats.GlucosePoint
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -50,6 +52,34 @@ class A11ySentenceTest {
         assertEquals("Glucose: no readings yet", A11y.value(Scenes.model(emptyList(), w, sensor = null), Bands(), CardSurface.TEST))
         val needed = Scenes.model(one(60, 60, null), w, status = CardStatus.Needed(lowSide = true), sensor = null)
         assertEquals("60 milligrams per decilitre, trend unknown, low, 1 min ago. Eat carbs", A11y.value(needed, Bands(), CardSurface.TEST))
+    }
+
+    @Test
+    fun pillIsSpokenOnlyWhenDrawn() {
+        val w = Scenes.words()
+        val needed = Scenes.model(one(60, 60, null), w, status = CardStatus.Needed(lowSide = true), sensor = null)
+        assertEquals(
+            "60 milligrams per decilitre, trend unknown, low, 1 min ago",
+            A11y.value(needed, Bands(), CardSurface.TEST, badge = false),
+        )
+        val noValue = Scenes.model(emptyList(), w, status = CardStatus.Muted(CardStatus.NEVER), sensor = null)
+        assertEquals("Glucose: no readings yet", A11y.value(noValue, Bands(), CardSurface.TEST))
+    }
+
+    @Test
+    fun endedMuteHasNoPill() {
+        val w = Scenes.words()
+        val now = Scenes.NOW
+        assertNull(StatusBadge.look(CardStatus.Taken(TreatmentKind.RapidInsulin, now - 3600, now), now, w))
+        assertNull(StatusBadge.look(CardStatus.Paused(lowSide = true, until = now - 1), now, w))
+        assertNull(StatusBadge.look(CardStatus.Muted(now), now, w))
+        assertEquals("1m left", StatusBadge.look(CardStatus.Paused(lowSide = true, until = now + 1), now, w)?.text)
+    }
+
+    @Test
+    fun placeHoursZeroMeansTheDefault() {
+        val c = GraphConfig(defaultHours = 12, placeHours = mapOf(GraphPlace.entries.first() to 0))
+        assertEquals(12, c.hours(GraphPlace.entries.first()))
     }
 
     @Test

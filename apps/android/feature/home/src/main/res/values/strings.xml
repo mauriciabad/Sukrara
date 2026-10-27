@@ -3,7 +3,117 @@
      Copyright (C) 2026 Maurici Abad
      SPDX-License-Identifier: GPL-3.0-or-later -->
 <resources>
-    <string name="home_placeholder_title">Sukrara %1$s</string>
-    <string name="home_placeholder_body">No glucose is shown yet: this build is the app\'s skeleton.</string>
-    <string name="home_open_setup">Set up</string>
+    <string name="home_title">Sukrara</string>
+    <string name="home_add_treatment">Add treatment</string>
+    <string name="home_chart_now">Now</string>
+
+    <!-- TalkBack: the card as one sentence ("112 milligrams per decilitre, falling slowly, in range, 2 minutes ago") -->
+    <string name="home_a11y_value">%1$s milligrams per decilitre, %2$s, %3$s, %4$s</string>
+    <string name="home_a11y_stale">Old reading: %1$s</string>
+    <string name="home_a11y_range_very_low">very low</string>
+    <string name="home_a11y_range_low">low</string>
+    <string name="home_a11y_range_in">in range</string>
+    <string name="home_a11y_range_high">high</string>
+    <string name="home_a11y_range_very_high">very high</string>
+    <string name="home_a11y_just_now">just now</string>
+    <string name="home_a11y_chart">Chart of the last %1$d hours: %2$d%% in range</string>
+    <string name="home_a11y_unmute">Unmute alerts</string>
+
+    <!-- No-data reasons: title, why, action -->
+    <string name="reason_setup_title">Sukrara isn\'t set up yet</string>
+    <string name="reason_setup_body">Choose whether this phone wears the sensor or follows someone who does.</string>
+    <string name="reason_setup_action">Set up</string>
+    <string name="reason_no_sensor_title">Not monitoring: no sensor yet</string>
+    <string name="reason_no_sensor_body">Pair a sensor to see your glucose here. No alerts ring until the first reading arrives.</string>
+    <string name="reason_no_sensor_action">Pair sensor</string>
+    <string name="reason_no_wearer_title">Not monitoring: not following anyone yet</string>
+    <string name="reason_no_wearer_body">Open the invite link from the person you follow. No alerts ring until their first reading arrives.</string>
+    <string name="reason_no_wearer_action">Join</string>
+    <string name="reason_core_missing_title">This build can\'t read Libre 3 sensors</string>
+    <string name="reason_core_missing_body">It was built without the sensor\'s native library. Install a release build of Sukrara.</string>
+    <string name="reason_bluetooth_title">Bluetooth is off</string>
+    <string name="reason_bluetooth_body">The sensor sends readings over Bluetooth. Turn it on to get them back.</string>
+    <string name="reason_bluetooth_action">Turn on Bluetooth</string>
+    <string name="reason_stopped_title">Monitoring stopped</string>
+    <string name="reason_stopped_body">Android stopped Sukrara in the background. Readings and alerts are paused until you resume.</string>
+    <string name="reason_stopped_action">Resume monitoring</string>
+    <string name="reason_ended_title">Sensor ended</string>
+    <string name="reason_ended_body">This sensor has reached its end. Apply a new one and pair it.</string>
+    <string name="reason_ended_action">Pair new sensor</string>
+    <string name="reason_warmup_title">Sensor warming up</string>
+    <string name="reason_warmup_body">The first reading comes at about %1$s. Nothing to do until then.</string>
+    <string name="reason_revoked_title">You no longer follow this person</string>
+    <string name="reason_revoked_body">They removed this phone from their followers. Ask them for a new invite to follow again.</string>
+    <string name="reason_revoked_action">Join with a new invite</string>
+    <string name="reason_wearer_silent_title">No readings from the wearer\'s phone</string>
+    <string name="reason_wearer_silent_body">Last heard %1$s. Their phone may be off, offline or out of battery.</string>
+    <string name="reason_wearer_silent_never">Nothing heard yet. Their phone may be off, offline or out of battery.</string>
+    <string name="reason_no_readings_title">No readings from the sensor</string>
+    <string name="reason_no_readings_body">Last reading %1$s. Keep the phone near the sensor; it reconnects on its own.</string>
+    <string name="reason_no_readings_never">No reading yet. Keep the phone near the sensor; it reconnects on its own.</string>
+    <string name="reason_no_readings_action">Sensor details</string>
+
+    <!-- Banners -->
+    <string name="banner_alerts_title">Alerts may not ring</string>
+    <string name="banner_alerts_action">Fix</string>
+    <string name="req_notifications">Notifications are off for Sukrara.</string>
+    <string name="req_full_screen">Sukrara can\'t show alarms over the lock screen.</string>
+    <string name="req_exact_alarm">Sukrara can\'t schedule exact alarms.</string>
+    <string name="req_battery">Battery optimisation may stop Sukrara in the background.</string>
+    <string name="req_channel">The alert sound can\'t break through Do Not Disturb.</string>
+    <string name="req_bluetooth">Bluetooth or the nearby devices permission is off.</string>
+    <string name="banner_showcase_title">Turn off Sukrara Showcase</string>
+    <string name="banner_showcase_text">The showcase app is still installed. Two apps watching the same sensor ring every alarm twice.</string>
+    <string name="banner_showcase_action">Open its app info</string>
+    <string name="banner_data_title">Some saved data was damaged</string>
+    <plurals name="banner_data_text">
+        <item quantity="one">%d file couldn\'t be read and was set aside. Review it to see what was lost.</item>
+        <item quantity="other">%d files couldn\'t be read and were set aside. Review them to see what was lost.</item>
+    </plurals>
+    <string name="banner_data_action">Review</string>
+    <string name="banner_setup_title">Finish setup</string>
+    <string name="banner_setup_text">Next: %1$s</string>
+    <string name="banner_setup_action">Continue</string>
+    <string name="banner_setup_later">Later</string>
+    <string name="banner_backup_title">Not backed up</string>
+    <string name="banner_backup_text">Save a backup so a new phone can take over your sensor and followers.</string>
+    <string name="banner_backup_action">Back up</string>
+    <string name="banner_widget_title">Add the glucose widget</string>
+    <string name="banner_widget_text">See your glucose on the home screen without opening the app.</string>
+    <string name="banner_widget_action">Add widget</string>
+    <string name="banner_clinic_title">Share with your clinic</string>
+    <string name="banner_clinic_text">Upload readings to LibreView or Tidepool so your care team sees them.</string>
+    <string name="banner_clinic_action">Set up</string>
+
+    <!-- Mute strip and sensor line -->
+    <string name="home_muted_for">Alerts muted · %1$s</string>
+    <string name="home_muted_forever">Alerts muted until you turn them on</string>
+    <string name="home_unmute">Unmute</string>
+    <string name="home_sensor_ends">Sensor ends %1$s</string>
+
+    <!-- Follower header -->
+    <string name="home_following">Following %1$s</string>
+    <string name="home_following_unnamed">Following</string>
+    <string name="home_link_heard">Connected · last heard %1$s</string>
+    <string name="home_link_never">Waiting for the first reading</string>
+
+    <!-- Treatments -->
+    <string name="home_treatments">Last 24 hours</string>
+    <string name="home_treatment_rapid">%1$s u rapid insulin</string>
+    <string name="home_treatment_long">%1$s u long insulin</string>
+    <string name="home_treatment_carbs">%1$s g carbs</string>
+    <string name="home_treatment_note">Note</string>
+    <string name="home_treatment_delete">Delete %1$s at %2$s</string>
+    <string name="home_treatment_deleted">Treatment deleted</string>
+    <string name="home_undo">Undo</string>
+
+    <!-- Damaged data -->
+    <string name="data_title">Damaged data</string>
+    <string name="data_intro">These files couldn\'t be read. Sukrara set them aside, kept working with what it could read, and kept the damaged copies for the report.</string>
+    <string name="data_file">%1$s · %2$s</string>
+    <string name="data_kept_as">Kept as %1$s</string>
+    <string name="data_not_moved">Left in place</string>
+    <string name="data_copy">Copy report</string>
+    <string name="data_ack">Got it</string>
+    <string name="data_back">Back</string>
 </resources>
