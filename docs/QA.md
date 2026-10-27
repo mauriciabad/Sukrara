@@ -175,8 +175,23 @@ system-icon placement. Read-only checks; screenshots stay off the repo (health d
 
 ## Q10 Release build
 
-- [ ] `./gradlew :app:assembleRelease` and install on the emulator; open home, widgets, settings (R8 surprises).
-- [ ] The version in `build.gradle.kts` / `bundle.sh` matches what the release notes say.
+### Release smoke + coexistence (emulator)
+
+`tools/release/android-smoke.sh` (`--final` for the release gate: every WARN becomes a FAIL) does the cheap part on
+its own AVD `release_smoke` (API 37, port 5600; it refuses anything that isn't an emulator): signed release build →
+`verify-apk.sh` → V1 and the showcase debug installed beside each other in both orders → V1 launches, renders,
+survives an activity recreation (saved state) → 3 min watch + a 3 h clock jump with no alert (no sensor) → the
+app's logcat has no crash and no R8 / JNA / UniFFI / serialization / Room error. Output in `$TMPDIR/sukrara-smoke.*`.
+
+- [ ] The smoke exits 0 (`--final` before a release). Look at its two screenshots.
+- [ ] `verify-apk.sh` FAILs on the debug APK (signer, debuggable, debug receiver, no R8 marker): the checks bite.
+- [ ] A release build without Juggluco (`-Psukrara.juggluco=/nonexistent`) or without the key
+  (`SUKRARA_KEYSTORE=/nonexistent`) stops in `verifyJuggluco` / `verifyReleaseSigning`.
+- [ ] By hand on the emulator release build: open every top-level screen (home, settings, sensor, sharing,
+  treatments) — R8 breaks screens the smoke never opens.
+- [ ] Not checkable on an emulator (phone, by the owner): the Live Update chip on the status bar with a real sensor,
+  the NFC tag chooser and the `https://sukrara.mauri.app/join` App Link chooser while the showcase is still installed.
+- [ ] The version in `VERSION` matches what the release notes say.
 
 ## Q11 Sensor reminders and countdowns
 
