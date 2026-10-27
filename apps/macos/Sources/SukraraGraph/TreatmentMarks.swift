@@ -11,13 +11,26 @@ enum TreatmentMarks {
         switch k {
         case "rapid": GraphPalette.hex(dark ? 0x8AB4FF : 0x1A62D6)
         case "long": GraphPalette.hex(dark ? 0xC9B0FF : 0x6D45C4)
-        case "carbs": GraphPalette.hex(dark ? 0xFFB74D : 0xC86E00)
+        case "carbs": GraphPalette.hex(dark ? 0xFFB74D : 0xA65A00)
         default: GraphPalette.hex(dark ? 0xB4B4B4 : 0x707070)
         }
     }
 
     /// Text on a filled chip of a kind's colour: near-black on the light dark-theme colours, white on the deep light ones.
     static func onColor(dark: Bool) -> CGColor { GraphPalette.hex(dark ? 0x1C1C1E : 0xFFFFFF) }
+
+    /// Words and icon on a tonal (faintly tinted) pill of colour `c`. Light: `c` darkened by a quarter, so the words
+    /// reach 4.5:1 on the tint (the bare light colours fail it); dark: `c` itself. Android: `TreatmentMarks.tonalInk`.
+    static func tonalInk(_ c: CGColor, dark: Bool) -> CGColor {
+        guard !dark, let k = c.components, k.count >= 3 else { return c }
+        let keep = 1 - tonalDarken
+        return CGColor(srgbRed: k[0] * keep, green: k[1] * keep, blue: k[2] * keep, alpha: 1)
+    }
+
+    /// A tonal pill's tint: `c` at 0x3D (dark) / 0x2E (light) alpha over the card.
+    static func tonalTint(_ c: CGColor, dark: Bool) -> CGColor { c.copy(alpha: (dark ? 0x3D : 0x2E) / 255.0)! }
+
+    private static let tonalDarken: CGFloat = 0.25
 
     /// "4.5u", "12u", "30g" (lowercase, no space: the user, 2026-10-18); nil for notes.
     static func amount(k: String, a: Double) -> String? {

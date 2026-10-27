@@ -91,7 +91,9 @@ enum StatusBadge {
                 : (CGColor(gray: 1, alpha: 1), CGColor(gray: 0, alpha: 1))
         }
         let c = TreatmentMarks.color(look.kind, dark: dark)
-        return look.tonal ? (c.copy(alpha: (dark ? 0x3D : 0x2E) / 255.0)!, c) : (c, TreatmentMarks.onColor(dark: dark))
+        return look.tonal
+            ? (TreatmentMarks.tonalTint(c, dark: dark), TreatmentMarks.tonalInk(c, dark: dark))
+            : (c, TreatmentMarks.onColor(dark: dark))
     }
     private static func font(_ h: CGFloat) -> CTFont { Ink.font(h * 0.56, .semibold) }
 

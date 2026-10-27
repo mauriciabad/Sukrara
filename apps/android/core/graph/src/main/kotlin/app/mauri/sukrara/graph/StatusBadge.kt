@@ -9,7 +9,6 @@ import android.graphics.Paint
 import android.graphics.Path
 import android.graphics.RectF
 import android.graphics.Typeface
-import androidx.core.graphics.ColorUtils
 import androidx.core.graphics.PathParser
 
 /**
@@ -149,8 +148,8 @@ object StatusBadge {
         dark: Boolean,
     ): Paints {
         val c = TreatmentMarks.color(TreatmentMarks.palette(dark), look.kind)
-        val bg = if (look.tonal) ColorUtils.setAlphaComponent(c, if (dark) 0x3D else 0x2E) else c
-        val fg = if (look.tonal) c else TreatmentMarks.onColor(dark)
+        val bg = if (look.tonal) TreatmentMarks.tonalTint(c, dark) else c
+        val fg = if (look.tonal) TreatmentMarks.tonalInk(c, dark) else TreatmentMarks.onColor(dark)
         val text =
             Paint(Paint.ANTI_ALIAS_FLAG).apply {
                 color = fg
