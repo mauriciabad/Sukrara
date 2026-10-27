@@ -39,7 +39,7 @@ class FileStoreTest {
     }
 
     @Test
-    fun `a damaged file is quarantined and reported, never replaced by empty data`() = runTest {
+    fun `a damaged file stays Corrupt on every load, is kept and reported once, never read as Missing`() = runTest {
         store.save(7)
         store.file.writeText("{not a number")
 
@@ -49,9 +49,35 @@ class FileStoreTest {
         val aside = (load as FileLoad.Corrupt).quarantinedTo
         assertEquals("pens.txt.corrupt-${clock.now().toEpochMilli()}", aside.name)
         assertEquals("{not a number", aside.readText())
-        assertFalse(store.file.exists())
+        assertEquals("{not a number", store.file.readText())
+        assertEquals(load, store.load())
         assertEquals(aside, log.files.value.single().quarantinedTo)
-        assertEquals(FileLoad.Missing, store.load())
+    }
+
+    @Test
+    fun `a deliberate save replaces a damaged file`() = runTest {
+        store.file.parentFile!!.mkdirs()
+        store.file.writeText("x")
+        assertTrue(store.load() is FileLoad.Corrupt)
+        store.save(3)
+        assertEquals(FileLoad.Loaded(3), store.load())
+    }
+
+    @Test
+    fun `reports survive the process until acknowledged`() = runTest {
+        store.file.parentFile!!.mkdirs()
+        store.file.writeText("x")
+        store.load()
+
+        val nextRun = CorruptionLog()
+        nextRun.rescan(listOf(tmp.root))
+        val report = nextRun.files.value.single()
+        assertEquals("pens.txt", report.store)
+
+        nextRun.acknowledge(report)
+        val afterAck = CorruptionLog().apply { rescan(listOf(tmp.root)) }
+        assertTrue(afterAck.files.value.isEmpty())
+        assertTrue("the copy is kept", tmp.root.resolve("pens").list()!!.any { ".seen-" in it })
     }
 
     @Test

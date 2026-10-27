@@ -45,11 +45,7 @@ class KeystoreSecretBox : SecretBox {
         aad: ByteArray,
     ): ByteArray {
         if (sealed.size <= SecretFormat.IV_BYTES) throw SecretOpenException(transient = false, "too short")
-        val key = try {
-            existingKey(alias)
-        } catch (e: GeneralSecurityException) {
-            throw SecretOpenException(transient = true, "key not loadable", e)
-        } ?: throw SecretOpenException(transient = false, "no key $alias")
+        val key = loadKey(alias) ?: throw SecretOpenException(transient = false, "no key $alias")
         try {
             val cipher = Cipher.getInstance(SecretFormat.TRANSFORMATION)
             cipher.init(Cipher.DECRYPT_MODE, key, GCMParameterSpec(SecretFormat.TAG_BITS, sealed, 0, SecretFormat.IV_BYTES))
@@ -67,6 +63,15 @@ class KeystoreSecretBox : SecretBox {
     }
 
     private fun existingKey(alias: String): SecretKey? = keyStore.getKey(alias, null) as? SecretKey
+
+    /** The key for opening; any failure to reach the Keystore (I/O, provider, busy) is transient, never "no key". */
+    @Suppress("TooGenericExceptionCaught") // KeyStore.load / getKey wrap system errors in many types
+    private fun loadKey(alias: String): SecretKey? =
+        try {
+            existingKey(alias)
+        } catch (e: Exception) {
+            throw SecretOpenException(transient = true, "key not loadable", e)
+        }
 
     private fun createKey(alias: String): SecretKey {
         val generator = KeyGenerator.getInstance(KeyProperties.KEY_ALGORITHM_AES, PROVIDER)

@@ -25,12 +25,17 @@ class TypedStoreCorruptionTest {
     @Serializable
     data class Pairing(val serial: String, val epoch: Int)
 
+    private companion object {
+        /** What the owner chose to continue from when the file is damaged (distinct from "never set"). */
+        val LOST = Pairing("lost", -1)
+    }
+
     private val log = CorruptionLog()
     private val clock = FakeClock()
     private val file by lazy { File(tmp.root, "state/pairing.json") }
 
     private fun store(scope: CoroutineScope) =
-        TypedStore<Pairing?>(file, Pairing.serializer().nullable, initial = null, whenCorrupt = null, SukraraJson, log, clock, scope)
+        TypedStore<Pairing?>(file, Pairing.serializer().nullable, initial = null, whenCorrupt = LOST, SukraraJson, log, clock, scope)
 
     @Test
     fun `missing file starts at initial, updates persist`() = runTest {
@@ -48,7 +53,7 @@ class TypedStoreCorruptionTest {
         file.writeText("{\"serial\": tru")
         val store = store(backgroundScope)
 
-        assertNull(store.data.first())
+        assertEquals(LOST, store.data.first())
 
         val report = checkNotNull(store.corruption.value)
         assertEquals("{\"serial\": tru", report.quarantinedTo!!.readText())

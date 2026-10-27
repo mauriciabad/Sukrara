@@ -138,11 +138,13 @@ read (new app id, no migration). Nothing is in cloud backup or device transfer (
 
 Retention (`Retention`, applied in `ready()`): readings 90 days, seen wraps / rejects / sent outbox 14 days.
 
-**Corruption is never silent.** A file that can't be decoded is kept (`<file>.corrupt-<epochMs>`) and reported to
+**Corruption is never silent.** A file that can't be decoded is copied to `<file>.corrupt-<epochMs>` and reported to
 `DataModule.corruption` (`CorruptionLog`), which `AppGraph.startupState` turns into a visible problem with *Copy
-report*. Typed stores continue from the owner's explicit `whenCorrupt` value and expose their own `corruption` flow; a
-`FileStore` returns `Corrupt` and leaves no file; settings read as defaults. A secret that can't be opened throws
+report*. `ready()` re-reports every kept copy at each start until the person acknowledges it (renamed `.seen-…`, still
+kept), so a crash or a background start can't hide it. Typed stores continue from the owner's explicit `whenCorrupt`
+value and expose their own `corruption` flow; a `FileStore` keeps the damaged file in place and returns `Corrupt` on
+every load (never `Missing`) until a deliberate save or delete; settings read as defaults. A secret that can't be opened throws
 `SecretUnreadableException` on every read and stays in place (an unreadable identity is never "no identity"); a
 transient Keystore error (busy after an OS update) throws `transient = true`, is not reported and deletes nothing; keys
-are never deleted by an error path. Open: Room's default corruption handling deletes a damaged database (issue:
-SQLCipher + a quarantining open helper).
+are never deleted by an error path. A damaged database is copied aside (with its WAL) and reported by
+`QuarantiningOpenHelperFactory` before SQLite recreates it. The database is not encrypted yet (issue: SQLCipher).
