@@ -40,7 +40,15 @@ object ValueGlyphs {
     ) {
         fun head(shift: Float) =
             Path().apply {
-                ARROW_HEAD.forEachIndexed { i, (x, y) -> if (i == 0) moveTo((x + shift) * scale, y * scale) else lineTo((x + shift) * scale, y * scale) }
+                ARROW_HEAD.forEachIndexed { i, (x, y) ->
+                    if (i ==
+                        0
+                    ) {
+                        moveTo((x + shift) * scale, y * scale)
+                    } else {
+                        lineTo((x + shift) * scale, y * scale)
+                    }
+                }
                 close()
             }
         val fill = Paint(p).apply { style = Paint.Style.FILL }
@@ -60,7 +68,10 @@ object ValueGlyphs {
                 size / 2f,
                 size / 2f,
                 TrendMark.ringRadius(size.toFloat()),
-                Paint(p).apply { style = Paint.Style.STROKE; strokeWidth = TrendMark.ringStroke(size.toFloat()) },
+                Paint(p).apply {
+                    style = Paint.Style.STROKE
+                    strokeWidth = TrendMark.ringStroke(size.toFloat())
+                },
             )
             return
         }
@@ -133,7 +144,16 @@ object ValueGlyphs {
             cv.rotate(TrendAngle.deg(rate))
             arrow(cv, arrowBox * 1.15f, p, TrendAngle.isDouble(rate))
         } else {
-            cv.drawCircle(0f, 0f, TrendMark.ringRadius(arrowBox), Paint(p).apply { style = Paint.Style.STROKE; strokeWidth = TrendMark.ringStroke(arrowBox) })
+            cv.drawCircle(
+                0f,
+                0f,
+                TrendMark.ringRadius(arrowBox),
+                Paint(p).apply {
+                    style = Paint.Style.STROKE
+                    strokeWidth =
+                        TrendMark.ringStroke(arrowBox)
+                },
+            )
         }
         cv.restore()
         if (look.strike) cv.restore()

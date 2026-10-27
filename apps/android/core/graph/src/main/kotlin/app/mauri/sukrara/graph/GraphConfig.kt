@@ -42,7 +42,8 @@ data class GraphConfig(
 ) {
     fun sensorTime(p: GraphPlace) = p !in sensorHidden
 
-    fun hours(p: GraphPlace) = placeHours[p] ?: defaultHours
+    /** The place's window; 0 in the schema means "same as the default". */
+    fun hours(p: GraphPlace) = placeHours[p]?.takeIf { it > 0 } ?: defaultHours
 
     /** [lastElse] with the ring settings applied. */
     fun lastElseRing() = lastElse?.copy(range = ringRange, order = ringOrder, marks = ringMarks)

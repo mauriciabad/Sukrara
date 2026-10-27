@@ -8,6 +8,7 @@ import android.graphics.Canvas
 import app.mauri.sukrara.core.model.TreatmentKind
 import app.mauri.sukrara.graph.stats.GlucosePoint
 import com.github.takahirom.roborazzi.captureRoboImage
+import org.junit.After
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -28,6 +29,8 @@ import java.util.TimeZone
 @Config(sdk = [36], qualifiers = "w411dp-h891dp-xxhdpi")
 class CardScreenshotTest {
     private val d = 3f
+    private val savedZone = TimeZone.getDefault()
+    private val savedLocale = Locale.getDefault()
 
     @Before
     fun setUp() {
@@ -35,6 +38,12 @@ class CardScreenshotTest {
         TimeZone.setDefault(TimeZone.getTimeZone("UTC"))
         Locale.setDefault(Locale.US)
         RoundedFont.init(RuntimeEnvironment.getApplication())
+    }
+
+    @After
+    fun tearDown() {
+        TimeZone.setDefault(savedZone)
+        Locale.setDefault(savedLocale)
     }
 
     private val style = CardStyle(rings = listOf(RingSpec(86_400), RingSpec(7 * 86_400L)), last = LastPlace.NEAR_VALUE, sensorTime = true)
@@ -53,8 +62,10 @@ class CardScreenshotTest {
             "stale-6min" to Scenes.model(Scenes.day(140, ageS = 6 * 60), w),
             "stale-25min" to Scenes.model(Scenes.day(140, ageS = 25 * 60), w),
             "no-data" to Scenes.model(emptyList<GlucosePoint>(), w),
-            "warm-up" to Scenes.model(Scenes.day(140, ageS = 3 * 3600), w, sensor = SensorInfo(Scenes.NOW - 18 * 60, Scenes.NOW + 15 * 86_400)),
-            "sensor-ended" to Scenes.model(Scenes.day(140, ageS = 30 * 60), w, sensor = SensorInfo(Scenes.NOW - 15 * 86_400, Scenes.NOW - 20 * 60)),
+            "warm-up" to
+                Scenes.model(Scenes.day(140, ageS = 3 * 3600), w, sensor = SensorInfo(Scenes.NOW - 18 * 60, Scenes.NOW + 15 * 86_400)),
+            "sensor-ended" to
+                Scenes.model(Scenes.day(140, ageS = 30 * 60), w, sensor = SensorInfo(Scenes.NOW - 15 * 86_400, Scenes.NOW - 20 * 60)),
         )
     }
 

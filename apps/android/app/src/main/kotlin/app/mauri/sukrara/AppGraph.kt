@@ -12,7 +12,7 @@ import app.mauri.sukrara.core.model.DispatcherProvider
 import app.mauri.sukrara.core.model.ReadingSource
 import app.mauri.sukrara.core.model.Role
 import app.mauri.sukrara.core.model.SystemClock
-import app.mauri.sukrara.feature.home.HomeDeps
+import app.mauri.sukrara.core.model.Treatment
 import app.mauri.sukrara.feature.sharing.SharingDeps
 import app.mauri.sukrara.monitor.MonitorModule
 import app.mauri.sukrara.monitor.alerts.AlertRecord
@@ -24,9 +24,11 @@ import app.mauri.sukrara.sensor.SensorModule
 import app.mauri.sukrara.sensor.pairing.PairingLoad
 import app.mauri.sukrara.sensor.pairing.ReceiverIdState
 import app.mauri.sukrara.sensor.source.SensorSourceKind
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Deferred
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
@@ -35,21 +37,27 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.launch
 import java.time.Duration
 
 /**
- * The app's object graph (DI, CHANGES A4). Each area is ONE module class built here by one `by lazy` line from the
- * modules below it; [ready] loads them from disk in dependency order. Feature `XxxDeps` are implemented by delegating
- * to the modules. Order: data → sensor → monitor → alerts → (share 13, …).
+ * The app's object graph (manual DI, docs/ARCHITECTURE.md §Android DI, apps/android/README.md "DI").
+ *
+ * - Each area owns ONE module class in its own Gradle module (e.g. `DataModule` in `:core:data`, `MonitorModule` in
+ *   `:monitor`) that builds its objects from constructor parameters. `AppGraph` only composes them, in dependency
+ *   order (data → role → sensor → monitor → alerts → home → …): one `val x by lazy { XModule(…) }` block per module.
+ * - Built in [App.onCreate] on the main thread, so the constructor does no I/O: everything is `lazy`, and work
+ *   that reads disk happens in [ready] on the IO dispatcher.
+ * - [scope] lives as long as the process; a failing child doesn't cancel the others.
  */
 class AppGraph(
     val app: Application,
     val dispatchers: DispatcherProvider = DefaultDispatchers,
     val clock: Clock = SystemClock,
-) : HomeDeps, SharingDeps {
+) : SharingDeps {
     val scope = CoroutineScope(SupervisorJob() + dispatchers.default)
 
-    override val appVersion: String = BuildConfig.VERSION_NAME
+    val appVersion: String = BuildConfig.VERSION_NAME
 
     // ---- modules (one line each; construction does no I/O) ----
 
@@ -102,12 +110,35 @@ class AppGraph(
             sensorEndRecord = data.typedStore("sensor_end", SensorEndMemory.serializer(), SensorEndMemory(), SensorEndMemory()),
             treatments = recentTreatments(),
             // the alert alarm found the service dead: bring it back (a refusal shows "Monitoring stopped")
-            restarter = {
-                ready.await()
-                monitor.starter.start(StartReason.AlertCheck)
-            },
+            restarter = { startMonitoring(StartReason.AlertCheck) },
             clock = clock,
         )
+    }
+
+    val home by lazy {
+        HomeModule(
+            context = app,
+            data = data,
+            clock = clock,
+            scope = scope,
+            glucose = monitor.hub.state,
+            // the reliability checklist has no implementation yet (OPS issue cW): null = the row claims nothing
+            readinessSource = null,
+            unmuteAlerts = { scope.launch { alerts.controls.unmuteAll() } },
+            resume = { scope.launch { startMonitoring(StartReason.Resume) } },
+        )
+    }
+
+    /**
+     * Starts the monitoring service once the graph is loaded (app open, the home's Resume, the alert alarm). A graph
+     * that failed to load is logged and the start is skipped; the next trigger tries again in a new process.
+     */
+    suspend fun startMonitoring(reason: StartReason) {
+        runCatching { ready.await() }.onFailure {
+            android.util.Log.e("Sukrara.app", "graph not ready: ${it.javaClass.simpleName}")
+            return
+        }
+        monitor.starter.start(reason)
     }
 
     /**
@@ -116,8 +147,10 @@ class AppGraph(
      */
     val ready: Deferred<Unit> =
         scope.async(dispatchers.io, CoroutineStart.LAZY) {
-            data.ready()
-            monitor.ready()
+            // a step that fails is logged and the next one still runs: a damaged database must not keep the hub
+            // (and so the service, the notification and the alerts) from starting
+            step("data") { data.ready() }
+            step("monitor") { monitor.ready() }
         }
 
     /**
@@ -132,14 +165,27 @@ class AppGraph(
         }
 
     /** Treatments of the last [TREATMENTS_WINDOW] (and any later), the window moving forward every hour. */
-    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
-    private fun recentTreatments(): Flow<List<app.mauri.sukrara.core.model.Treatment>> =
+    @OptIn(ExperimentalCoroutinesApi::class)
+    private fun recentTreatments(): Flow<List<Treatment>> =
         flow {
             while (true) {
                 emit(clock.now() - TREATMENTS_WINDOW)
                 delay(Duration.ofHours(1).toMillis())
             }
         }.flatMapLatest { from -> data.treatments.between(from, from + Duration.ofDays(3650)) }
+
+    private suspend fun step(
+        name: String,
+        load: suspend () -> Unit,
+    ) {
+        try {
+            load()
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            android.util.Log.e("Sukrara.app", "$name not loaded: ${e.javaClass.simpleName}")
+        }
+    }
 
     private suspend fun sensorSource(): ReadingSource? {
         val juggluco = SensorSourceKind.fromId(data.settings.flow(SensorSource).first()) == SensorSourceKind.Juggluco

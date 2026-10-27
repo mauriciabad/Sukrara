@@ -35,6 +35,14 @@ import Foundation
             FileHandle.standardError.write(Data("sukrara-snap: \(error)\n".utf8))
             exit(1)
         }
+    case "windows":
+        do {
+            let n = try WindowSnapshots.render(to: URL(fileURLWithPath: args[1]))
+            print("sukrara-snap: \(n) window pictures in \(args[1])")
+        } catch {
+            FileHandle.standardError.write(Data("sukrara-snap: \(error)\n".utf8))
+            exit(1)
+        }
     default:
         FileHandle.standardError.write(Data("sukrara-snap: unknown surface '\(args[0])' (plan: \(plan.mode))\n".utf8))
         exit(2)

@@ -78,11 +78,23 @@ enum class Freshness(
         ): GlucoseLook {
             val fr = of(t?.let { nowS - it })
             return when {
-                warmup != null -> GlucoseLook(GlucoseLook.State.WARMING_UP, fr, null, false, null, warmup)
-                ended -> GlucoseLook(GlucoseLook.State.ENDED, fr, null, false, null)
-                sgv == null || t == null -> GlucoseLook(GlucoseLook.State.NONE, fr, null, false, null)
-                !fr.showValue -> GlucoseLook(GlucoseLook.State.NO_READINGS, fr, null, false, null)
-                else ->
+                warmup != null -> {
+                    GlucoseLook(GlucoseLook.State.WARMING_UP, fr, null, false, null, warmup)
+                }
+
+                ended -> {
+                    GlucoseLook(GlucoseLook.State.ENDED, fr, null, false, null)
+                }
+
+                sgv == null || t == null -> {
+                    GlucoseLook(GlucoseLook.State.NONE, fr, null, false, null)
+                }
+
+                !fr.showValue -> {
+                    GlucoseLook(GlucoseLook.State.NO_READINGS, fr, null, false, null)
+                }
+
+                else -> {
                     GlucoseLook(
                         GlucoseLook.State.VALUE,
                         fr,
@@ -91,6 +103,7 @@ enum class Freshness(
                         if (rate != null && !fr.strike) TrendMark.ARROW else TrendMark.NONE,
                         rate = rate,
                     )
+                }
             }
         }
 

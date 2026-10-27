@@ -113,6 +113,8 @@ class GlucoseHubImpl(
             val self = coroutineContext[Job]
             attachedJob = self
             attachedSource = source
+            // a source attached while Bluetooth is off hears it now, not only at the next change
+            if (!bluetoothOn.value) source.onBluetoothOff()
             try {
                 coroutineScope {
                     launch { source.sensor.collect(::onSourceSensor) }

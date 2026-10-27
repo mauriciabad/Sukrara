@@ -31,7 +31,8 @@ class DebugReceiver : BroadcastReceiver() {
 
 /**
  * Every debug command that replaces the sensor or shows / writes made-up data (CLAUDE.md: debug builds only, this
- * whole source set is compiled out of release). `adb shell am broadcast -a app.mauri.sukrara.debug.<NAME> …`.
+ * whole source set is compiled out of release).
+ * `adb shell am broadcast -n app.mauri.sukrara/.debug.DebugReceiver -a app.mauri.sukrara.debug.<NAME> …`.
  */
 object DebugFakes {
     private const val PREFIX = "app.mauri.sukrara.debug."
