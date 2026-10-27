@@ -141,6 +141,11 @@ fun HomeContent(
         topBar = {
             TopAppBar(
                 title = { if (follower) FollowerHeader(state) else Text(stringResource(R.string.home_title)) },
+                actions = {
+                    IconButton(onClick = { callbacks.onAction(HomeAction.OpenSettings) }) {
+                        Icon(painterResource(R.drawable.home_ic_settings), contentDescription = stringResource(R.string.home_settings))
+                    }
+                },
             )
         },
         floatingActionButton = {

@@ -7,7 +7,7 @@ import SukraraShare
 
 /// Why following didn't start (chunk 15's `FollowerJoinError`, mapped by the runtime adapter).
 public enum FollowFailure: Error, Equatable, Sendable {
-    case invalidLink, notFound, expired, used, offline, fingerprintMismatch, keychain, noQRCode
+    case invalidLink, notFound, expired, used, offline, fingerprintMismatch, alreadyFollowing, keychain, noQRCode
 
     /// The text the follow window shows; every one says what to do next.
     public var message: String {
@@ -18,6 +18,8 @@ public enum FollowFailure: Error, Equatable, Sendable {
         case .used: L10n.t("Another device already used this invite. Ask for a new invite on the phone.")
         case .offline: L10n.t("Can't reach the relays. Check the internet connection and try again.")
         case .fingerprintMismatch: L10n.t("This invite doesn't match the link. Ask for a new invite on the phone.")
+        case .alreadyFollowing:
+            L10n.t("This Mac already follows someone. Stop following in Settings › General first, then open the link again.")
         case .keychain: L10n.t("Sukrara couldn't save the follow key in the Keychain. Try again.")
         case .noQRCode: L10n.t("No Sukrara invite QR code found in that image.")
         }
@@ -61,6 +63,8 @@ public final class FollowModel {
     /// Unfollow asks first ("the wearer has to invite again").
     public var confirmingUnfollow = false
     @ObservationIgnored private weak var actions: (any FollowActions)?
+    /// Look for phones offering nearby pairing (on while a follow step is on screen and not following).
+    @ObservationIgnored public var searchNearby: (Bool) -> Void = { _ in }
 
     public init(status: FollowStatus, actions: (any FollowActions)?, macName: String = Host.current().localizedName ?? "Mac") {
         self.status = status
@@ -76,12 +80,18 @@ public final class FollowModel {
             failure = .invalidLink
             return
         }
+        // following or waiting: a new link changes nothing and the status stays what it is
+        guard canFollow else {
+            failure = .alreadyFollowing
+            return
+        }
+        let before = status
         status = .joining
         do {
             try await actions?.join(link: link)
         } catch {
             failure = error
-            status = .notFollowing
+            status = error == .alreadyFollowing ? before : .notFollowing
         }
     }
 
@@ -120,4 +130,12 @@ public final class FollowModel {
     }
 
     public func clearFailure() { failure = nil }
+
+    /// Nobody followed and nothing on its way: the states where a nearby phone may be offered.
+    public var canFollow: Bool {
+        switch status {
+        case .notFollowing, .declined, .inviteUsed, .revoked, .broken: true
+        case .joining, .waiting, .following: false
+        }
+    }
 }

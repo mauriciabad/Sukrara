@@ -15,6 +15,9 @@ public enum LaunchMode: Equatable, Sendable {
     case normal
     /// An offline render of one surface (`sukrara-snap`, debug builds only).
     case snapshot(SnapshotRequest)
+    /// The menu bar app, offline, following a made-up wearer with synthetic readings (`SUKRARA_FIXTURE=1` on a dev
+    /// run, debug builds only): for screenshots and the bundle smoke test. Nothing leaves the process.
+    case fixture
 }
 
 public struct SnapshotRequest: Equatable, Sendable {
@@ -173,7 +176,7 @@ public enum LaunchError: Error, Equatable {
             "This is a dev build (\(path)), not the installed Sukrara. Set SUKRARA_DEV=1 to start it offline "
                 + "with separate data (no sensor, relays or alerts)."
         case .debugOnly:
-            "Snapshots are only available in debug builds."
+            "Snapshots and synthetic data are only available in debug builds."
         case .devHomeIsUserHome:
             "SUKRARA_DEV_HOME is your real home folder: a dev run must use separate data. Choose another folder."
         }
@@ -217,7 +220,9 @@ public struct LaunchPlan: Equatable, Sendable {
             ?? home.appending(
                 path: "Library/Application Support/\(SukraraIDs.appBundleID).dev", directoryHint: .isDirectory)
         guard devHome.standardizedFileURL.path != home.standardizedFileURL.path else { throw .devHomeIsUserHome }
-        return LaunchPlan(mode: .normal, services: .none, data: .isolated(root: devHome))
+        let fixture = env["SUKRARA_FIXTURE"] == "1"
+        if fixture && !build.isDebugBuild { throw .debugOnly }
+        return LaunchPlan(mode: fixture ? .fixture : .normal, services: .none, data: .isolated(root: devHome))
     }
 
     /// The plan for an offline render: no services, data under `scratch`. Debug builds only.

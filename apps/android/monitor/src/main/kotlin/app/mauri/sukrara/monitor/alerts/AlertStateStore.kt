@@ -52,6 +52,10 @@ class AlertStateStore(
 
     suspend fun setSettings(settings: AlertSettings) = settingsRepo.set(SETTINGS, AlertSettingsCodec.encode(settings))
 
+    /** Changes the stored settings in one atomic edit (two screens editing at once never lose a change). */
+    suspend fun updateSettings(transform: (AlertSettings) -> AlertSettings) =
+        settingsRepo.update(SETTINGS) { stored -> AlertSettingsCodec.encode(transform(AlertSettingsCodec.decode(stored) ?: AlertSettings())) }
+
     suspend fun load(): AlertRecord = record.data.first()
 
     suspend fun save(transform: (AlertRecord) -> AlertRecord) = record.update(transform)

@@ -237,7 +237,15 @@ AppModel (21, @MainActor) ── snapshots()/alerts() ──► FollowerService 
                                       └─ NearbyTransport (NearbyCentral | fake) ─ NearbyLink (pure BLE protocol)
           stores: ReadingsFileStore · TreatmentFileStore · SensorStateStore · WearerSettingsStore (actors)
 WidgetFeed (SukraraApp) ── glucose.json in the App Group + WidgetReloadPolicy (≤ 1 value reload / 5 min)
+   └──► SukraraWidget.appex: SnapshotProvider (reads only glucose.json) → WidgetTimeline → WidgetEntryView
 ```
+
+- **Widget reloads**: the reload budget is about 40–70 a day, so the app never reloads per reading or per minute.
+  `WidgetReloadPolicy` reloads all three kinds when the shown state changes (at once) or the shown value changes (at
+  most once per 5 min; a deferred reload carries the last value). Ageing needs no reload: `WidgetTimeline`
+  (SukraraGraph, pure, `TimelineTests`) gives the timeline an entry at each future freshness step, mute end (and the
+  countdown's minutes in its last hour) and sensor warm-up / end, each drawing the same snapshot with `now` = the
+  entry's date; the policy is `.after(last entry)`, `.never` when there is nothing to age.
 
 - **Stores** (`SukraraCore/Stores`): `readings.csv` (`t_ms,mgdl,rate`, appended, atomic rewrite for backfill,
   31 days, first reading per `t` kept), `treatments.json` (`TreatmentLog` v1: entry + creator + delivery),

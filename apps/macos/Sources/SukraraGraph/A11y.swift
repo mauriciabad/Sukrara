@@ -15,8 +15,16 @@ public struct CardWords: Sendable {
     let band: (veryLow: String, low: String, inRange: String, high: String, veryHigh: String, extremelyHigh: String)
     let noReadings: String
     let noReadingSince: @Sendable (String) -> String
+    /// A card without a value: when its data is from (the graph widgets, `Freshness.AgeMark`).
+    let lastReading: @Sendable (String) -> String
     let chart: @Sendable (_ hours: Int, _ inRange: Int, _ below: Int, _ above: Int) -> String
     let chartEmpty: @Sendable (_ hours: Int) -> String
+    let warmingUp, sensorEnded: String
+    /// The status pill's sentence: the action an alert asks for, and the mutes with the time left.
+    let eatCarbs, takeInsulin, mutedForever: String
+    let mutedLeft: @Sendable (_ left: String) -> String
+    let sideMuted: @Sendable (_ low: Bool, _ left: String) -> String
+    let sideAfter: @Sendable (_ low: Bool, _ carbs: Bool, _ left: String) -> String
 
     public static let en = CardWords(
         unit: ("milligrams per decilitre", "millimoles per litre"), below: "below", above: "above",
@@ -24,8 +32,14 @@ public struct CardWords: Sendable {
         trend: ("trend unknown", "steady", "rising", "rising fast", "falling", "falling fast"),
         band: ("very low", "low", "in range", "high", "very high", "extremely high"),
         noReadings: "Glucose: no readings yet", noReadingSince: { "Glucose: no reading since \($0)" },
+        lastReading: { "Glucose: last reading \($0)" },
         chart: { "Last \($0) hours: \($1)% in range, \($2)% below, \($3)% above" },
-        chartEmpty: { "Last \($0) hours: no data" })
+        chartEmpty: { "Last \($0) hours: no data" },
+        warmingUp: "Warming up", sensorEnded: "Sensor ended. Replace sensor",
+        eatCarbs: "Eat carbs", takeInsulin: "Take insulin", mutedForever: "Alerts muted until you turn it off",
+        mutedLeft: { "Alerts muted · \($0) left" },
+        sideMuted: { "\($0 ? "Low" : "High") alerts muted · \($1) left" },
+        sideAfter: { "\($0 ? "Low" : "High") alerts muted after \($1 ? "carbs" : "insulin") · \($2) left" })
 
     public static let es = CardWords(
         unit: ("miligramos por decilitro", "milimoles por litro"), below: "por debajo de", above: "por encima de",
@@ -33,8 +47,18 @@ public struct CardWords: Sendable {
         trend: ("tendencia desconocida", "estable", "subiendo", "subiendo rápido", "bajando", "bajando rápido"),
         band: ("muy baja", "baja", "en rango", "alta", "muy alta", "extremadamente alta"),
         noReadings: "Glucosa: aún no hay lecturas", noReadingSince: { "Glucosa: sin lecturas desde \($0)" },
+        lastReading: { "Glucosa: última lectura \($0)" },
         chart: { "Últimas \($0) horas: \($1)% en rango, \($2)% por debajo, \($3)% por encima" },
-        chartEmpty: { "Últimas \($0) horas: sin datos" })
+        chartEmpty: { "Últimas \($0) horas: sin datos" },
+        warmingUp: "Calentando", sensorEnded: "Sensor terminado. Cambiar sensor",
+        eatCarbs: "Come hidratos", takeInsulin: "Ponte insulina",
+        mutedForever: "Alertas silenciadas hasta que lo desactives",
+        mutedLeft: { "Alertas silenciadas · quedan \($0)" },
+        sideMuted: { "Alertas de glucosa \($0 ? "baja" : "alta") silenciadas · quedan \($1)" },
+        sideAfter: {
+            "Alertas de glucosa \($0 ? "baja" : "alta") silenciadas tras \($1 ? "los hidratos" : "la insulina")"
+                + " · quedan \($2)"
+        })
 
     /// The user's language among the two the app speaks (the system's preferred order; English otherwise).
     public static var current: CardWords {
@@ -81,8 +105,8 @@ enum A11y {
     {
         let look = GlucoseCard.face(data, unit: unit, surface: surface)
         switch look.state {
-        case .ended: return "Sensor ended. \(StatusBadge.replaceSensor.text)"
-        case .warmingUp: return "Warming up"
+        case .ended: return w.sensorEnded
+        case .warmingUp: return w.warmingUp
         case .none: return w.noReadings
         case .noReadings:
             return w.noReadingSince(data.latest.map { Freshness.timeText($0.t, now: data.now) } ?? "")
@@ -99,7 +123,7 @@ enum A11y {
                 w.band(r.sgv, style.bands.sane()), w.age(data.now - r.t),
             ]
             let sentence = parts.compactMap { $0 }.joined(separator: ", ")
-            let badge = style.badge ? StatusBadge.describe(data.alerts.status, now: data.now) : nil
+            let badge = style.badge ? StatusBadge.describe(data.alerts.status, now: data.now, words: w) : nil
             return sentence + (badge.map { ". " + $0 } ?? "")
         }
     }
@@ -118,8 +142,24 @@ enum A11y {
     static func card(_ data: CardData, unit: GlucoseUnit, surface: CardSurface, style: CardStyle, words: CardWords)
         -> String
     {
-        let value = style.value || surface.glyph ? value(data, unit: unit, surface: surface, style: style, words: words) : nil
+        let value =
+            style.value || surface.glyph
+            ? value(data, unit: unit, surface: surface, style: style, words: words) : age(data, words: words)
         let chart = surface.glyph ? nil : style.graph.map { chart(data, $0, words: words) }
         return [value, chart].compactMap { $0 }.joined(separator: ". ")
+    }
+
+    /// A card without a value says how old its chart is, as the picture does (`Freshness.AgeMark`): nothing while
+    /// fresh, "last reading 9:50" from 91 s, "old reading" too from 5 min, "no reading since 9:50" from 20 min (and
+    /// once the chart is gone), "no readings yet" without any.
+    static func age(_ data: CardData, words w: CardWords) -> String? {
+        guard let t = data.latest?.t else { return w.noReadings }
+        let time = Freshness.timeText(t, now: data.now)
+        switch Freshness.of(age: data.now - t).ageMark {
+        case .none: return nil
+        case .time: return w.lastReading(time)
+        case .dimmed: return "\(w.lastReading(time)), \(w.old)"
+        case .noReadings, .face: return w.noReadingSince(time)
+        }
     }
 }

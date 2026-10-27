@@ -76,6 +76,17 @@ class DataStoreSettingsRepository(private val stores: PreferenceStores) : Settin
         }
     }
 
+    override suspend fun <T> update(
+        spec: SettingSpec<T>,
+        transform: (T) -> T,
+    ) {
+        val setting = spec.asSetting()
+        stores.store(setting.store).updateData { prefs ->
+            val current = prefs[setting.preferenceKey]?.let(setting.sanitize) ?: setting.default
+            prefs.toMutablePreferences().apply { this[setting.preferenceKey] = setting.sanitize(requireNotNull(transform(current))) }
+        }
+    }
+
     /** Back to the default (the key is removed, so a later default change applies). */
     suspend fun <T> reset(spec: SettingSpec<T>) {
         val setting = spec.asSetting()

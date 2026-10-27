@@ -109,4 +109,20 @@ object TrendAngle {
     fun deg(rate: Double): Float = (-(rate / FULL_SCALE).coerceIn(-1.0, 1.0) * 90).toFloat()
 
     fun isDouble(rate: Double) = abs(rate) >= FULL_SCALE
+
+    /**
+     * THE text arrow for a rate (mg/dL/min), for places that can only write text (notification title, alert text):
+     * the Nightscout direction bands, as the Mac menu bar writes them. A place that also shows the drawn arrow (the
+     * Live Update chip's icon) writes no text arrow beside it, so the two can never disagree.
+     */
+    fun symbol(rate: Double): String =
+        when {
+            rate >= 3.0 -> "⇈"
+            rate >= 2.0 -> "↑"
+            rate >= 1.0 -> "↗"
+            rate > -1.0 -> "→"
+            rate > -2.0 -> "↘"
+            rate > -3.0 -> "↓"
+            else -> "⇊"
+        }
 }

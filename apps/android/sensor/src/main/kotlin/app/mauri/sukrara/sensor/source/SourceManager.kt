@@ -85,7 +85,12 @@ class SourceManager internal constructor(
     private val _sensor = MutableStateFlow<SensorState>(SensorState.None)
     private val _status = MutableStateFlow<SourceStatus>(SourceStatus.NotStarted)
     private val _sensorGlucose = MutableSharedFlow<Pair<SensorGlucose?, List<SensorGlucose>>>(extraBufferCapacity = 64)
-    private var info: SensorInfo? = null
+    private val _info = MutableStateFlow<SensorInfo?>(null)
+    private var info: SensorInfo?
+        get() = _info.value
+        set(value) {
+            _info.value = value
+        }
     private var latestReading: Instant? = null
     private var link: GattLink? = null
     private var started: Job? = null
@@ -99,6 +104,9 @@ class SourceManager internal constructor(
 
     /** The detailed state for the sensor screen / new-sensor flow (chunk 18). */
     val detail: StateFlow<SensorStatus> = _detail.asStateFlow()
+
+    /** The current sensor's serial, start and end (Libre 3 pairing or Juggluco's sensor), null when none is known. */
+    val sensorInfo: StateFlow<SensorInfo?> = _info.asStateFlow()
 
     /** Libre 3 readings by life count, for the LibreView upload (chunk 26). */
     val sensorGlucose: Flow<Pair<SensorGlucose?, List<SensorGlucose>>> = _sensorGlucose.asSharedFlow()
