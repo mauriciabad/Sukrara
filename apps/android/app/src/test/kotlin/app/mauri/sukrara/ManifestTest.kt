@@ -35,6 +35,11 @@ class ManifestTest {
             "app.mauri.sukrara.MainActivity", // launcher and invite links
             "app.mauri.sukrara.monitor.AlertSoundProvider", // System UI reads the channel sounds
             "androidx.compose.ui.tooling.PreviewActivity", // ui-tooling, debugImplementation only (Studio previews)
+            // home-screen widgets: any launcher sends their broadcasts and opens their settings
+            "app.mauri.sukrara.widgets.ValueWidgetReceiver",
+            "app.mauri.sukrara.widgets.GraphWidgetReceiver",
+            "app.mauri.sukrara.widgets.CombinedWidgetReceiver",
+            "app.mauri.sukrara.widgets.WidgetConfigActivity",
         )
 
     @Test

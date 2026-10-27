@@ -5,8 +5,12 @@ package app.mauri.sukrara
 
 import android.app.Application
 import android.content.Context
+import app.mauri.sukrara.widgets.WidgetsHost
+import app.mauri.sukrara.widgets.WidgetsModule
 
-class App : Application() {
+class App :
+    Application(),
+    WidgetsHost {
     lateinit var graph: AppGraph
         private set
 
@@ -15,6 +19,10 @@ class App : Application() {
         graph = AppGraph(this)
         graph.ready.start()
     }
+
+    override val widgets: WidgetsModule get() = graph.widgets
+
+    override suspend fun awaitReady() = graph.ready.await()
 }
 
 /** The graph from any Android component of the app (activities, services, receivers). */

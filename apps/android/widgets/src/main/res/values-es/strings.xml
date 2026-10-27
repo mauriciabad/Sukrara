@@ -2,4 +2,31 @@
 <!-- Sukrara — https://github.com/mauriciabad/Sukrara
      Copyright (C) 2026 Maurici Abad
      SPDX-License-Identifier: GPL-3.0-or-later -->
-<resources />
+<resources>
+    <string name="widget_value_label">Glucosa</string>
+    <string name="widget_value_description">Tu glucosa, su tendencia y el tiempo en rango</string>
+    <string name="widget_graph_label">Gráfica de glucosa</string>
+    <string name="widget_graph_description">Las últimas horas de glucosa</string>
+    <string name="widget_combined_label">Glucosa y gráfica</string>
+    <string name="widget_combined_description">Tu glucosa con la gráfica. Toca para anotar un tratamiento</string>
+    <string name="widget_desc_follower">%1$s: %2$s</string>
+    <string name="widget_config_title">Ajustes del widget</string>
+    <string name="widget_config_preview">Vista previa del widget</string>
+    <string name="widget_config_same">Igual que en la app</string>
+    <string name="widget_config_on">Sí</string>
+    <string name="widget_config_off">No</string>
+    <string name="widget_config_hours">Tiempo mostrado</string>
+    <plurals name="widget_config_hours_n">
+        <item quantity="one">%d hora</item>
+        <item quantity="many">%d horas</item>
+        <item quantity="other">%d horas</item>
+    </plurals>
+    <string name="widget_config_side">Distribución junto a la gráfica</string>
+    <string name="widget_config_rings">Anillos</string>
+    <string name="widget_config_ring_range">Los anillos cuentan</string>
+    <string name="widget_config_range_in">En rango</string>
+    <string name="widget_config_range_tight">Rango estrecho</string>
+    <string name="widget_config_sensor">Tiempo restante del sensor</string>
+    <string name="widget_config_reset">Restablecer</string>
+    <string name="widget_config_save">Guardar</string>
+</resources>

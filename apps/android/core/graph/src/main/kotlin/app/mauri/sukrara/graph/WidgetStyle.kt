@@ -30,12 +30,34 @@ fun widgetCardStyle(
     val rings = config.rings(own.rings ?: config.ringCount, own.ringRange ?: config.ringRange)
     val sensorTime = own.sensorTime ?: config.sensorTime(GraphPlace.WIDGETS)
     return when (surface) {
-        CardSurface.WIDGET_VALUE ->
-            CardStyle(graph = null, rings = rings, last = config.lastPlace, lastElse = config.lastElseRing(), sensorTime = sensorTime, bands = config.bands)
-        CardSurface.WIDGET_GRAPH ->
+        CardSurface.WIDGET_VALUE -> {
+            CardStyle(
+                graph = null,
+                rings = rings,
+                last = config.lastPlace,
+                lastElse = config.lastElseRing(),
+                sensorTime = sensorTime,
+                bands = config.bands,
+            )
+        }
+
+        CardSurface.WIDGET_GRAPH -> {
             CardStyle(graph = graph, rings = emptyList(), value = false, sensorTime = sensorTime, bands = config.bands)
-        CardSurface.WIDGET_COMBINED ->
-            CardStyle(graph = graph, rings = rings, last = config.lastPlace, lastElse = config.lastElseRing(), sensorTime = sensorTime, bands = config.bands)
-        else -> throw IllegalArgumentException("$surface is not a home-screen widget")
+        }
+
+        CardSurface.WIDGET_COMBINED -> {
+            CardStyle(
+                graph = graph,
+                rings = rings,
+                last = config.lastPlace,
+                lastElse = config.lastElseRing(),
+                sensorTime = sensorTime,
+                bands = config.bands,
+            )
+        }
+
+        else -> {
+            throw IllegalArgumentException("$surface is not a home-screen widget")
+        }
     }
 }
