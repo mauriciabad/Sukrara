@@ -58,6 +58,12 @@ The full catalog, with every rule and number, is [docs/FEATURES.md](docs/FEATURE
 - **Sharing core**: your sharing identity, restorable from the showcase's recovery code so existing followers keep
   following; readings and alerts go to approved followers over Nostr relays (protocol v2, compatible with
   the showcase). If another app is publishing as the same identity, Sukrara stops and says so instead of fighting it.
+- **First-run setup** in a calm, fixed order: role (confirmed) → what alerts need → turn off the showcase → sensor →
+  confirm your alert thresholds → your followers (restore only once V1 has your sensor, or start fresh) → home. Any
+  step can wait; home's *Finish setup* banner brings it back.
+- **Sharing screens**: invite one person (QR that springs in, link to send or copy, works once for 24 h), allow or deny
+  their request after comparing a 4-digit code, see and remove followers (confirmed), and a clear screen when another
+  app is sharing as you.
 - English and Spanish (Spain) everywhere.
 
 **Mac (you follow someone, from the menu bar)**
@@ -105,7 +111,7 @@ Downloads are on [GitHub releases](https://github.com/mauriciabad/Sukrara/releas
 
 Order matters: two apps can't own one sensor, two apps alerting means double alarms, and restoring your identity in
 V1 too early cuts your followers off from the app that still has the readings. V1's first-run setup walks the phone
-steps in this order; any step you skip stays on home's *Finish setup* card.
+steps in this order; any step you skip comes back from home's *Finish setup* banner.
 
 1. **Install V1 next to the showcase** (above). Open it, choose *I wear the sensor* (confirmed: one role per
    install) and allow what alerts need (notifications, full-screen alerts, alarms, battery unrestricted, alert sound,

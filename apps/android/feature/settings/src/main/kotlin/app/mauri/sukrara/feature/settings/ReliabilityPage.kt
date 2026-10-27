@@ -18,17 +18,8 @@ import app.mauri.sukrara.core.model.AlertRequirement
 import app.mauri.sukrara.designsystem.rows.CardRow
 import app.mauri.sukrara.designsystem.rows.FooterText
 import app.mauri.sukrara.designsystem.rows.SettingsGroup
-
-/** A requirement's name and what it does for the person. */
-private fun AlertRequirement.texts(): Pair<Int, Int> =
-    when (this) {
-        AlertRequirement.Notifications -> R.string.st_req_notifications to R.string.st_req_notifications_why
-        AlertRequirement.FullScreenIntent -> R.string.st_req_full_screen to R.string.st_req_full_screen_why
-        AlertRequirement.ExactAlarm -> R.string.st_req_exact_alarm to R.string.st_req_exact_alarm_why
-        AlertRequirement.BatteryExemption -> R.string.st_req_battery to R.string.st_req_battery_why
-        AlertRequirement.AlertChannel -> R.string.st_req_channel to R.string.st_req_channel_why
-        AlertRequirement.Bluetooth -> R.string.st_req_bluetooth to R.string.st_req_bluetooth_why
-    }
+import app.mauri.sukrara.designsystem.rows.nameRes
+import app.mauri.sukrara.designsystem.rows.whyRes
 
 /**
  * Alert reliability: the same checklist as home's row and the setup step (CHANGES P5), every item with its state
@@ -46,10 +37,9 @@ fun ReliabilityContent(
         }
         SettingsGroup {
             for (requirement in AlertRequirement.entries) {
-                val (title, why) = requirement.texts()
                 val missing = requirement in readiness.missing
                 val state = stringResource(if (missing) R.string.st_req_missing else R.string.st_req_ok)
-                val titleText = stringResource(title)
+                val titleText = stringResource(requirement.nameRes())
                 CardRow {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(titleText, Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
@@ -59,7 +49,7 @@ fun ReliabilityContent(
                             color = if (missing) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
                         )
                     }
-                    Text(stringResource(why), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(stringResource(requirement.whyRes()), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     if (missing) {
                         val fixLabel = stringResource(R.string.st_fix_item, titleText)
                         FilledTonalButton(onClick = { onFix(requirement) }, modifier = Modifier.semantics { contentDescription = fixLabel }) {

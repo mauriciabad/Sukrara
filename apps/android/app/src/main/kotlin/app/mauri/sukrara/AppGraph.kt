@@ -17,7 +17,11 @@ import app.mauri.sukrara.core.model.Treatment
 import app.mauri.sukrara.feature.sensor.SensorUiModule
 import app.mauri.sukrara.feature.settings.AlertSettingsStore
 import app.mauri.sukrara.feature.settings.SettingsModule
+import app.mauri.sukrara.feature.sharing.EngineOwnerSharing
+import app.mauri.sukrara.feature.sharing.SetupModule
 import app.mauri.sukrara.feature.sharing.SharingDeps
+import app.mauri.sukrara.feature.sharing.setup.SetupRecord
+import app.mauri.sukrara.feature.sharing.setup.label
 import app.mauri.sukrara.graph.Clock as ClockText
 import app.mauri.sukrara.feature.treatments.TreatmentsModule
 import app.mauri.sukrara.graph.GraphConfig
@@ -174,6 +178,23 @@ class AppGraph(
         )
     }
 
+    override val setup by lazy {
+        SetupModule(
+            context = app,
+            setupStore = data.typedStore("setup", SetupRecord.serializer(), SetupRecord(), whenCorrupt = SetupRecord()),
+            roles = AppRoles(role),
+            hub = monitor.hub,
+            sharing = EngineOwnerSharing(shareOwner.ownerEngine, scope) { clock.now().epochSecond },
+            alertSettings = AppAlertSettings(alerts.store),
+            settings = data.settings,
+            resetAlerts = alerts::reset,
+            startMonitoring = { scope.launch { startMonitoring(StartReason.App) } },
+            // THE alert checklist: the same instance home's reliability row and Settings › Alert reliability read
+            readiness = alerts.readiness,
+            clock = clock,
+        )
+    }
+
     val sensorSettings by lazy { SensorSettingsBridge(sensor, data.settings, SensorSource, scope) { startMonitoring(StartReason.App) } }
 
     val home by lazy {
@@ -186,6 +207,8 @@ class AppGraph(
             readinessSource = alerts.readiness,
             unmuteAlerts = { scope.launch { alerts.controls.unmuteAll() } },
             resume = { scope.launch { startMonitoring(StartReason.Resume) } },
+            nextSetupStep = setup.finishItems.map { items -> items.firstOrNull()?.label(app) },
+            refreshSetup = setup::refresh,
             widgetPlaced = {
                 widgets.presence.refresh()
                 widgets.presence.placed.value

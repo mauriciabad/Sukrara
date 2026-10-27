@@ -19,7 +19,9 @@ import app.mauri.sukrara.feature.home.banners.BannerMemory
 import app.mauri.sukrara.feature.home.banners.HomeEnvironment
 import app.mauri.sukrara.feature.home.banners.Showcase
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.map
@@ -39,6 +41,9 @@ class HomeModule(
     private val readinessSource: AlertReadinessSource,
     private val unmuteAlerts: () -> Unit,
     private val resume: () -> Unit,
+    /** First-run setup's first unfinished row (chunk 24), for the Finish-setup banner; null = done. */
+    nextSetupStep: Flow<String?>,
+    private val refreshSetup: () -> Unit,
     /** Whether a graph widget is on the home screen, checked now (null = unknown: the banner stays hidden). */
     private val widgetPlaced: () -> Boolean? = { null },
 ) : HomeDeps {
@@ -48,6 +53,10 @@ class HomeModule(
 
     private val env = MutableStateFlow(HomeEnvironment())
     override val environment: StateFlow<HomeEnvironment> = env
+
+    init {
+        scope.launch { nextSetupStep.collect { step -> env.update { it.copy(nextSetupStep = step) } } }
+    }
 
     override val bannerMemory: StateStore<BannerMemory> by lazy {
         data.typedStore("home-banners", BannerMemory.serializer(), BannerMemory(), whenCorrupt = BannerMemory())
@@ -61,6 +70,7 @@ class HomeModule(
     /** Re-reads what can change outside the app (the activity calls it on every resume). */
     fun refresh() {
         readinessSource.refresh()
+        refreshSetup()
         env.update { it.copy(showcaseInstalled = Showcase.installed(context.packageManager), widgetPlaced = widgetPlaced()) }
     }
 
