@@ -340,7 +340,7 @@ public struct FollowerSession: Sendable {
         case .inviteUsed, .declined:
             let name = message == .inviteUsed ? "invite-used" : "declined"
             guard state.status == .requested else { return Outcome(.ignored(name)) }
-            state.status = message == .inviteUsed ? .used : .declined
+            state.status = message == .inviteUsed ? .inviteUsed : .declined
             var outcome = Outcome(.accepted(name))
             outcome.deltas = [.status(state.status)]
             return outcome

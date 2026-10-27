@@ -14,7 +14,7 @@ public enum LinkStatus: String, Codable, Sendable {
     /// The wearer removed this follower.
     case revoked
     /// Another device's request claimed the invite first.
-    case used
+    case inviteUsed = "inviteused"
     /// The wearer denied the request.
     case declined
 }
