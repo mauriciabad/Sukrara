@@ -24,6 +24,19 @@ class GattLinkTest {
 
     private class FakeConnection(val generation: Int, val log: MutableList<String>) : GattConnection {
         var closed = false
+        var bonded = false
+
+        override val isBonded get() = bonded
+
+        override fun read(characteristic: UUID): Boolean {
+            log += "read#$generation ${characteristic.toString().take(8)}"
+            return true
+        }
+
+        override fun bond(): Boolean {
+            log += "bond#$generation"
+            return true
+        }
 
         override fun discoverServices(): Boolean {
             log += "discover#$generation"
@@ -87,6 +100,14 @@ class GattLinkTest {
             calls += "notify ${value.size}"
         }
 
+        override fun onRead(characteristic: UUID, value: ByteArray) {
+            calls += "read ${value.size}"
+        }
+
+        override fun onBondChanged(bonded: Boolean) {
+            calls += "bonded $bonded"
+        }
+
         override fun onLinkFailed(why: String) {
             calls += "failed $why"
             link?.disconnect() // what Libre3Driver.fail does
@@ -128,6 +149,68 @@ class GattLinkTest {
             test.runCurrent()
         }
     }
+
+    @Test
+    fun aReadCompletesWithItsValueAndTheQueueGoesOn() =
+        runTest {
+            val r = Rig(this)
+            r.driver.onConnectedAction = {
+                it.read(chA)
+                it.subscribe(chB)
+            }
+            r.link.start()
+            runCurrent()
+            r.connectAndDiscover()
+            assertEquals(listOf("connect#1", "discover#1", "read#1 00000001"), r.connector.take())
+            r.connector.emit(GattEvent.OperationDone(1, chA, 0)) // not what is waiting: ignored
+            runCurrent()
+            assertTrue(r.connector.take().isEmpty())
+            r.connector.emit(GattEvent.Read(1, chA, byteArrayOf(1, 2, 3), 0))
+            runCurrent()
+            assertEquals(listOf("sub#1 00000002"), r.connector.take())
+            assertTrue("read 3" in r.driver.calls)
+        }
+
+    /** A bond waits for the person (the PIN) up to its own timeout, then counts as not bonded: no reconnect loop. */
+    @Test
+    fun aBondWaitsForThePersonThenFails() =
+        runTest {
+            val r = Rig(this)
+            r.driver.onConnectedAction = { it.bond() }
+            r.link.start()
+            runCurrent()
+            r.connectAndDiscover()
+            assertEquals(listOf("connect#1", "discover#1", "bond#1"), r.connector.take())
+            advanceTimeBy(GattLink.OP_TIMEOUT_MS * 2) // longer than an operation may take: still waiting
+            runCurrent()
+            assertTrue(r.driver.calls.none { it.startsWith("bonded") || it.startsWith("failed") })
+            advanceTimeBy(GattLink.BOND_TIMEOUT_MS)
+            runCurrent()
+            assertTrue("bonded false" in r.driver.calls)
+            assertTrue(r.connector.take().none { it.startsWith("connect") })
+        }
+
+    @Test
+    fun aBondSettlesFromTheStackAndAnExistingBondAtOnce() =
+        runTest {
+            val r = Rig(this)
+            r.driver.onConnectedAction = { it.bond() }
+            r.link.start()
+            runCurrent()
+            r.connectAndDiscover()
+            r.connector.emit(GattEvent.BondChanged(1, bonded = true))
+            runCurrent()
+            assertTrue("bonded true" in r.driver.calls)
+
+            val s = Rig(this)
+            s.driver.onConnectedAction = { it.bond() }
+            s.link.start()
+            runCurrent()
+            s.connector.current.bonded = true
+            s.connectAndDiscover()
+            assertTrue("bonded true" in s.driver.calls)
+            assertTrue(s.connector.take().none { it.startsWith("bond#") })
+        }
 
     @Test
     fun operationsRunOneAtATime() =

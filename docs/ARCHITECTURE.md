@@ -294,7 +294,13 @@ The wearer's glucose input. `SensorModule` builds it; the hub reads `SourceManag
   Bluetooth off/on, generation-tagged callbacks) → `ble/GattConnector` (`AndroidGatt` on the phone, fakes in tests).
   `libre3/Libre3Crypto` is the JNI core (`libsukrara_libre3.so`, from Juggluco at the pinned revision); a build
   without it shows *Libre 3 core missing* and release builds refuse to build (`verifyNativeCore`).
-- **Storage**: the whole pairing (address, start, PIN, authorization, ended) is one SecureStore entry `sensor`
+- **Other families** (untested on real sensors): `dexcom/G7Driver`, `dexcom/G6Driver`, `cgms/SmartGuideDriver`,
+  `aidex/AidexXDriver` extend `brand/BrandDriver` (finding rules, value range / clock / live-vs-history rules, end, fail,
+  retry) and run on the same `GattLink`. The saved pairing's `SensorProfile` picks the driver (`SourceManager.runDirect`);
+  a pairing without an address is found first by `ble/SensorScanner` (filtered windows over the `BleScanner` port,
+  `AndroidScanner` on the phone) and the found address and name are saved. The source never delivers the same reading
+  time twice as live per pairing (`SensorStatus.Direct.key`).
+- **Storage**: the whole pairing (family, address, start, PIN, authorization, ended; a scanned family: its id, found address and name, pairing time) is one SecureStore entry `sensor`
   (Keystore alias `sukrara.sensor`): one atomic write; unreadable → `PairingLoad.Corrupt` → *scan the sensor again*.
   Receiver IDs (Sukrara's own, the LibreView account's + email) in the typed DataStore `receiver-ids.json`. No password or
   token is stored.

@@ -4,6 +4,9 @@
 package app.mauri.sukrara.feature.sensor.newsensor
 
 import app.mauri.sukrara.core.model.SensorState
+import app.mauri.sukrara.sensor.SensorProfile
+import app.mauri.sukrara.sensor.SensorSetup
+import app.mauri.sukrara.sensor.ble.FailReason
 import app.mauri.sukrara.sensor.ble.LinkStatus
 import app.mauri.sukrara.sensor.pairing.PairOutcome
 import app.mauri.sukrara.sensor.source.SensorStatus
@@ -25,6 +28,8 @@ data class SensorEnv(
     val bluetoothOn: Boolean,
     /** Notifications are allowed (the "Sensor ready" notification needs them). */
     val notificationsAllowed: Boolean,
+    /** Nearby devices also covers scanning (BLUETOOTH_SCAN): the families found by a scan need it. */
+    val scanPermission: Boolean = bluetoothPermission,
 )
 
 enum class NfcFailure {
@@ -38,11 +43,45 @@ enum class NfcFailure {
     SensorEnded,
 }
 
-enum class BleFailure { BluetoothOff, PermissionMissing, Timeout }
+enum class BleFailure {
+    BluetoothOff,
+    PermissionMissing,
+    Timeout,
+
+    /** A scanned family: the typed id isn't this device's. Back to the setup. */
+    WrongId,
+
+    /** A scanned family refused the authentication. */
+    Refused,
+
+    /** Android's Bluetooth pairing (the PIN on the cap) didn't complete. */
+    BondFailed,
+    ;
+
+    /** Pairing again (the setup) fixes it, not reconnecting. */
+    val needsSetup: Boolean get() = this == WrongId || this == Refused || this == BondFailed
+}
 
 /** One screen of the new-sensor flow. Every step is visible and has a way out (`Cancel` or `Done`). */
 sealed interface NewSensorStep {
     data object Idle : NewSensorStep
+
+    /** Which sensor? The Libre 3 preselected; the families never tested on a real sensor are tagged "Untested". */
+    data class ChooseSensor(val selected: SensorProfile) : NewSensorStep
+
+    /**
+     * The person chose a family never tested on a real sensor: a warning whose "Continue anyway" is enabled only
+     * [UNTESTED_WAIT] after [since] (so it gets read). Cancel goes back to the choice.
+     */
+    data class ConfirmUntested(val profile: SensorProfile, val since: Instant) : NewSensorStep
+
+    /** A scanned family's setup: the id to type, the vendor app to have running, or the PIN to have ready. */
+    data class SensorSetupStep(val profile: SensorProfile, val id: String = "") : NewSensorStep {
+        val typedId: SensorSetup.TypedId? get() = profile.setup as? SensorSetup.TypedId
+
+        /** "Pair" is possible: no id needed, or a valid one typed. */
+        val canPair: Boolean get() = typedId?.valid(id) ?: true
+    }
 
     /** This build has no Libre 3 core: start and takeover are blocked (use Juggluco). */
     data object CoreMissing : NewSensorStep
@@ -73,7 +112,18 @@ sealed interface NewSensorStep {
     /** Another receiver (another app or account) owns the sensor; nothing changed on it. */
     data object TakeoverFailed : NewSensorStep
 
-    data class ConnectingBle(val serial: String, val since: Instant, val activated: Boolean) : NewSensorStep
+    /**
+     * After the tap (Libre 3) or "Pair" (a scanned family: [profile] set): [serial] is the pairing's key
+     * (`SensorStatus.Direct.key`), [link] the latest link state a scanned family's page explains (scanning, PIN, the
+     * Dexcom app, no session).
+     */
+    data class ConnectingBle(
+        val serial: String,
+        val since: Instant,
+        val activated: Boolean,
+        val profile: SensorProfile = SensorProfile.Libre3,
+        val link: LinkStatus? = null,
+    ) : NewSensorStep
 
     data class BleFailed(val serial: String, val cause: BleFailure) : NewSensorStep
 
@@ -113,6 +163,15 @@ sealed interface NewSensorEvent {
 
     data object Cancel : NewSensorEvent
 
+    /** A family picked on the choice step. */
+    data class Choose(val profile: SensorProfile) : NewSensorEvent
+
+    /** The id typed on a scanned family's setup (normalized: letters and digits, upper case). */
+    data class IdTyped(val text: String) : NewSensorEvent
+
+    /** A scanned family's pairing was saved: [key] names it in the source's status. */
+    data class PairedScanned(val key: String) : NewSensorEvent
+
     /** A tag was found; it's being read. */
     data object TagFound : NewSensorEvent
 
@@ -130,6 +189,8 @@ sealed interface NewSensorEvent {
 /** The flow's whole state: the step plus what the gates need. */
 data class NewSensorState(
     val step: NewSensorStep = NewSensorStep.Idle,
+    /** The family chosen on the first step; null until then. */
+    val profile: SensorProfile? = null,
     val env: SensorEnv? = null,
     val officialAcknowledged: Boolean = false,
     val notificationsSkipped: Boolean = false,
@@ -139,6 +200,15 @@ data class NewSensorState(
 object NewSensorMachine {
     /** How long Bluetooth may take to give the first sign of life after a tap. */
     val BLE_TIMEOUT: Duration = Duration.ofMinutes(2)
+
+    /**
+     * The same for a scanned family: scan windows (30 s on, 60 s off), Android's PIN dialog and the Dexcom app's
+     * session all take longer than a Libre 3 that the tap pointed at.
+     */
+    val SCANNED_TIMEOUT: Duration = Duration.ofMinutes(10)
+
+    /** How long "Continue anyway" stays disabled on the untested-sensor warning. */
+    val UNTESTED_WAIT: Duration = Duration.ofSeconds(10)
 
     /**
      * Steps where (re)starting re-checks the gates (also the tap page: NFC turned off or a sign-out meanwhile sends the
@@ -158,6 +228,8 @@ object NewSensorMachine {
             NewSensorStep.NeedsNotifications,
         )
 
+    private fun NewSensorStep.isGate() = this in GATES || this is NewSensorStep.SensorSetupStep
+
     fun reduce(state: NewSensorState, event: NewSensorEvent, now: Instant): NewSensorState {
         val step = state.step
         if (step.isFinal) return state
@@ -169,6 +241,9 @@ object NewSensorMachine {
 
                     step.isPaired -> state.copy(step = NewSensorStep.LeftRunning)
 
+                    // the warning's Cancel goes back to the choice, never on
+                    step is NewSensorStep.ConfirmUntested -> state.copy(step = NewSensorStep.ChooseSensor(step.profile))
+
                     else -> state.copy(step = NewSensorStep.Cancelled)
                 }
             }
@@ -178,14 +253,74 @@ object NewSensorMachine {
             }
 
             is NewSensorEvent.Start -> {
-                if (step in GATES) gate(state.copy(env = event.env)) else state
+                when {
+                    state.profile == null && step == NewSensorStep.Idle -> {
+                        state.copy(env = event.env, step = NewSensorStep.ChooseSensor(SensorProfile.Libre3))
+                    }
+
+                    // a setup keeps what was typed when the gates still pass
+                    step is NewSensorStep.SensorSetupStep -> {
+                        gate(
+                            state.copy(env = event.env),
+                        ).let { if (it.step is NewSensorStep.SensorSetupStep) state.copy(env = event.env) else it }
+                    }
+
+                    step.isGate() -> {
+                        gate(state.copy(env = event.env))
+                    }
+
+                    else -> {
+                        state.copy(env = event.env)
+                    }
+                }
+            }
+
+            is NewSensorEvent.Choose -> {
+                if (step is NewSensorStep.ChooseSensor) state.copy(step = NewSensorStep.ChooseSensor(event.profile)) else state
+            }
+
+            is NewSensorEvent.IdTyped -> {
+                if (step is NewSensorStep.SensorSetupStep) {
+                    val typed = step.typedId ?: return state
+                    state.copy(step = step.copy(id = typed.normalize(event.text).take(typed.length)))
+                } else {
+                    state
+                }
+            }
+
+            is NewSensorEvent.PairedScanned -> {
+                if (step is NewSensorStep.SensorSetupStep && step.canPair) {
+                    state.copy(step = NewSensorStep.ConnectingBle(event.key, now, activated = false, profile = step.profile))
+                } else {
+                    state
+                }
             }
 
             NewSensorEvent.Continue -> {
                 when (step) {
-                    NewSensorStep.OfficialAppWarning -> gate(state.copy(officialAcknowledged = true))
-                    NewSensorStep.NeedsNotifications -> gate(state.copy(notificationsSkipped = true))
-                    else -> state
+                    is NewSensorStep.ChooseSensor -> {
+                        if (step.selected.verified) {
+                            gate(state.copy(profile = step.selected))
+                        } else {
+                            state.copy(step = NewSensorStep.ConfirmUntested(step.selected, now))
+                        }
+                    }
+
+                    is NewSensorStep.ConfirmUntested -> {
+                        if (now.isBefore(step.since.plus(UNTESTED_WAIT))) state else gate(state.copy(profile = step.profile))
+                    }
+
+                    NewSensorStep.OfficialAppWarning -> {
+                        gate(state.copy(officialAcknowledged = true))
+                    }
+
+                    NewSensorStep.NeedsNotifications -> {
+                        gate(state.copy(notificationsSkipped = true))
+                    }
+
+                    else -> {
+                        state
+                    }
                 }
             }
 
@@ -217,6 +352,8 @@ object NewSensorMachine {
      */
     private fun gate(state: NewSensorState): NewSensorState {
         val env = state.env ?: return state
+        val profile = state.profile ?: SensorProfile.Libre3
+        if (profile.needsScan) return state.copy(step = scannedGate(state, env, profile))
         val next =
             when {
                 !env.coreAvailable -> NewSensorStep.CoreMissing
@@ -231,6 +368,31 @@ object NewSensorMachine {
             }
         return state.copy(step = next)
     }
+
+    /** A scanned family: Bluetooth (permission incl. scanning, on) → notifications (skippable) → its setup. */
+    private fun scannedGate(
+        state: NewSensorState,
+        env: SensorEnv,
+        profile: SensorProfile,
+    ): NewSensorStep =
+        when {
+            !env.bluetoothPermission || !env.scanPermission -> {
+                NewSensorStep.NeedsBluetoothPermission
+            }
+
+            !env.bluetoothOn -> {
+                NewSensorStep.BluetoothOff
+            }
+
+            !env.notificationsAllowed && !state.notificationsSkipped -> {
+                NewSensorStep.NeedsNotifications
+            }
+
+            else -> {
+                (state.step as? NewSensorStep.SensorSetupStep)?.takeIf { it.profile == profile }
+                    ?: NewSensorStep.SensorSetupStep(profile)
+            }
+        }
 
     private fun afterTap(outcome: PairOutcome, now: Instant): NewSensorStep =
         when (outcome) {
@@ -258,15 +420,38 @@ object NewSensorMachine {
                 else -> return step
             }
         return when (detail) {
-            SensorStatus.BluetoothPermissionMissing -> NewSensorStep.BleFailed(serial, BleFailure.PermissionMissing)
-            is SensorStatus.OwnedByAnotherApp -> NewSensorStep.TakeoverFailed
-            SensorStatus.Ended -> if (step is NewSensorStep.WarmingUp) NewSensorStep.NfcFailed(NfcFailure.SensorEnded) else step
-            is SensorStatus.Libre3 -> if (detail.serial != serial) step else afterLink(step, serial, detail.link, state, now)
-            else -> step
+            SensorStatus.BluetoothPermissionMissing -> {
+                NewSensorStep.BleFailed(serial, BleFailure.PermissionMissing)
+            }
+
+            is SensorStatus.OwnedByAnotherApp -> {
+                NewSensorStep.TakeoverFailed
+            }
+
+            // a scanned family's pairing is new, so an end while connecting is this sensor's
+            SensorStatus.Ended -> {
+                val scanned = step is NewSensorStep.ConnectingBle && step.profile.needsScan
+                if (step is NewSensorStep.WarmingUp || scanned) NewSensorStep.NfcFailed(NfcFailure.SensorEnded) else step
+            }
+
+            is SensorStatus.Direct -> {
+                if (detail.key != serial) step else afterLink(step, serial, detail.profile, detail.link, state, now)
+            }
+
+            else -> {
+                step
+            }
         }
     }
 
-    private fun afterLink(step: NewSensorStep, serial: String, link: LinkStatus, state: SensorState, now: Instant): NewSensorStep =
+    private fun afterLink(
+        step: NewSensorStep,
+        serial: String,
+        profile: SensorProfile,
+        link: LinkStatus,
+        state: SensorState,
+        now: Instant,
+    ): NewSensorStep =
         when (link) {
             LinkStatus.Live -> {
                 NewSensorStep.Ready
@@ -274,6 +459,24 @@ object NewSensorMachine {
 
             LinkStatus.WaitingForBluetooth -> {
                 NewSensorStep.BleFailed(serial, BleFailure.BluetoothOff)
+            }
+
+            is LinkStatus.Failed -> {
+                NewSensorStep.BleFailed(
+                    serial,
+                    when (link.why) {
+                        FailReason.WrongId -> BleFailure.WrongId
+                        FailReason.Refused -> BleFailure.Refused
+                        FailReason.BondFailed -> BleFailure.BondFailed
+                    },
+                )
+            }
+
+            // a scanned family's page explains where it is (scanning, the PIN, the Dexcom app, no session)
+            LinkStatus.Scanning, LinkStatus.SensorNotFound, LinkStatus.EnterPin, LinkStatus.WaitingForVendorApp,
+            LinkStatus.NoSession,
+            -> {
+                if (step is NewSensorStep.ConnectingBle) step.copy(link = link) else step
             }
 
             is LinkStatus.WarmingUp -> {
@@ -290,7 +493,7 @@ object NewSensorMachine {
             // trying stays "not answering" until it is live or warming up
             else -> {
                 if (step is NewSensorStep.BleFailed && step.cause != BleFailure.Timeout) {
-                    NewSensorStep.ConnectingBle(serial, now, activated = false)
+                    NewSensorStep.ConnectingBle(serial, now, activated = false, profile = profile)
                 } else {
                     step
                 }
@@ -298,7 +501,9 @@ object NewSensorMachine {
         }
 
     private fun afterTick(step: NewSensorStep, now: Instant): NewSensorStep =
-        if (step is NewSensorStep.ConnectingBle && !now.isBefore(step.since.plus(BLE_TIMEOUT))) {
+        if (step is NewSensorStep.ConnectingBle &&
+            !now.isBefore(step.since.plus(if (step.profile.needsScan) SCANNED_TIMEOUT else BLE_TIMEOUT))
+        ) {
             NewSensorStep.BleFailed(step.serial, BleFailure.Timeout)
         } else {
             step
@@ -308,10 +513,21 @@ object NewSensorMachine {
         when (val step = state.step) {
             // after stopping the other app, the same sensor can be scanned again —
             // through the gates, which may have changed meanwhile
-            is NewSensorStep.NfcFailed, NewSensorStep.TakeoverFailed -> gate(state)
+            is NewSensorStep.NfcFailed, NewSensorStep.TakeoverFailed -> {
+                gate(state)
+            }
 
-            is NewSensorStep.BleFailed -> state.copy(step = NewSensorStep.ConnectingBle(step.serial, now, activated = false))
+            is NewSensorStep.BleFailed -> {
+                val profile = state.profile ?: SensorProfile.Libre3
+                if (step.cause.needsSetup) {
+                    state.copy(step = NewSensorStep.SensorSetupStep(profile))
+                } else {
+                    state.copy(step = NewSensorStep.ConnectingBle(step.serial, now, activated = false, profile = profile))
+                }
+            }
 
-            else -> state
+            else -> {
+                state
+            }
         }
 }

@@ -4,7 +4,8 @@
      SPDX-License-Identifier: GPL-3.0-or-later -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
-    <!-- The Libre 3 link (connect by address from the NFC tap: no scanning, so no BLUETOOTH_SCAN / location). -->
+    <!-- The sensor link. The Libre 3 connects by the address from the NFC tap; the other families are found by a
+         filtered scan (BLUETOOTH_SCAN, declared neverForLocation in the app's manifest). -->
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
     <!-- Starting / taking over a Libre 3 with one tap. -->
     <uses-permission android:name="android.permission.NFC" />
