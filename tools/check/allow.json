@@ -60,6 +60,11 @@
       "path": "apps/android/integrations/src/main/kotlin/app/mauri/sukrara/integrations/localserver/NightscoutApiPage.kt",
       "contains": "summary = \"http://127.0.0.1:${NightscoutApi.PORT}/?token=${s.secret}\"",
       "reason": "Nightscout API on this phone: the loopback address with the token, shown as text for copying (the server binds 127.0.0.1 only); nothing is opened"
+    },
+    {
+      "path": "apps/android/integrations/src/main/kotlin/app/mauri/sukrara/integrations/localserver/NightscoutApiPage.kt",
+      "contains": "summary = \"http://${s.secret}@${l.address}:${NightscoutApi.PORT}\"",
+      "reason": "Nightscout API on the home Wi-Fi (opt-in, warned as unencrypted): the address other devices on this Wi-Fi use, shown as text for copying; the app opens nothing"
     }
   ],
   "network_ok": [
@@ -94,6 +99,10 @@
     {
       "path": "apps/android/integrations/src/main/kotlin/app/mauri/sukrara/integrations/tidepool/TidepoolClient.kt",
       "reason": "Tidepool upload: fixed https api.tidepool.org (tests: MockWebServer on loopback); redirects never followed; the session token never in logs or reasons"
+    },
+    {
+      "path": "apps/android/integrations/src/main/kotlin/app/mauri/sukrara/integrations/localserver/LanWatcher.kt",
+      "reason": "registers a ConnectivityManager callback to learn the Wi-Fi's address; opens no connection"
     }
   ],
   "durations_ok": {},

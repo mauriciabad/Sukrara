@@ -57,7 +57,8 @@ The full catalog, with every rule and number, is [docs/FEATURES.md](docs/FEATURE
   with Sukrara's **LSPosed module** in System UI also as text beside the clock, in its range colour, placed next to the
   icon you choose and first in line when the status bar is crowded (Settings › Status bar › With root).
 - **Alerts**: very low, low, high, very high, rising / falling fast and no data; each on its own channel,
-  "like an alarm" ones pass Do Not Disturb. *Mute…*, *Remind less*, *Unmute* and *Change time* on the notification,
+  "like an alarm" ones pass Do Not Disturb; alerts that come close together still ring in full (Android's notification
+  cooldown doesn't quieten them). *Mute…*, *Remind less*, *Unmute* and *Change time* on the notification,
   in the app and with TalkBack; *Mute all* with a visible strip to undo it; every quiet alert with its ways out
   (*Unmute*, *Alert me anyway*, *Remind as usual*, *Change to*) on home and in Settings › Alerts › *Active now*. Settings › Alerts › *Lately* shows what alerted and what you muted in the last day. The no-data check runs from an exact alarm,
   independent of the monitoring service.
@@ -113,7 +114,10 @@ The full catalog, with every rule and number, is [docs/FEATURES.md](docs/FEATURE
   pauses when another app uploads to the same site), to **Tidepool** (both roles; a follower only after its own
   choice; password used once), an **xDrip+-compatible server** on this phone for **Garmin** watches (off until you
   switch it on; loopback only), a **Nightscout API on this phone** for apps like xDrip+ and GlucoDataHandler (off by
-  default, loopback only, API secret required), and **Export data** as a LibreView-layout CSV to save or share.
+  default, API secret required; an extra opt-in also serves devices on your home Wi-Fi, with a plain warning),
+  **glucose broadcasts** to the apps you allow (AndroidAPS, GlucoDataHandler, xDrip+: the Libre 3 read by this phone
+  only, one format per app, pinned to the app's signature), **Health Connect** (opt-in: this phone's own sensor
+  readings, the last 30 days first), and **Export data** as a LibreView-layout CSV to save or share.
 - English and Spanish (Spain) everywhere.
 
 **Mac (you follow someone, from the menu bar)**
@@ -139,7 +143,7 @@ The full catalog, with every rule and number, is [docs/FEATURES.md](docs/FEATURE
   through at 5 min, the graph dimmed with the reading's time, no value at 20 min) and a tap opens Add treatment.
 - VoiceOver reads the value as one sentence with the range in words.
 
-**Not included**: the LSPosed lock-screen widget, Dexcom / Aidex / SmartGuide (untested) sensors, the Nightscout API on the home network, Health Connect and broadcasts, the pen list and dose review, the sensor-end
+**Not included**: the LSPosed lock-screen widget, Dexcom / Aidex / SmartGuide (untested) sensors, the pen list and dose review, the sensor-end
 calendar event, settings export / import, and the Mac's Juggluco-over-Wi-Fi source.
 
 **Garmin watch:** switch on *Settings › Share with apps › xDrip+ server*; watch faces and data fields made for xDrip+

@@ -44,6 +44,8 @@ final class WindowCoordinator {
     func apply(_ snapshot: FollowerSnapshot) {
         adapter?.update(snapshot)
         follow.status = FollowerAdapter.status(snapshot)
+        follow.source = FollowerAdapter.source(snapshot)
+        follow.problem = FollowerAdapter.problem(snapshot)
         follow.nearby = snapshot.nearbyOffer.map { NearbyPhone(wearer: $0.wearerName ?? L10n.t("A phone")) }
         settings.wearer = Self.wearerSettings(snapshot)
         let canWrite = if case .following(_, true) = snapshot.link { true } else { false }
@@ -107,10 +109,11 @@ final class WindowCoordinator {
                         rapid: rapid, carbs: carbs, at: at, now: Int64(Date().timeIntervalSince1970),
                         settings: model?.alerts?.settings, mirroring: model?.alerts?.mirroring ?? false)
                 },
-                save: { [weak self] entries in
+                penDuplicate: { [weak self] entries in self?.treatments.penDuplicate(of: entries) },
+                save: { [weak self] entries, close in
                     guard let self else { return }
                     Task { await self.treatments.add(entries) }
-                    self.windows.close(.addTreatment)
+                    if close { self.windows.close(.addTreatment) }
                 },
                 cancel: { [weak self] in self?.windows.close(.addTreatment) })
         }

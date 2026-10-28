@@ -63,9 +63,9 @@ class XdripServer(
 
     @Volatile private var currentSensor: CurrentSensor? = null
     private val server =
-        LocalHttpServer(port, ::answer) { _, _ ->
+        LocalHttpServer(port, ::answer, onRequest = { _, _ ->
             _state.update { if (it is XdripState.Listening) XdripState.Listening(clock.now()) else it }
-        }
+        })
 
     val on: Flow<Boolean> = settings.flow(SETTING)
 

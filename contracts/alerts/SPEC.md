@@ -185,7 +185,7 @@ treatment rules for the badge under the value.
 ```
 
 - `alarm` (per kind, local like the sound, also on a follower that mirrors the wearer): ring **like an alarm** instead
-  of as a notification. Android: alarm volume + `CATEGORY_ALARM` (through "Alarms" in Do Not Disturb, no cooldown);
+  of as a notification. Android: alarm volume (`USAGE_ALARM`, through "Alarms" in Do Not Disturb);
   Mac: Time Sensitive (breaks through Focus) when the build is entitled to it, else a normal notification.
 - `sounds.pack`: the pack every kind uses; `sounds.kinds[k]` overrides one kind (mix and match); `"system"` = the
   platform's default notification sound, `"none"` = silent. `shuffle`: pick a random variant of the pack each time
@@ -250,7 +250,7 @@ because Notification Center didn't find the bundled file and played the default 
 |---|---|---|
 | Per-kind sound | two notification channels per kind (`alert_n_<kind>` notification volume, `alert_a_<kind>` alarm volume; `alarm` picks one); its sound is `content://<pkg>.alertsound/<kind>`, an exported provider that picks the pack + variant **each time SystemUI opens it** | `UNNotificationSound(named:)` per notification |
 | User override | channel settings (sound, vibration, DND) win over the app | none (macOS only has "Play sound for notification" on/off) |
-| Category | `alarm`: `CATEGORY_ALARM` + `USAGE_ALARM` (alarm volume, "Alarms only" DND, no cooldown); otherwise `CATEGORY_REMINDER` + `USAGE_NOTIFICATION_EVENT` (no post-unlock cooldown, DND "Reminders") | `alarm`: `.timeSensitive` only with the entitlement, else `.active` |
+| Category | `alarm`: `USAGE_ALARM` (alarm volume, "Alarms only" DND); otherwise `USAGE_NOTIFICATION_EVENT` (DND "Reminders"). Every alert posts `CATEGORY_ALARM` (exempt from the per-app and post-unlock notification cooldowns, so two alerts in one reading both ring in full) except a notification-volume alert while DND would filter an alarm and a reminder differently: then `CATEGORY_REMINDER` | `alarm`: `.timeSensitive` only with the entitlement, else `.active` |
 | Haptics | a primitives-only `VibrationEffect` per channel (falls for lows, speeding-up clicks for high…); an on/off waveform where primitives aren't supported. Haptic channels inside the sound file are muted for notifications | — |
 
 ## 7. Scenarios (the regression guard)

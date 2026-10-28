@@ -18,13 +18,25 @@ import app.mauri.sukrara.core.model.storage.SecureStore
 import app.mauri.sukrara.core.model.storage.SettingsRepository
 import app.mauri.sukrara.core.model.storage.StateStore
 import app.mauri.sukrara.core.model.storage.TreatmentsRepository
+import app.mauri.sukrara.integrations.broadcasts.BcState
+import app.mauri.sukrara.integrations.broadcasts.Broadcaster
+import app.mauri.sukrara.integrations.broadcasts.BroadcastsViewModel
+import app.mauri.sukrara.integrations.broadcasts.LiveReading
+import app.mauri.sukrara.integrations.broadcasts.PlatformApps
 import app.mauri.sukrara.integrations.export.ExportViewModel
 import app.mauri.sukrara.integrations.export.Exporter
+import app.mauri.sukrara.integrations.healthconnect.HcState
+import app.mauri.sukrara.integrations.healthconnect.HcStatus
+import app.mauri.sukrara.integrations.healthconnect.HealthConnectSync
+import app.mauri.sukrara.integrations.healthconnect.HealthConnectViewModel
+import app.mauri.sukrara.integrations.healthconnect.PlatformHealth
 import app.mauri.sukrara.integrations.libreview.LibreViewClient
 import app.mauri.sukrara.integrations.libreview.LibreViewUploader
 import app.mauri.sukrara.integrations.libreview.LibreViewViewModel
 import app.mauri.sukrara.integrations.libreview.LvReadings
 import app.mauri.sukrara.integrations.libreview.LvState
+import app.mauri.sukrara.integrations.localserver.LanPin
+import app.mauri.sukrara.integrations.localserver.LanWatcher
 import app.mauri.sukrara.integrations.localserver.NightscoutApiServer
 import app.mauri.sukrara.integrations.localserver.NightscoutApiViewModel
 import app.mauri.sukrara.integrations.localserver.NsApiState
@@ -50,6 +62,9 @@ data class AppsSummary(
     val libreView: Boolean,
     val nightscoutApi: Boolean = false,
     val tidepool: Boolean = false,
+    /** How many apps get glucose broadcasts. */
+    val broadcastApps: Int = 0,
+    val healthConnect: Boolean = false,
 )
 
 /**
@@ -64,12 +79,18 @@ class IntegrationsModule(
     nightscoutState: StateStore<NsState>,
     libreViewState: StateStore<LvState>,
     tidepoolState: StateStore<TpState>,
+    broadcastState: StateStore<BcState>,
+    healthState: StateStore<HcState>,
+    /** The Wi-Fi the Nightscout API's home-network option was turned on in. */
+    nightscoutLan: StateStore<LanPin>,
     appVersion: String,
     readings: ReadingsRepository,
     treatments: TreatmentsRepository,
     sensor: Flow<CurrentSensor?>,
     /** Libre 3 readings by life count (the sensor link), for LibreView. */
     libreReadings: Flow<LvReadings>,
+    /** The Libre 3 driver's live readings (only a real Libre 3 pairing emits), for the broadcasts. */
+    libreLive: Flow<LiveReading>,
     /** The email of the LibreView account the sensor screens signed in with (a starting point for the upload's). */
     private val libreViewEmail: Flow<String?>,
     role: Flow<Role?>,
@@ -131,16 +152,46 @@ class IntegrationsModule(
             log,
         )
 
-    val nightscoutApi = NightscoutApiServer(settings, secure, readings, treatments, role, clock, dispatchers.io)
+    private val lanWatcher = LanWatcher(context)
+
+    val nightscoutApi =
+        NightscoutApiServer(
+            settings,
+            secure,
+            readings,
+            treatments,
+            role,
+            clock,
+            dispatchers.io,
+            nightscoutLan,
+            lanWatcher.wifi,
+            lanWatcher::localNetworkAllowed,
+        )
+
+    private val installedApps = PlatformApps(context)
+
+    val broadcasts = Broadcaster(settings, broadcastState, libreLive, sensor, role, installedApps, clock, dispatchers.io, log)
+
+    private val health = PlatformHealth(context)
+
+    val healthConnect = HealthConnectSync(settings, healthState, readings, role, health, clock, dispatchers.io, log)
 
     val summary: Flow<AppsSummary> =
-        combine(nightscout.page, xdrip.on, libreView.page, nightscoutApi.state, tidepool.status) { ns, x, lv, api, tp ->
+        combine(
+            nightscout.page,
+            xdrip.on,
+            libreView.page,
+            combine(nightscoutApi.state, tidepool.status) { api, tp -> api to tp },
+            combine(broadcasts.settingsFlow, healthConnect.status) { b, h -> b.apps.size to h },
+        ) { ns, x, lv, (api, tp), (bc, hc) ->
             AppsSummary(
                 ns.status != UploadStatus.Off,
                 x,
                 lv.status != UploadStatus.Off && lv.status != UploadStatus.Setup,
                 api is NsApiState.Listening,
                 tp != UploadStatus.Off && tp != UploadStatus.Setup && tp != UploadStatus.AuthFailed,
+                bc,
+                hc is HcStatus.Written || hc == HcStatus.Waiting,
             )
         }
 
@@ -168,6 +219,8 @@ class IntegrationsModule(
         tidepool.start(scope)
         xdrip.start(scope)
         nightscoutApi.start(scope)
+        broadcasts.start(scope)
+        healthConnect.start(scope)
     }
 
     // MARK: view models (the app's navigation entries create them)
@@ -179,7 +232,13 @@ class IntegrationsModule(
         get() = viewModelFactory { initializer { TidepoolViewModel(tidepool) { clock.now() } } }
 
     val nightscoutApiViewModels: ViewModelProvider.Factory
-        get() = viewModelFactory { initializer { NightscoutApiViewModel(nightscoutApi) } }
+        get() = viewModelFactory { initializer { NightscoutApiViewModel(nightscoutApi, lanWatcher::localNetworkAllowed) } }
+
+    val broadcastsViewModels: ViewModelProvider.Factory
+        get() = viewModelFactory { initializer { BroadcastsViewModel(broadcasts, installedApps, wearer, dispatchers.io) } }
+
+    val healthConnectViewModels: ViewModelProvider.Factory
+        get() = viewModelFactory { initializer { HealthConnectViewModel(healthConnect, health) } }
 
     fun exportViewModels(follower: Boolean): ViewModelProvider.Factory =
         viewModelFactory { initializer { ExportViewModel(exporter, follower, dispatchers.io) } }

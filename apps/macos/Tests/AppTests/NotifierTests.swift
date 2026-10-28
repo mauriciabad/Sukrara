@@ -51,12 +51,31 @@ final class FakeCenter: NotificationPosting {
         notifier(.en).post(firing(.low), sound: true, category: AlertNotificationIDs.alertCategory)
         notifier(.es).post(firing(.low), sound: true, category: AlertNotificationIDs.alertCategory)
         let en = center.added[0].content, es = center.added[1].content
-        #expect(en.title == "Low glucose · 62 mg/dL ↘")
-        #expect(en.body == "Falling. Below 70 mg/dL.")
-        #expect(es.title == "Glucosa baja · 62 mg/dL ↘")
-        #expect(es.body == "Bajando. Por debajo de 70 mg/dL.")
+        #expect(en.title == "Low glucose")
+        #expect(en.body == "62 mg/dL ↘")
+        #expect(es.title == "Glucosa baja")
+        #expect(es.body == "62 mg/dL ↘")
         #expect(center.added[0].identifier == AlertNotificationIDs.notificationID(.level))
         #expect(en.userInfo[Notifier.sideKey] as? String == "low")
+    }
+
+    /// contracts/alerts/SPEC.md §1: no threshold; fast alerts add the rate; no data says how long and the last value.
+    @Test func bodyFollowsTheSpec() {
+        let en = AlertText(language: .en), es = AlertText(language: .es)
+        let fast = firing(.fallingFast, mgdl: 120, rate: -2.4)
+        #expect(en.body(fast, now: clock.now) == "120 mg/dL ↓ · falling 2.4 mg/dL/min")
+        #expect(es.body(fast, now: clock.now) == "120 mg/dL ↓ · baja 2,4 mg/dL/min")
+        #expect(en.body(firing(.risingFast, mgdl: 150, rate: 2.0), now: clock.now).hasSuffix(" · rising 2.0 mg/dL/min"))
+        #expect(!en.body(firing(.fallingFast, rate: nil), now: clock.now).contains("·"))
+        let old = AlertFiring(
+            id: "n", kind: .noData, at: clock.now,
+            reading: GlucoseSample(at: clock.now.addingTimeInterval(-25 * 60), mgdl: 120, rate: nil), threshold: 20,
+            n: 1, treated: 0)
+        #expect(en.body(old, now: clock.now) == "No reading for 25 min · last 120 mg/dL")
+        #expect(es.body(old, now: clock.now) == "Sin lecturas desde hace 25 min · última 120 mg/dL")
+        let lo = firing(.veryLow, mgdl: 39, rate: nil)
+        #expect(en.body(lo, now: clock.now).hasPrefix("LO · below 40 mg/dL"))
+        #expect(es.headline(firing(.low, treated: 2)) == "Glucosa baja · vuelve a comer")
     }
 
     @Test func aSilentResumeHasNoSoundAndASoundCopyFailureRingsTheDefault() {

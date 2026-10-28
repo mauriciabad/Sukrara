@@ -18,6 +18,16 @@ struct PanelView: View {
     /// The window layer's entry points (nil in a render without windows).
     var links: PanelLinks?
     @Environment(\.colorScheme) private var scheme
+    @Environment(\.colorSchemeContrast) private var contrast
+    /// Where the chart looks (scrolled / zoomed through time; nil end = now).
+    @State private var scroll: ChartScroll
+
+    /// `scroll`: where the chart starts looking (snapshots; the app opens on now).
+    init(model: AppModel, links: PanelLinks? = nil, scroll: ChartScroll = ChartScroll()) {
+        self.model = model
+        self.links = links
+        _scroll = State(initialValue: scroll)
+    }
     /// Mute all's Custom… field is open: Return belongs to it, not to Add Treatment….
     @State private var customMute = false
 
@@ -52,22 +62,97 @@ struct PanelView: View {
             }
             .padding(14)
             .frame(width: Self.cardSize.width + 28, alignment: .leading)
+            // the panel opens at now again
+            .onDisappear { scroll = ChartScroll() }
         }
     }
 
     @ViewBuilder private var card: some View {
         let data = model.cardData
+        let view = chartView(data)
+        let increased = contrast == .increased
         if let image = GlucoseCard.image(
             surface: .menubarCard, size: Self.cardSize, config: model.graph, data: data, unit: model.unit,
-            dark: scheme == .dark)
+            dark: scheme == .dark, view: view, contrast: increased)
         {
+            let rects = GlucoseCard.chartRects(
+                surface: .menubarCard, size: Self.cardSize, config: model.graph, data: data, unit: model.unit,
+                view: view)
             Image(decorative: image, scale: 2)
                 .accessibilityElement()
                 .accessibilityLabel(
                     GlucoseCard.accessibilityLabel(data, unit: model.unit, surface: .menubarCard, config: model.graph)
                 )
+                .modifier(ChartActions(scroll: $scroll, chart: chart(data), hasChart: rects.plot != nil))
+                .overlay(alignment: .topLeading) {
+                    if let plot = rects.plot {
+                        ChartGestures(
+                            scroll: { dx, _ in moveChart(by: dx, plotWidth: plot.width, data) },
+                            zoom: { factor, x in
+                                zoomChart(factor, at: (x * Self.cardSize.width - plot.minX) / plot.width, data)
+                            }
+                        )
+                        .frame(width: Self.cardSize.width, height: Self.cardSize.height)
+                    }
+                }
                 .overlay(alignment: .topLeading) { pill(data) }
+                .overlay(alignment: .topLeading) {
+                    if let now = rects.now {
+                        Button {
+                            scroll = ChartScroll()
+                        } label: {
+                            Color.clear.contentShape(Capsule()).frame(width: now.width, height: now.height)
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel(L10n.t("Back to Now"))
+                        .help(L10n.t("Back to Now"))
+                        .offset(x: now.minX, y: now.minY)
+                    }
+                }
+                // the module reaches 6 pt past the card, into the panel's margin (the card keeps its size)
+                .background(Self.module(scheme: scheme, increased: increased).padding(-6))
         }
+    }
+
+    /// The recessed module behind the card (12 pt corners; black 18 % in dark mode, white 50 % in light mode; an
+    /// outline with Increase Contrast).
+    static func module(scheme: ColorScheme, increased: Bool) -> some View {
+        RoundedRectangle(cornerRadius: 12, style: .continuous)
+            .fill(scheme == .dark ? Color.black.opacity(0.18) : Color.white.opacity(0.5))
+            .overlay {
+                if increased {
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .strokeBorder(Color(nsColor: .separatorColor), lineWidth: 1)
+                }
+            }
+    }
+
+    /// The chart's window for the scroll (nil = the place's own window up to now).
+    private func chartView(_ data: CardData) -> ChartView? {
+        guard scroll.away else { return nil }
+        let y = GlucoseCard.yRange(
+            surface: .menubarCard, config: model.graph, readings: data.readings, end: scroll.end ?? data.now,
+            span: scroll.span)
+        return scroll.view(now: data.now, pill: 1, y: y)
+    }
+
+    /// The bounds a gesture works within: the place's own length, the oldest reading, now.
+    private func chart(_ data: CardData) -> ChartActions.Bounds {
+        ChartActions.Bounds(
+            default: GlucoseCard.chartSpan(surface: .menubarCard, config: model.graph) ?? 12 * 3600,
+            first: data.readings.map(\.t).min() ?? data.now, now: data.now)
+    }
+
+    private func moveChart(by dx: CGFloat, plotWidth: CGFloat, _ data: CardData) {
+        let b = chart(data)
+        let span = scroll.span(b.default)
+        // the content follows the fingers: moving it right shows earlier readings
+        scroll.by(-Double(dx) * span / Double(max(plotWidth, 1)), minEnd: b.first + span, now: b.now)
+    }
+
+    private func zoomChart(_ factor: CGFloat, at x: CGFloat, _ data: CardData) {
+        let b = chart(data)
+        scroll.zoom(Double(factor), anchor: Double(x), default: b.default, first: b.first, now: b.now)
     }
 
     /// The card's pill as a control over the spot the renderer drew it: Eat carbs / Take insulin opens Add Treatment
@@ -158,6 +243,35 @@ struct PanelView: View {
                     NSWorkspace.shared.open(url)
                 }
             }
+        }
+    }
+}
+
+/// VoiceOver's way through the chart: Earlier, Later, Zoom Out, Zoom In and Back to Now as the card's actions.
+private struct ChartActions: ViewModifier {
+    struct Bounds { var `default`, first, now: TimeInterval }
+    @Binding var scroll: ChartScroll
+    let chart: Bounds
+    let hasChart: Bool
+
+    func body(content: Content) -> some View {
+        if hasChart {
+            content
+                .accessibilityAction(named: L10n.t("Earlier")) {
+                    scroll.page(forward: false, default: chart.default, first: chart.first, now: chart.now)
+                }
+                .accessibilityAction(named: L10n.t("Later")) {
+                    scroll.page(forward: true, default: chart.default, first: chart.first, now: chart.now)
+                }
+                .accessibilityAction(named: L10n.t("Zoom Out")) {
+                    scroll.step(out: true, default: chart.default, first: chart.first, now: chart.now)
+                }
+                .accessibilityAction(named: L10n.t("Zoom In")) {
+                    scroll.step(out: false, default: chart.default, first: chart.first, now: chart.now)
+                }
+                .accessibilityAction(named: L10n.t("Back to Now")) { scroll = ChartScroll() }
+        } else {
+            content
         }
     }
 }
