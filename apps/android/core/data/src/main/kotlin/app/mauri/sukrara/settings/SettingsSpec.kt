@@ -103,7 +103,7 @@ object SettingsSpec {
         SettingInfo("graph.band.veryHigh", "number", "bandVeryHigh", true, "graph.veryHigh", "graph:bandVeryHigh", "defaults:bandVeryHigh", null, null, null),
         SettingInfo("graph.band.extremelyHigh", "number", "bandExtremelyHigh", true, "graph.extremelyHigh", "graph:bandExtremelyHigh", "defaults:bandExtremelyHigh", null, null, null),
         SettingInfo("graph.hours", "number", "graphHours", true, "graph.defaultHours", "graph:graphHours", "defaults:graphHours", null, null, null),
-        SettingInfo("graph.hours.place", "number", "placeHours", false, null, "graph:placeHours", "defaults:menubarHours,widgetHours", null, null, null),
+        SettingInfo("graph.hours.place", "number", "placeHours", false, null, "graph:placeHoursApp,placeHoursNotification,placeHoursWidgets", "defaults:menubarHours,widgetHours", null, null, null),
         SettingInfo("graph.ringCount", "number", "ringCount", true, "graph.ringCount", "graph:ringCount", "defaults:ringCount", null, null, null),
         SettingInfo("graph.slots", "slots", "ringWindow", true, "graph.slots", "graph:slots", "defaults:slots", null, null, null),
         SettingInfo("graph.ringRange", "enum", null, true, "graph.ringRange", "graph:ringRange", "defaults:ringRange", null, null, null),
@@ -116,7 +116,7 @@ object SettingsSpec {
         SettingInfo("graph.gridHours", "number", "gridHours", true, "graph.gridHours", "graph:gridHours", "defaults:gridHours", null, null, null),
         SettingInfo("graph.lastPlace", "enum", null, true, "graph.lastPlace", "graph:lastPlace", "defaults:lastPlace", null, null, null),
         SettingInfo("graph.lastElse", "slot", "ringWindow", true, "graph.lastElse", "graph:lastElse", "defaults:lastElse", null, null, null),
-        SettingInfo("graph.sensorTime.place", "bool", null, false, null, "graph:sensorTimeHidden", "defaults:menubarSensorTime,widgetSensorTime", null, null, null),
+        SettingInfo("graph.sensorTime.place", "bool", null, false, null, "graph:sensorTimeApp,sensorTimeNotification,sensorTimeWidgets", "defaults:menubarSensorTime,widgetSensorTime", null, null, null),
         SettingInfo("sensor.countdownHours", "number", "countdownHours", true, "graph.countdownHours", "sensor:countdownHours", "defaults:countdownHours", null, null, null),
         SettingInfo("follower.settingsFrom", "enum", null, false, null, "sharing:settingsFrom", "defaults:settingsFrom", null, null, null),
         SettingInfo("alerts.on", "bool", null, false, null, "alerts:alerts", "defaults:alerts", "on", null, null),
@@ -215,7 +215,9 @@ object SettingsSpec {
         const val BAND_VERY_HIGH = "bandVeryHigh"
         const val BAND_EXTREMELY_HIGH = "bandExtremelyHigh"
         const val GRAPH_HOURS = "graphHours"
-        const val PLACE_HOURS = "placeHours"
+        const val PLACE_HOURS_APP = "placeHoursApp"
+        const val PLACE_HOURS_NOTIFICATION = "placeHoursNotification"
+        const val PLACE_HOURS_WIDGETS = "placeHoursWidgets"
         const val RING_COUNT = "ringCount"
         const val SLOTS = "slots"
         const val RING_RANGE = "ringRange"
@@ -228,7 +230,9 @@ object SettingsSpec {
         const val GRID_HOURS = "gridHours"
         const val LAST_PLACE = "lastPlace"
         const val LAST_ELSE = "lastElse"
-        const val SENSOR_TIME_HIDDEN = "sensorTimeHidden"
+        const val SENSOR_TIME_APP = "sensorTimeApp"
+        const val SENSOR_TIME_NOTIFICATION = "sensorTimeNotification"
+        const val SENSOR_TIME_WIDGETS = "sensorTimeWidgets"
         const val COUNTDOWN_HOURS = "countdownHours"
         const val SETTINGS_FROM = "settingsFrom"
         const val ALERTS = "alerts"
