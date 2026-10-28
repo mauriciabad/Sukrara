@@ -314,7 +314,8 @@ object SensorEndPlan {
         configHash: Int,
         now: Long,
     ): SensorEndMemory {
-        val same = mem.known && kotlin.math.abs(mem.start - start) <= SAME_SENSOR_S
+        // the start is derived (end − wear length, ready − warm-up): the same end also means the same sensor
+        val same = mem.known && (kotlin.math.abs(mem.start - start) <= SAME_SENSOR_S || kotlin.math.abs(mem.end - end) <= SAME_SENSOR_S)
         val m =
             if (same) {
                 // an early end already past stays: a source still reporting the planned end can't bring the countdown back

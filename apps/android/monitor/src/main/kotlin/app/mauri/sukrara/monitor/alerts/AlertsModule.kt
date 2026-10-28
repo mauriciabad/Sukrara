@@ -14,7 +14,9 @@ import app.mauri.sukrara.core.model.Clock
 import app.mauri.sukrara.core.model.DispatcherProvider
 import app.mauri.sukrara.core.model.GlucoseHub
 import app.mauri.sukrara.core.model.Role
+import app.mauri.sukrara.core.model.SensorEndConfig
 import app.mauri.sukrara.core.model.SensorState
+import app.mauri.sukrara.core.model.SourceStatus
 import app.mauri.sukrara.core.model.Treatment
 import app.mauri.sukrara.core.model.storage.SettingsRepository
 import app.mauri.sukrara.core.model.storage.StateStore
@@ -24,12 +26,15 @@ import app.mauri.sukrara.monitor.sensorend.SensorEndMemory
 import app.mauri.sukrara.monitor.sensorend.SensorEndNotifier
 import app.mauri.sukrara.monitor.sensorend.SensorEndSettings
 import app.mauri.sukrara.monitor.service.AndroidAlarms
+import app.mauri.sukrara.settings.SettingsSpec
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.emptyFlow
+import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
@@ -92,7 +97,13 @@ class AlertsModule(
             SurfaceSettings.sensorEnd(alertSettings),
             alertSettings.flow(SurfaceSettings.CountdownHours),
             alertSettings.flow(SurfaceSettings.StatusChip),
-        ) { config, hours, chip -> SensorEndSettings(config, hours.toInt(), chip) }.distinctUntilChanged()
+        ) { config, hours, chip -> SensorEndSettings(config, hours.toInt(), chip) }
+            .distinctUntilChanged()
+            // a settings store that fails must never take the service down: the defaults hold
+            .catch {
+                log("sensor-end settings failed: ${it.javaClass.simpleName}")
+                emit(SensorEndSettings(SensorEndConfig(), SettingsSpec.COUNTDOWN_HOURS.default.toInt(), chip = true))
+            }
 
     val sensorEnd =
         SensorEndNotifier(
@@ -135,7 +146,11 @@ class AlertsModule(
         scope.launch {
             // the sensor, its first reading and the settings re-plan; the newest reading only matters as "since the start"
             combine(
-                hub.state.map { Triple(it.role == Role.Wearer, it.sensor, it.latest?.t?.epochSecond) }.distinctUntilChanged(),
+                hub.state
+                    // a fresh process starts at "nothing known" (no role, no sensor): that is no reason to forget the plan
+                    .filter { it.role != null && it.source != SourceStatus.NotStarted }
+                    .map { Triple(it.role == Role.Wearer, it.sensor, it.latest?.t?.epochSecond) }
+                    .distinctUntilChanged(),
                 sensorEndSettings,
             ) { (wearer, sensor, latest), s -> SensorEndInputs(wearer, sensor, latest, s) }
                 .collect { sensorEnd.update(it.wearer, it.sensor, it.latestS, it.settings) }

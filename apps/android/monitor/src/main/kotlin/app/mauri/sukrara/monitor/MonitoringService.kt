@@ -18,6 +18,7 @@ import app.mauri.sukrara.core.model.ServiceState
 import app.mauri.sukrara.graph.Clock
 import app.mauri.sukrara.monitor.notify.CardFrame
 import app.mauri.sukrara.monitor.notify.Channels
+import app.mauri.sukrara.monitor.notify.LiveNotificationContent
 import app.mauri.sukrara.monitor.notify.NotificationIds
 import app.mauri.sukrara.monitor.notify.NotificationPrefs
 import app.mauri.sukrara.monitor.service.bluetoothPower
@@ -88,7 +89,9 @@ class MonitoringService : Service() {
             // only the channels this needs: alert channels get their sounds once, from MonitorModule.ready
             Channels.createCore(this)
             val now = m.clock.now()
-            val notification = m.notification.build(m.notification.content(m.hubImpl.state.value, now), now)
+            // text only: the settings and the card's inputs aren't read yet (the first real post follows at once)
+            val first = m.notification.content(m.hubImpl.state.value, now)
+            val notification = m.notification.build(first.copy(layout = LiveNotificationContent.Layout.TEXT, chip = null), now)
             startForeground(NotificationIds.GLUCOSE, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_CONNECTED_DEVICE)
             true
         } catch (e: IllegalStateException) {

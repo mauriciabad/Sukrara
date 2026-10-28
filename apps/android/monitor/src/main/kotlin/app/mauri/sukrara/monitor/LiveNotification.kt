@@ -90,8 +90,11 @@ class LiveNotification(
         force: Boolean = false,
     ) {
         gate.submit(content, force) {
-            runCatching { nm.notify(NotificationIds.GLUCOSE, build(content, now, frame)) }
-                .onFailure { Log.w(TAG, "notify failed: ${it.javaClass.simpleName}") }
+            // drawn and posted off the caller's (main) thread; the gate keeps posts in order
+            poster.execute {
+                runCatching { nm.notify(NotificationIds.GLUCOSE, build(content, now, frame)) }
+                    .onFailure { Log.w(TAG, "notify failed: ${it.javaClass.simpleName}") }
+            }
         }
     }
 

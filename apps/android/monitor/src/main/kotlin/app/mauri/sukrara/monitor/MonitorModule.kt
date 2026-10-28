@@ -29,6 +29,7 @@ import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 
@@ -93,7 +94,13 @@ class MonitorModule(
             settings.flow(SurfaceSettings.NumberIcon),
             treatments,
             graphConfig,
-        ) { chip, icon, list, config -> NotificationInputs(chip, icon, list, config) }.distinctUntilChanged()
+        ) { chip, icon, list, config -> NotificationInputs(chip, icon, list, config) }
+            .distinctUntilChanged()
+            // a failing store must never stop the foreground notification: it goes on with the defaults
+            .catch {
+                android.util.Log.w("Sukrara.monitor", "notification inputs failed: ${it.javaClass.simpleName}")
+                emit(NotificationInputs(chip = true, numberIcon = true, treatments = emptyList(), config = GraphConfig()))
+            }
 
     /**
      * Post the glucose notification again even if unchanged: the screen came on (its card isn't drawn while it's off),
