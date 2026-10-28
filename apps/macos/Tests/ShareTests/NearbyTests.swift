@@ -66,6 +66,10 @@ struct NearbyTests {
         }
         #expect(pairing.owner(identity: v.pub("I"), sid: nil, nonces: []) == .ours)
         #expect(pairing.owner(identity: v.pub("F"), sid: nil, nonces: []) == .other)
+        // B§6: once sid is known only `m` proves it (a copied pairing `i` never does)
+        #expect(pairing.owner(identity: v.pub("I"), sid: m["sid"], nonces: [m["nonce"]!]) == .ours)
+        #expect(pairing.owner(identity: v.pub("I"), sid: m["sid"], nonces: ["00"]) == .other)
+        #expect(info.owner(identity: v.pub("I"), sid: nil, nonces: [m["nonce"]!]) == .unknown)
         let invite = try #require(pairing.invite)
         #expect(invite.identity == v.pub("I") && invite.token == "C_TX2IzrmRf7hg8cATyckQ")
         #expect(invite.profile?.name == "Alex")
@@ -95,7 +99,7 @@ struct NearbyTests {
         let event = try #require(SignedEvent.decode(json: JSONText.encode((ble["message"] as! [Any])[1])))
         #expect(link.send(event, token: 1) == [.sent(token: 1, ok: false)])  // not connected
 
-        let hello = link.connected(perFrame: 14, nonce: m["nonce"]!)
+        let hello = link.connected(mtu: 23, nonce: m["nonce"]!)
         guard case .write(let first)? = hello.first, hello.count == 1 else {
             Issue.record("expected one HELLO frame write")
             return
@@ -136,15 +140,80 @@ struct NearbyTests {
         var r = BleReassembler()
         let start = Date()
         // Idle: frame 0 of 2, then nothing for 31 s, then frame 1 → no message.
-        let frames = BleFraming.frames(msgId: 1, payload: Data(repeating: 65, count: 40), perFrame: 20)
+        let frames = BleFraming.frames(msgId: 1, payload: Data(repeating: 65, count: 40), mtu: 29)
         #expect(r.add(frames[0], now: start) == nil)
         #expect(r.add(frames[1], now: start.addingTimeInterval(31)) == nil)
         // Oversized: count would carry > 256 KiB.
         var big = BleReassembler()
-        let huge = BleFraming.frames(msgId: 2, payload: Data(repeating: 66, count: 300 * 1024), perFrame: 506)
+        let huge = BleFraming.frames(msgId: 2, payload: Data(repeating: 66, count: 300 * 1024), mtu: 517)
         var result: Data?
         for frame in huge { result = big.add(frame, now: start) ?? result }
         #expect(result == nil && big.dropped == 1)
         #expect(r.add(Data([0, 1]), now: start) == nil)  // shorter than the header
+    }
+}
+
+/// contracts/protocol/ble/default-mtu.json: this Mac and an Android wearer at ATT MTU 23 (no MTU exchange). Every
+/// write fits one ATT Write Request (never a long write), and the wearer's INFO frames prove our wearer. Android
+/// `NearbyDefaultMtuTest` replays the wearer side of the same file.
+struct NearbyDefaultMtuTests {
+    let fx = loadJSON("protocol/ble/default-mtu.json")
+    let crypto = NostrSDKCrypto()
+    var mtu: Int { fx["att_mtu"] as! Int }
+    func frames(_ key: String) -> [Data] { (fx[key] as! [String]).map { Data(Hex.decode($0)!) } }
+
+    @Test func coreBluetoothsWriteLengthGivesTheAttMtu() {
+        #expect(NearbyCentral.attMtu(writeWithoutResponse: 20) == 23)
+        #expect(NearbyCentral.attMtu(writeWithoutResponse: 182) == 185)
+        #expect(NearbyCentral.attMtu(writeWithoutResponse: 1000) == 515)
+    }
+
+    @Test func theFixtureFramesAreTheVectorHelloAndFitOneWrite() {
+        var r = BleReassembler()
+        var whole: Data?
+        for frame in frames("hello_frames") {
+            #expect(frame.count <= mtu - 3)
+            whole = r.add(frame, now: Date()) ?? whole
+        }
+        let body = (fx["hello"] as! [Any])[1] as! [String: Any]
+        #expect(
+            whole.flatMap(BleMessage.parse) == .hello(nonce: body["nonce"] as! String, id: body["id"] as? String))
+    }
+
+    @Test func thisMacWritesOnlyWholeFramesAndTrustsTheWearersInfo() throws {
+        let v = OgsVectors.shared
+        let sid = fx["sid"] as! String
+        let nonce = fx["nonce"] as! String
+        #expect(try crypto.publicKey(of: v.secret("F")) == fx["follower"] as? String)
+        var link = NearbyLink(identity: .init(identity: v.pub("I"), sid: sid, follower: v.secret("F")), crypto: crypto)
+        var writes: [Data] = []
+        var effects = link.connected(mtu: mtu, nonce: nonce)
+        while case .write(let frame)? = effects.first {
+            writes.append(frame)
+            effects = link.wrote(ok: true)
+        }
+        #expect(writes.count == frames("hello_frames").count)
+        #expect(writes.allSatisfy { $0.count <= mtu - 3 })
+        var r = BleReassembler()
+        var whole: Data?
+        for frame in writes { whole = r.add(frame, now: Date()) ?? whole }
+        guard case .hello(let sent, let id?)? = whole.flatMap(BleMessage.parse) else {
+            Issue.record("no HELLO with proof")
+            return
+        }
+        #expect(sent == nonce)
+        var proof = try crypto.sign(
+            kind: Wire.kindBleId, content: HelloProof.content(sid: sid, nonce: nonce), tags: [], createdAt: 0,
+            with: v.secret("F"))
+        proof.sig = id
+        #expect(crypto.verify(proof))
+
+        var got: [NearbyLink.Effect] = []
+        for frame in frames("info_frames") { got += link.received(frame, now: Date()) }
+        guard case .info(_, .ours)? = got.last else {
+            Issue.record("INFO not ours: \(got)")
+            return
+        }
+        #expect(link.verified)
     }
 }

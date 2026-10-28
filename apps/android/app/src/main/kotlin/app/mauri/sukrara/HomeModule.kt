@@ -43,7 +43,7 @@ import kotlinx.coroutines.launch
 class HomeModule(
     private val data: DataModule,
     override val clock: Clock,
-    scope: CoroutineScope,
+    private val scope: CoroutineScope,
     override val glucose: StateFlow<GlucoseState>,
     override val graphConfig: Flow<GraphConfig>,
     override val storedHistory: Flow<List<Reading>>,
@@ -61,6 +61,8 @@ class HomeModule(
     private val treatmentLog: () -> TreatmentLog,
     /** The wearer's sharing state (profile row, "Not backed up"); a function: sharing is built on first use. */
     private val sharing: () -> Flow<OwnerShareState> = { emptyFlow() },
+    /** Pen reading is On and Android blocks the taps (home's banner); read on every resume. */
+    private val penTapsBlocked: suspend () -> Boolean = { false },
     /** The wearer's clinic upload is set (null on a follower): the *Share your data with your clinic* banner. */
     private val clinicUploadSet: () -> Flow<Boolean?> = { emptyFlow() },
     /** What the clinic upload has of the entries (the list's cloud marks); a function: integrations start later. */
@@ -112,6 +114,7 @@ class HomeModule(
         readinessSource.refresh()
         refreshSetup()
         env.update { it.copy(widgetPlaced = widgetPlaced()) }
+        scope.launch { runCatching { penTapsBlocked() }.getOrNull()?.let { b -> env.update { it.copy(penTapsBlocked = b) } } }
     }
 
     override fun acknowledge(problem: DataProblem) {

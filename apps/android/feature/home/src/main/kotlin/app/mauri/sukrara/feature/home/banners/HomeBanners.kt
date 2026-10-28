@@ -22,6 +22,12 @@ enum class BannerKind(val safety: Boolean) {
     /** A stored file was damaged and set aside: data loss is never silent (its exit: review and acknowledge). */
     DataProblem(safety = true),
 
+    /**
+     * Pen reading is On but Android blocks Sukrara's tag intents: every pen tap does nothing. *Allow* opens Android's
+     * screen, *Turn off* turns pen reading off; it goes by itself once allowed (checked on every resume).
+     */
+    PenTapsBlocked(safety = false),
+
     /** First-run setup isn't finished: the next step. "Later" hides it for [SETUP_LATER]. */
     FinishSetup(safety = false),
     NotBackedUp(safety = false),
@@ -36,6 +42,8 @@ data class HomeEnvironment(
     val backedUp: Boolean? = null,
     val widgetPlaced: Boolean? = null,
     val clinicUploadSet: Boolean? = null,
+    /** Pen reading is On and Android blocks the taps. */
+    val penTapsBlocked: Boolean = false,
 )
 
 /** When each banner was dismissed (epoch ms); stored in the typed state file "home-banners". */
@@ -94,11 +102,12 @@ object HomeBanners {
                     BannerKind.MonitoringStopped -> monitoringStopped
                     BannerKind.AlertsUnreliable -> readiness?.ready == false
                     BannerKind.DataProblem -> dataProblems > 0
+                    BannerKind.PenTapsBlocked -> env.penTapsBlocked
                     BannerKind.FinishSetup -> env.nextSetupStep != null
                     BannerKind.NotBackedUp -> env.backedUp == false
                     BannerKind.AddWidget -> env.widgetPlaced == false
                     BannerKind.ShareWithClinic -> env.clinicUploadSet == false
                 }
-            wanted && (kind.safety || !memory.dismissed(kind, now))
+            wanted && (kind.safety || kind == BannerKind.PenTapsBlocked || !memory.dismissed(kind, now))
         }
 }

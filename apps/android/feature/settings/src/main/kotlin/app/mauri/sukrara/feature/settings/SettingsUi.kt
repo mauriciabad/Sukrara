@@ -71,9 +71,9 @@ fun SettingsPage(
 ) {
     val bar = TopAppBarDefaults.exitUntilCollapsedScrollBehavior(rememberTopAppBarState())
     Scaffold(
-        snackbarHost = { snackbar?.let { SnackbarHost(it) } },
         modifier = modifier.fillMaxSize().nestedScroll(bar.nestedScrollConnection),
         containerColor = MaterialTheme.colorScheme.surfaceContainer,
+        snackbarHost = { snackbar?.let { SnackbarHost(it) } },
         topBar = {
             LargeTopAppBar(
                 title = { Text(title) },

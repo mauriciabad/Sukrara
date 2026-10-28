@@ -20,6 +20,7 @@ import app.mauri.sukrara.monitor.hub.GlucoseHistory
 import app.mauri.sukrara.monitor.hub.GlucoseHubImpl
 import app.mauri.sukrara.monitor.hub.MonitorRecord
 import app.mauri.sukrara.monitor.notify.Channels
+import app.mauri.sukrara.monitor.notify.SharingLine
 import app.mauri.sukrara.monitor.service.AndroidAlarms
 import app.mauri.sukrara.monitor.service.AndroidServiceLauncher
 import app.mauri.sukrara.monitor.service.AndroidStoppedNotice
@@ -37,6 +38,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.shareIn
 
@@ -59,6 +61,8 @@ class MonitorModule(
     settings: SettingsRepository,
     treatments: Flow<List<Treatment>>,
     graphConfig: Flow<GraphConfig>,
+    /** The wearer's followers and nearby devices for the notification's sub text (null: not sharing). */
+    sharing: Flow<SharingLine?> = flowOf(null),
 ) {
     val hubImpl = GlucoseHubImpl(scope, dispatchers, clock, readings, record, role)
 
@@ -111,7 +115,8 @@ class MonitorModule(
             settings.flow(SurfaceSettings.NumberIcon),
             treatments,
             graphConfig,
-        ) { chip, icon, list, config -> NotificationInputs(chip, icon, list, config) }
+            sharing.catch { emit(null) },
+        ) { chip, icon, list, config, line -> NotificationInputs(chip, icon, list, config, line) }
             .distinctUntilChanged()
             // a failing store must never stop the foreground notification: it goes on with the defaults
             .catch {
@@ -168,6 +173,7 @@ data class NotificationInputs(
     val numberIcon: Boolean,
     val treatments: List<Treatment>,
     val config: GraphConfig,
+    val sharing: SharingLine? = null,
 )
 
 /** The `Application` gives the monitor's Android components (service, receivers) their module. */

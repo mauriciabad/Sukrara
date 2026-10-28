@@ -381,12 +381,29 @@ class AndroidNearbyServer(
                             requestId,
                             if (ok) BluetoothGatt.GATT_SUCCESS else BluetoothGatt.GATT_WRITE_NOT_PERMITTED,
                             offset,
-                            null,
+                            // a Prepare Write Response echoes the part (the central checks it); a Write Response is empty
+                            if (preparedWrite && ok) value else null,
                         )
                     }
                 }
                 run(effects)
             }
+
+            /** A long write's Execute Write (a central that sent its frame as Prepare Write parts, B§4.1). */
+            override fun onExecuteWrite(device: BluetoothDevice, requestId: Int, execute: Boolean) =
+                post {
+                    val (ok, effects) = core?.execute(device.address, execute) ?: (false to emptyList())
+                    guarded {
+                        server?.sendResponse(
+                            device,
+                            requestId,
+                            if (ok) BluetoothGatt.GATT_SUCCESS else BluetoothGatt.GATT_WRITE_NOT_PERMITTED,
+                            0,
+                            null,
+                        )
+                    }
+                    run(effects)
+                }
 
             override fun onNotificationSent(device: BluetoothDevice, status: Int) =
                 post { core?.let { run(it.notificationSent(device.address)) } }

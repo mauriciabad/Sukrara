@@ -51,7 +51,7 @@ class FakeNearbyTransport(var identity: NearbyLink.Identity) : NearbyTransport {
     var started = false
     var stopped = false
     val sent = mutableListOf<SignedEvent>()
-    val left = mutableListOf<Long>()
+    val left = mutableListOf<Pair<String, Long>>()
     var accepts = true
 
     override fun start() {
@@ -73,16 +73,16 @@ class FakeNearbyTransport(var identity: NearbyLink.Identity) : NearbyTransport {
         return accepts
     }
 
-    override fun leave(seconds: Long) {
-        left += seconds
+    override fun leave(phone: String, seconds: Long) {
+        left += phone to seconds
     }
 
     override fun refresh() = Unit
 
     fun deliver(event: SignedEvent) = channel.trySend(NearbyEvent.Event(event))
 
-    fun info(owner: BleMessages.Owner) {
+    fun info(owner: BleMessages.Owner, phone: String = "wearer") {
         if (owner == BleMessages.Owner.Ours) status.value = NearbyStatus.Connected(1)
-        channel.trySend(NearbyEvent.Info(owner))
+        channel.trySend(NearbyEvent.Info(owner, phone))
     }
 }

@@ -4,9 +4,11 @@
 package app.mauri.sukrara.feature.settings
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
@@ -25,6 +27,9 @@ import app.mauri.sukrara.feature.settings.graph.GraphMarksContent
 import app.mauri.sukrara.feature.settings.graph.GraphViewModel
 import app.mauri.sukrara.feature.settings.lock.LockScreenContent
 import app.mauri.sukrara.feature.settings.lock.LockScreenViewModel
+import app.mauri.sukrara.feature.settings.pens.DosesReadPage
+import app.mauri.sukrara.feature.settings.pens.PenPage
+import app.mauri.sukrara.feature.settings.pens.PenViewModel
 import app.mauri.sukrara.feature.settings.pens.PensContent
 import app.mauri.sukrara.feature.settings.pens.PensViewModel
 import app.mauri.sukrara.feature.settings.sensorend.SensorEndActions
@@ -55,6 +60,12 @@ sealed interface SettingsRoute {
 
     /** Settings › Insulin pens (the wearer's phone with NFC). */
     data object Pens : SettingsRoute
+
+    /** Settings › Insulin pens › one pen. */
+    data class Pen(val serial: String) : SettingsRoute
+
+    /** Settings › Insulin pens › one pen › Doses read. */
+    data class PenDoses(val serial: String) : SettingsRoute
 
     data object Reliability : SettingsRoute
 
@@ -187,9 +198,31 @@ fun SettingsScreen(
         }
 
         SettingsRoute.Pens -> {
-            val vm = viewModel { PensViewModel(deps.settings) }
+            val vm = viewModel { PensViewModel(deps.settings, deps.pens) }
             val ui by vm.ui.collectAsStateWithLifecycle()
-            ui?.let { PensContent(it, vm, onBack) }
+            ui?.let { PensContent(it, vm, onBack) { s -> navigate(SettingsRoute.Pen(s)) } }
+        }
+
+        is SettingsRoute.Pen -> {
+            val port = deps.pens
+            if (port == null) {
+                val back by rememberUpdatedState(onBack)
+                LaunchedEffect(Unit) { back() }
+            } else {
+                val vm = viewModel(key = "pen-${route.serial}") { PenViewModel(port, route.serial, deps.settings) }
+                PenPage(vm, onBack, openDoses = { navigate(SettingsRoute.PenDoses(route.serial)) })
+            }
+        }
+
+        is SettingsRoute.PenDoses -> {
+            val port = deps.pens
+            if (port == null) {
+                val back by rememberUpdatedState(onBack)
+                LaunchedEffect(Unit) { back() }
+            } else {
+                val vm = viewModel(key = "pen-${route.serial}") { PenViewModel(port, route.serial, deps.settings) }
+                DosesReadPage(vm, onBack)
+            }
         }
 
         SettingsRoute.LockScreen -> {

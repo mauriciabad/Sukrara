@@ -145,4 +145,8 @@
         <item quantity="one">%1$d seguidor</item>
         <item quantity="other">%1$d seguidores</item>
     </plurals>
+    <string name="banner_pens_title">Los toques de pluma están bloqueados</string>
+    <string name="banner_pens_text">Android no deja que los toques de pluma lleguen a Sukrara, así que tus dosis no se leen ni se registran.</string>
+    <string name="banner_pens_allow">Permitir</string>
+    <string name="banner_pens_turn_off">Desactivar</string>
 </resources>

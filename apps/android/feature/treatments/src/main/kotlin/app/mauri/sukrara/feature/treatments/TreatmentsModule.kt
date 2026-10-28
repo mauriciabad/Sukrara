@@ -7,6 +7,9 @@ import android.content.Context
 import app.mauri.sukrara.core.data.settings.SchemaSettings
 import app.mauri.sukrara.core.model.Clock
 import app.mauri.sukrara.core.model.GlucoseState
+import app.mauri.sukrara.core.model.PenDuplicates
+import app.mauri.sukrara.core.model.PenNearEntry
+import app.mauri.sukrara.core.model.TreatmentKind
 import app.mauri.sukrara.core.model.storage.SettingsRepository
 import app.mauri.sukrara.core.model.storage.TreatmentsRepository
 import kotlinx.coroutines.CoroutineScope
@@ -29,6 +32,8 @@ class TreatmentsModule(
     private val scope: CoroutineScope,
     /** This phone's alert rules as the dialog needs them (the focused field, the quiet line). */
     val hints: AlertHints,
+    /** A pen entry near a typed insulin dose (*Already logged by your pen?*); none without pens. */
+    private val penDuplicates: PenDuplicates = PenDuplicates { _, _ -> null },
 ) {
     val log = TreatmentLog(repository, sync, clock)
 
@@ -47,6 +52,24 @@ class TreatmentsModule(
         // a failed write must not crash the app: the entry simply isn't in the list (diagnosable there)
         scope.launch { runCatching { log.add(entries, at) } }
         return true
+    }
+
+    /**
+     * The pen entry that already logged one of [entries]' insulin doses at [at] (null = now), if any: the dialog asks
+     * before logging it twice. A failure to look is no warning (the dose is the user's to log).
+     */
+    suspend fun penDuplicate(
+        entries: List<NewEntry>,
+        at: Instant?,
+    ): Pair<NewEntry, PenNearEntry>? {
+        val t = (at ?: clock.now()).epochSecond
+        return entries
+            .filter { it.kind == TreatmentKind.RapidInsulin || it.kind == TreatmentKind.LongInsulin }
+            .firstNotNullOfOrNull { e ->
+                runCatching { penDuplicates.near(if (e.kind == TreatmentKind.LongInsulin) "long" else "rapid", t) }
+                    .getOrNull()
+                    ?.let { e to it }
+            }
     }
 
     /** Whether this phone offers Add treatment right now ([WriterScope]). */

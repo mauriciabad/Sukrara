@@ -21,6 +21,11 @@ sealed interface PenAction {
 
     data object AddTreatment : PenAction
 
+    /** *Check it*: an untested pen's page (its display check). */
+    data class OpenPen(
+        val serial: String,
+    ) : PenAction
+
     /** *Log 1.5u*: the question's suggestion. [keys] = its doses as shown (a changed question isn't answered). */
     data class Suggest(
         val question: String,
@@ -178,9 +183,14 @@ class PenCardText(
             }
 
             PenReadState.Stage.Untested -> {
+                val model =
+                    pen?.model?.let { PenProfiles.byId(it)?.name } ?: st.read?.let { PenProfiles.identify(it).name }
+                        ?: PenProfiles.NOVOPEN_6.name
+                if (st.notUsable) return PenCard(s(R.string.pen_notusable_title), listOf(s(R.string.pen_notusable_text, model)))
                 return PenCard(
                     s(R.string.pen_untested_title),
-                    listOf(s(R.string.pen_untested_text, st.read?.let { PenProfiles.identify(it).name } ?: PenProfiles.NOVOPEN_6.name)),
+                    listOf(s(R.string.pen_untested_check_text, model)),
+                    actions = listOfNotNull(st.serial?.let { PenAction.OpenPen(it) }),
                 )
             }
 

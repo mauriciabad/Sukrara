@@ -31,6 +31,7 @@ directory. Mac tests resolve `Contracts.url(…)` (env `SUKRARA_CONTRACTS`, else
 | `protocol/PROTOCOL-v2.md`, `protocol/PROTOCOL-identity.md` | the Nostr wire formats wearer ↔ followers | `:core:protocol`, `:share`, `SukraraShare` |
 | `protocol/identity/*.json` | identity test vectors (keys, profile, avatar) — test-only keys | protocol tests on every app |
 | `protocol/ogs/ogs-draft1.json` | Open Glucose Sharing draft test vectors | protocol tests on every app |
+| `protocol/ble/default-mtu.json` (+ `generate.py`) | Bluetooth at ATT MTU 23: a Mac follower's HELLO frames (plain and as a long write) → the wearer's INFO frames, link named | `:share` `NearbyDefaultMtuTest`, `SukraraShare` `NearbyDefaultMtuTests` |
 | `protocol/sync/` | owner → follower event sequences → expected follower state (see its README) | follower tests on every app |
 | `treatments/treatment-form.json`, `treatments/SPEC.md`, `treatments/libreview-fixture.json` | the treatment form (kinds, units, limits) and the LibreView mapping | treatment UIs + `:integrations` tests |
 | `export/libreview-csv.json` (+ `generate.py`, the reference writer) | CSV export cases: inputs → exact lines | `GlucoseCsvTest` (Android), `CoreTests` (Mac) |
