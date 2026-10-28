@@ -29,6 +29,7 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.conflate
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.merge
@@ -108,7 +109,8 @@ class RootStatusBar(
                 .catch { Log.w(TAG, "inputs failed: ${it.javaClass.simpleName}") }
                 .collect { apply(it) }
         }
-        scope.launch { if (access.state.value.root == null) runCatching { access.checkRoot() } }
+        // only someone who turned the value on is asked for root (su shows KernelSU's / Magisk's prompt)
+        scope.launch { if (settings.flow(SurfaceSettings.RootValue).first()) runCatching { access.checkRoot() } }
     }
 
     /** Settings changed outside the flows (the hello): send again now. */

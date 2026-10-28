@@ -57,6 +57,13 @@
             android:exported="true"
             android:grantUriPermissions="false"
             tools:ignore="ExportedContentProvider" />
+        <!-- libxposed service: LSPosed hands the app its XposedService through this provider (LSPosed calls it, so no
+             permission is possible). What it reports is advisory: it only picks which hint the root page shows. -->
+        <provider
+            android:name="io.github.libxposed.service.XposedProvider"
+            android:authorities="${applicationId}.XposedService"
+            android:exported="true"
+            tools:ignore="ExportedContentProvider" />
         <!-- Also an LSPosed module (libxposed API 102, scope System UI: resources/META-INF/xposed). System UI with the
              module loaded says hello when it (re)starts; only System UI (STATUS_BAR_SERVICE) can send it. -->
         <receiver

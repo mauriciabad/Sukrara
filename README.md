@@ -43,6 +43,9 @@ The full catalog, with every rule and number, is [docs/FEATURES.md](docs/FEATURE
   freshness steps as the card: from 5 min the number is struck through, from 20 min it's gone. Tap → *Add treatment*.
   Without the chip it is a card in your range's colour with the graph, its icon the number itself (Settings › Status
   bar); on Android 17 the Live Update expands to the value styled by range.
+- **On a rooted phone** (KernelSU / Magisk): the value and its arrow as **system icons** beside Wi-Fi and the battery;
+  with Sukrara's **LSPosed module** in System UI also as text beside the clock, in its range colour, placed next to the
+  icon you choose and first in line when the status bar is crowded (Settings › Status bar › With root).
 - **Alerts**: very low, low, high, very high, rising / falling fast and no data; each on its own channel,
   "like an alarm" ones pass Do Not Disturb. *Mute…*, *Remind less*, *Unmute* and *Change time* on the notification,
   in the app and with TalkBack; *Mute all* with a visible strip to undo it. The no-data check runs from an exact alarm,
@@ -87,8 +90,7 @@ The full catalog, with every rule and number, is [docs/FEATURES.md](docs/FEATURE
   through at 5 min, the graph dimmed with the reading's time, no value at 20 min) and a tap opens Add treatment.
 - VoiceOver reads the value as one sentence with the range in words.
 
-**Not included**: the root status-bar
-icons and the LSPosed lock-screen widget, Dexcom / Aidex / SmartGuide (untested) sensors, Garmin via the local xDrip+
+**Not included**: the LSPosed lock-screen widget, Dexcom / Aidex / SmartGuide (untested) sensors, Garmin via the local xDrip+
 server, Nightscout / Tidepool / LibreView uploads, Health Connect and broadcasts, insulin pens, the sensor-end
 calendar event, the glucose report and CSV export, settings export / import, following on
 Android and Bluetooth sharing from the phone, and the Mac's Juggluco-over-Wi-Fi source.

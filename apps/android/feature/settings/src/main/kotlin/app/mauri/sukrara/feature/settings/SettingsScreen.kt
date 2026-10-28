@@ -7,6 +7,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.Lifecycle
@@ -21,6 +22,7 @@ import app.mauri.sukrara.core.model.AlertUiState
 import app.mauri.sukrara.feature.settings.sensorend.SensorEndActions
 import app.mauri.sukrara.feature.settings.sensorend.SensorEndContent
 import app.mauri.sukrara.feature.settings.sensorend.SensorEndViewModel
+import app.mauri.sukrara.feature.settings.statusbar.RootStatusBarSection
 import app.mauri.sukrara.feature.settings.statusbar.StatusBarContent
 import app.mauri.sukrara.feature.settings.statusbar.StatusBarViewModel
 import app.mauri.sukrara.feature.settings.statusbar.liveUpdatesAllowed
@@ -124,13 +126,25 @@ fun SettingsScreen(
         }
 
         SettingsRoute.StatusBar -> {
-            val vm = viewModel { StatusBarViewModel(deps.settings) }
+            val vm = viewModel { StatusBarViewModel(deps.settings, deps.systemAccess) }
             val prefs by vm.prefs.collectAsStateWithLifecycle()
+            val root by vm.root.collectAsStateWithLifecycle()
+            val access by vm.access.collectAsStateWithLifecycle()
+            val busy by vm.busy.collectAsStateWithLifecycle()
+            val problem by vm.problem.collectAsStateWithLifecycle()
+            var choosing by rememberSaveable { mutableStateOf(false) }
             val context = LocalContext.current
-            // the person may come back from Android's Live Updates switch: read it again on resume
+            // the person may come back from Android's Live Updates switch, KernelSU or LSPosed: read them again on resume
             var allowed by remember { mutableStateOf(context.liveUpdatesAllowed()) }
-            LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { allowed = context.liveUpdatesAllowed() }
-            prefs?.let { StatusBarContent(it, allowed, vm::setChip, vm::setNumberIcon, context::openLiveUpdateSettings, onBack) }
+            LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
+                allowed = context.liveUpdatesAllowed()
+                vm.refresh()
+            }
+            prefs?.let {
+                StatusBarContent(it, allowed, vm::setChip, vm::setNumberIcon, context::openLiveUpdateSettings, onBack) {
+                    root?.let { r -> RootStatusBarSection(r, access, busy, problem, choosing, { c -> choosing = c }, vm.actions) }
+                }
+            }
         }
 
         SettingsRoute.SensorEnd -> {
