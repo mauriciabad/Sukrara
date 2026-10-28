@@ -10,6 +10,7 @@ import app.mauri.sukrara.core.model.SourceId
 import app.mauri.sukrara.feature.treatments.TreatmentTileService.TileWords
 import app.mauri.sukrara.graph.CardSurface
 import app.mauri.sukrara.graph.GlucoseCard
+import app.mauri.sukrara.graph.face
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test

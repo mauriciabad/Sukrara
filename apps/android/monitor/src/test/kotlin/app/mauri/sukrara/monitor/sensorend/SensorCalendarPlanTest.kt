@@ -23,8 +23,8 @@ class SensorCalendarPlanTest {
     @Test fun `a replaced sensor's future event goes, past events stay as a history`() {
         val existing = mapOf("sensor:OLD" to now + 3_600_000, "sensor:PAST" to now - 1, "sensor:NEW" to now + 99)
         assertEquals(setOf("sensor:OLD"), Plan.stale(existing, "sensor:NEW", now))
-        // no current sensor: nothing is removed
-        assertEquals(emptySet<String>(), Plan.stale(existing, null, now))
+        // no current sensor (forgotten): every event still ahead goes
+        assertEquals(setOf("sensor:OLD", "sensor:NEW"), Plan.stale(existing, null, now))
     }
 
     @Test fun `a past event keeps its time, a future one follows the end`() {

@@ -11,6 +11,7 @@ import app.mauri.sukrara.graph.CardSurface
 import app.mauri.sukrara.graph.Freshness
 import app.mauri.sukrara.graph.GlucoseCard
 import app.mauri.sukrara.graph.GlucoseLook
+import app.mauri.sukrara.graph.face
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -61,11 +62,15 @@ class TreatmentTileService : TileService() {
         val canAdd = treatmentsModule.canAdd()
         tile.state = if (canAdd) Tile.STATE_INACTIVE else Tile.STATE_UNAVAILABLE
         val nowS = System.currentTimeMillis() / 1000
+        val look = GlucoseCard.face(state, nowS, CardSurface.QUICK_TILE)
+        // TalkBack: a struck value is read as late, not as its combining characters
+        tile.stateDescription =
+            if (canAdd && look.state == GlucoseLook.State.VALUE && look.strike) getString(R.string.tile_late, look.text) else null
         tile.subtitle =
             if (!canAdd) {
                 getString(R.string.tile_unavailable)
             } else {
-                subtitle(GlucoseCard.face(state, nowS, CardSurface.QUICK_TILE), state.latest?.t?.epochSecond, nowS) { words ->
+                subtitle(look, state.latest?.t?.epochSecond, nowS) { words ->
                     when (words) {
                         TileWords.SensorEnded -> getString(R.string.tile_sensor_ended)
                         is TileWords.WarmingUp -> getString(R.string.tile_warming_up, words.left)

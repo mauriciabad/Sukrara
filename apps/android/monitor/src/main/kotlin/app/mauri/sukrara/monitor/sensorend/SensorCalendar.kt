@@ -20,9 +20,11 @@ import app.mauri.sukrara.core.data.settings.SchemaSettings
 import app.mauri.sukrara.core.model.storage.StateStore
 import app.mauri.sukrara.graph.Clock
 import app.mauri.sukrara.monitor.R
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
 import java.util.TimeZone
 
@@ -114,7 +116,7 @@ class SensorCalendar(
     ): Boolean =
         lock.withLock {
             if (!on || !granted()) return@withLock true
-            runCatching { write(target, sensor, nowMs) }.getOrElse {
+            runCatching { withContext(NonCancellable) { write(target, sensor, nowMs) } }.getOrElse {
                 Log.w(TAG, "write failed", it)
                 true
             }
@@ -157,7 +159,7 @@ class SensorCalendar(
     ): Boolean {
         val own = target == OWN
         val cal = if (own) ownCalendar(create = true) ?: return true else target.toLongOrNull() ?: return false
-        val owner = if (own) ACCOUNT else choices().firstOrNull { it.id == cal }?.owner ?: return false
+        val owner = if (own) ACCOUNT else ownerOf(cal) ?: return false
         val have = written(cal, own)
         val keep = HashMap(have.mapValues { it.value.first })
         val current = sensor?.takeIf { it.serial.isNotEmpty() }
@@ -202,6 +204,16 @@ class SensorCalendar(
         if (!own) record.update { it.copy(picked = keep) }
         return true
     }
+
+    /**
+     * The picked calendar's owner account; null only when the calendar row is gone (deleted, or its account removed). A
+     * calendar hidden in a calendar app is still there. A query that fails throws (the write is retried later).
+     */
+    private fun ownerOf(cal: Long): String? =
+        cr
+            .query(ContentUris.withAppendedId(Calendars.CONTENT_URI, cal), arrayOf(Calendars.OWNER_ACCOUNT), null, null, null)
+            ?.use { c -> if (c.moveToFirst()) c.getString(0).orEmpty() else null }
+            ?: error("calendar provider unavailable")
 
     private fun asSyncAdapter(uri: Uri): Uri =
         uri
@@ -324,12 +336,15 @@ class SensorCalendar(
             description: String,
         ) = EventSpec(key(serial), title, description, endEpoch * 1000, endEpoch * 1000 + DURATION_MS)
 
-        /** The written events ([existing]: key → start ms) to delete: other sensors' events still ahead (replaced early). */
+        /**
+         * The written events ([existing]: key → start ms) to delete: other sensors' events still ahead (replaced early,
+         * or forgotten: with no current sensor every event still ahead goes). Past events stay.
+         */
         fun stale(
             existing: Map<String, Long>,
             currentKey: String?,
             nowMs: Long,
-        ): Set<String> = if (currentKey == null) emptySet() else existing.filter { (k, start) -> k != currentKey && start > nowMs }.keys
+        ): Set<String> = existing.filter { (k, start) -> k != currentKey && start > nowMs }.keys
 
         /** An event whose moment has passed keeps its time; one still ahead follows the end (a sensor that fails early). */
         fun keepTime(

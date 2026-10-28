@@ -834,9 +834,11 @@ Sensor end › *Calendar* group `feature/settings/sensorend/SensorCalendarGroup.
   minutes from the sensor's end (calendar apps draw a block with its title), free, no reminder of its own, one accepted
   organizer attendee for the calendar's owner (no RSVP in Google Calendar). Keyed by serial, so restarts update it. A
   future event follows the end; once its time has passed it stays put. Past sensors' events stay (a history); a
-  replaced sensor's event still ahead is removed.
+  replaced or forgotten sensor's event still ahead is removed. A picked calendar that is gone: the events are removed
+  from it and go to Sukrara's own (a calendar only hidden in a calendar app keeps them).
 - Turning it off deletes Sukrara's calendar with its events, or Sukrara's events in the picked calendar.
-- Only the wearer's phone writes; followers never do.
+- Only the wearer's phone writes; followers never do. A phone that stops being the wearer removes what it wrote and
+  turns the setting off (the group is hidden on a follower).
 
 **States and exits**: *Off* → switch on → Android's permission dialog → *Allow* (on, the event appears) / *Don't
 allow* (off, says why; switch again to ask again) / refused for good (switch opens Android's app page; back → switch

@@ -8,13 +8,10 @@ import android.graphics.Canvas
 import android.graphics.Paint
 import android.graphics.RectF
 import androidx.core.graphics.ColorUtils
-import app.mauri.sukrara.core.model.GlucoseState
-import app.mauri.sukrara.core.model.SensorState
 import app.mauri.sukrara.graph.stats.Bands
 import app.mauri.sukrara.graph.stats.GlucoseMetrics
 import app.mauri.sukrara.graph.stats.GlucosePoint
 import app.mauri.sukrara.graph.stats.GlucoseStats
-import app.mauri.sukrara.graph.stats.toPoint
 import kotlin.math.min
 
 /**
@@ -212,38 +209,6 @@ object GlucoseCard {
         Freshness
             .look(latest?.sgv, latest?.t, latest?.rate, nowS, ended = sensor?.ended == true, warmup = sensor?.warmup)
             .also { f -> faceObserver?.invoke(surface, f) }
-
-    /**
-     * [face] for a hub [state]: its newest reading and the sensor states the face decides on (ended; warming up with
-     * its ready time where the number goes). The badge's label and life ring aren't used by the face.
-     */
-    fun face(
-        state: GlucoseState,
-        nowS: Long,
-        surface: CardSurface,
-    ): GlucoseLook {
-        val sensor =
-            when (val s = state.sensor) {
-                SensorState.Ended -> {
-                    SensorBadge.Look(label = "", life = 0f, ended = true)
-                }
-
-                is SensorState.WarmingUp -> {
-                    SensorBadge.Look(
-                        label = "",
-                        life = 0f,
-                        ended = false,
-                        warmup = Freshness.timeText(s.readyAt.epochSecond, nowS),
-                        readyAt = s.readyAt.epochSecond,
-                    )
-                }
-
-                else -> {
-                    null
-                }
-            }
-        return face(state.latest?.toPoint(), nowS, sensor, surface)
-    }
 
     /**
      * Where the sensor's time left goes on a card [st] (the WHOLE card, also when drawn in parts): in the chart's

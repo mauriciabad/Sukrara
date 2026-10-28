@@ -29,6 +29,7 @@ import app.mauri.sukrara.graph.GraphConfig
 import app.mauri.sukrara.graph.SensorBadge
 import app.mauri.sukrara.graph.ValueGlyphs
 import app.mauri.sukrara.graph.cardModelOf
+import app.mauri.sukrara.graph.face
 import app.mauri.sukrara.graph.notificationCardStyle
 import app.mauri.sukrara.graph.stats.Bands
 import app.mauri.sukrara.graph.stats.toPoint

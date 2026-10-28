@@ -71,7 +71,7 @@ The full catalog, with every rule and number, is [docs/FEATURES.md](docs/FEATURE
 - **Monitoring** in one foreground service that comes back by itself (boot, update, a 15 min health check); before the
   first reading every surface says *Not monitoring: no sensor yet* and no no-data alarm is armed.
 - **Treatments**: a quick dialog for rapid / long insulin, carbs and a note (from the notification, the Quick
-  Settings tile *Add treatment* or home), *now*, a time or *minutes ago*, a line saying which alerts it quiets and for
+  Settings tile *Add treatment*, which also shows your glucose, or home), *now*, a time or *minutes ago*, a line saying which alerts it quiets and for
   how long, and a short countdown when opened on the lock screen (a ring on *Cancel*, also in the *When?* picker, and
   one spoken *Closes in 10 seconds* with TalkBack).
 - **Home-screen widgets** (*Glucose*, *Glucose graph*, *Glucose and graph*) drawn by the same card renderer at the

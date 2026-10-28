@@ -94,12 +94,19 @@ class AppSensorCalendar(
     /** Runs for the app's life: every change of role, setting, calendar or sensor rewrites the event. */
     suspend fun keepInLine() {
         combine(role, settings.flow(SensorCalendar.On), settings.flow(SensorCalendar.Target), sensorInfo) { r, on, target, info ->
-            Triple(r == Role.Wearer && on, target, info?.let { SensorCalendar.Sensor(it.serial, it.startEpoch, it.endEpoch) })
-        }.collectLatest { (on, target, sensor) ->
-            if (!on) return@collectLatest
+            Triple(if (on) r else null, target, info?.let { SensorCalendar.Sensor(it.serial, it.startEpoch, it.endEpoch) })
+        }.collectLatest { (onAs, target, sensor) ->
+            if (onAs == null) return@collectLatest
+            if (onAs != Role.Wearer) {
+                // no longer the wearer (the page is hidden then): what was written goes and the setting turns off
+                if (calendar.granted()) withContext(io) { calendar.removeAll(target) }
+                settings.set(SensorCalendar.On, false)
+                return@collectLatest
+            }
             val ok = withContext(io) { calendar.sync(true, target, sensor, clock.now().toEpochMilli()) }
             // the picked calendar (or its account) is gone: back to Sukrara's own
             if (!ok) {
+                withContext(io) { calendar.removeAll(target) }
                 record.update { it.copy(targetName = "", picked = emptyMap()) }
                 settings.set(SensorCalendar.Target, SensorCalendar.OWN)
             }

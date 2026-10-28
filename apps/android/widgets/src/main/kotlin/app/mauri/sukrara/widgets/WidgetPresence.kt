@@ -71,10 +71,13 @@ class WidgetPresence(
                     Intent(activity, PinnedReceiver::class.java),
                     PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
                 )
+            // only the launcher's own "no" counts as refused (a request that failed, e.g. the screen was left
+            // meanwhile, keeps the Add button for the next try)
             val ok =
                 runCatching {
                     AppWidgetManager.getInstance(activity).requestPinAppWidget(ComponentName(activity, BIG.first()), extras, callback)
-                }.onFailure { Log.w(TAG, "pin: $it") }.getOrDefault(false)
+                }.onFailure { Log.w(TAG, "pin: $it") }
+                    .getOrNull() ?: return@launch
             if (!ok) {
                 refused = true
                 onRefused()

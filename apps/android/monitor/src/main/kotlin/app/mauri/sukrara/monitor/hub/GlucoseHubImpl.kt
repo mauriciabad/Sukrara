@@ -179,10 +179,13 @@ class GlucoseHubImpl(
         val valid = batch.mapNotNull { r -> GlucoseRange.normalise(r)?.takeUnless { it.t.isAfter(now + FUTURE_TOLERANCE) } }
         if (valid.isEmpty()) return
         readings.upsert(valid)
-        val fence = armAfter
-        if (fence != null && valid.none { it.t.isAfter(fence) }) return
         val startedAt = now.toEpochMilli()
-        record.update { if (it.startedAtEpochMs == null) it.copy(startedAtEpochMs = startedAt) else it }
+        record.update {
+            // the fence is read inside the update: a reset landing meanwhile still holds
+            val fence = armAfter
+            val arms = fence == null || valid.any { r -> r.t.isAfter(fence) }
+            if (it.startedAtEpochMs == null && arms) it.copy(startedAtEpochMs = startedAt) else it
+        }
     }
 
     private fun onSourceSensor(sensor: SensorState) {
