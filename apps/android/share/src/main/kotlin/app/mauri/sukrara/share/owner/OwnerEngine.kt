@@ -8,10 +8,13 @@ import app.mauri.sukrara.core.model.GlucoseHub
 import app.mauri.sukrara.core.model.Role
 import app.mauri.sukrara.core.model.storage.TreatmentRecord
 import app.mauri.sukrara.core.model.storage.TreatmentsRepository
+import app.mauri.sukrara.protocol.PublicKeyHex
 import app.mauri.sukrara.protocol.SignedEvent
 import app.mauri.sukrara.protocol.Wire
 import app.mauri.sukrara.protocol.event.AlertPayload
 import app.mauri.sukrara.protocol.event.Profile
+import app.mauri.sukrara.share.ble.NearbyServerCore
+import app.mauri.sukrara.share.ble.NearbyStatus
 import app.mauri.sukrara.share.owner.usecase.ApproveRequest
 import app.mauri.sukrara.share.owner.usecase.ControlEvents
 import app.mauri.sukrara.share.owner.usecase.CreateIdentity
@@ -115,11 +118,56 @@ class OwnerEngine(
         jobs.forEach { it.cancel() }
         jobs = emptyList()
         transport.stop()
+        nearby.stop()
+        runScope = null
+    }
+
+    @Volatile private var runScope: CoroutineScope? = null
+
+    /** The identity's public key while running (the backup's `d`, the inbox's `#p`). */
+    @Volatile private var identityPub: String? = null
+
+    /** What the Bluetooth server asks the engine (from its own thread: reads the current state snapshot). */
+    private val nearbyHost =
+        object : OwnerNearby.Host {
+            override fun sid(): String? = owner?.takeIf { it.conflict == null }?.sid
+
+            override fun followers(): Collection<PublicKeyHex> =
+                owner?.activeFollowers()?.mapNotNull { PublicKeyHex.parse(it.key) }.orEmpty()
+
+            override fun onEvent(event: SignedEvent, peer: String) {
+                runScope?.launch(serial) { locked { onNearby(event, peer) } }
+            }
+        }
+
+    /**
+     * An event a follower device wrote over Bluetooth, trusted only by its signatures like a relay event: gift wraps to
+     * the identity go to the inbox (requests, rekeys, history), a writer's entry to the log (its echo is published and
+     * the event forwarded to the other centrals, B§6).
+     */
+    private suspend fun onNearby(ev: SignedEvent, peer: String) {
+        val s = owner ?: return
+        when (ev.kind) {
+            Wire.KIND_WRAP -> {
+                // verified before it is marked seen: anyone in range could send a forged event with a real wrap's id
+                val ours = ev.tag("p") == identityPub && s.conflict == null && ctx.crypto.verify(ev)
+                if (ours && seen.markSeen(ev.id, now())) inbox(s, ev)
+            }
+
+            Wire.KIND_DATA -> {
+                treatments.receive(s, ev, now(), NEARBY_VIA).echo?.let {
+                    nearby.forward(ev, except = peer)
+                    send(it)
+                }
+            }
+        }
     }
 
     private suspend fun run(scope: CoroutineScope, s: OwnerState) {
         owner = s
+        runScope = scope
         val identity = s.identity(ctx.crypto).public.hex
+        identityPub = identity
         jobs =
             listOf(
                 scope.launch(serial) { transport.inbound.collect { locked { onInbound(it) } } },
@@ -144,6 +192,8 @@ class OwnerEngine(
         transport.subscribe(INBOX, listOf(RelayFilter(kinds = listOf(Wire.KIND_WRAP), p = listOf(identity))))
         transport.subscribe(OWN, listOf(RelayFilter(kinds = listOf(Wire.KIND_DATA), authors = listOf(identity), since = now() - Wire.DAY)))
         transport.start()
+        // before the first send: the Bluetooth backlog caches what goes out from here on
+        nearby.start(nearbyHost)
         s.pendingControl.mapNotNull { SignedEvent.parse(it.eventJson) }.forEach(::send)
         publish(readings.republish(s, now()))
         subscribeWriters(s)
@@ -316,7 +366,8 @@ class OwnerEngine(
         locked {
             val s = owner?.takeIf { it.conflict == null } ?: return@locked null
             val created = CreateInvite(ctx)(s, label, now())
-            apply(created.step)
+            // the invite wrap goes to the relays only (B§6: never over Bluetooth)
+            apply(created.step, overBluetooth = false)
             created.link.link
         }
 
@@ -363,6 +414,24 @@ class OwnerEngine(
             locked { publish(readings.republish(s, now())) }
         }
 
+    /**
+     * "Forget this device" (Settings › Sharing › Nearby devices): the follower is removed (its trust ends, like Remove)
+     * and its Bluetooth links drop. A device that connects again is no longer named or trusted.
+     */
+    suspend fun forget(follower: String) {
+        remove(follower)
+        nearby.forget(follower)
+    }
+
+    /** The Bluetooth server's state (Settings › Sharing). */
+    val nearbyStatus: StateFlow<NearbyStatus> get() = nearby.status
+
+    /** Bluetooth turned on or Nearby devices was allowed: the server looks again. */
+    fun refreshNearby() = nearby.refresh()
+
+    /** Connected follower devices named by their identity proof. */
+    val nearbyLinks: StateFlow<List<NearbyServerCore.Named>> get() = nearby.links
+
     /** "I turned it off — retry". */
     suspend fun retryConflict() = locked { owner?.let { apply(conflicts.retry(it, now())) } }
 
@@ -381,10 +450,10 @@ class OwnerEngine(
     // ---------------------------------------------------------------------------------------------- plumbing
 
     /** Persist first, then publish: a crash in between re-sends the saved control events on the next start. */
-    private suspend fun apply(step: Step) {
+    private suspend fun apply(step: Step, overBluetooth: Boolean = true) {
         val before = owner
         commit(step.state)
-        step.publish.forEach(::send)
+        step.publish.forEach { send(it, overBluetooth) }
         // a new epoch (rotation, conflict retry): the log and the settings again, encrypted to the new read key
         if (before != null && before.current.n != step.state.current.n) republishShared()
         if (before != null && before.activeWriters() != step.state.activeWriters()) subscribeWriters(step.state)
@@ -399,13 +468,17 @@ class OwnerEngine(
 
     private fun publish(events: List<SignedEvent>) = events.forEach(::send)
 
-    private fun send(ev: SignedEvent) {
+    /** To the relays and, unless it's the owner backup (B§6) or [overBluetooth] is false, to nearby followers. */
+    private fun send(ev: SignedEvent, overBluetooth: Boolean = true) {
         transport.publish(ev)
-        nearby.publish(ev)
+        val identity = identityPub
+        val backup = ev.kind == Wire.KIND_DATA && (identity == null || ev.tag("d") == Wire.backupD(PublicKeyHex(identity)))
+        if (overBluetooth && !backup) nearby.publish(ev)
     }
 
     private fun render() {
         val s = owner ?: return
+        nearby.refresh()
         val relays = transport.status.value
         _state.value = s.conflict?.let {
             OwnerShareState.AnotherAppSharingAsYou(it.reason, IdentityConflictDetector.followersReceiving(it.reason), relays)
@@ -427,6 +500,7 @@ class OwnerEngine(
         const val INBOX = "inbox"
         const val OWN = "own"
         const val WRITERS = "writers"
+        const val NEARBY_VIA = "ble"
         const val SETTINGS_DEBOUNCE_MS = 3_000L
         const val CONTROL_REFRESH = 6 * Wire.DAY
         const val HISTORY_MIN_GAP = 600L

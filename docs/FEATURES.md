@@ -240,8 +240,9 @@ System back on the first step leaves setup (home shows "Not monitoring: setup in
   and setup opens). A follow that ended says why with *Join with a new link*.
 - **Invite links** opened on a phone with no role or a follower that follows no one open setup's join step with the link;
   on a wearer phone (or one already following) they open *This phone shares its own readings* with *Copy link*.
+- **Bluetooth**: the Following page's *Bluetooth:* line and its exits (see *Sharing over Bluetooth*).
 - Not included yet: scanning the invite QR code (camera / picture), the *Settings from* page (the follower's alert
-  runtime uses the wearer's mirrored alert settings as `AlertMirror` decides), Bluetooth from the wearer's phone.
+  runtime uses the wearer's mirrored alert settings as `AlertMirror` decides), joining with *Find phones nearby*.
 
 **States and exits**: Role step → *I follow someone* → join step (Back → role step). Join step: typing (Join, Back),
 looking up (spinner, the fields locked), failed (the reason; edit the link to clear it, Join again), waiting (code,
@@ -843,15 +844,56 @@ past the other app's event; blocks again if it's still running) or *Help*.
 
 ## Sharing over Bluetooth
 
-- Settings → Share with people (wearer): *How readings travel* has *Over the internet* (a globe icon; *Encrypted, through Nostr relays*), the upload interval and *Over Bluetooth nearby* (*2 connected*). While Bluetooth sharing is on, *Nearby devices* lists the follower devices connected now (*Connected*, oldest link first; the title is the follower's name and the device type, *Sam · Mac* / *Robin · Phone*, with their picture) and then the followers paired with *Pair nearby* that aren't (*Disconnected*), like Settings' Connected devices (`owner/NearbyDevices`, `NearbyDevicesTest`). A connection is named by the identity proof in its `HELLO` (poc/spec/ogs-ble.md B§5/B§6, 2026-10-21): every follower that knows `sid` (Android and Mac) signs a kind-21080 event with content `H("cgm2:ble-id:"+sid+":"+nonce+":"+dev)` with its follower key, and the wearer's phone checks it against each roster follower and device type (`Ble.identify`, plain-Kotlin BIP-340 `Schnorr.verify`; `BleTest`, Mac `-bleselftest`, vector `ble.hello_id`). An unnamed link is not listed (no made-up name); a replayed `HELLO` names nothing. Strangers learn nothing new: without `sid` the signature can't be tested against any key. Which followers paired nearby is kept on this phone only (`OwnerState.nearbyPaired`, not in the backup). Removed followers are folded under a *2 Removed* pill (tap: their group and *See less*).
-- **Forget this device** (round f33; Android's Bluetooth settings call it *Forget*): a row in Nearby devices opens the device's dialog (its picture, *Sam · Mac*, *Connected* / *Disconnected*, *Following since …*) with *Forget* and *Done*. *Forget* asks *Forget this device?* · *Sam · Mac will stop getting your glucose. To share with it again, use Pair nearby.* (es *¿Olvidar este dispositivo?*, *Olvidar dispositivo*) with *Forget device* (filled) and *Cancel*. Forgetting (`OwnerEngine.forget`, `NearbyDevices.forget`) clears everything this phone keeps for that device and nothing else: its trust (the follower is revoked, so it gets the revoked notice and the read key rotates as with Remove; its record folds under *Removed*), its nearby pairing (`nearbyPaired`), its *Can add entries* and any request it left waiting; its Bluetooth link is dropped (`BleOwner.disconnect`), and if it connects again its identity proof names no current follower, so it is neither listed nor trusted. Pairing it again with *Pair nearby* is a fresh approval (`NearbyDevices.approved`, the same path as a first pairing; `NearbyDevicesTest`, `NearbyForgetGallery`). Mac: none (the Mac is a follower and lists no nearby devices).
-- The wearer's phone advertises the Sukrara service with **no name** (no scan response; investigation 24, P12). *Find phones nearby* lists each phone as *Phone nearby* / *Teléfono cercano* with its address and signal; the wearer's name and picture come after *Ask*, from the pairing INFO.
-- `HELLO` carries a fresh random nonce; the phone's `INFO` answers `m = H("cgm2:ble:"+sid+":"+nonce)`, and only while *Pair nearby* is open also the identity, relays and the invite with the profile. A stranger in range no longer learns the wearer's identity key.
-- A follower (Android and Mac) writes nothing to a phone (requests, rekeys, history requests, treatments) until its `INFO` proves our stream (`m` over one of its last 4 nonces, or the identity while pairing). Another wearer's phone is left; Android avoids it for 10 min and keeps scanning for ours. A pending request with pairing closed: receive only. Events are verified as before, whatever the link.
-- Limits: reassembly drops a message idle for 30 s or over 256 KiB, at most 16 open at once (Android and Mac). The wearer's phone takes at most 8 followers at once, checks each write before answering (a malformed frame or more than 256 KiB a minute → error and disconnect; more than 30 messages a minute → dropped), sends one backlog per follower per 5 s (a sooner `HELLO` is answered when due), and never re-sends an expired event from its backlog.
-- Mac follower: gift wraps (access request, rekey, history request) carry an absolute expiration (7 d; history 1 d); a key delivery naming another stream id is rejected; a chunk whose `c`/`d` tags don't match its hour is rejected; a rekey request goes out only for an unknown key on an event from the wearer's identity or device.
+- **Wearer** (Android, Settings › Sharing): a *Bluetooth* group with *Share over Bluetooth* (on by default; schema
+  `sharing.bleFollowers`). Its line says what holds: *2 devices connected nearby*, *On · no follower device nearby*,
+  *On once someone follows you* (the phone advertises only while it has a follower, B§3), *Bluetooth is off* (row *Turn
+  on Bluetooth* → Android's Bluetooth settings), *Needs the Nearby devices permission* (row *Allow Nearby devices* →
+  the permission dialog for Bluetooth advertise + connect), *This phone can't share over Bluetooth*, or *Off. Followers
+  get readings over the internet.* The page looks again on resume and after the permission answer.
+- While the switch is on, *Nearby devices* lists the follower devices connected now (*Bea · phone* / *Sam · Mac*, their
+  picture, *Connected over Bluetooth*). A connection is named only by the identity proof in its `HELLO`
+  (poc/spec/ogs-ble.md B§5/B§6): the follower signs a kind-21080 event with content `H("cgm2:ble-id:"+sid+":"+nonce+":"+dev)`
+  with its follower key, and the wearer's phone checks it against each active follower and device type
+  (`HelloProof.identify`; vector `ble.hello_id`). An unnamed link is not listed (no made-up name); a replayed `HELLO`
+  names nothing. A row opens the follower's dialog; *Remove* there also drops that follower's Bluetooth links
+  (`OwnerEngine.forget`), and a device that connects again is neither named nor trusted.
+- The wearer's phone (`AndroidNearbyServer`, protocol in `NearbyServerCore`) advertises the Sukrara service connectable
+  with **no name** (no scan response), opens a new GATT server after Bluetooth comes back, and stops with a visible state
+  when the permission is revoked (never a crash). It pushes every event it publishes except the owner backup and the
+  invite wrap, which stay on the relays; live and alert pushes go ahead of a long backlog. Events a follower device writes
+  are trusted only by their signatures: gift wraps to the identity are verified before they count as seen (requests,
+  rekeys, history requests), a writer's entry goes through the writer rules and is forwarded to the other devices.
+- **Follower** (Android, `AndroidNearbyCentral` + `NearbyLink`; Mac `NearbyCentral`): while following, Bluetooth runs
+  beside the relays; copies are one reading (deduplicated by event id, one reading source). The Following page says
+  *Bluetooth: connected to their phone* only once the phone's `INFO` proved it's this wearer's; otherwise *looking for
+  their phone*, *Bluetooth is off* (*Turn on Bluetooth*), *Needs the Nearby devices permission* (*Allow Nearby devices*:
+  scan + connect, `neverForLocation`) or *not connected* (monitoring stopped).
+- `HELLO` carries a fresh random nonce; the phone's `INFO` answers `m = H("cgm2:ble:"+sid+":"+nonce)`. A follower writes
+  nothing to a phone (requests, rekeys, history requests, treatments) until its `INFO` proves our stream (`m` over one
+  of its last 4 nonces). Another wearer's phone is left for 60 s and the scan goes on. A pending request: receive only.
+  After a new key the follower sends `HELLO` again with its proof. Entries still pending go to the phone as soon as it
+  proved it's the wearer's; one counts as delivered on a relay's OK or the wearer's echo (a bare write response doesn't).
+- Reliability (Android follower): scan by service UUID (starts spaced: at most 4 per 30 s; restarted every 25 min), one
+  connection at a time with a 25 s connect timeout (that phone skipped 60 s), MTU 517, a 10 s timeout on every GATT
+  step, `HELLO` again after 3 min without data, link dropped after 5 min, rescan after 3 s doubling to 1 min while
+  connections fail, a new `BluetoothGatt` per connection.
+- Limits: reassembly drops a message idle for 30 s or over 256 KiB, at most 16 open at once (Android and Mac). The
+  wearer's phone takes at most 8 follower devices at once (a connection counts only once it writes to the service), checks
+  each write before answering (a malformed frame, a prepared write or more than 256 KiB a minute → error and disconnect;
+  more than 30 messages a minute → dropped), sends one backlog per device per 5 s (a sooner `HELLO` is answered when due),
+  and never re-sends an expired event from its backlog.
+- Not included yet: *Pair nearby* / *Find phones nearby* (joining over Bluetooth without a link), the "· 1 nearby" sub
+  text in the live notification.
+- Mac follower: gift wraps (access request, rekey, history request) carry an absolute expiration (7 d; history 1 d); a key
+  delivery naming another stream id is rejected; a chunk whose `c`/`d` tags don't match its hour is rejected; a rekey
+  request goes out only for an unknown key on an event from the wearer's identity or device.
 
-**States and exits**: a follower *Connected* / *Disconnected* in Nearby devices → it moves between the two by itself; a device's row opens its dialog (*Done* closes it); *Forget* → *Forget this device?* → *Forget device* forgets it (*Cancel* or back keeps it), and *Pair nearby* pairs it again from scratch; a paired follower also leaves the list when it's removed from Followers; *Removed* followers fold under the *N Removed* pill and *See less* folds them again.
+**States and exits**: wearer switch on/off (the switch itself); Bluetooth off → *Turn on Bluetooth* (Android settings,
+back returns and the page looks again); permission missing → *Allow Nearby devices* (allow → serving; deny → the row
+stays, and its next tap opens the app's Android settings page); no follower yet → serves once someone follows; unsupported → nothing to do, sharing goes on over the internet. A
+device in *Nearby devices* → its follower dialog (*Close*, *Remove* → confirm → removed and disconnected). Follower:
+the Bluetooth line follows the link by itself; Bluetooth off → *Turn on Bluetooth*; permission missing → *Allow Nearby
+devices*; *Stop following* ends Bluetooth with the relays. Every state works with TalkBack (rows are buttons with text).
 
 ## Share with apps on this phone (investigation 22)
 
@@ -1014,6 +1056,6 @@ page.
 - Android settings pages: settings export / import / reset, settings search, the follower's *Settings from* page, relay / epoch / statistics / log pages, battery-lab knobs, mmol/L in the settings pages (thresholds and ranges are shown and typed in mg/dL; schema `general.unit` is set elsewhere),, the ▶ beside each sound in the Sound dialog (the alert's page has *Play sound*) and icons on every row. Reason: only what daily use needs; the defaults are the owner's own values.
 - Mac: Juggluco over Wi-Fi (LAN source and subnet discovery) and the Nostr v1 `cgmnostr:` follow link (v1 links carried plaintext secrets and had no UI). Follow the wearer with a protocol v2 invite instead.
 - Sensors: the untested-sensor banner and its *Send feedback* (the families themselves are read, see *Sensor life*); the Libre 3 experiment preferences (minimal subscription set, connection priority, screen-off skip). Reason: no hardware to test them, the owner uses a Libre 3.
-- Planned (issues filed): scanning an invite's QR code on Android and the follower's *Settings from* page, the glucose report card, the Tidepool upload, the phone's Nightscout read API, Health Connect and broadcasts, the rest of insulin pens (see its section), the calendar event, Bluetooth sharing from the phone. The sections above that describe them are the behaviour to build. Reason: what daily use needs comes first.
+- Planned (issues filed): scanning an invite's QR code on Android and the follower's *Settings from* page, the glucose report card, the Tidepool upload, the phone's Nightscout read API, Health Connect and broadcasts, the rest of insulin pens (see its section), the calendar event, nearby pairing over Bluetooth. The sections above that describe them are the behaviour to build. Reason: what daily use needs comes first.
 
 **States and exits**: none (these features aren't in the app).

@@ -291,7 +291,7 @@ class AppGraph(
             setupStore = data.typedStore("setup", SetupRecord.serializer(), SetupRecord(), whenCorrupt = SetupRecord()),
             roles = AppRoles(role),
             hub = monitor.hub,
-            sharing = EngineOwnerSharing(shareOwner.ownerEngine, scope) { clock.now().epochSecond },
+            sharing = EngineOwnerSharing(shareOwner.ownerEngine, scope, data.settings) { clock.now().epochSecond },
             alertSettings = AppAlertSettings(alerts.store),
             settings = data.settings,
             resetAlerts = alerts::reset,
