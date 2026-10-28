@@ -6,7 +6,11 @@ package app.mauri.sukrara.share.owner
 import app.mauri.sukrara.protocol.SignedEvent
 import app.mauri.sukrara.protocol.event.Profile
 import app.mauri.sukrara.protocol.owner.IdentityCheck
+import app.mauri.sukrara.share.ble.NearbyServerCore
+import app.mauri.sukrara.share.ble.NearbyStatus
 import app.mauri.sukrara.share.transport.RelayStatus
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 
 /** What the wearer's sharing shows (home banner, Settings › Sharing). Every state has a way out (FEATURES.md). */
 sealed interface OwnerShareState {
@@ -66,12 +70,52 @@ enum class ApproveResult {
     NeedsCode,
 }
 
-/** Bluetooth sharing with nearby followers. Until then a no-op. */
+/**
+ * Bluetooth sharing with nearby followers: the GATT server (`AndroidNearbyServer`), [None] where there is none (tests).
+ * It serves exactly while the engine runs ([start] / [stop]) and only events the engine hands it ([publish]).
+ */
 interface OwnerNearby {
+    /** What Settings › Sharing shows for the Bluetooth row. */
+    val status: StateFlow<NearbyStatus>
+
+    /** Connected follower devices whose identity proof named an active follower, oldest first. */
+    val links: StateFlow<List<NearbyServerCore.Named>>
+
+    fun start(host: Host)
+
+    fun stop()
+
+    /** The followers changed (advertise only while there is one, B§3). */
+    fun refresh()
+
     fun publish(event: SignedEvent)
 
+    /** An event a central sent that the engine accepted (a writer's entry): to the other centrals. */
+    fun forward(event: SignedEvent, except: String)
+
+    /** "Forget this device": drops the links [follower]'s proof named. */
+    fun forget(follower: String)
+
+    /** The engine side: the stream id and followers for INFO and the identity proof, and incoming events. */
+    interface Host : NearbyServerCore.Host {
+        fun onEvent(event: SignedEvent, peer: String)
+    }
+
     object None : OwnerNearby {
+        override val status: StateFlow<NearbyStatus> = MutableStateFlow(NearbyStatus.Stopped)
+        override val links: StateFlow<List<NearbyServerCore.Named>> = MutableStateFlow(emptyList())
+
+        override fun start(host: Host) = Unit
+
+        override fun stop() = Unit
+
+        override fun refresh() = Unit
+
         override fun publish(event: SignedEvent) = Unit
+
+        override fun forward(event: SignedEvent, except: String) = Unit
+
+        override fun forget(follower: String) = Unit
     }
 }
 
