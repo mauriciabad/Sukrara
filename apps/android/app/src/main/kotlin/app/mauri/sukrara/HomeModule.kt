@@ -31,6 +31,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
@@ -67,6 +68,8 @@ class HomeModule(
     private val clinicUploadSet: () -> Flow<Boolean?> = { emptyFlow() },
     /** What the clinic upload has of the entries (the list's cloud marks); a function: integrations start later. */
     private val clinicMarks: () -> Flow<UploadMarks?> = { emptyFlow() },
+    /** The family of the sensor this phone reads directly while its support is untested (the feedback card). */
+    override val untestedSensor: Flow<String?> = flowOf(null),
 ) : HomeDeps {
     override val treatments: TreatmentsRepository get() = data.treatments
 

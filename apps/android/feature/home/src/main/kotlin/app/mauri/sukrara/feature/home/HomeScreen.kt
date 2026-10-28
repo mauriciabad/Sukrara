@@ -373,6 +373,7 @@ private fun GlucoseSection(
                             state.banner == BannerKind.MonitoringStopped
                     }
                 ReasonRow(compact, state.now) { callbacks.onAction(it) }
+                UntestedSensorCard(state.untestedSensor)
                 SensorLine(state) { callbacks.onAction(HomeAction.PairSensor) }
             }
         }

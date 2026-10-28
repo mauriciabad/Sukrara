@@ -148,6 +148,17 @@
     <string name="st_sensor_current">Current sensor</string>
     <string name="st_sensor_status">Status</string>
     <string name="st_sensor_serial">Serial number</string>
+    <string name="st_sensor_family">Sensor</string>
+    <string name="st_sensor_family_untested">%1$s · untested</string>
+    <string name="st_sensor_status_searching">Looking for the sensor: keep the phone near it</string>
+    <string name="st_sensor_status_no_value_calibration">Connected, no value: the sensor asks for a calibration. Do it in the Dexcom app or receiver.</string>
+    <string name="st_sensor_status_no_value_temporary">Connected, no value for now: a temporary sensor issue. Values come back by themselves.</string>
+    <string name="st_sensor_status_no_value_error">Connected, no value: the sensor reports an error. If it lasts, replace the sensor.</string>
+    <string name="st_sensor_status_no_value_missing">Connected: the sensor sent no value. Waiting for the next one.</string>
+    <plurals name="st_sensor_skipped_old">
+        <item quantity="one">An older %2$s nearby has ended: Sukrara skips it and looks for your new one.</item>
+        <item quantity="other">%1$d older %2$s sensors nearby have ended: Sukrara skips them and looks for your new one.</item>
+    </plurals>
     <string name="st_sensor_started">Started</string>
     <string name="st_sensor_ends">Ends</string>
     <string name="st_sensor_ends_in">%1$s · in %2$s</string>

@@ -110,6 +110,12 @@ interface HomeDeps {
 
     /** What the clinic upload has of the entries (the list's cloud marks); null = its entries upload is off. */
     val uploadMarks: Flow<UploadMarks?> get() = flowOf(null)
+
+    /**
+     * The family name of the sensor this phone reads directly while Sukrara's support for it is untested (never
+     * confirmed on a real sensor); null otherwise. Home asks the wearer for feedback while it is set.
+     */
+    val untestedSensor: Flow<String?> get() = flowOf(null)
 }
 
 /** The wearer's own row on home: picture, name (blank = not set yet) and how many follow. */
@@ -144,6 +150,8 @@ data class HomeUiState(
     val marks: Map<String, UploadMark> = emptyMap(),
     /** The just-deleted entry was in the clinic upload: the snackbar says it is removed there too. */
     val undoInClinic: Boolean = false,
+    /** The wearer's sensor family whose support is untested: the feedback card under the card (wearer only). */
+    val untestedSensor: String? = null,
 ) {
     val mutedUntil: Instant? get() = glucose.alerts.mutedUntil?.takeIf { it > now }
 }
@@ -183,7 +191,7 @@ class HomeViewModel(
             combine(deps.glucose, deps.storedHistory) { g, stored -> Live(g, ReadingHistory.join(stored, g.recent)) },
             minutes,
             deps.readiness,
-            combine(deps.environment, deps.profile, uploadMarks, ::Triple),
+            combine(combine(deps.environment, deps.untestedSensor, ::Pair), deps.profile, uploadMarks, ::Triple),
             combine(
                 deps.bannerMemory.data,
                 recentTreatments,
@@ -192,7 +200,8 @@ class HomeViewModel(
                 deps.graphConfig,
                 ::Extras,
             ),
-        ) { (glucose, history), tick, readiness, (env, profile, marks), (memory, recent, undone, problems, config) ->
+        ) { (glucose, history), tick, readiness, (envUntested, profile, marks), (memory, recent, undone, problems, config) ->
+            val (env, untested) = envUntested
             val (pendingUndo, inClinic) = undone
             val now = maxOf(tick, deps.clock.now())
             val chart = recent.treatments.sortedByDescending { it.at }
@@ -216,6 +225,7 @@ class HomeViewModel(
                 profile = profile?.takeIf { glucose.role != Role.Follower },
                 marks = marks?.let { m -> listed.mapNotNull { t -> m.mark(t, now)?.let { t.id to it } }.toMap() }.orEmpty(),
                 undoInClinic = pendingUndo != null && inClinic,
+                untestedSensor = untested?.takeIf { glucose.role == Role.Wearer },
             )
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), initial())
 

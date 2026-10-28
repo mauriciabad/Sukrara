@@ -59,6 +59,7 @@ import app.mauri.sukrara.sensor.ble.SensorGlucose
 import app.mauri.sukrara.sensor.pairing.PairingLoad
 import app.mauri.sukrara.sensor.pairing.ReceiverIdState
 import app.mauri.sukrara.sensor.source.SensorSourceKind
+import app.mauri.sukrara.sensor.source.SensorStatus
 import app.mauri.sukrara.share.FollowerModule
 import app.mauri.sukrara.share.ShareOwnerModule
 import app.mauri.sukrara.share.follower.FollowState
@@ -363,6 +364,10 @@ class AppGraph(
             penTapsBlocked = { pens.tapsBlockedWhileOn() },
             clinicUploadSet = { integrations.clinicUploadSet },
             clinicMarks = { integrations.libreView.entryMarks.map { m -> m?.let(::LibreViewMarks) } },
+            untestedSensor =
+                sensor.source.detail
+                    .map { d -> (d as? SensorStatus.Direct)?.profile?.takeUnless { it.verified }?.label }
+                    .distinctUntilChanged(),
         )
     }
 

@@ -301,7 +301,7 @@ class SourceManager internal constructor(
             when (status) {
                 LinkStatus.PermissionMissing -> publish(SensorStatus.BluetoothPermissionMissing)
                 LinkStatus.SensorEnded -> publish(SensorStatus.Ended)
-                else -> publish(SensorStatus.Direct(pairing.profile, label, key, status))
+                else -> publish(SensorStatus.Direct(pairing.profile, label, key, status, pairing.skipAddresses.size))
             }
             if (status is LinkStatus.Reconnecting || status == LinkStatus.WaitingForSensor || status is LinkStatus.NoValue) interrupted()
             // kept until a new pairing (which scans again: the scan may have picked the wrong device)

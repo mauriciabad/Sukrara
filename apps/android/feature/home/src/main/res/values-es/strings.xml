@@ -81,6 +81,8 @@
     <string name="banner_clinic_action">Configurar</string>
 
     <string name="home_unmute">Reactivar</string>
+    <string name="home_untested_sensor">La compatibilidad con %1$s no está probada. Cuéntanos cómo funciona.</string>
+    <string name="home_send_feedback">Enviar comentarios</string>
     <string name="home_sensor_ends">El sensor termina %1$s</string>
 
     <string name="home_following">Siguiendo a %1$s</string>
