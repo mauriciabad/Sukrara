@@ -20,6 +20,7 @@ import app.mauri.sukrara.core.model.Treatment
 import app.mauri.sukrara.feature.sensor.SensorUiModule
 import app.mauri.sukrara.feature.settings.AlertPlayback
 import app.mauri.sukrara.feature.settings.AlertSettingsStore
+import app.mauri.sukrara.feature.settings.AppOutput
 import app.mauri.sukrara.feature.settings.SettingsModule
 import app.mauri.sukrara.feature.sharing.EngineOwnerSharing
 import app.mauri.sukrara.feature.sharing.SetupModule
@@ -30,6 +31,9 @@ import app.mauri.sukrara.feature.sharing.setup.label
 import app.mauri.sukrara.feature.treatments.TreatmentsModule
 import app.mauri.sukrara.graph.GraphConfig
 import app.mauri.sukrara.graph.GraphSettings
+import app.mauri.sukrara.integrations.CurrentSensor
+import app.mauri.sukrara.integrations.IntegrationsModule
+import app.mauri.sukrara.integrations.nightscout.NsState
 import app.mauri.sukrara.monitor.MonitorModule
 import app.mauri.sukrara.monitor.alerts.AlertRecord
 import app.mauri.sukrara.monitor.alerts.AlertsModule
@@ -74,6 +78,7 @@ import kotlinx.coroutines.flow.shareIn
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.time.Duration
+import java.time.Instant
 import app.mauri.sukrara.graph.Clock as ClockText
 
 /**
@@ -217,6 +222,33 @@ class AppGraph(
                         alarm: Boolean,
                     ) = alerts.tryOut.channelId(kind, alarm)
                 },
+            appsShared =
+                integrations.summary.map { s ->
+                    setOfNotNull(AppOutput.NightscoutUpload.takeIf { s.nightscoutUpload }, AppOutput.XdripServer.takeIf { s.xdripServer })
+                },
+        )
+    }
+
+    /** Uploads, the local xDrip+ server and export (each off until switched on in Settings › Share with apps). */
+    val integrations by lazy {
+        IntegrationsModule(
+            context = app,
+            settings = data.settings,
+            secure = data.secureStore,
+            // losing it only costs one comparison with the site (nothing is sent twice: the site is checked first)
+            nightscoutState = data.typedStore("nightscout-upload", NsState.serializer(), NsState(), whenCorrupt = NsState()),
+            readings = data.readings,
+            treatments = data.treatments,
+            sensor =
+                sensor.source.sensorInfo.map { info ->
+                    info?.let { CurrentSensor(it.serial, Instant.ofEpochSecond(it.startEpoch), Instant.ofEpochSecond(it.endEpoch)) }
+                },
+            role = role.data.map { it.role },
+            jugglucoIsSource = data.settings.flow(SensorSource).map { SensorSourceKind.fromId(it) == SensorSourceKind.Juggluco },
+            http = data.http,
+            clock = clock,
+            dispatchers = dispatchers,
+            log = { data.diagLog.log("integrations", it) },
         )
     }
 
@@ -373,6 +405,10 @@ class AppGraph(
             step("role") { role.heal() }
             step("monitor") { monitor.ready() }
             step("widgets") { widgets.start() }
+            step("integrations") {
+                integrations.load()
+                integrations.start(scope)
+            }
             // sharing runs while this phone is the wearer (needs an identity: created / restored in Settings › Sharing)
             step("share") { scope.launch { shareOwner.ownerEngine.followRole(role.data.map { it.role }, scope) } }
             step("follower") {

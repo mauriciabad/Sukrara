@@ -119,6 +119,10 @@
     <string name="st_sensor_summary">Sensor actual, origen de las lecturas, LibreView</string>
     <string name="st_sharing">Compartir</string>
     <string name="st_sharing_summary">Seguidores y dispositivos</string>
+    <string name="st_apps">Compartir con apps</string>
+    <string name="st_apps_summary">Nightscout, relojes Garmin, un archivo para tu clínica</string>
+    <string name="st_apps_nightscout">Subir a Nightscout</string>
+    <string name="st_apps_xdrip">Servidor xDrip+</string>
     <string name="st_about_title">Acerca de</string>
     <string name="st_about_version">Versión</string>
     <string name="st_update_checking">Buscando actualizaciones…</string>

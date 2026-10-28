@@ -391,6 +391,24 @@ TTLs, JSON field names and number forms, invite link `https://sukrara.mauri.app/
   serial dispatcher, persists before publishing and exposes `StateFlow<OwnerShareState>`; `ShareOwnerModule` (A4)
   builds it for `AppGraph`.
 
+## Android integrations (`apps/android/integrations`)
+
+`IntegrationsModule` (built by `AppGraph.integrations`; `load()` + `start(scope)` in `ready`) owns everything that
+sends the person's data to other apps; its pages (`AppsPage`, `NightscoutPage`, `ExportPage`) are content the app wraps
+in the settings page frame (`AppsRoute`, `NightscoutUploadRoute`, `ExportRoute`).
+- `upload/` — the shared upload design: no outbox (the readings / treatments stores are the queue; each uploader keeps
+  what the service has), `UploadLoop` (one cycle per kick or 5 min, on IO, never in the reading path), `UploadBackoff`,
+  `SentRanges`, one `UploadStatus` for every page.
+- `nightscout/` — `NsSite` (https, or http to loopback only), `NsClient` (the app's OkHttp without redirects; v1 / v3;
+  token → JWT), `NsDocs`, `NightscoutQueue` (pure plan + reconcile: covered minutes, another-uploader pause),
+  `NightscoutUploader` (settings JSON `apps.nightscoutUpload`, credential only in SecureStore `nightscout`, state in the
+  typed store `nightscout-upload`, device `Sukrara-<6 hex>` per site).
+- `localserver/` — `LocalHttpServer` (127.0.0.1, fixed pool, bounded head and deadline), `XdripEndpoint` (Juggluco's
+  JSON, pure), `XdripServer` (follows `apps.xdrip` and the sensor source; readings from the store, "last asked" in
+  memory).
+- `export/` — `GlucoseCsv` (`contracts/export`), `Exporter` (period → stores), `ExportViewModel` (SAF save, FileProvider
+  `${applicationId}.export` share from `cache/export/`).
+
 ## Contracts and tests
 
 Every app's tests read `contracts/` (Android: the `sukrara.contracts` system property from the convention plugin;

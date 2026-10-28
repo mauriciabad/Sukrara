@@ -60,11 +60,15 @@ import app.mauri.sukrara.feature.sharing.share.ProfilePage
 import app.mauri.sukrara.feature.sharing.share.ShareScreen
 import app.mauri.sukrara.feature.sharing.share.SharingScreen
 import app.mauri.sukrara.feature.sharing.share.SharingViewModel
+import app.mauri.sukrara.integrations.AppsPage
+import app.mauri.sukrara.integrations.export.ExportPage
+import app.mauri.sukrara.integrations.nightscout.NightscoutPage
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.serialization.Serializable
 import app.mauri.sukrara.feature.settings.R as SettingsR
 import app.mauri.sukrara.feature.sharing.R as SharingR
+import app.mauri.sukrara.integrations.R as IntegrationsR
 
 /** The app's screens. Each is a key on the back stack (Navigation 3); predictive back comes with NavDisplay. */
 @Serializable
@@ -102,6 +106,18 @@ data class SetupStepRoute(
 
 @Serializable
 data object DataProblemsRoute : NavKey
+
+/** Settings › Share with apps (Nightscout upload, the xDrip+ server, Export data). */
+@Serializable
+data object AppsRoute : NavKey
+
+/** Settings › Share with apps › Nightscout upload. */
+@Serializable
+data object NightscoutUploadRoute : NavKey
+
+/** Settings › Share with apps › Export data. */
+@Serializable
+data object ExportRoute : NavKey
 
 /** One settings page ([SettingsRoute]) on the back stack: [page] names it, [kind] is an alert kind page's contract id. */
 @Serializable
@@ -333,9 +349,34 @@ fun SukraraNavigation(
                             openSensor = { backStack.push(SensorSettingsKey) },
                             // Settings › Sharing: share / QR, followers, requests (no identity yet: its Set up opens setup)
                             openSharing = { backStack.push(SharingRoute) },
+                            openApps = { backStack.push(AppsRoute) },
                             // the Ranges and Graph pages show home's own panel, redrawn as each setting changes
                             preview = { PanelPreview(viewModel(factory = HomeViewModel.factory(graph.home))) },
                         )
+                    }
+                    entry<AppsRoute> {
+                        SettingsPage(stringResource(IntegrationsR.string.in_apps_title), { backStack.pop(AppsRoute) }) {
+                            AppsPage(
+                                viewModel = viewModel(factory = graph.integrations.appsViewModels),
+                                now = graph.clock::now,
+                                openNightscout = { backStack.push(NightscoutUploadRoute) },
+                                openExport = { backStack.push(ExportRoute) },
+                            )
+                        }
+                    }
+                    entry<NightscoutUploadRoute> {
+                        val role by graph.role.data.collectAsStateWithLifecycle(null)
+                        SettingsPage(stringResource(IntegrationsR.string.in_ns_title), { backStack.pop(NightscoutUploadRoute) }) {
+                            role?.let { r ->
+                                NightscoutPage(viewModel(factory = graph.integrations.nightscoutViewModels(r.role == Role.Wearer)))
+                            }
+                        }
+                    }
+                    entry<ExportRoute> {
+                        val role by graph.role.data.collectAsStateWithLifecycle(null)
+                        SettingsPage(stringResource(IntegrationsR.string.in_export_title), { backStack.pop(ExportRoute) }) {
+                            role?.let { r -> ExportPage(viewModel(factory = graph.integrations.exportViewModels(r.role == Role.Follower))) }
+                        }
                     }
                     entry<SensorSettingsKey> {
                         SensorSettingsScreen(

@@ -83,6 +83,9 @@ The full catalog, with every rule and number, is [docs/FEATURES.md](docs/FEATURE
   the 4-digit code they may ask for), then their readings, sensor, entries and alerts arrive over the relays and drive
   home, widgets, the live notification and your own alerts (including *no data*). Add entries when they let you;
   notifications say when an invite was used, declined or your access removed; *Stop following* in Settings › Sharing.
+- **Share with apps**: upload to your own **Nightscout** site (https, access token kept encrypted; 30-day catch-up,
+  pauses when another app uploads to the same site), an **xDrip+-compatible server** on this phone for **Garmin**
+  watches (off until you switch it on; loopback only), and **Export data** as a LibreView-layout CSV to save or share.
 - English and Spanish (Spain) everywhere.
 
 **Mac (you follow someone, from the menu bar)**
@@ -108,14 +111,14 @@ The full catalog, with every rule and number, is [docs/FEATURES.md](docs/FEATURE
   through at 5 min, the graph dimmed with the reading's time, no value at 20 min) and a tap opens Add treatment.
 - VoiceOver reads the value as one sentence with the range in words.
 
-**Not included**: the LSPosed lock-screen widget, Dexcom / Aidex / SmartGuide (untested) sensors, Garmin via the local xDrip+
-server, Nightscout / Tidepool / LibreView uploads, Health Connect and broadcasts, insulin pens, the sensor-end
-calendar event, the glucose report and CSV export, settings export / import, scanning an invite's QR code on Android
-and the Android follower's *Settings from* page, Bluetooth sharing from the phone, and the Mac's Juggluco-over-Wi-Fi
-source.
+**Not included**: the LSPosed lock-screen widget, Dexcom / Aidex / SmartGuide (untested) sensors, Tidepool /
+LibreView uploads, the phone's Nightscout read API, Health Connect and broadcasts, insulin pens, the sensor-end
+calendar event, the glucose report, settings export / import, scanning an invite's QR code on Android and the Android
+follower's *Settings from* page, Bluetooth sharing from the phone, and the Mac's Juggluco-over-Wi-Fi source.
 
-**Garmin watch:** Sukrara has no watch server yet. A watch fed by **Juggluco** keeps working while Juggluco reads the
-sensor: pick Juggluco as Sukrara's source (*Settings › Sensor › Juggluco*).
+**Garmin watch:** switch on *Settings › Share with apps › xDrip+ server*; watch faces and data fields made for xDrip+
+read it through Garmin Connect. While **Juggluco** is Sukrara's source, Juggluco keeps its own server and feeds the
+watch. Upload uses a new device name per install (`Sukrara-…`), so a Nightscout site shows Sukrara as a new uploader.
 
 ## Install
 

@@ -31,6 +31,7 @@ class SettingsModule(
     dispatchers: DispatcherProvider,
     clock: Clock,
     sensor: Flow<SensorState>,
+    appsShared: Flow<Set<AppOutput>>,
     systemAccess: SystemAccessPort,
     alertPlayback: AlertPlayback,
 ) {
@@ -46,6 +47,7 @@ class SettingsModule(
             override val releases: ReleasesSource by lazy { GitHubReleases(http, dispatchers.io) }
             override val clock = clock
             override val sensor = sensor
+            override val appsShared = appsShared
             override val systemAccess = systemAccess
             override val alertPlayback = alertPlayback
         }
