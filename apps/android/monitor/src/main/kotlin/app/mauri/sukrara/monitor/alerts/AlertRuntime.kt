@@ -330,7 +330,7 @@ class AlertRuntime(
         effects.filterIsInstance<AlertEffect.Schedule>().forEach { e -> attempt(Step.Alarm) { alarm.set(e.at) } }
         val firedNow = effects.filterIsInstance<AlertEffect.Fire>().map { it.firing.kind.group }.toSet()
         retryUnposted(m, now, skip = firedNow)
-        for (e in effects) {
+        for (e in ringOrder(effects, m.settings)) {
             when (e) {
                 is AlertEffect.Fire -> {
                     val group = e.firing.kind.group
@@ -368,6 +368,30 @@ class AlertRuntime(
         attempt(Step.Save) { save() }
         attempt(Step.Publish) { publishUi(now) }
         return effects
+    }
+
+    /**
+     * [effects] with its [AlertEffect.Fire]s reordered among themselves (every other effect keeps its place): the one
+     * that must be heard goes first. Android lets an app make one sound per second (NotificationUsageStats'
+     * AlertRateLimiter: a second sounding notification within 1 s is muted, `MUTE_REASON_RATE_LIMIT`, whatever its
+     * category) and a newer sound would cut the first one off anyway, so when one reading fires several alerts (Low and
+     * Falling fast) the first posted rings and the others show without sound. First: a ringing one before a silent
+     * resume, an alarm-level kind, the most severe, then level → rate → no data.
+     */
+    private fun ringOrder(effects: List<AlertEffect>, settings: AlertSettings): List<AlertEffect> {
+        val fires = effects.filterIsInstance<AlertEffect.Fire>()
+        if (fires.size < 2) return effects
+        val sorted =
+            fires
+                .sortedWith(
+                    compareBy<AlertEffect.Fire>(
+                        { it.silent },
+                        { !settings.rule(it.firing.kind).alarm },
+                        { -it.firing.kind.severity },
+                        { it.firing.kind.group.ordinal },
+                    ),
+                ).iterator()
+        return effects.map { if (it is AlertEffect.Fire) sorted.next() else it }
     }
 
     /** Posts [f] in [group]'s slot; a refusal is remembered with its sound, for [retryUnposted]. */
