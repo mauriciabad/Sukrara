@@ -75,7 +75,9 @@ Packages follow the module path: `:feature:home` → `app.mauri.sukrara.feature.
 - **Debug fakes**: `app/src/debug` has `DebugReceiver` / `DebugFakes` and `BuildVariant` (the release copy in
   `app/src/release` returns no test source). `adb shell am broadcast -n app.mauri.sukrara/.debug.DebugReceiver
   -a app.mauri.sukrara.debug.SYNTHETIC --ez on true [--ei cycle 135] [--ez frozen true]` replaces the sensor with a
-  made-up 45–215 mg/dL curve on the emulator (`cycle 135` = its lowest point now); `--ez on false` removes it.
+  made-up 45–215 mg/dL curve on the emulator (`cycle 135` = its lowest point now; `--ei endsInMin N` ends the sensor
+  in N minutes, `--ei warmupMin W` makes it a new sensor warming up for W minutes: the countdowns on an emulator);
+  `--ez on false` removes it.
 - **Manifest**: a module declares its own components in its `src/main/AndroidManifest.xml`. Exported components
   need a permission (ManifestTest lists the allowed exceptions). Debug-only tools live in `app/src/debug`.
 - **Strings**: every user-visible text in the module's `res/values/strings.xml` and `res/values-es/strings.xml`.

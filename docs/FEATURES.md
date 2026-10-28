@@ -105,7 +105,7 @@ Rules: [poc/spikes/alerts/SPEC.md](../poc/spikes/alerts/SPEC.md); timelines: [po
 or when the card's *Eat carbs* pill opened it), *Now* / *Earlier…* (*When*: *Time* picker or *Minutes ago* with 5 / 15
 / 30 / 60 chips, resolved when saving; the chip then reads *16 min ago*), the quiet line (*Highs quiet for 44 min ·
 lows quiet for 14 min*: what the entries quiet on this phone from the chosen time; none while alerts are off or a
-follower mirrors the wearer's alerts), the limits line, *Open Sukrara*, and the lock-screen countdown (*Closes unsaved in N s* + *Unlock*; same rules, `LockCountdownTest`). Saves go through `TreatmentLog` (each version strictly newer, undo = a newer version, `WriterScope`) and the share layer's `TreatmentSync`. Not included: the countdown ring on Cancel, the pen duplicate question, editing from the list (the log supports it), the tile's glucose subtitle.
+follower mirrors the wearer's alerts), the limits line, *Open Sukrara*, and the lock-screen countdown (*Closes unsaved in N s* + *Unlock*; same rules, `LockCountdownTest`). Saves go through `TreatmentLog` (each version strictly newer, undo = a newer version, `WriterScope`) and the share layer's `TreatmentSync`. *Cancel* carries the countdown ring (24 dp, seconds inside, empties every frame, fills in with the dialog, pulses once at 5 s with one `SEGMENT_TICK` haptic only if something was typed, shrinks and fades away after an unlock; reduced motion: steps once a second, no fill-in, no pulse; TalkBack: digits hidden, Cancel's state *Closes in N seconds* in 5 s steps). Not included: the ring on the *When?* picker's Cancel and the one polite *Closes in 10 seconds* announcement, the pen duplicate question, editing from the list (the log supports it), the tile's glucose subtitle.
 - Every writer sends `o: follower` (the Mac too; its own rows stay `mac` locally). Mac following someone: Delete (context menu, ⌫, Undo) works only on entries made on this Mac; the wearer's and other followers' rows are read-only.
 
 ## Mac menu and windows
@@ -632,16 +632,20 @@ Android (`:monitor`, `LiveNotification` = registered surface `notification-text`
   colorized foreground-service card in the value's range colour (grey once struck through), drawn by the renderer
   (registered card surface `notification`, `NotificationCard`, `notificationCardStyle`): the card's header row
   (value, trend, late time, status pill, slots on discs) collapsed, header + the chart (the Notification place's
-  window) expanded. Small icon = the number itself (`ValueGlyphs.icon`, struck at half strength) when *Number as
+  window) expanded. The slots count the stored days and the live window (`CardFrame.slots`, the 31-day history), so
+  the 7–30-day rings match home and the widgets. Roborazzi goldens `NotificationCardShotsTest` (light / dark × fresh,
+  struck, status pill). Small icon = the number itself (`ValueGlyphs.icon`, struck at half strength) when *Number as
   notification icon* is on, else the arrow. Pictures are drawn at most at 2× density, cached (header per minute, chart
   per 5 min / reading), never drawn while the screen is off (an out-of-date card posts as text and screen on redraws
   it); a drawing failure posts the same notification as text, and the foreground start never draws.
 - **Android 17 Live Update card**: MetricStyle with the face's value (`mg/dL`, styled danger / caution / safe by the
-  person's low and high bands; plain once struck through) and the late reading's time.
+  person's low and high bands; plain once struck through), the late reading's time, then the card's slots as words
+  up to three metrics (`GlucoseCard.slotTexts`, the notification card's choice and order: *74%* · *in range 1d*,
+  *4.5u* · *12m ago*), only while the value is a reading.
 - Settings › **Status bar**: *Live Update chip* (default on), *Allow Live Updates for Sukrara* (shown while the chip
   is on and Android refuses it; opens Android's per-app Live Updates setting, re-read on return), *Number as
   notification icon* (default on; disabled with "The chip already shows the value" while the chip shows).
-- Not included (issues): MetricStyle slots on Android 17, mmol/L.
+- Not included (issues): mmol/L.
 - **States and exits**: *Live Update chip* → turn off in Settings › Status bar (or Android's per-app Live Updates
   setting, or demote it from the chip) → the colorized card; back on in the same places (*Allow Live Updates* row when
   Android refuses it). *Number icon* → Settings › Status bar. *Notification swiped away* → it comes back (it is the
@@ -660,7 +664,11 @@ tests `GlucoseHubTest`, `MonitorServiceLogicTest`).
 - **Monitoring starts at the first reading** of the current source (remembered across restarts). Before that every
   surface says *Not monitoring: no sensor yet* and no "no data" alarm can be armed. Only removing the
   sensor or changing the role (explicit actions) go back to *Not monitoring*.
-- Readings: LO / HI kept (never dropped); a reading stamped more than 5 min ahead of the phone's clock is dropped
+- Readings: LO / HI kept (never dropped) and stored as the flags at the one way in (Android hub `GlucoseRange.normalise`,
+  Mac follower `GlucoseRange.normalised`): any number below 40 from any source (sensor, Juggluco, relay, Nearby) is
+  stored as 39 and any above 400 as 401, without a rate, so the follower's card shows *LO* / *HI* and the graph, uploads
+  and the CSV export (39 / 401, never "LO" / "HI": Tidepool's LibreView import refuses a non-numeric cell) all agree;
+  0, negatives and values above 1000 are dropped as malformed; a reading stamped more than 5 min ahead of the phone's clock is dropped
   (it would look fresh for too long); the gap then shows and alarms as no data. The hub keeps the last 24 h for every surface.
 - Bluetooth off → the wearer sees *Bluetooth is off*; on → the source reconnects with a fresh connection.
 - **Monitoring stopped**: when Android refuses to start the service (background start not allowed, permission) the

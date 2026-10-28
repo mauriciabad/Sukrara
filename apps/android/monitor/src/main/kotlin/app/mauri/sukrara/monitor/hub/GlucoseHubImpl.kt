@@ -7,6 +7,7 @@ import app.mauri.sukrara.core.model.AlertUiState
 import app.mauri.sukrara.core.model.Clock
 import app.mauri.sukrara.core.model.DispatcherProvider
 import app.mauri.sukrara.core.model.GlucoseHub
+import app.mauri.sukrara.core.model.GlucoseRange
 import app.mauri.sukrara.core.model.GlucoseState
 import app.mauri.sukrara.core.model.LinkState
 import app.mauri.sukrara.core.model.Reading
@@ -166,7 +167,8 @@ class GlucoseHubImpl(
         val now = clock.now()
         // a reading stamped ahead of the phone's clock would look fresh for too long (and the same reading delivered
         // again can't be stored under a substitute time): dropped; the missing data then shows and alarms as no data
-        val valid = batch.filter { it.mgdl in PLAUSIBLE_MGDL && !it.t.isAfter(now + FUTURE_TOLERANCE) }
+        // and every LO / HI is stored as the flag (39 / 401, no rate) whichever source sent which raw number
+        val valid = batch.mapNotNull { r -> GlucoseRange.normalise(r)?.takeUnless { it.t.isAfter(now + FUTURE_TOLERANCE) } }
         if (valid.isEmpty()) return
         readings.upsert(valid)
         val startedAt = now.toEpochMilli()
@@ -196,12 +198,6 @@ class GlucoseHubImpl(
         /** The recent window every surface can draw (the graph's longest setting is 24 h). */
         val WINDOW: Duration = Duration.ofHours(24)
         private val WINDOW_REFRESH: Duration = Duration.ofHours(1)
-
-        /**
-         * Only malformed values are dropped. LO / HI readings stay (shown as LO / HI, alerted on): the most dangerous
-         * lows must never disappear.
-         */
-        val PLAUSIBLE_MGDL = 1..1000
 
         /** A reading stamped further ahead of the phone's clock than this is dropped. */
         val FUTURE_TOLERANCE: Duration = Duration.ofMinutes(5)

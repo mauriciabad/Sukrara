@@ -86,12 +86,12 @@ jobs:
         working-directory: apps/android
         # verifyReleaseSigning guards real release outputs and needs the owner's key; CI has none and ships no
         # release artifact, so it is excluded here (release builds are checked by tools/release/verify-apk.sh).
-        # Roborazzi verify only where goldens are committed (src/test/snapshots): :core:graph and :widgets. They are
+        # Roborazzi verify only where goldens are committed (src/test/snapshots): :core:graph, :widgets, :monitor. They are
         # recorded on this same runner image by goldens.yml (Mac renders differ in text antialiasing and blending).
         # `check` includes spotlessCheck (ktlint + Compose rules + GPL header; QualityConventionPlugin).
         run: >-
           ./gradlew --no-daemon check -x verifyReleaseSigning
-          :core:graph:verifyRoborazziDebug :widgets:verifyRoborazziDebug
+          :core:graph:verifyRoborazziDebug :widgets:verifyRoborazziDebug :monitor:verifyRoborazziDebug
       - name: Roborazzi diffs
         if: failure()
         uses: actions/upload-artifact@v4

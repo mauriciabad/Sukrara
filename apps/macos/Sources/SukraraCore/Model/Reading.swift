@@ -64,4 +64,13 @@ public enum GlucoseRange {
     public static func isLo(_ mgdl: Double) -> Bool { mgdl < Double(floor) }
 
     public static func isHi(_ mgdl: Double) -> Bool { mgdl > Double(ceiling) }
+
+    /// `reading` as it is stored (Android `GlucoseRange.normalise`, at the hub): any number below the floor becomes
+    /// `lo` and any above the ceiling `hi`, without a rate, so a wearer's raw 35 or 450 reaches the card, graph and
+    /// export as the flag.
+    public static func normalised(_ reading: Reading) -> Reading {
+        if isLo(reading.mgdl) { return Reading(t: reading.t, mgdl: lo, rate: nil) }
+        if isHi(reading.mgdl) { return Reading(t: reading.t, mgdl: hi, rate: nil) }
+        return reading
+    }
 }
