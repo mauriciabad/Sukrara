@@ -68,12 +68,12 @@ Rules: [poc/spikes/alerts/SPEC.md](../poc/spikes/alerts/SPEC.md); timelines: [po
 - Falling-high mute (default 20 min): no high/very high alert while `sgv + rate × min < high`; it only postpones (a
   repeat that came due fires when it ends).
 - Headlines: "Very low glucose", "Low glucose", "High glucose", "Very high glucose", "Extremely high glucose",
-  "Falling fast", "Rising fast", "No glucose data"; body "69 mg/dL ↘ · < 70 mg/dL".
+  "Falling fast", "Rising fast", "No glucose data" (the title; the body is below).
 - Headlines acknowledge treatments logged in the episode (or within the mute length before it): lows "· eat more"
   (1 carbs entry) / "· eat more again" (2+); highs "· still high after insulin" / "· still high after more insulin"
   (never advise more insulin). Counted even when the mute is off.
 - The wearer's `alert` event carries `tr` (that count) so followers and the Mac show the same headline.
-- Notification body (Android + Mac): the value and arrow only (`69 mg/dL ↘`); with no reading behind the alert (Android) *No recent reading*, never a made-up value; falling / rising fast add the rate (`120 mg/dL ↓ · falling 2.4 mg/dL/min`); no data: `Nothing received for 20 min · last 120 mg/dL`. No threshold, no source ("from the wearer's phone").
+- Notification body (Android + Mac): the value and arrow only (`69 mg/dL ↘`); with no reading behind the alert *No recent reading*, never a made-up value; falling / rising fast add the rate (`120 mg/dL ↓ · falling 2.4 mg/dL/min`); no data: `No reading for 25 min · last 120 mg/dL`. No threshold, no source ("from the wearer's phone").
 - Android timer: exact alarm (`USE_EXACT_ALARM`) at the engine's next check, so a mute end alerts on time between
   readings; Mac: one-shot timer at the next check plus the 60 s tick.
 - Badge status (`AlertStatus`): None / Needed / Taken / Paused use the same thresholds and treatment windows as the engine.
