@@ -5,6 +5,8 @@ package app.mauri.sukrara
 
 import android.app.Application
 import android.content.Context
+import android.content.res.Configuration
+import android.os.LocaleList
 import app.mauri.sukrara.feature.treatments.TreatmentsHost
 import app.mauri.sukrara.feature.treatments.TreatmentsModule
 import app.mauri.sukrara.monitor.AlertsHost
@@ -17,6 +19,7 @@ import app.mauri.sukrara.share.ShareOwnerModule
 import app.mauri.sukrara.share.owner.requests.ShareOwnerHost
 import app.mauri.sukrara.widgets.WidgetsHost
 import app.mauri.sukrara.widgets.WidgetsModule
+import kotlinx.coroutines.launch
 
 /**
  * Builds the [AppGraph] and hands the runtime modules to their Android components (service, receivers): one `XxxHost`
@@ -43,6 +46,20 @@ class App :
         super.onCreate()
         graph = AppGraph(this)
         graph.ready.start()
+        locales = resources.configuration.locales
+    }
+
+    private var locales: LocaleList? = null
+
+    /** A language change renames the notification channels and redraws the glucose notification at once. */
+    override fun onConfigurationChanged(newConfig: Configuration) {
+        super.onConfigurationChanged(newConfig)
+        if (newConfig.locales == locales) return
+        locales = newConfig.locales
+        graph.scope.launch {
+            graph.ready.await()
+            graph.monitor.onLocaleChanged()
+        }
     }
 
     override val treatments: TreatmentsModule get() = graph.treatments
