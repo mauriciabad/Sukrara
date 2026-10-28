@@ -18,6 +18,7 @@ import app.mauri.sukrara.protocol.KeyPair
 import app.mauri.sukrara.protocol.NostrCrypto
 import app.mauri.sukrara.protocol.SignedEvent
 import app.mauri.sukrara.protocol.Wire
+import app.mauri.sukrara.protocol.ble.BleMessages
 import app.mauri.sukrara.protocol.event.AlertPayload
 import app.mauri.sukrara.protocol.event.EventFactory
 import app.mauri.sukrara.protocol.event.Profile
@@ -34,6 +35,11 @@ import app.mauri.sukrara.protocol.follow.StreamFollower
 import app.mauri.sukrara.protocol.invite.InviteFailure
 import app.mauri.sukrara.protocol.invite.InviteLink
 import app.mauri.sukrara.protocol.invite.Invites
+import app.mauri.sukrara.share.ble.NearbyEvent
+import app.mauri.sukrara.share.ble.NearbyLink
+import app.mauri.sukrara.share.ble.NearbyStatus
+import app.mauri.sukrara.share.ble.NearbyTransport
+import app.mauri.sukrara.share.ble.NearbyTransportFactory
 import app.mauri.sukrara.share.owner.usecase.TreatmentWire
 import app.mauri.sukrara.share.transport.RelayFilter
 import app.mauri.sukrara.share.transport.RelayInbound
@@ -118,6 +124,8 @@ class FollowerEngine(
     private val setLink: (LinkState?) -> Unit = {},
     private val onNotice: (FollowerNotice, Profile?) -> Unit = { _, _ -> },
     private val joinTimeoutMs: Long = JOIN_TIMEOUT_MS,
+    /** The Bluetooth path to the wearer's phone (null: relays only). */
+    private val nearbyTransports: NearbyTransportFactory? = null,
 ) : ReadingSource {
     private val serial = dispatcher.limitedParallelism(1)
     private val lock = Mutex()
@@ -153,6 +161,13 @@ class FollowerEngine(
             loadedOnce.await()
             emitAll(latestSettings)
         }
+
+    private val _nearbyStatus = MutableStateFlow<NearbyStatus>(NearbyStatus.Stopped)
+
+    /** The Bluetooth link to the wearer's phone (Following page); following goes on over the internet in every state. */
+    val nearbyStatus: StateFlow<NearbyStatus> = _nearbyStatus.asStateFlow()
+
+    @Volatile private var nearby: NearbyTransport? = null
 
     private var record: FollowerRecord? = null
     private var follower: StreamFollower? = null
@@ -359,6 +374,11 @@ class FollowerEngine(
             }
         }
 
+    /** Bluetooth turned on / Nearby devices allowed (the Following page): the Bluetooth path looks again. */
+    fun refreshNearby() {
+        nearby?.refresh()
+    }
+
     /** The network came back: reconnect now instead of waiting out the backoff. */
     fun reconnectNow() {
         transport?.reconnectNow()
@@ -394,9 +414,42 @@ class FollowerEngine(
             )
         resubscribe()
         t.start()
+        startNearby(out, r)
         if (r.stream.status == FollowStatus.New || r.stream.status == FollowStatus.Requested) sendRequest()
         resendPending()
         render()
+    }
+
+    /** Bluetooth runs beside the relays while attached; copies are deduplicated by event id (B§6 "Both transports"). */
+    private fun startNearby(out: ProducerScope<List<Reading>>, r: FollowerRecord) {
+        val nb = nearbyTransports?.create(nearbyIdentity(r)) ?: return
+        nearby = nb
+        jobs = jobs +
+            out.launch(start = CoroutineStart.UNDISPATCHED) { nb.events.collect { e -> locked { safely { onNearby(e) } } } } +
+            out.launch { nb.status.collect { _nearbyStatus.value = it } }
+        nb.start()
+    }
+
+    private fun nearbyIdentity(r: FollowerRecord) = NearbyLink.Identity(r.stream.identity, r.stream.sid, r.stream.follower)
+
+    private suspend fun onNearby(e: NearbyEvent) {
+        when (e) {
+            is NearbyEvent.Event -> {
+                receive(e.event, NEARBY_VIA)
+            }
+
+            // another wearer's phone: leave it and keep looking (B§6 "Which owner")
+            is NearbyEvent.Info -> {
+                when (e.owner) {
+                    BleMessages.Owner.Other -> nearby?.leave(LEAVE_OTHER_PHONE_S)
+
+                    // the phone proved it's the wearer's: entries still pending go to it now (no internet needed)
+                    BleMessages.Owner.Ours -> resendPending()
+
+                    BleMessages.Owner.Unknown -> Unit
+                }
+            }
+        }
     }
 
     private suspend fun retryLoad(out: ProducerScope<List<Reading>>) {
@@ -433,6 +486,9 @@ class FollowerEngine(
         jobs = emptyList()
         transport?.stop()
         transport = null
+        nearby?.stop()
+        nearby = null
+        _nearbyStatus.value = NearbyStatus.Stopped
         sink = null
         subscribed = emptyMap()
         if (_status.value != SourceStatus.NotStarted) _status.value = SourceStatus.NotStarted
@@ -443,7 +499,7 @@ class FollowerEngine(
         val r = record ?: return
         val identity = r.stream.identity ?: return
         val wrap = events.gift(r.stream.follower, identity, Rumor.Request(r.token, r.me), now(), now() + Wire.TTL_REQUEST)
-        transport?.publish(wrap)
+        send(wrap)
         val f = follower ?: return
         f.requested()
         commit(r.copy(stream = f.state, requestedAt = now()), force = true)
@@ -588,6 +644,8 @@ class FollowerEngine(
             before.copy(seen = emptyMap(), rekeyAt = emptyMap(), alertsSeen = emptyMap(), sensorCreatedAt = 0) !=
                 f.state.copy(seen = emptyMap(), rekeyAt = emptyMap(), alertsSeen = emptyMap(), sensorCreatedAt = 0)
         commit(next, force = trustChanged || next.wearer != r.wearer || next.settings != r.settings || next.sensor != r.sensor)
+        // a first key or a new epoch: the Bluetooth link proves who we are and checks the phone with it
+        if (before.sid != f.state.sid || before.epochs.keys != f.state.epochs.keys) nearby?.update(nearbyIdentity(next))
         val out = sink
         if (out != null && transport != null && next.stream.relays.isNotEmpty() && next.stream.relays != relayUrls) {
             // a key delivery or roster moved the stream to other relays: connect there (outside this collector,
@@ -733,8 +791,13 @@ class FollowerEngine(
 
     // ------------------------------------------------------------------------------------------------ plumbing
 
+    /** To the relays and the wearer's phone nearby (written only once it proved it's the wearer's). */
     private fun send(ev: SignedEvent) {
         transport?.publish(ev)
+        val nb = nearby ?: return
+        // a write response says only that the phone got the frames: the entry stays pending until a relay's OK or
+        // the wearer's echo (which stores it as delivered)
+        sink?.launch { nb.send(ev) }
     }
 
     /** The record in memory at once; on disk when what it trusts changed, or every [PERSIST_EVERY] otherwise. */
@@ -780,6 +843,9 @@ class FollowerEngine(
         private const val RETRY_MAX_MS = 300_000L
         private val ENDED = setOf(FollowStatus.Declined, FollowStatus.InviteUsed, FollowStatus.Revoked)
         private val TREATMENT_KINDS = setOf("rapid", "long", "carbs", "note")
+
+        const val NEARBY_VIA = "ble"
+        private const val LEAVE_OTHER_PHONE_S = 60L
 
         const val INBOX = "inbox"
         const val ROSTER = "roster"

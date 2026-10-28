@@ -5,6 +5,7 @@ package app.mauri.sukrara.feature.sharing
 
 import app.mauri.sukrara.protocol.event.Profile
 import app.mauri.sukrara.protocol.follow.FollowStatus
+import app.mauri.sukrara.share.ble.NearbyStatus
 import app.mauri.sukrara.share.follower.FollowState
 import app.mauri.sukrara.share.follower.JoinResult
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -26,6 +27,12 @@ interface FollowerSharing {
 
     /** Stop following (confirmed first): the key and the wearer's data go, the role is cleared. False when the key store refused. */
     suspend fun stopFollowing(): Boolean
+
+    /** The Bluetooth link to the wearer's phone (following goes on over the internet in every state). */
+    val nearby: StateFlow<NearbyStatus> get() = MutableStateFlow(NearbyStatus.Stopped)
+
+    /** Bluetooth turned on / Nearby devices allowed: look again. */
+    fun refreshNearby() = Unit
 
     companion object {
         /** Not following anyone (screenshot tests, a wearer). */

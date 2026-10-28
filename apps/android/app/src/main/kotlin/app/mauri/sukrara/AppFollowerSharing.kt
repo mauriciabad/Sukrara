@@ -5,6 +5,7 @@ package app.mauri.sukrara
 
 import app.mauri.sukrara.feature.sharing.FollowerSharing
 import app.mauri.sukrara.protocol.event.Profile
+import app.mauri.sukrara.share.ble.NearbyStatus
 import app.mauri.sukrara.share.follower.FollowState
 import app.mauri.sukrara.share.follower.FollowerEngine
 import app.mauri.sukrara.share.follower.JoinResult
@@ -23,6 +24,10 @@ class AppFollowerSharing(
     private val clearRole: suspend () -> Unit,
 ) : FollowerSharing {
     override val state: StateFlow<FollowState> = engine.state
+
+    override val nearby: StateFlow<NearbyStatus> = engine.nearbyStatus
+
+    override fun refreshNearby() = engine.refreshNearby()
 
     override suspend fun join(
         link: String,

@@ -38,6 +38,7 @@ fun SharingScreen(
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val writerRefused by viewModel.writerRefused.collectAsStateWithLifecycle()
+    val nearby by viewModel.nearby.collectAsStateWithLifecycle()
     Box(modifier.fillMaxSize()) {
         when (val s = state) {
             OwnerShareState.Loading -> {
@@ -72,8 +73,11 @@ fun SharingScreen(
                         profile = onProfile,
                         backup = onBackup,
                         closeFollower = viewModel::writerSeen,
+                        setNearby = viewModel::setNearby,
+                        refreshNearby = viewModel::refreshNearby,
                     ),
                     writerRefused = writerRefused,
+                    nearby = nearby,
                 )
             }
         }
