@@ -6,6 +6,7 @@
 plugins {
     id("sukrara.android.library")
     id("sukrara.android.compose")
+    id("sukrara.contracts")
 }
 
 dependencies {
@@ -13,5 +14,9 @@ dependencies {
     api(project(":core:data"))
     // THE mute lines (MuteText) word the alert engine's MuteCopy
     api(project(":core:alerts"))
+    // the generated pictures (AvatarImage) draw the protocol's Avatar numbers
+    api(project(":core:protocol"))
     testImplementation(libs.junit)
+    testImplementation(project(":core:testing"))
+    testImplementation(libs.kotlinx.serialization.json)
 }

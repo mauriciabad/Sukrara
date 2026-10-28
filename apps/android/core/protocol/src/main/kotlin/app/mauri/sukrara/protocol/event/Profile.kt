@@ -7,6 +7,7 @@ import app.mauri.sukrara.protocol.Hex
 import app.mauri.sukrara.protocol.event.Payload.longOrNull
 import app.mauri.sukrara.protocol.event.Payload.obj
 import app.mauri.sukrara.protocol.event.Payload.string
+import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
@@ -46,6 +47,17 @@ class Avatar private constructor(val json: JsonObject) {
         private const val MAX_JSON = 512
         const val PALETTES = 8
         val SHAPES = listOf("cube", "drop", "dots", "rings", "letter")
+
+        /** A stored avatar (its JSON text, e.g. a follower record's), or null when missing or not an avatar. */
+        fun parse(text: String?): Avatar? = text?.let { runCatching { of(Json.parseToJsonElement(it)) }.getOrNull() }
+
+        /** A new person's default: a random v1 picture, any shape but `letter`. */
+        fun random(random: java.util.Random): Avatar =
+            v1(random.nextInt(PALETTES), SHAPES[random.nextInt(SHAPES.size - 1)], random.nextInt(24) * 15, random.nextInt().toLong())
+
+        /** The name's first character (code point), uppercased; "?" for a blank name. */
+        fun initial(name: String): String =
+            name.trim().takeIf { it.isNotEmpty() }?.let { String(Character.toChars(it.codePointAt(0))).uppercase() } ?: "?"
 
         /** From the wire: any object with a positive integer `v` and ≤ 512 bytes of JSON; else null. */
         fun of(e: JsonElement?): Avatar? {
@@ -89,6 +101,9 @@ data class Profile(val name: String, val avatar: Avatar?) {
 
     companion object {
         const val MAX_NAME = 40
+
+        /** A stored profile (its JSON text), or null. */
+        fun parse(text: String?): Profile? = text?.let { runCatching { of(Json.parseToJsonElement(it)) }.getOrNull() }
 
         /** An edit of [typed] over the stored [previous] name: trimmed, at most 40 characters, blank keeps [previous]. */
         fun editedName(typed: String, previous: String): String = typed.trim().ifBlank { previous }.take(MAX_NAME)
