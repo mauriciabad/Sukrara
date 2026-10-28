@@ -3,9 +3,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.feature.home
 
+import app.mauri.sukrara.graph.GraphConfig
 import app.mauri.sukrara.core.model.AlertReadiness
 import app.mauri.sukrara.core.model.AlertRequirement
 import app.mauri.sukrara.core.model.GlucoseState
+import app.mauri.sukrara.core.model.Treatment
 import app.mauri.sukrara.core.model.storage.StateStore
 import app.mauri.sukrara.core.model.storage.TreatmentRecord
 import app.mauri.sukrara.core.testing.FakeClock
@@ -40,6 +42,7 @@ class HomeViewModelTest {
         override val clock = FakeClock(Samples.NOW)
         override val glucose = MutableStateFlow(Samples.wearer())
         override val treatments = InMemoryTreatmentsRepository()
+        override val graphConfig = MutableStateFlow(GraphConfig())
         override val readiness: StateFlow<AlertReadiness?> = MutableStateFlow(AlertReadiness.Ready)
         override val environment = MutableStateFlow(HomeEnvironment())
         override val dataProblems = MutableStateFlow<List<DataProblem>>(emptyList())
@@ -57,6 +60,25 @@ class HomeViewModelTest {
         }
 
         override fun fix(requirement: AlertRequirement) = Unit
+
+        /** What the treatment log would allow (false = a follower and the wearer's entry). */
+        var mayChange = true
+        val writes = mutableListOf<String>()
+
+        override suspend fun deleteTreatment(id: String): Treatment? {
+            writes += "delete $id"
+            if (!mayChange) return null
+            val stored = treatments.get(id) ?: return null
+            treatments.upsertIfNewer(stored.copy(treatment = stored.treatment.copy(deleted = true, modifiedAt = clock.now())))
+            return stored.treatment
+        }
+
+        override suspend fun mayChangeTreatment(id: String) = mayChange
+
+        override suspend fun undoTreatment(previous: Treatment) {
+            writes += "undo ${previous.id}"
+            treatments.upsertIfNewer(TreatmentRecord(previous.copy(modifiedAt = clock.now().plusSeconds(1))))
+        }
     }
 
     @Before fun setUp() = Dispatchers.setMain(dispatcher)
@@ -92,6 +114,22 @@ class HomeViewModelTest {
             assertNull(vm.state.value.banner)
         }
 
+    @Test fun `delete and undo go through the treatment log, a refused delete offers no undo`() =
+        runTest(dispatcher) {
+            val deps = Deps()
+            val t = Samples.treatment()
+            deps.treatments.upsertIfNewer(TreatmentRecord(t))
+            deps.mayChange = false
+            val vm = HomeViewModel(deps)
+            backgroundScope.launch { vm.state.collect {} }
+            vm.delete(t)
+            runCurrent()
+            assertEquals(setOf(t.id), vm.state.value.readOnly)
+            assertEquals(listOf("delete ${t.id}"), deps.writes)
+            assertNull(vm.state.value.undo)
+            assertEquals(listOf(t.id), vm.state.value.treatments.map { it.id })
+        }
+
     @Test fun `delete leaves a tombstone, undo brings it back as a newer version`() =
         runTest(dispatcher) {
             val deps = Deps()
@@ -110,6 +148,7 @@ class HomeViewModelTest {
 
             vm.undoDelete()
             runCurrent()
+            assertEquals(listOf("delete ${t.id}", "undo ${t.id}"), deps.writes)
             val restored = deps.treatments.get(t.id)!!.treatment
             assertEquals(false, restored.deleted)
             assertTrue(restored.modifiedAt > t.modifiedAt)

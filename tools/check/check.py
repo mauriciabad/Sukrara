@@ -26,7 +26,7 @@ Checks
   images      new images only under docs/img, poc/spikes/*/evidence, assets/brand, res, snapshot goldens; full-phone
               captures flagged
   strings     new hardcoded UI text in Android Kotlin; each module's values/ and values-es/ keys in sync
-  cleartext   the app permits cleartext (network_security_config) so the home-network Nightscout works: every
+  cleartext   the app permits cleartext only to loopback (network_security_config, for Juggluco): every
               http:// / ws:// literal or "http"/"ws" scheme in Android Kotlin, and every place that opens a
               connection, must be on allow.json's cleartext_ok / network_ok lists (with the reason). Whole V1 tree.
   card-surface  one graph everywhere and the freshness steps everywhere (the user, 2026-10-21: a badge moved on one
@@ -365,6 +365,11 @@ def check_cleartext(ch, rep):
     files = set(tree_files(ch))
     for e in clear_ok + net_ok:
         rep.pending(files, e["path"], "cleartext", "allow.json entry")
+    nsc = "apps/android/app/src/main/res/xml/network_security_config.xml"
+    xml = ch.blob(nsc)  # the index when checking staged changes
+    if re.search(r'<base-config[^>]*cleartextTrafficPermitted="true"', xml):
+        rep.add("FAIL", "cleartext", "%s permits cleartext app-wide. Keep the base config off and allow cleartext\n"
+                "only per domain (loopback today), with the reason in tools/check/allow.json." % nsc)
     for line in out.splitlines():
         if ch.rev and line.startswith(ch.rev + ":"):
             line = line[len(ch.rev) + 1:]
@@ -374,13 +379,13 @@ def check_cleartext(ch, rep):
             continue
         for m in CLEARTEXT.finditer(text):
             if not any(e["path"] == path and e["contains"] in text for e in clear_ok):
-                rep.add("FAIL", "cleartext", "%s:%s builds or accepts a cleartext URL (%s…). The app permits cleartext only for\n"
-                        "the validated home-network Nightscout (NsSite.parse) and loopback; use https:// / wss://, or add this\n"
+                rep.add("FAIL", "cleartext", "%s:%s builds or accepts a cleartext URL (%s…). The app permits cleartext only to\n"
+                        "loopback (network_security_config); use https:// / wss://, or add this\n"
                         "exact spot to tools/check/allow.json cleartext_ok with the reason." % (path, n, text.strip()[:60]))
                 break
         if NETWORK.search(text) and not any(e["path"] == path for e in net_ok):
             rep.add("FAIL", "cleartext", "%s:%s opens a connection in a file not on tools/check/allow.json network_ok. Make sure the\n"
-                    "URL can only be https:// / wss:// (or loopback / NsSite-validated), then list the file with the reason." % (path, n))
+                    "URL can only be https:// / wss:// (or loopback), then list the file with the reason." % (path, n))
 
 
 SURFACES = CONTRACTS + "graph/surfaces/surfaces.json"

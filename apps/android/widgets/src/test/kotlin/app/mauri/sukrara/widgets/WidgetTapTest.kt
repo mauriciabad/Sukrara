@@ -5,8 +5,6 @@ package app.mauri.sukrara.widgets
 
 import android.content.ComponentName
 import android.content.Context
-import android.content.Intent
-import android.content.IntentFilter
 import androidx.test.core.app.ApplicationProvider
 import app.mauri.sukrara.core.model.AlertUiState
 import app.mauri.sukrara.core.model.GlucoseState
@@ -15,6 +13,9 @@ import app.mauri.sukrara.core.model.Reading
 import app.mauri.sukrara.core.model.Role
 import app.mauri.sukrara.core.model.SensorState
 import app.mauri.sukrara.core.model.SourceId
+import app.mauri.sukrara.feature.treatments.QuickSource
+import app.mauri.sukrara.feature.treatments.QuickTreatmentActivity
+import app.mauri.sukrara.feature.treatments.QuickTreatmentIntents
 import app.mauri.sukrara.graph.GraphConfig
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -22,7 +23,6 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
-import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
 import java.time.Duration
 import java.time.Instant
@@ -72,21 +72,11 @@ class WidgetTapTest {
     }
 
     @Test
-    fun `the intent targets quick Add treatment with the Carbs extra once the dialog is in the build`() {
-        val fallback = WidgetTap.intent(context, WidgetTap.QuickTreatment(focusCarbs = true))
-        assertFalse("not in this build: the app", fallback.action == NavTargets.ACTION_QUICK_TREATMENT)
-
-        val dialog = ComponentName(context.packageName, "app.mauri.sukrara.QuickTreatmentActivity")
-        shadowOf(context.packageManager).apply {
-            addActivityIfNotPresent(dialog)
-            addIntentFilterForActivity(
-                dialog,
-                IntentFilter(NavTargets.ACTION_QUICK_TREATMENT).apply { addCategory(Intent.CATEGORY_DEFAULT) },
-            )
-        }
+    fun `a tap with a value opens the quick Add treatment dialog, Carbs focused while low`() {
         val quick = WidgetTap.intent(context, WidgetTap.QuickTreatment(focusCarbs = true))
         assertEquals(NavTargets.ACTION_QUICK_TREATMENT, quick.action)
-        assertEquals(context.packageName, quick.`package`)
+        assertEquals(ComponentName(context.packageName, QuickTreatmentActivity::class.java.name), quick.component)
+        assertEquals(QuickSource.Widget.name, quick.getStringExtra(QuickTreatmentIntents.EXTRA_SOURCE))
         assertTrue(quick.getBooleanExtra(NavTargets.EXTRA_FOCUS_CARBS, false))
         assertFalse(WidgetTap.intent(context, WidgetTap.QuickTreatment(false)).getBooleanExtra(NavTargets.EXTRA_FOCUS_CARBS, true))
         assertFalse(WidgetTap.intent(context, WidgetTap.OpenApp).action == NavTargets.ACTION_QUICK_TREATMENT)

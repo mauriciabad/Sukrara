@@ -56,6 +56,7 @@ class FreshnessFixtureTest {
                         "trend" to look.trend?.let { if (it == TrendMark.ARROW) "arrow" else "none" },
                         "time" to look.fresh.showTime.toString(),
                         "graph" to look.fresh.showGraph.toString(),
+                        "graph_only" to Freshness.of(age).ageMark.key,
                     )
                 val want =
                     mapOf(
@@ -65,6 +66,7 @@ class FreshnessFixtureTest {
                         "trend" to x["trend"].str(),
                         "time" to x["time"].bool().toString(),
                         "graph" to x["graph"].bool().toString(),
+                        "graph_only" to x["graph_only"].str(),
                     )
                 if (got == want) null else "${c["name"].str()}: got $got, want $want"
             }

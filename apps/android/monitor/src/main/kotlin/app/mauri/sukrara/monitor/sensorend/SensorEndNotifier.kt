@@ -30,7 +30,7 @@ interface SensorEndPresenter {
 
 /**
  * Warns before the sensor ends and says when it has (CHANGES P7): driven by the hub's sensor state while the service
- * runs ([onSensor]) and by its own exact alarm, boot and clock changes ([check], from [app.mauri.sukrara.monitor.AlertCheckReceiver]).
+ * runs ([onSensor]) and by its own exact alarm, boot and clock changes ([check], from `AlertsModule.check`).
  */
 class SensorEndNotifier(
     private val store: StateStore<SensorEndMemory>,

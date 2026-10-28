@@ -66,8 +66,10 @@ VERSION               single version source, `0.90.0` (both apps read it)
 - **cleartext/network**: `allow.json` entries re-derived per chunk (each chunk adds its own entries with reasons).
 - **CI** (`checks.yml`): job `changes` (dorny/paths-filter@v4: android = `apps/android/** contracts/** tools/** VERSION`,
   mac = `apps/macos/** contracts/** tools/** VERSION assets/**`, poc = `poc/**`); `rules` always (`run.sh --range`);
-  `android` (JDK 21: `./gradlew --no-daemon check` = unit tests + lint + spotlessCheck + Roborazzi verify);
-  `mac` (macos-15/26: `swift build`, `swift test`, `Bundle/bundle.sh --unsigned` smoke incl. appex); `poc` jobs (the old
+  `android` (JDK 21: `./gradlew --no-daemon check` = unit tests + lint, plus Roborazzi verify of `:core:graph` and
+  `:widgets`; spotlessCheck once the post-merge format pass turns it on);
+  `mac` (`xcode-27` runner, Xcode 27.1: `swift build`, `swift test`, `Bundle/bundle.sh --unsigned` incl. appex +
+  `Bundle/smoke.sh`); `poc` jobs (the old
   ones at new paths) only when `poc/**` changes; one `gate` job `if: always()` = the only required check.
 - **CLAUDE.md** rewritten for V1 (same rules, new paths: `apps/`, `contracts/`, poc frozen; "debug never fakes in
   release" now = *compiled out* (`src/debug`, `#if DEBUG`); "one graph" names core/graph + SukraraGraph; the Mac

@@ -36,6 +36,48 @@ enum class Freshness(
     GONE(false, true, false, false),
     ;
 
+    /**
+     * What a card WITHOUT a value (graph-only: the graph widget) shows of its data's age, so it never looks current
+     * when it isn't (contracts/graph/freshness `graph_only`; Freshness.swift `AgeMark`): the reading's time at every
+     * age, fresh too (a widget the launcher stops redrawing still says when its data is from), then the value's steps.
+     */
+    enum class AgeMark(
+        /** The contract's name. */
+        val key: String,
+    ) {
+        /** No label: only a card WITH a value (its own time and strike say the age). */
+        NONE("none"),
+
+        /** The reading's time on a pill over the chart (from the first reading). */
+        TIME("time"),
+
+        /** The time pill and the chart at [DIM_ALPHA]. */
+        DIMMED("dimmed"),
+
+        /** Dimmed, and the "no readings" icon before the time. */
+        NO_READINGS("no_readings"),
+
+        /** No chart: the value's face takes its place. */
+        FACE("face"),
+        ;
+
+        val dims: Boolean get() = this == DIMMED || this == NO_READINGS
+
+        companion object {
+            /** The chart's opacity while dimmed. */
+            const val DIM_ALPHA = 0.4f
+        }
+    }
+
+    val ageMark: AgeMark
+        get() =
+            when (this) {
+                FRESH, LATE -> AgeMark.TIME
+                STALE -> AgeMark.DIMMED
+                OLD -> AgeMark.NO_READINGS
+                GONE -> AgeMark.FACE
+            }
+
     companion object {
         const val LATE_S = 90L
         const val STALE_S = 5 * 60L
@@ -184,6 +226,18 @@ data class GlucoseLook(
     }
 
     val shown: Boolean get() = state == State.VALUE
+
+    /**
+     * The trend as text for places that can only write text (notification titles): the arrow of [rate]
+     * ([TrendAngle.symbol]) when the card draws one, the ring when it draws the "no trend" ring, null without a value.
+     */
+    val arrowText: String?
+        get() =
+            when (trend) {
+                TrendMark.ARROW -> TrendAngle.text(rate)
+                TrendMark.NONE -> TrendMark.RING
+                null -> null
+            }
 
     /** [text] for places that can't draw a line through it (the Live Update chip): every character struck (U+0336). */
     val plain: String? get() = text?.let { t -> if (strike) t.map { "$it\u0336" }.joinToString("") else t }

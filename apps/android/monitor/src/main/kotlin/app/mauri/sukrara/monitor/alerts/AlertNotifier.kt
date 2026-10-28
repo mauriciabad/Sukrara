@@ -19,12 +19,10 @@ import app.mauri.sukrara.core.model.AlertDeliveryProblem
 import app.mauri.sukrara.core.model.DurationWords
 import app.mauri.sukrara.core.model.Durations
 import app.mauri.sukrara.graph.Clock
-import app.mauri.sukrara.graph.TrendAngle
 import app.mauri.sukrara.monitor.AlertActionReceiver
 import app.mauri.sukrara.monitor.R
 import app.mauri.sukrara.monitor.notify.NotificationGroups
 import app.mauri.sukrara.monitor.notify.NotificationIds
-import java.util.Locale
 
 /**
  * The alert notifications ([AlertPresenter]): one slot per [AlertGroup] (level, rate, no data), all in the `alerts`
@@ -129,21 +127,7 @@ class AlertNotifier(private val ctx: Context) : AlertPresenter {
         return ctx.getString(R.string.alert_headline_with_context, base, ctx.getString(context))
     }
 
-    private fun text(f: Firing): String {
-        val r = f.reading
-        if (f.kind == AlertKind.NO_DATA) {
-            val since = Durations.text(((f.at - (r?.t ?: f.at)) / 60).coerceAtLeast(f.threshold.toLong()), words.durations)
-            return if (r == null) ctx.getString(R.string.alert_text_no_data, since)
-            else ctx.getString(R.string.alert_text_no_data_last, since, r.mgdl)
-        }
-        val value = ctx.getString(R.string.alert_text_value, r?.mgdl ?: 0, arrow(r?.rate))
-        val rate = String.format(Locale.getDefault(), "%.1f", kotlin.math.abs(r?.rate ?: 0.0))
-        return when (f.kind) {
-            AlertKind.FALLING_FAST -> ctx.getString(R.string.alert_text_falling, value, rate)
-            AlertKind.RISING_FAST -> ctx.getString(R.string.alert_text_rising, value, rate)
-            else -> value
-        }
-    }
+    private fun text(f: Firing): String = AlertCopy.body(f, words)
 
     private fun clockTime(epochS: Long): String = Clock.time(epochS)
 
@@ -186,8 +170,5 @@ class AlertNotifier(private val ctx: Context) : AlertPresenter {
 
         fun kindLabel(ctx: Context, kind: AlertKind): String =
             ctx.getString(ctx.resources.getIdentifier("alert_kind_${kind.wire}", "string", ctx.packageName))
-
-        /** The trend arrow of a rate in mg/dL/min (THE text arrow, [TrendAngle.symbol]); none without a rate. */
-        fun arrow(rate: Double?): String = rate?.let(TrendAngle::symbol).orEmpty()
     }
 }

@@ -5,8 +5,9 @@ package app.mauri.sukrara.widgets
 
 import android.content.Context
 import android.content.Intent
-import app.mauri.sukrara.core.model.NavTargets
 import app.mauri.sukrara.core.model.Role
+import app.mauri.sukrara.feature.treatments.QuickSource
+import app.mauri.sukrara.feature.treatments.QuickTreatmentIntents
 import app.mauri.sukrara.graph.GlucoseLook
 
 /**
@@ -40,21 +41,16 @@ sealed interface WidgetTap {
             return QuickTreatment(focusCarbs = low)
         }
 
-        /** The activity intent for [tap]: quick Add treatment when this build has it, else the app. */
+        /** The activity intent for [tap]: quick Add treatment over the home screen, or the app. */
         fun intent(
             context: Context,
             tap: WidgetTap,
-        ): Intent {
-            val launch =
-                context.packageManager.getLaunchIntentForPackage(context.packageName)
-                    ?: Intent(Intent.ACTION_MAIN).setPackage(context.packageName)
-            if (tap !is QuickTreatment) return launch
-            val quick =
-                Intent(NavTargets.ACTION_QUICK_TREATMENT)
-                    .setPackage(context.packageName)
-                    .putExtra(NavTargets.EXTRA_FOCUS_CARBS, tap.focusCarbs)
-            // until chunk 19's dialog is in the build the tap opens the app instead
-            return if (quick.resolveActivity(context.packageManager) != null) quick else launch
-        }
+        ): Intent =
+            when (tap) {
+                is QuickTreatment -> QuickTreatmentIntents.open(context, QuickSource.Widget, tap.focusCarbs)
+                OpenApp ->
+                    context.packageManager.getLaunchIntentForPackage(context.packageName)
+                        ?: Intent(Intent.ACTION_MAIN).setPackage(context.packageName)
+            }
     }
 }

@@ -28,8 +28,7 @@ struct MenubarTitle: Equatable {
         let text: String
         switch look.state {
         case .value:
-            text = [look.text ?? GlucoseCard.noValueText, look.trend == .arrow ? TrendGlyph.of(look.rate) : nil]
-                .compactMap { $0 }.joined(separator: " ")
+            text = [look.text ?? GlucoseCard.noValueText, look.arrowText].compactMap { $0 }.joined(separator: " ")
         case .warmingUp: text = L10n.t("Warming up") + (look.warmup.map { " \($0)" } ?? "")
         case .ended: text = L10n.t("Sensor ended")
         case .noReadings, .none: text = GlucoseCard.noValueText
@@ -37,14 +36,5 @@ struct MenubarTitle: Equatable {
         var label = reason.map { look.state == .value ? spoken : $0 } ?? spoken
         if muted { label += ". " + L10n.t("Alerts muted") }
         return MenubarTitle(text: text, strike: look.strike, muted: muted, accessibilityLabel: label)
-    }
-}
-
-/// The trend arrow as text for text places (notifications, the status item): the card's thresholds; no rate = the
-/// hollow ring.
-enum TrendGlyph {
-    static func of(_ rate: Double?) -> String {
-        guard let r = rate else { return "○" }
-        return r >= 3 ? "⇈" : r >= 2 ? "↑" : r >= 1 ? "↗" : r > -1 ? "→" : r > -2 ? "↘" : r > -3 ? "↓" : "⇊"
     }
 }

@@ -125,4 +125,7 @@ object TrendAngle {
             rate > -3.0 -> "↓"
             else -> "⇊"
         }
+
+    /** [symbol] for a rate that may be missing: no rate = the "no trend" ring ([TrendMark.RING]), as the card draws it. */
+    fun text(rate: Double?): String = rate?.let(::symbol) ?: TrendMark.RING
 }
