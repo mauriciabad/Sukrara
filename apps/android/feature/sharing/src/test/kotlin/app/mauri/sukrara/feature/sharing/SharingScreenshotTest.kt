@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -102,7 +103,11 @@ class SharingScreenshotTest {
     private val request = PendingRequest("k3", "Dad", "t", "4821", at = 1_761_500_000, label = "Dad's phone")
 
     private fun scenes(): List<Pair<String, @Composable () -> Unit>> {
-        val a = SetupActions()
+        // the app passes Settings' threshold rows; this module only sees their slot
+        val a =
+            SetupActions(thresholdRows = { settings, _ ->
+                for (field in ThresholdField.entries) Text("${field.name}: ${settings.rule(field.kind).threshold}")
+            })
         return listOf(
             "setup-1-welcome" to { SetupContent(ui(SetupStep.Welcome, 1, facts.copy(role = null)), a) },
             "setup-2-role" to { SetupContent(ui(SetupStep.Role, 2, facts.copy(role = null)), a) },

@@ -169,11 +169,11 @@ damaged setup file never asks for the role again or turns alerts off.
   ID, or Juggluco). Until a reading arrives it says "Not monitoring: no sensor yet. No alert can ring until a reading
   arrives."; the step completes only with a live reading from this phone's own sensor (≤ 15 min old): "Reading
   received. Sukrara is monitoring."
-- **Alert thresholds** (P4): the six rows of Settings › Review alert thresholds, in its order and words — *Very low*
-  (Below 55 mg/dL), *Low*, *High* (At or above …), *Very high*, *Extremely high* (300), *No data* (No reading for …),
-  *Off (…)* when the kind is off — from the settings the alert runtime reads, each editable with the number dialog;
-  levels must stay in order (very low < low < high < very high < extremely high). Nothing is saved until *Confirm these alerts*;
-  *Later* leaves them unconfirmed (never silently defaulted).
+- **Alert thresholds** (P4): Settings › Review alert thresholds' own rows (`AlertThresholdRows`, passed in by the app)
+  — *Very low* (Below 55 mg/dL), *Low*, *High* (At or above …), *Very high*, *Extremely high* (300), *No data* (No
+  reading for …), *Off (…)* when the kind is off — from the settings the alert runtime reads, each editable with the
+  number dialog, which offers only values that keep the levels in order (very low < low < high < very high < extremely
+  high). Nothing is saved until *Use these thresholds*; *Later* leaves them unconfirmed (never silently defaulted).
 - **Your followers**: *Restore from your recovery code* (`ncryptsec` + password or `nsec`, typed as hidden text, never
   saved state) or *Start fresh*. The warning "Your followers move to this phone: the phone that shared until now stops
   reaching them. Do this once this phone has your sensor." is always shown, then a numbered checklist that ticks
@@ -182,16 +182,17 @@ damaged setup file never asks for the role again or turns alerts off.
   is confirmed: "Your followers (and your Mac) will need a new invite. Your old identity can't be brought to this
   phone later without reinstalling."
 - **Finish setup** (home's banner, chunk 16): names the first skipped step that still matters — *Allow what alerts
-  need*, *Connect your sensor*, *Alerts not confirmed*, *Restore your followers*; its
-  action reopens that step alone (done or *Later* → home); items drop out by themselves when the checklist is complete,
+  need*, *Alerts not confirmed*, *Connect your sensor*, *Restore your followers*, in that order; its action walks
+  every skipped step in that order, each alone (done or *Later* → the next one, then home; *Later* and Back keep the
+  step on the card); items drop out by themselves when the checklist is complete,
   a reading arrives, the thresholds are confirmed (also in Settings › Alerts:
   `alerts.thresholdsConfirmedAt`) or an identity exists. First launch (no role yet) opens setup on top of home.
 
 **States and exits**: every step → *Back* (not into the role once chosen) and its primary action; Permissions,
-Sensor, Alerts and Followers → *Skip* / *Later* (→ the Finish setup banner → reopens the step → completes or *Later*
-again). Role → choose → confirm / *Cancel*; Follower in this build → stays on the role step with the note. Sensor waiting → *Set up sensor* (chunk 18 flow, its own Cancel) / *Later*;
-reading received → *Continue*. Alerts → edit (number dialog *Cancel* / OK) → *Confirm these alerts*, disabled with the
-order message while levels are out of order. Followers → restore disabled (no reading yet: the note says so) / restoring ("Looking for your backup on the relays…") / restore error (inline,
+Sensor, Alerts and Followers → *Skip* / *Later* (→ the Finish setup banner → reopens each skipped step → completes or
+*Later* / Back again). Role → choose → confirm / *Cancel*; Follower in this build → stays on the role step with the note. Sensor waiting → *Set up sensor* (chunk 18 flow, its own Cancel) / *Later*;
+reading received → *Continue*. Alerts → edit (number dialog *Cancel* / OK) → *Use these thresholds*, disabled with the
+order message while stored levels are out of order. Followers → restore disabled (no reading yet: the note says so) / restoring ("Looking for your backup on the relays…") / restore error (inline,
 the code stays, fix and retry; never drops into Start fresh: needs password, wrong password, not a code, relays
 unreachable, no backup, unreadable, another phone still sharing) / restored (followers count) → home; *Start fresh* → confirm
 / *Cancel*; identity unreadable → note + restore; another app sharing as you → the conflict content (below) / *Later*.
@@ -511,7 +512,7 @@ Android, both roles (round f33, the user: closed tips never came back; `features
 - Every ▶ (sound pack list, an alert's sound list, Play sound) also plays that alert's vibration (AlertHaptics, alarm or notification usage) unless "Play with vibration" is unticked; the check box is a per-phone UI preference, on by default, and only affects previews.
 
 - **V1 Android settings pages (chunk 17, `:feature:settings`)**: Overview (Alerts, Alert reliability, Ranges, Graph, Sensor, Sharing, About; a *Mute all* strip with *Unmute* / *Change time* while everything is muted), Alerts (main switch, Mute all, one row per alert with its threshold sentence, Review alert thresholds, the three quiet rules with their lengths, the notification's Mute / Remind less / back-in-range margin, sound pack, vary the sound, a shortcut to Android's notification settings), each alert's page (use it, threshold, remind every, like an alarm, its own sound or the pack's, notification settings; its side's quiet state on top with its exit), Ranges (the six bands, each kept between its neighbours: the number input refuses a value that would cross one), Graph basics (time shown, vertical lines, rings beside the value, time in range beside the graph, crown, ring rewards), Alert reliability (the same checklist as home's row and the setup: notifications, full-screen alerts, alarms and reminders, battery restrictions, alert sound / Do Not Disturb, Bluetooth; each missing item with *Fix* opening the Android screen; re-checked on return) and About (version; update check against the GitHub releases of mauriciabad/Sukrara once per page open: the newest non-draft release newer than the installed one, prereleases only while the installed version is 0.x; offline -> a link to the releases page; the newest release's files for other devices; *Report a problem* -> the project's issues; source code; a note that this app is separate from Sukrara Showcase). Values are mg/dL only. Every number uses the one `NumberDialog` with the schema's format. Tests: `SettingsPagesTest`, `UpdateCheckTest`, `AlertThresholdReviewTest`; screenshots `SettingsGallery`.
-- **Review alert thresholds** (CHANGES P4, `AlertThresholdReview`): the five level thresholds and no data as a draft; tapping a row changes the draft only; *Use these thresholds* saves them onto the stored alert settings and stores when (schema `alerts.thresholdsConfirmedAt`, Android only); *Cancel* / back saves nothing. Until confirmed, home's Finish-setup card asks for it; setup (chunk 24) reuses the screen and gets `Confirmed(settings)` or `Cancelled`.
+- **Review alert thresholds** (CHANGES P4, `AlertThresholdReview`): the five level thresholds and no data as a draft; tapping a row changes the draft only; *Use these thresholds* saves them onto the stored alert settings and stores when (schema `alerts.thresholdsConfirmedAt`, Android only); *Cancel* / back saves nothing. Until confirmed, home's Finish-setup card asks for it; setup's alert step shows the same rows (`AlertThresholdRows`) with its own *Use these thresholds* / *Later*.
 - Turning off all alerts, the *Very low* or *No data* alert, or their *Like an alarm*, asks first and says what changes; turning them on is immediate. Level thresholds stay in order (very low < low < high < very high < extremely high): the number input refuses a value that would cross a neighbour and offers only presets that fit (settings and the review). The update check treats `-rcN` as older than the release and compares rc numbers.
 
 **States and exits (V1 settings pages)**: *Mute all* on -> the strip on Overview and Alerts with *Unmute* (ends it now) and *Change time*; *Until you turn it off* is an explicit choice and shows the same strip. A side muted / quiet after carbs or insulin / falling back / reminding less -> the strip on that alert's page with *Unmute*, *Alert me anyway* or *Remind as usual*. Alerts off (main switch) -> the row says so (Overview too) and turning it on again is one tap. An alert off -> its row says *Off*; its page turns it back on. Reliability item missing -> *Fix*; back on the page the check updates. Threshold review -> *Use these thresholds* or *Cancel* (nothing saved). Update check offline -> link to the releases page; up to date -> *Check again*. Every dialog has *Cancel*.
@@ -711,8 +712,10 @@ The wearer's phone shares readings, alerts and the stream's roster with approved
   thrown at the person. Roster and backup are refreshed every 6 days. A relay that sends a message over 1 MiB, or
   more messages than the phone can handle (4096 waiting), loses its socket (status *message too big* / *too many
   messages*) and is retried with the same backoff (Android; the Mac's URLSession caps messages at 1 MiB).
-- **Screens** (chunk 24, `feature/sharing` `share/`, `followers/`, `conflict/`; Settings › Sharing = `SharingScreen`:
-  no identity → *Set up sharing* (setup's followers step), sharing → Followers, conflict → the conflict screen): *Share with someone* (a label only
+- **Screens** (chunk 24, `feature/sharing` `share/`, `followers/`, `conflict/`; Settings › Sharing = `SharingScreen`
+  under the settings page's title and Back (system / predictive back too): no identity → *Set up sharing* (setup's
+  followers step alone; done or Back → Settings › Sharing, Back also leaves *Restore your followers* on home's
+  Finish setup card), sharing → Followers, conflict → the conflict screen): *Share with someone* (a label only
   the wearer sees, *Create invite* → the QR springs in with a confirm haptic, the link as selectable text, *Send link* /
   *Copy*, "works once, until <date>", *They'll see*, *Invite someone else*); the approve dialog (name, the invite's
   label, the 4-digit code to compare — read digit by digit by TalkBack — a warning when other phones tried the same
