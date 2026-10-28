@@ -30,7 +30,8 @@ public final class AppDelegate: NSObject, NSApplicationDelegate {
         store = DefaultsSettingsStore(defaults: services.defaults)
         model = services.model()
         model.unit = store.unit
-        model.graph = GraphConfig.load(from: store, wearer: nil)
+        model.graph = GraphConfig.load(from: store, wearer: nil, place: .menubar)
+        model.widgetGraph = GraphConfig.load(from: store, wearer: nil, place: .widget)
     }
 
     public func applicationDidFinishLaunching(_ notification: Notification) {
@@ -144,10 +145,12 @@ public final class AppDelegate: NSObject, NSApplicationDelegate {
     /// A defaults change (Settings window, another process): the alert rules, the unit and the card follow.
     private func settingsChanged() {
         services.settingsChanged()
-        let graph = GraphConfig.load(from: store, wearer: wearer)
-        let changed = model.unit != store.unit || model.graph != graph
+        let graph = GraphConfig.load(from: store, wearer: wearer, place: .menubar)
+        let widgetGraph = GraphConfig.load(from: store, wearer: wearer, place: .widget)
+        let changed = model.unit != store.unit || model.graph != graph || model.widgetGraph != widgetGraph
         if model.unit != store.unit { model.unit = store.unit }
         if model.graph != graph { model.graph = graph }
+        if model.widgetGraph != widgetGraph { model.widgetGraph = widgetGraph }
         if changed { model.feedWidget(settingsChanged: true) }
     }
 
