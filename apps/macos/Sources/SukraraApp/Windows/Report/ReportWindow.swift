@@ -28,10 +28,10 @@ final class ReportModel {
     /// The report at the app's "now" (it moves with each reading and freshness step).
     var report: GlucoseReport {
         GlucoseReport.of(
-            app.cardData.readings, days: days, now: app.cardData.now, config: app.graph, unit: app.unit)
+            AppModel.graph(app.allReadings), days: days, now: app.cardData.now, config: app.graph, unit: app.unit)
     }
 
-    var hasReadings: Bool { !app.readings.isEmpty }
+    var hasReadings: Bool { !app.allReadings.isEmpty }
 
     /// The sensor the export's "This sensor" period covers (its start and end; the wearer's serial isn't shared).
     var sensor: GlucoseCsv.Sensor? {
@@ -52,7 +52,7 @@ final class ReportModel {
 
     /// The CSV for `period` at `now`, and its file name; nil when the period has no known range (no sensor).
     func csv(_ period: GlucoseCsv.Period, now: Date = Date()) -> (name: String, text: String)? {
-        let readings = app.readings
+        let readings = app.allReadings
         let treatments = app.treatments
         let oldest = (readings.map { Int64($0.t.timeIntervalSince1970) } + treatments.map(\.t)).min()
         let nowS = Int64(now.timeIntervalSince1970)

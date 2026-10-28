@@ -14,11 +14,36 @@ import SukraraShare
 @Observable
 public final class AppModel {
     public let plan: LaunchPlan
-    /// The wearer's readings, oldest first.
+    /// The monitored readings of the last 24 hours, oldest first: the followed wearer's, else Juggluco's on this
+    /// network.
     private(set) var readings: [Reading] = []
-    /// The stored history older than `readings` (up to 31 days), loaded when the panel opens: only the panel's chart
-    /// scrolls and zooms through it (the title, widgets and alerts use `readings`).
+    /// The source's stored history (up to 31 days), loaded when monitoring starts and again when the panel opens: the
+    /// panel's chart scrolls through it, and every surface's 7 / 14 / 30-day slots are counted over it (`slots`).
     private(set) var history: [Reading] = []
+    /// Every slot's numbers over `allReadings`, counted on each new reading, history load and card settings change:
+    /// the menu bar, panel and widgets show the same rings.
+    private(set) var slots: SlotNumbers?
+    /// Juggluco on this network (nil when the plan doesn't allow it: dev, fixture and snapshot runs).
+    @ObservationIgnored let lan: (any LanSourcing)?
+    /// What the Juggluco source last said.
+    private(set) var lanSnapshot = LanSnapshot.off
+    /// The person's Juggluco switch, address and secret (nil = off). Following someone pauses it: never two people's
+    /// readings mixed.
+    var lanConfig: LanConfig? {
+        didSet {
+            let wasMonitoring = monitoring
+            syncLan()
+            guard monitoring != wasMonitoring else { return }
+            // switched off: its readings leave the card and the alerts at once
+            monitoringChanged(from: wasMonitoring)
+            apply(readings: monitoredReadings)
+            feedWidget()
+        }
+    }
+    @ObservationIgnored private var lanSent: LanConfig?
+    @ObservationIgnored private var lanTask: Task<Void, Never>?
+    /// Where `history` was loaded from.
+    @ObservationIgnored private var historySource = HistorySource.none
     private(set) var sensor: SensorInfo?
     /// The wearer's live treatments as the chart's marks, oldest first.
     private(set) var marks: [GraphMark] = []
@@ -26,12 +51,22 @@ public final class AppModel {
     private(set) var treatments: [Treatment] = []
     private(set) var link: LinkState = .notFollowing
     /// The wearer's readings feed the card and the alert rules: following, or following with the Keychain retrying.
-    private var monitoring = false
+    private var followMonitoring = false
+    /// The wearer's last 24 hours (while `followMonitoring`).
+    @ObservationIgnored private var followReadings: [Reading] = []
+    private var wearerName: String?
+    /// Juggluco's readings feed the card and the alert rules: switched on, not following, and reached at least once.
+    private var lanMonitoring: Bool { !followMonitoring && lanSent != nil && lanSnapshot.monitoring }
+    private var monitoring: Bool { followMonitoring || lanMonitoring }
     var unit: GlucoseUnit = .mgdl
     /// The card's settings (bands, hours…): this Mac's, or the wearer's mirrored ones (`GraphConfig.load`).
-    var graph = GraphConfig()
+    var graph = GraphConfig() {
+        didSet { if graph != oldValue { refreshSlots() } }
+    }
     /// The widgets' card settings: the same, with the Widgets place's own time shown and sensor time left.
-    var widgetGraph = GraphConfig()
+    var widgetGraph = GraphConfig() {
+        didSet { if widgetGraph != oldValue { refreshSlots() } }
+    }
     /// "Now" for the card: moved by the freshness ticker at each freshness step, so a value greys and strikes on time.
     private(set) var now: Date
     var notificationPermission: NotificationPermission = .allowed
@@ -55,7 +90,7 @@ public final class AppModel {
     init(
         plan: LaunchPlan, clock: any TimeSource = SystemClock(), alerts: AlertController? = nil,
         updates: UpdateCheck? = nil, loginItem: LoginItem? = nil, follower: (any FollowerService)? = nil,
-        widget: WidgetFeed? = nil
+        widget: WidgetFeed? = nil, lan: (any LanSourcing)? = nil
     ) {
         self.plan = plan
         self.clock = clock
@@ -64,6 +99,7 @@ public final class AppModel {
         self.loginItem = loginItem
         self.follower = follower
         self.widget = widget
+        self.lan = lan
         now = clock.now
         alerts?.onUIChange = { [weak self] in
             self?.feedWidget()
@@ -73,7 +109,14 @@ public final class AppModel {
 
     /// Starts the follower runtime and feeds its snapshots and the wearer's alerts into the model and the alert rules.
     func run() {
-        guard let follower, feeds.isEmpty else { return }
+        guard feeds.isEmpty else { return }
+        if let lan {
+            feeds.append(
+                Task { [weak self] in
+                    for await snapshot in await lan.snapshots() { self?.apply(lan: snapshot) }
+                })
+        }
+        guard let follower else { return }
         feeds.append(
             Task { [weak self] in
                 for await snapshot in await follower.snapshots() { self?.apply(snapshot) }
@@ -90,13 +133,13 @@ public final class AppModel {
         let wasMonitoring = monitoring
         link = snapshot.link
         // an unreadable Keychain (retrying) still follows the wearer: keep alerting on their readings, no-data included
-        monitoring = link.isFollowing || (snapshot.keychainUnreadable && !snapshot.readings.isEmpty)
-        if wasMonitoring && !monitoring {
-            alerts?.resetMonitoring()
-            history = []
-        }
+        followMonitoring = link.isFollowing || (snapshot.keychainUnreadable && !snapshot.readings.isEmpty)
+        followReadings = followMonitoring ? snapshot.readings : []
+        wearerName = snapshot.wearer?.name
+        syncLan()
+        monitoringChanged(from: wasMonitoring)
         if let alerts {
-            alerts.setMirroring(monitoring && alerts.settings.source == .wearer)
+            alerts.setMirroring(followMonitoring && alerts.settings.source == .wearer)
             alerts.sensor(
                 snapshot.sensor.map {
                     SensorWindow(
@@ -111,15 +154,65 @@ public final class AppModel {
                     return AlertTreatment(kind: kind, at: Date(timeIntervalSince1970: TimeInterval(t.t)))
                 })
         }
-        marks = monitoring ? CardAlertsMapping.marks(snapshot.treatments) : []
-        treatments = monitoring ? snapshot.treatments.filter { !$0.del } : []
+        marks = followMonitoring ? CardAlertsMapping.marks(snapshot.treatments) : []
+        treatments = followMonitoring ? snapshot.treatments.filter { !$0.del } : []
         sensor = snapshot.sensor.map {
             SensorInfo(start: TimeInterval($0.start), end: TimeInterval($0.end), warmupEnd: TimeInterval($0.warmupEnd))
         }
-        // only a followed wearer's readings are shown or alerted on
-        apply(readings: monitoring ? snapshot.readings : [])
+        // only a followed wearer's (or, not following, Juggluco's) readings are shown or alerted on
+        apply(readings: monitoredReadings)
         onSnapshot?(snapshot)  // first: it loads the wearer's mirrored card settings the widget draws with
         feedWidget()
+    }
+
+    /// What the Juggluco source said: its readings feed the card and the alerts while nobody is followed.
+    func apply(lan snapshot: LanSnapshot) {
+        let wasMonitoring = monitoring
+        lanSnapshot = snapshot
+        monitoringChanged(from: wasMonitoring)
+        guard !followMonitoring else { return }
+        apply(readings: monitoredReadings)
+        feedWidget()
+    }
+
+    /// The readings the card and the alert rules use: following wins over Juggluco (never two people's mixed).
+    private var monitoredReadings: [Reading] {
+        followMonitoring ? followReadings : lanMonitoring ? lanSnapshot.readings : []
+    }
+
+    /// Monitoring started, stopped or moved to the other source: the alert rules forget the old one and the history
+    /// is loaded from the new one.
+    private func monitoringChanged(from wasMonitoring: Bool) {
+        if wasMonitoring && !monitoring { alerts?.resetMonitoring() }
+        let source: HistorySource = followMonitoring ? .follow : lanMonitoring ? .lan : .none
+        guard source != historySource else { return }
+        historySource = source
+        history = []
+        loadHistory()
+    }
+
+    /// Hands the switch's state to the Juggluco source: on with its config while nobody is followed, else off.
+    private func syncLan() {
+        guard let lan else { return }
+        let want = followMonitoring ? nil : lanConfig
+        guard want != lanSent else { return }
+        lanSent = want
+        let previous = lanTask
+        lanTask = Task {
+            await previous?.value
+            await lan.set(want)
+        }
+    }
+
+    /// The wearer's name while following pauses Juggluco (nil = not paused).
+    var lanPausedFor: String? {
+        followMonitoring ? (wearerName.flatMap { $0.isEmpty ? nil : $0 } ?? L10n.t("the wearer")) : nil
+    }
+
+    /// Try Again on the Juggluco source.
+    func retryLan() {
+        guard let lan else { return }
+        Task { await lan.retry() }
     }
 
     /// Hands the card's current input to the widgets: every follower snapshot, every alert badge change, and the unit
@@ -147,6 +240,7 @@ public final class AppModel {
         readings = new.sorted { $0.t < $1.t }
         now = clock.now
         if let latest = readings.last { alerts?.reading(latest) }
+        refreshSlots()
         restartTicker()
     }
 
@@ -162,7 +256,7 @@ public final class AppModel {
         CardData(
             readings: readings.map { GraphReading(t: $0.t.timeIntervalSince1970, v: Double($0.mgdl), rate: $0.rate) },
             marks: marks, sensor: sensor,
-            alerts: cardAlerts, now: now.timeIntervalSince1970)
+            alerts: cardAlerts, now: now.timeIntervalSince1970, slots: slots)
     }
 
     /// The card's alert decision: the engine's state, or while mirroring the wearer's alerts the same rules over the
@@ -185,26 +279,55 @@ public final class AppModel {
     /// scrolls and zooms through up to 31 days.
     var panelData: CardData {
         var data = cardData
-        guard let first = readings.first?.t else { return data }
-        let older = history.prefix { $0.t < first }
-        guard !older.isEmpty else { return data }
-        data.readings =
-            older.map { GraphReading(t: $0.t.timeIntervalSince1970, v: Double($0.mgdl), rate: $0.rate) }
-            + data.readings
+        guard !history.isEmpty else { return data }
+        data.readings = Self.graph(allReadings)
         return data
     }
 
-    /// The panel opened: load the stored history (31 days) its chart can scroll through.
+    /// The stored history and the last 24 hours, oldest first (the report, the export and the slots).
+    var allReadings: [Reading] {
+        guard let first = readings.first?.t else { return history }
+        return history.prefix { $0.t < first } + readings
+    }
+
+    static func graph(_ readings: [Reading]) -> [GraphReading] {
+        readings.map { GraphReading(t: $0.t.timeIntervalSince1970, v: Double($0.mgdl), rate: $0.rate) }
+    }
+
+    /// Counts every slot's numbers over the whole history once (the card surfaces only look them up).
+    private func refreshSlots() {
+        let all = monitoring ? allReadings : []
+        let new =
+            all.isEmpty
+            ? nil
+            : SlotNumbers.of(Self.graph(all), now: clock.now.timeIntervalSince1970, configs: [graph, widgetGraph])
+        if new != slots { slots = new }
+    }
+
+    /// Loads the monitored source's stored history (31 days): when monitoring starts and each time the panel opens.
     func loadHistory() {
-        guard let follower, monitoring else {
+        let source = historySource
+        guard source != .none else {
             history = []
+            refreshSlots()
             return
         }
         let since = clock.now.addingTimeInterval(-ChartView.maxSpan)
+        let follower = self.follower
+        let lan = self.lan
         Task { [weak self] in
-            let loaded = await follower.readings(since: since)
-            guard let self, self.monitoring else { return }
-            self.history = loaded.sorted { $0.t < $1.t }
+            let loaded: [Reading] =
+                switch source {
+                case .follow: await follower?.readings(since: since) ?? []
+                case .lan: await lan?.readings(since: since) ?? []
+                case .none: []
+                }
+            guard let self, self.historySource == source else { return }
+            let sorted = loaded.sorted { $0.t < $1.t }
+            guard sorted != self.history else { return }
+            self.history = sorted
+            self.refreshSlots()
+            self.feedWidget()
         }
     }
 
@@ -241,6 +364,7 @@ public final class AppModel {
         // shown over the stored readings too: with the Keychain unreadable no new reading can arrive
         if case .broken(let why) = link { return L10n.t("Not monitoring: \(why)") }
         guard readings.isEmpty else { return nil }
+        if !followMonitoring, lanSent != nil, let why = Self.lanReason(lanSnapshot.state) { return why }
         switch link {
         case .notFollowing, .joining: return L10n.t("Not monitoring: not following anyone yet")
         case .requested: return L10n.t("Not monitoring: waiting for the wearer to allow this Mac")
@@ -249,6 +373,19 @@ public final class AppModel {
         case .inviteUsed: return L10n.t("Not monitoring: the invite was used by another device")
         case .revoked: return L10n.t("Not monitoring: the wearer stopped sharing")
         case .broken(let why): return L10n.t("Not monitoring: \(why)")
+        }
+    }
+
+    /// Why Juggluco gives no reading yet, in words (nil when it is off).
+    static func lanReason(_ state: LanState) -> String? {
+        switch state {
+        case .off: nil
+        case .looking: L10n.t("Not monitoring: looking for Juggluco on this network")
+        case .notFound: L10n.t("Not monitoring: Juggluco wasn't found on this network")
+        case .connected: L10n.t("Waiting for the first reading from Juggluco")
+        case .unreachable(let host): L10n.t("Not monitoring: can't reach Juggluco at \(host)")
+        case .unauthorized: L10n.t("Not monitoring: Juggluco refused the API secret")
+        case .refused(let typed): L10n.t("Not monitoring: \(typed) isn't an address on your home network")
         }
     }
 
@@ -327,5 +464,11 @@ public final class AppModel {
         feeds.forEach { $0.cancel() }
         alerts?.stop()
         if let follower { Task { await follower.stop() } }
+        if let lan { Task { await lan.set(nil) } }
     }
+}
+
+/// Where the history was loaded from.
+private enum HistorySource {
+    case none, follow, lan
 }

@@ -31,5 +31,6 @@
 	</array>
 	<key>SukraraAppGroup</key><string>@GROUP@</string>
 	<key>NSBluetoothAlwaysUsageDescription</key><string>Follow a nearby wearer's glucose over Bluetooth.</string>
+	<key>NSLocalNetworkUsageDescription</key><string>Read glucose from Juggluco on your home network, when you turn it on in Settings.</string>
 </dict>
 </plist>

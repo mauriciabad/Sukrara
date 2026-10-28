@@ -6704,6 +6704,342 @@
           }
         }
       }
+    },
+    "Not monitoring: looking for Juggluco on this network" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Not monitoring: looking for Juggluco on this network"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sin monitorizar: buscando Juggluco en esta red"
+          }
+        }
+      }
+    },
+    "Not monitoring: Juggluco wasn't found on this network" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Not monitoring: Juggluco wasn't found on this network"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sin monitorizar: no se ha encontrado Juggluco en esta red"
+          }
+        }
+      }
+    },
+    "Waiting for the first reading from Juggluco" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Waiting for the first reading from Juggluco"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Esperando la primera lectura de Juggluco"
+          }
+        }
+      }
+    },
+    "Not monitoring: can't reach Juggluco at %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Not monitoring: can't reach Juggluco at %@"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sin monitorizar: no se puede conectar con Juggluco en %@"
+          }
+        }
+      }
+    },
+    "Not monitoring: Juggluco refused the API secret" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Not monitoring: Juggluco refused the API secret"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sin monitorizar: Juggluco ha rechazado el secreto de la API"
+          }
+        }
+      }
+    },
+    "Not monitoring: %@ isn't an address on your home network" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Not monitoring: %@ isn't an address on your home network"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sin monitorizar: %@ no es una dirección de tu red de casa"
+          }
+        }
+      }
+    },
+    "Starting…" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Starting…"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Iniciando…"
+          }
+        }
+      }
+    },
+    "Looking for Juggluco on this network…" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Looking for Juggluco on this network…"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Buscando Juggluco en esta red…"
+          }
+        }
+      }
+    },
+    "Not found. Check that Juggluco's web server is on with Local only off, or type its address." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Not found. Check that Juggluco's web server is on with Local only off, or type its address."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No encontrado. Comprueba que el servidor web de Juggluco está activado con «Local only» desactivado, o escribe su dirección."
+          }
+        }
+      }
+    },
+    "Reading Juggluco at %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reading Juggluco at %@"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Leyendo Juggluco en %@"
+          }
+        }
+      }
+    },
+    "Can't reach Juggluco at %@. Retrying…" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Can't reach Juggluco at %@. Retrying…"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No se puede conectar con Juggluco en %@. Reintentando…"
+          }
+        }
+      }
+    },
+    "Juggluco refused the API secret. Type the one set in Juggluco." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Juggluco refused the API secret. Type the one set in Juggluco."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Juggluco ha rechazado el secreto de la API. Escribe el que tiene Juggluco."
+          }
+        }
+      }
+    },
+    "%@ isn't a home-network address (like 192.168.1.23). Fix it or leave it blank." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ isn't a home-network address (like 192.168.1.23). Fix it or leave it blank."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ no es una dirección de tu red de casa (como 192.168.1.23). Corrígela o déjala en blanco."
+          }
+        }
+      }
+    },
+    "Juggluco on this network" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Juggluco on this network"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Juggluco en esta red"
+          }
+        }
+      }
+    },
+    "Paused while following %@: their readings come first." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Paused while following %@: their readings come first."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "En pausa mientras sigues a %@: sus lecturas van primero."
+          }
+        }
+      }
+    },
+    "Try Again" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Try Again"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reintentar"
+          }
+        }
+      }
+    },
+    "Address" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Address"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dirección"
+          }
+        }
+      }
+    },
+    "Find it automatically" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Find it automatically"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Buscarla automáticamente"
+          }
+        }
+      }
+    },
+    "API secret" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "API secret"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Secreto de la API"
+          }
+        }
+      }
+    },
+    "Source" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Source"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Origen"
+          }
+        }
+      }
+    },
+    "While this Mac follows nobody, it can read glucose from Juggluco's web server on the same network (in Juggluco: Settings › Web server, with Local only off). Plain http on your home network only: readings travel unencrypted between the phone and this Mac." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "While this Mac follows nobody, it can read glucose from Juggluco's web server on the same network (in Juggluco: Settings › Web server, with Local only off). Plain http on your home network only: readings travel unencrypted between the phone and this Mac."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mientras este Mac no sigue a nadie, puede leer la glucosa del servidor web de Juggluco en la misma red (en Juggluco: Ajustes › Servidor web, con «Local only» desactivado). Solo http sin cifrar en tu red de casa: las lecturas viajan sin cifrar entre el móvil y este Mac."
+          }
+        }
+      }
     }
   },
   "version" : "1.0"

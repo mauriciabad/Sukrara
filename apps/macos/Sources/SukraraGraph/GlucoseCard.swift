@@ -492,20 +492,72 @@ public struct CardData: Sendable, Equatable, Codable {
     public var sensor: SensorInfo?
     public var alerts: CardAlerts
     public var now: TimeInterval
+    /// The slots' numbers counted over the stored history (`SlotNumbers.of`), so every surface shows the same 7 / 14 /
+    /// 30-day rings whatever stretch of `readings` it draws; nil = counted from `readings`.
+    public var slots: SlotNumbers?
 
     public init(
         readings: [GraphReading], marks: [GraphMark] = [], sensor: SensorInfo? = nil, alerts: CardAlerts = .none,
-        now: TimeInterval
+        now: TimeInterval, slots: SlotNumbers? = nil
     ) {
         self.readings = readings
         self.marks = marks
         self.sensor = sensor
         self.alerts = alerts
         self.now = now
+        self.slots = slots
     }
 
     /// The newest reading, or nil.
     public var latest: GraphReading? { readings.max { $0.t < $1.t } }
+
+    /// A slot's numbers: the stored history's for a window longer than `readings` cover (counted for these ranges in
+    /// the last day), else counted from `readings` at `now` (exact, also in a widget frame hours ahead).
+    func metrics(_ spec: RingSpec, _ bands: Bands) -> GlucoseMetrics {
+        let covered = readings.map(\.t).min().map { now - $0 } ?? 0
+        if spec.window > covered + 3600, let slots, now - slots.at < 86_400, now >= slots.at - 3600,
+            let m = slots.metrics(spec.window, bands)
+        {
+            return m
+        }
+        return GlucoseMetrics.of(readings, from: now - spec.window, to: now, bands: bands)
+    }
+}
+
+/// Every slot's numbers (time in range, average, GMI, CV) over the whole stored history, counted once per new reading
+/// by the app and handed to every card surface in `CardData.slots` (the widgets get them in their snapshot instead of
+/// a month of readings). Android: `MetricsCache` over the stored days.
+public struct SlotNumbers: Sendable, Equatable, Codable {
+    struct Entry: Sendable, Equatable, Codable {
+        var window: TimeInterval
+        var bands: Bands
+        var metrics: GlucoseMetrics
+    }
+
+    var entries: [Entry]
+    /// When they were counted (epoch s): the windows end then.
+    public var at: TimeInterval
+
+    /// The numbers for every window a card with any of `configs` can show (its slots, also those beyond the ring
+    /// count a place may show, and the last-treatment slot's ring), over `history` up to `now`.
+    public static func of(_ history: [GraphReading], now: TimeInterval, configs: [GraphConfig]) -> SlotNumbers {
+        var entries: [Entry] = []
+        for config in configs {
+            let bands = config.bands.sane()
+            let windows = config.slots.map(\.window) + (config.lastElse.map { [$0.window] } ?? [])
+            for window in windows where !entries.contains(where: { $0.window == window && $0.bands == bands }) {
+                entries.append(
+                    Entry(
+                        window: window, bands: bands,
+                        metrics: GlucoseMetrics.of(history, from: now - window, to: now, bands: bands)))
+            }
+        }
+        return SlotNumbers(entries: entries, at: now)
+    }
+
+    func metrics(_ window: TimeInterval, _ bands: Bands) -> GlucoseMetrics? {
+        entries.first { $0.window == window && $0.bands == bands }?.metrics
+    }
 }
 
 extension GlucoseCard {
@@ -526,7 +578,7 @@ extension GlucoseCard {
         return image(
             size: size, scale: scale, readings: data.readings, marks: data.marks, now: data.now, style,
             tinted ? palette.tinted() : palette,
-            surface: surface, alerts: data.alerts, overflow: overflow, view: view)
+            surface: surface, metricsOf: data.metrics, alerts: data.alerts, overflow: overflow, view: view)
     }
 
     /// The panel's card sits on a recessed module: its grid (and with Increase Contrast its secondary ink) is stronger.
@@ -552,7 +604,8 @@ extension GlucoseCard {
         style.unit = unit
         let layout = draw(
             ctx, size: size, readings: data.readings, marks: data.marks, now: data.now, style,
-            GraphPalette.of(dark: false), surface: surface, part: .all, alerts: data.alerts, view: view)
+            GraphPalette.of(dark: false), surface: surface, part: .all, metricsOf: data.metrics, alerts: data.alerts,
+            view: view)
         return (layout.first("chart.plot")?.box, layout.first("chart.now")?.box)
     }
 
@@ -581,7 +634,7 @@ extension GlucoseCard {
         draw(
             ctx, size: size, readings: data.readings, marks: data.marks, now: data.now, style,
             GraphPalette.of(dark: dark), surface: surface,
-            part: part, alerts: data.alerts)
+            part: part, metricsOf: data.metrics, alerts: data.alerts)
     }
 
     /// The value's decision for text places (the menu bar title, notifications): the state, the value in `unit`, the
