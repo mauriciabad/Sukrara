@@ -55,7 +55,7 @@
     <string name="sh_identity_unreadable">No se puede leer tu identidad para compartir en este móvil. Restáurala con tu código de recuperación; no se ha sustituido nada.</string>
     <string name="sh_restore_title">Restaurar con tu código de recuperación</string>
     <string name="sh_restore_warning">Tus seguidores pasan a este móvil: el móvil que compartía hasta ahora deja de llegarles. Hazlo cuando este móvil tenga tu sensor.</string>
-    <string name="sh_restore_where">Pega tu código de recuperación (ncryptsec… con su contraseña, o nsec…).</string>
+    <string name="sh_restore_where">Un código ncryptsec… con su contraseña, o un código nsec…</string>
     <string name="sh_restore_block_no_reading">Conecta antes tu sensor: podrás restaurar cuando esta app reciba una lectura.</string>
     <string name="sh_restore_step_sensor">Sensor funcionando en Sukrara</string>
     <string name="sh_restore_step_code">Pega tu código de recuperación</string>

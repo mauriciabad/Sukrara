@@ -103,7 +103,7 @@
     <!-- Restore warning (always shown) -->
     <string name="sh_restore_warning">Your followers move to this phone: the phone that shared until now stops reaching them. Do this once this phone has your sensor.</string>
     <!-- Where the recovery code is -->
-    <string name="sh_restore_where">Paste your recovery code (ncryptsec… with its password, or nsec…).</string>
+    <string name="sh_restore_where">An ncryptsec… code with its password, or an nsec… code</string>
     <!-- Restore blocked: no reading yet -->
     <string name="sh_restore_block_no_reading">Connect your sensor first: restore becomes available once this app receives a reading.</string>
     <string name="sh_restore_step_sensor">Sensor running in Sukrara</string>
