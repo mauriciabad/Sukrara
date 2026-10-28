@@ -556,10 +556,23 @@ Android (`:monitor`, `LiveNotification` = registered surface `notification-text`
   after a quiet second at once, a burst folded into its latest content; monotonic clock.
 - **Freshness ticker**: one exact non-waking alarm at the latest reading's next freshness step (90 s, 5 min, 20 min,
   3 h; none when nothing will change) redraws the notification without a new reading; the widgets can listen to the same ticks.
-- Not included (issues): the renderer's colorized card with the graph (chip off; waits for `GlucoseCard`), MetricStyle
-  slots on Android 17, mmol/L.
-- **States and exits**: *Live Update chip* → turn off in Android's per-app Live Updates setting (or demote it from the
-  chip) → plain notification; back on in the same setting. *Notification swiped away* → it comes back (it is the
+- **Without the chip** (Settings › **Status bar** › *Live Update chip* off, or Live Updates refused by Android): a
+  colorized foreground-service card in the value's range colour (grey once struck through), drawn by the renderer
+  (registered card surface `notification`, `NotificationCard`, `notificationCardStyle`): the card's header row
+  (value, trend, late time, status pill, slots on discs) collapsed, header + the chart (the Notification place's
+  window) expanded. Small icon = the number itself (`ValueGlyphs.icon`, struck at half strength) when *Number as
+  notification icon* is on, else the arrow. Pictures are drawn at most at 2× density, cached (header per minute, chart
+  per 5 min / reading), never drawn while the screen is off (an out-of-date card posts as text and screen on redraws
+  it); a drawing failure posts the same notification as text, and the foreground start never draws.
+- **Android 17 Live Update card**: MetricStyle with the face's value (`mg/dL`, styled danger / caution / safe by the
+  person's low and high bands; plain once struck through) and the late reading's time.
+- Settings › **Status bar**: *Live Update chip* (default on), *Allow Live Updates for Sukrara* (shown while the chip
+  is on and Android refuses it; opens Android's per-app Live Updates setting, re-read on return), *Number as
+  notification icon* (default on; disabled with "The chip already shows the value" while the chip shows).
+- Not included (issues): MetricStyle slots on Android 17, mmol/L.
+- **States and exits**: *Live Update chip* → turn off in Settings › Status bar (or Android's per-app Live Updates
+  setting, or demote it from the chip) → the colorized card; back on in the same places (*Allow Live Updates* row when
+  Android refuses it). *Number icon* → Settings › Status bar. *Notification swiped away* → it comes back (it is the
   monitoring service's; turning off the `glucose` channel in Android's settings hides it, the app's home still shows
   the value). *Not monitoring* → *Set up sensor* (notification action, home) → sensor setup; leaves on the first reading.
   *Sensor ended* → *Replace sensor*. *Bluetooth off* → turn Bluetooth on (Quick Settings) → readings resume on their
@@ -636,7 +649,15 @@ removed or resized from the desktop's *Edit Widgets* (system). No widget state b
 ## Sensor reminders and countdowns
 
 Wearer only (`sensorend/`; rules in `SensorEndPlan`, tests `SensorEndPlanTest`); followers get none of these. Settings → **Sensor end**.
-- **Android** ships the minimal form (no *Sensor ready* notification, no reminders page, no countdown notifications); the list below returns with the reminders page: one *Sensor ends in 6 h* · *Have a new sensor ready to change it in time.* notification 6 h before the end (counting down to it; shown once per sensor, late if the phone was off but never after the end), then one *Sensor ended* · *No readings until you start a new sensor.* with **Pair new sensor** (opens the app's new-sensor flow) at most 12 h after the end. Channel `sensor` (*Sensor*), Sukrara's *info* notification group (never bundled with alerts). Exact alarm, re-checked on boot, app update, clock and time-zone change; a new sensor (an end more than a day away from the planned one) clears it and starts over; no sensor clears it. Tests `SensorEndNotifierTest`. States and exits: *warned* (notification; swipe, or tap opens the app; goes at the end), *ended* (notification with Pair new sensor; tap / swipe; a new sensor clears it).
+- **Android** (`:monitor` `sensorend/`: `SensorEndPlan` pure rules on virtual time, `SensorEndNotifier`,
+  `AndroidSensorEndPresenter`; page `:feature:settings` `sensorend/SensorEndPage`; settings `sensor.reminders` JSON +
+  `sensor.countdownHours`; tests `SensorEndPlanTest`, `SensorEndNotifierTest`). Differences from the description
+  below: reminders and *Sensor ended* use channel `sensor`; both countdowns and *Sensor ready* (silent) use
+  `sensor.countdown`; the sensor's start is derived from its end (15 d) or ready time (60 min); a sensor whose start
+  moves by more than a day is a new one. Swiping a countdown away goes to `AlertCheckReceiver` (kept away for that
+  sensor). States and exits: each reminder (tap opens the app, swipe); countdowns (swipe = gone for this sensor, or
+  the switches on the page); *Sensor ended* (*Replace sensor* → new-sensor flow; a new sensor clears it); turning a
+  switch off removes what it shows on the next re-plan.
 - Reminders: a list of (days before the end day 0–3, time of day), at most 6; default *1 day before at 09:00* and *on the end day at 09:00*. Each fires in the phone's time zone on (end day − days) at its time, only if that is after the sensor's start and before its end (a sensor ending at 07:30 skips "end day 09:00"). Text: *Sensor ends today / tomorrow / on Wednesday at 14:30* (≥ 7 days: the date) · *Have a new sensor ready.* One notification slot: the later reminder replaces the earlier one.
 - Reminders that passed before Sukrara knew them (new sensor, edited list) never fire; one missed while the phone was off fires late if the sensor hasn't ended (of several, only the latest).
 - The page lists the reminders, then *Add reminder* as a button under the list (the same dialog, empty; hidden at 6), then the first-unlock switch in its own group.
@@ -813,6 +834,6 @@ past the other app's event; blocks again if it's still running) or *Help*.
 - Android settings pages: settings export / import / reset, settings search, the ring order and slot editors (graph.slots, ringOrder, ringRange, lastPlace / lastElse), lines across the graph, treatment marks options, per-place graph time and sensor time, the follower's *Settings from* page, relay / epoch / statistics / log pages, battery-lab knobs, mmol/L in the settings pages (thresholds and ranges are shown and typed in mg/dL; schema `general.unit` is set elsewhere), and the alert sound preview (play / vibration) in settings. Reason: only what daily use needs; the defaults are the owner's own values.
 - Mac: Juggluco over Wi-Fi (LAN source and subnet discovery) and the Nostr v1 `cgmnostr:` follow link (v1 links carried plaintext secrets and had no UI). Follow the wearer with a protocol v2 invite instead.
 - Sensors: Dexcom G6 / ONE, Dexcom G7 / ONE+ / G7 15 Day / Stelo, Aidex X, Accu-Chek SmartGuide, the "other sensors" scan and the untested-sensor banner; the Libre 3 experiment preferences (minimal subscription set, connection priority, screen-off skip). Reason: no hardware to test them, the owner uses a Libre 3.
-- Planned (issues filed): the Android follower role (join flow, follower home and Following page), the Android Backup page and profile editor, the glucose report card, LibreView / Nightscout / Tidepool uploads, the local xDrip+ (Garmin) and Nightscout servers, Health Connect and broadcasts, insulin pens, the full sensor reminders page, the calendar event and the *Sensor ready* notification, CSV export, Bluetooth sharing from the phone. The sections above that describe them are the behaviour to build. Reason: what daily use needs comes first.
+- Planned (issues filed): the Android follower role (join flow, follower home and Following page), the Android Backup page and profile editor, the glucose report card, LibreView / Nightscout / Tidepool uploads, the local xDrip+ (Garmin) and Nightscout servers, Health Connect and broadcasts, insulin pens, the calendar event, CSV export, Bluetooth sharing from the phone. The sections above that describe them are the behaviour to build. Reason: what daily use needs comes first.
 
 **States and exits**: none (these features aren't in the app).

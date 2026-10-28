@@ -90,6 +90,8 @@ data class SettingsKey(
             "ranges" -> SettingsRoute.Ranges
             "graph" -> SettingsRoute.Graph
             "reliability" -> SettingsRoute.Reliability
+            "statusbar" -> SettingsRoute.StatusBar
+            "sensorend" -> SettingsRoute.SensorEnd
             "about" -> SettingsRoute.About
             "review" -> SettingsRoute.ThresholdReview
             else -> SettingsRoute.Overview
@@ -104,6 +106,8 @@ data class SettingsKey(
                 SettingsRoute.Ranges -> SettingsKey("ranges")
                 SettingsRoute.Graph -> SettingsKey("graph")
                 SettingsRoute.Reliability -> SettingsKey("reliability")
+                SettingsRoute.StatusBar -> SettingsKey("statusbar")
+                SettingsRoute.SensorEnd -> SettingsKey("sensorend")
                 SettingsRoute.About -> SettingsKey("about")
                 SettingsRoute.ThresholdReview -> SettingsKey("review")
             }

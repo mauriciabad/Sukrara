@@ -193,4 +193,61 @@
     <string name="st_sensor_open_bluetooth">Abrir ajustes de Bluetooth</string>
     <string name="st_sensor_core_missing_text">Esta versión no puede leer el Libre 3 por sí misma. Juggluco puede leerlo para Sukrara.</string>
     <string name="st_sensor_footer">Tu contraseña de LibreView se usa una vez para obtener el ID de receptor y nunca se guarda.</string>
+    <!-- Ajustes › Barra de estado -->
+    <string name="st_statusbar_title">Barra de estado</string>
+    <string name="st_overview_statusbar">Chip de Actualización en vivo e icono de notificación</string>
+    <string name="st_statusbar_chip">Chip de Actualización en vivo</string>
+    <string name="st_statusbar_chip_summary">Tu glucosa junto al reloj</string>
+    <string name="st_statusbar_allow_live_updates">Permitir Actualizaciones en vivo a Sukrara</string>
+    <string name="st_statusbar_allow_live_updates_summary">Android tiene las Actualizaciones en vivo desactivadas para Sukrara, así que el chip no se ve</string>
+    <string name="st_statusbar_number_icon">Número como icono de notificación</string>
+    <string name="st_statusbar_number_icon_summary">La barra de estado muestra el valor como icono de la notificación</string>
+    <string name="st_statusbar_number_icon_chip">El chip ya muestra el valor</string>
+    <string name="st_statusbar_footer">Con el chip, la notificación de glucosa es una Actualización en vivo: el valor y su flecha aparecen junto al reloj. Sin él, la notificación es una tarjeta del color de tu rango con la gráfica, y su icono puede ser el número. El chip necesita Android 16 o posterior.</string>
+
+    <!-- Ajustes › Fin del sensor -->
+    <string name="st_sensorend_title">Fin del sensor</string>
+    <string name="st_overview_sensorend">Recordatorios y cuentas atrás en vivo</string>
+    <string name="st_sensorend_current">Este sensor</string>
+    <string name="st_sensorend_current_ends">Termina %1$s</string>
+    <string name="st_sensorend_current_ended">Terminó %1$s</string>
+    <string name="st_sensorend_current_ended_now">Terminado</string>
+    <string name="st_sensorend_current_warming">Calentándose, lecturas a las %1$s</string>
+    <string name="st_sensorend_current_none">Aún no hay sensor</string>
+    <string name="st_sensorend_current_unknown">Aún no se sabe cuándo termina</string>
+    <string name="st_sensorend_reminders">Recordatorios</string>
+    <string name="st_sensorend_no_reminders">Sin recordatorios</string>
+    <string name="st_sensorend_end_day">El día que termina</string>
+    <plurals name="st_sensorend_days_before">
+        <item quantity="one">%d día antes</item>
+        <item quantity="many">%d días antes</item>
+        <item quantity="other">%d días antes</item>
+    </plurals>
+    <string name="st_sensorend_add">Añadir recordatorio</string>
+    <string name="st_sensorend_reminder_new">Nuevo recordatorio</string>
+    <string name="st_sensorend_reminder_edit">Recordatorio</string>
+    <string name="st_sensorend_time">Hora</string>
+    <string name="st_sensorend_remove">Quitar</string>
+    <string name="st_sensorend_save">Guardar</string>
+    <string name="st_sensorend_ok">Aceptar</string>
+    <string name="st_sensorend_cancel">Cancelar</string>
+    <string name="st_sensorend_unlock">Recordar al desbloquear</string>
+    <string name="st_sensorend_unlock_summary">Los recordatorios de la mañana y de la tarde llegan al desbloquear, si es antes</string>
+    <string name="st_sensorend_night">Noche</string>
+    <string name="st_sensorend_evening">Recordar la tarde anterior</string>
+    <string name="st_sensorend_evening_summary">Si termina de noche, a las %1$s</string>
+    <string name="st_sensorend_bedtime">Hora de dormir</string>
+    <string name="st_sensorend_wakeup">Hora de despertar</string>
+    <string name="st_sensorend_countdowns">Cuentas atrás en vivo</string>
+    <string name="st_sensorend_countdown">Cuenta atrás del final</string>
+    <string name="st_sensorend_countdown_summary">El tiempo que queda en las últimas horas del sensor</string>
+    <string name="st_sensorend_countdown_hours">La cuenta atrás empieza</string>
+    <plurals name="st_sensorend_hours_before">
+        <item quantity="one">%d hora antes del final</item>
+        <item quantity="many">%d horas antes del final</item>
+        <item quantity="other">%d horas antes del final</item>
+    </plurals>
+    <string name="st_sensorend_warmup">Cuenta atrás del calentamiento</string>
+    <string name="st_sensorend_warmup_summary">La primera hora de un sensor nuevo, hasta su primera lectura</string>
+    <string name="st_sensorend_footer">Un recordatorio que llegaría después del final del sensor se omite. El inicio de la cuenta atrás también decide cuándo la gráfica muestra el anillo de cuenta atrás del sensor. Con el chip de glucosa activado, la cuenta atrás del final se queda en las notificaciones para que la barra de estado siga mostrando tu glucosa. Desliza una cuenta atrás para ocultarla con este sensor. Android no comparte su horario de descanso con las apps, así que indica tu noche aquí.</string>
 </resources>

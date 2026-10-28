@@ -170,6 +170,7 @@ class AppGraph(
             http = data.http,
             dispatchers = dispatchers,
             clock = clock,
+            sensor = monitor.hub.state.map { it.sensor },
         )
     }
 
