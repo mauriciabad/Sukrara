@@ -74,6 +74,9 @@ The full catalog, with every rule and number, is [docs/FEATURES.md](docs/FEATURE
   pictures, let one *add entries*, remove them (confirmed; removed ones fold away), **Backup** to your password manager
   or a recovery code (home says *Not backed up* until then; setup restores from either), and a clear screen when another
   device is sharing as you.
+- **Share with apps**: upload to your own **Nightscout** site (https, access token kept encrypted; 30-day catch-up,
+  pauses when another app uploads to the same site), an **xDrip+-compatible server** on this phone for **Garmin**
+  watches (off until you switch it on; loopback only), and **Export data** as a LibreView-layout CSV to save or share.
 - English and Spanish (Spain) everywhere.
 
 **Mac (you follow someone, from the menu bar)**
@@ -94,13 +97,14 @@ The full catalog, with every rule and number, is [docs/FEATURES.md](docs/FEATURE
 - VoiceOver reads the value as one sentence with the range in words.
 
 **Not included**: the root status-bar
-icons and the LSPosed lock-screen widget, Dexcom / Aidex / SmartGuide (untested) sensors, Garmin via the local xDrip+
-server, Nightscout / Tidepool / LibreView uploads, Health Connect and broadcasts, insulin pens, the sensor-end
-calendar event, the glucose report and CSV export, settings export / import, following on
+icons and the LSPosed lock-screen widget, Dexcom / Aidex / SmartGuide (untested) sensors, Tidepool / LibreView
+uploads, the phone's Nightscout read API, Health Connect and broadcasts, insulin pens, the sensor-end calendar event,
+the glucose report, settings export / import, following on
 Android and Bluetooth sharing from the phone, and the Mac's Juggluco-over-Wi-Fi source.
 
-**Garmin watch:** Sukrara has no watch server yet. A watch fed by **Juggluco** keeps working while Juggluco reads the
-sensor: pick Juggluco as Sukrara's source (*Settings › Sensor › Juggluco*).
+**Garmin watch:** switch on *Settings › Share with apps › xDrip+ server*; watch faces and data fields made for xDrip+
+read it through Garmin Connect. While **Juggluco** is Sukrara's source, Juggluco keeps its own server and feeds the
+watch. Upload uses a new device name per install (`Sukrara-…`), so a Nightscout site shows Sukrara as a new uploader.
 
 ## Install
 

@@ -42,7 +42,13 @@ interface SettingsDeps {
 
     /** The wearer's sensor as the hub knows it (Settings › Sensor end shows its end). */
     val sensor: Flow<SensorState>
+
+    /** Which outputs Share with apps has on (the overview row's summary). */
+    val appsShared: Flow<Set<AppOutput>>
 }
+
+/** An output to other apps that is switched on (Settings › Share with apps). */
+enum class AppOutput { NightscoutUpload, XdripServer }
 
 /** Reads and changes the alert settings; [update] applies a change to the stored value (never to a stale copy). */
 interface AlertSettingsStore {

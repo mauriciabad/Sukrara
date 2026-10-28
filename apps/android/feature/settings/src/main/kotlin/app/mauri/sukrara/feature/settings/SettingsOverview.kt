@@ -16,6 +16,7 @@ class OverviewActions(
     val open: (SettingsRoute) -> Unit = {},
     val openSensor: () -> Unit = {},
     val openSharing: () -> Unit = {},
+    val openApps: () -> Unit = {},
     val unmuteAll: () -> Unit = {},
 )
 
@@ -27,6 +28,7 @@ fun SettingsOverviewContent(
     readiness: AlertReadiness,
     clock: Clock,
     actions: OverviewActions,
+    appsShared: Set<AppOutput> = emptySet(),
     onBack: () -> Unit,
 ) {
     SettingsPage(stringResource(R.string.st_settings_title), onBack) {
@@ -64,9 +66,24 @@ fun SettingsOverviewContent(
                 actions.open(SettingsRoute.SensorEnd)
             }, summary = stringResource(R.string.st_overview_sensorend))
             NavigationRow(stringResource(R.string.st_sharing), actions.openSharing, summary = stringResource(R.string.st_sharing_summary))
+            NavigationRow(stringResource(R.string.st_apps), actions.openApps, summary = appsSummary(appsShared))
         }
         SettingsGroup {
             NavigationRow(stringResource(R.string.st_about_title), { actions.open(SettingsRoute.About) })
         }
     }
+}
+
+/** "Nightscout upload · xDrip+ server", or what the page is for while nothing is on. */
+@Composable
+private fun appsSummary(on: Set<AppOutput>): String {
+    if (on.isEmpty()) return stringResource(R.string.st_apps_summary)
+    val names =
+        on.sortedBy { it.ordinal }.map {
+            when (it) {
+                AppOutput.NightscoutUpload -> stringResource(R.string.st_apps_nightscout)
+                AppOutput.XdripServer -> stringResource(R.string.st_apps_xdrip)
+            }
+        }
+    return names.joinToString(" · ")
 }

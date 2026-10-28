@@ -37,6 +37,7 @@
     <string name="in_apps_title">Share with apps</string>
     <string name="in_apps_intro_wearer">Your glucose in other apps: your own Nightscout site, Garmin watches through the xDrip+ server, and a file for your clinic.</string>
     <string name="in_apps_intro_follower">The glucose of the person you follow in other apps: Garmin watches through the xDrip+ server, and a file.</string>
+    <string name="in_apps_nightscout_group" translatable="false">Nightscout</string>
     <string name="in_apps_watch_group">Watches</string>
     <string name="in_apps_xdrip">xDrip+ server</string>
     <string name="in_apps_xdrip_off">For Garmin watches · any app on this phone can read it while it\'s on</string>

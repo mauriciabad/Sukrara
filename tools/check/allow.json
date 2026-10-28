@@ -97,10 +97,6 @@
       "reason": "written before the Complete flows rule (round f29): audit its states and exits, then add the paragraph"
     },
     {
-      "section": "Data export",
-      "reason": "written before the Complete flows rule (round f29): audit its states and exits, then add the paragraph"
-    },
-    {
       "section": "Lock screen widget",
       "reason": "written before the Complete flows rule (round f29): audit its states and exits, then add the paragraph"
     },
@@ -113,15 +109,7 @@
       "reason": "written before the Complete flows rule (round f29): audit its states and exits, then add the paragraph"
     },
     {
-      "section": "Share with apps on this phone (investigation 22)",
-      "reason": "written before the Complete flows rule (round f29): audit its states and exits, then add the paragraph"
-    },
-    {
       "section": "Tidepool upload (docs/27)",
-      "reason": "written before the Complete flows rule (round f29): audit its states and exits, then add the paragraph"
-    },
-    {
-      "section": "Nightscout upload (docs/25)",
       "reason": "written before the Complete flows rule (round f29): audit its states and exits, then add the paragraph"
     },
     {

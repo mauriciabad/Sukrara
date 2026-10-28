@@ -63,6 +63,7 @@ fun SettingsScreen(
     onBack: () -> Unit,
     openSensor: () -> Unit,
     openSharing: () -> Unit,
+    openApps: () -> Unit = {},
     onReviewFinish: (ThresholdReviewResult) -> Unit = { onBack() },
 ) {
     val clock = deps.clock
@@ -71,13 +72,15 @@ fun SettingsScreen(
             val vm = alertsViewModel(deps)
             val ui by vm.ui.collectAsStateWithLifecycle()
             val readiness by deps.readiness.readiness.collectAsStateWithLifecycle()
+            val apps by deps.appsShared.collectAsStateWithLifecycle(emptySet())
             LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { deps.readiness.refresh() }
             SettingsOverviewContent(
                 ui?.settings?.on ?: true,
                 ui?.alerts ?: AlertUiState(),
                 readiness,
                 clock,
-                OverviewActions(navigate, openSensor, openSharing, vm::unmuteAll),
+                OverviewActions(navigate, openSensor, openSharing, vm::unmuteAll, openApps),
+                apps,
                 onBack,
             )
         }

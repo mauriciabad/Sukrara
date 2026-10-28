@@ -195,6 +195,7 @@ class SettingsPagesTest {
                 override val releases = ReleasesSource { Result.success(emptyList()) }
                 override val clock = FakeClock()
                 override val sensor = flowOf(app.mauri.sukrara.core.model.SensorState.None)
+                override val appsShared = flowOf(emptySet<AppOutput>())
             }
         val vm = AlertsViewModel(deps)
         vm.muteAll(0.0)
