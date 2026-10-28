@@ -59,10 +59,11 @@ object DebugFakes {
     }
 
     /**
-     * `SYNTHETIC --ez on true|false [--ez frozen true] [--ei cycle M] [--ei endsInMin N]`: the synthetic wearer source replaces the sensor (and makes this
+     * `SYNTHETIC --ez on true|false [--ez frozen true] [--ei cycle M] [--ei endsInMin N] [--ei warmupMin W]`: the synthetic wearer source replaces the sensor (and makes this
      * phone the wearer if setup hasn't chosen a role), or goes away again. `cycle` puts "now" at minute M of the curve's
      * 3-hour cycle (135 = its lowest point, 45 mg/dL; 45 = its highest); `endsInMin` makes the sensor end N minutes from now
-     * (the sensor-end warning shows from 6 h before). The monitoring service restarts with the
+     * (the sensor-end warning shows from 6 h before); `warmupMin` makes it a new sensor warming up for W more minutes (no
+     * readings, the warm-up countdown on the card and the notification; ready → readings start). The monitoring service restarts with the
      * new source; from the background Android may refuse that start (then "Monitoring stopped" shows: open the app).
      */
     private fun synthetic(
@@ -77,7 +78,16 @@ object DebugFakes {
             val shift = if (cycleMinute >= 0) SyntheticSource.shiftFor(graph.clock.now(), cycleMinute) else 0L
             val endsInMin = intent.getIntExtra("endsInMin", -1)
             val endsAt = if (endsInMin >= 0) graph.clock.now() + java.time.Duration.ofMinutes(endsInMin.toLong()) else null
-            SyntheticSource.set(context, on, frozen = intent.getBooleanExtra("frozen", false), shift = shift, endsAt = endsAt)
+            val warmupMin = intent.getIntExtra("warmupMin", -1)
+            val readyAt = if (warmupMin > 0) graph.clock.now() + java.time.Duration.ofMinutes(warmupMin.toLong()) else null
+            SyntheticSource.set(
+                context,
+                on,
+                frozen = intent.getBooleanExtra("frozen", false),
+                shift = shift,
+                endsAt = endsAt,
+                readyAt = readyAt,
+            )
             if (on) graph.role.update { if (it.role == null) RoleRecord(Role.Wearer) else it }
             context.stopService(Intent(context, MonitoringService::class.java))
             graph.monitor.starter.start(StartReason.App)

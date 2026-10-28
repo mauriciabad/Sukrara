@@ -112,6 +112,7 @@
     <string name="home_treatment_not_in_clinic">Not in LibreView yet</string>
     <string name="home_treatment_clinic_updating">LibreView has an older version: updating</string>
     <string name="home_treatment_clinic_stopped">LibreView upload stopped</string>
+    <string name="home_tip_closed">Tip closed. Settings › Show closed tips brings it back.</string>
     <string name="home_undo">Undo</string>
 
     <!-- Damaged data -->

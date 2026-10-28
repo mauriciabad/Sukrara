@@ -17,6 +17,7 @@ internal object BuildVariant {
                     SyntheticSource.shift(graph.app),
                     frozen = { SyntheticSource.isFrozen(graph.app) },
                     endsAt = SyntheticSource.endsAt(graph.app) ?: (graph.clock.now() + java.time.Duration.ofDays(10)),
+                    readyAt = SyntheticSource.readyAt(graph.app),
                 )
             } else {
                 null

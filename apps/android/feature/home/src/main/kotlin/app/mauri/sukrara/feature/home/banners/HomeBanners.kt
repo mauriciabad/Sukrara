@@ -92,6 +92,24 @@ data class BannerMemory(
         require(!kind.safety) { "$kind can't be dismissed" }
         return copy(dismissedAtMs = dismissedAtMs + (kind.name to now.toEpochMilli()))
     }
+
+    /** Undo: [kind] can show again (the restart card's state + build keys too). */
+    fun restore(kind: BannerKind): BannerMemory = copy(dismissedAtMs = dismissedAtMs.filterKeys { !it.isKey(kind) })
+
+    /**
+     * How many tips are closed for good (Settings › *Show closed tips*): kinds this build still has, not Finish
+     * setup's "Later" (it comes back by itself).
+     */
+    val closed: Int get() = BannerKind.entries.count { k -> k != BannerKind.FinishSetup && dismissedAtMs.keys.any { it.isKey(k) } }
+
+    /** [kind]'s own key, or one of its keyed variants ("RestartSystemUi:Restart:42"). */
+    private fun String.isKey(kind: BannerKind) = this == kind.name || startsWith(kind.name + ":")
+
+    /**
+     * Settings › *Show closed tips*: every closed tip can show again (each still only when it applies); Finish setup's
+     * "Later" keeps its day.
+     */
+    fun restoreAll(): BannerMemory = BannerMemory(dismissedAtMs.filterKeys { it == BannerKind.FinishSetup.name })
 }
 
 /** "Later" on Finish setup: it comes back after a day until setup is done. */

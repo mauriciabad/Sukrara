@@ -103,8 +103,10 @@ The full catalog, with every rule and number, is [docs/FEATURES.md](docs/FEATURE
 - **Share with apps**: upload your Libre 3 glucose and entries to **LibreView** for your clinic (password used once,
   never saved; asks before taking over another uploading device; only from the moment you switch it on; a cloud on each
   entry on home says whether LibreView has it; a home banner suggests it until set up), to your own **Nightscout** site (https, access token kept encrypted; 30-day catch-up,
-  pauses when another app uploads to the same site), an **xDrip+-compatible server** on this phone for **Garmin**
-  watches (off until you switch it on; loopback only), and **Export data** as a LibreView-layout CSV to save or share.
+  pauses when another app uploads to the same site), to **Tidepool** (both roles; a follower only after its own
+  choice; password used once), an **xDrip+-compatible server** on this phone for **Garmin** watches (off until you
+  switch it on; loopback only), a **Nightscout API on this phone** for apps like xDrip+ and GlucoDataHandler (off by
+  default, loopback only, API secret required), and **Export data** as a LibreView-layout CSV to save or share.
 - English and Spanish (Spain) everywhere.
 
 **Mac (you follow someone, from the menu bar)**
@@ -130,7 +132,7 @@ The full catalog, with every rule and number, is [docs/FEATURES.md](docs/FEATURE
   through at 5 min, the graph dimmed with the reading's time, no value at 20 min) and a tap opens Add treatment.
 - VoiceOver reads the value as one sentence with the range in words.
 
-**Not included**: the LSPosed lock-screen widget, Dexcom / Aidex / SmartGuide (untested) sensors, Tidepool upload, the phone's Nightscout read API, Health Connect and broadcasts, the pen list and dose review, the sensor-end
+**Not included**: the LSPosed lock-screen widget, Dexcom / Aidex / SmartGuide (untested) sensors, the Nightscout API on the home network, Health Connect and broadcasts, the pen list and dose review, the sensor-end
 calendar event, the glucose report, settings export / import, scanning an invite's QR code on Android and the Android
 follower's *Settings from* page, *Pair nearby* (joining over Bluetooth without a link), and the Mac's Juggluco-over-Wi-Fi source.
 

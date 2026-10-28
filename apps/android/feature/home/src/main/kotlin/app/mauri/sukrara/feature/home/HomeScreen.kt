@@ -37,6 +37,7 @@ import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -74,6 +75,7 @@ import app.mauri.sukrara.feature.home.banners.BannerKind
 import app.mauri.sukrara.graph.CardWords
 import app.mauri.sukrara.graph.Clock
 import app.mauri.sukrara.graph.TreatmentMarks
+import kotlinx.coroutines.launch
 import java.time.Duration
 import java.time.Instant
 import app.mauri.sukrara.core.designsystem.R as DsR
@@ -93,6 +95,7 @@ fun HomeScreen(
             HomeCallbacks(
                 onAction = onAction,
                 onDismiss = viewModel::dismiss,
+                onRestore = viewModel::restore,
                 onFix = viewModel::fix,
                 onUnmute = viewModel::unmute,
                 onEndQuiet = viewModel::endQuiet,
@@ -109,6 +112,8 @@ fun HomeScreen(
 data class HomeCallbacks(
     val onAction: (HomeAction) -> Unit = {},
     val onDismiss: (BannerKind) -> Unit = {},
+    /** Undo on the "Tip closed" snackbar. */
+    val onRestore: (BannerKind) -> Unit = {},
     val onFix: (AlertRequirement) -> Unit = {},
     val onUnmute: () -> Unit = {},
     /** Ends the quiet of the low ([lowSide]) or the high side ("Unmute", "Alert me anyway"). */
@@ -142,7 +147,20 @@ fun HomeContent(
     }
     val follower = state.glucose.role == Role.Follower
     val scroll = rememberScrollState()
-    val shownBanner = banner(state, callbacks, onDismiss = { haptics.confirm() })
+    val scope = rememberCoroutineScope()
+    val closedText = stringResource(R.string.home_tip_closed)
+    val shownBanner =
+        banner(state, callbacks) { kind ->
+            haptics.confirm()
+            // every close can be undone here; Settings › Show closed tips brings them back later
+            scope.launch {
+                val result = snackbar.showSnackbar(closedText, undoText, withDismissAction = true, duration = SnackbarDuration.Short)
+                if (result == SnackbarResult.ActionPerformed) {
+                    haptics.confirm()
+                    callbacks.onRestore(kind)
+                }
+            }
+        }
     // a safety banner sits right under the card (seen without scrolling); a tip goes below the glucose block
     val safetyBanner = shownBanner?.takeIf { it.severity == BannerSeverity.Safety }
     val infoBanner = shownBanner?.takeIf { it.severity == BannerSeverity.Info }
@@ -567,7 +585,7 @@ private fun actionLabel(reason: NoDataReason): String =
 private fun banner(
     state: HomeUiState,
     callbacks: HomeCallbacks,
-    onDismiss: () -> Unit,
+    onDismiss: (BannerKind) -> Unit,
 ): Banner? {
     val kind = state.banner ?: return null
     val dismiss: (() -> Unit)? =
@@ -575,8 +593,8 @@ private fun banner(
             null
         } else {
             {
-                onDismiss()
                 callbacks.onDismiss(kind)
+                onDismiss(kind)
             }
         }
 

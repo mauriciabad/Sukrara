@@ -50,6 +50,16 @@
       "path": "apps/android/integrations/src/main/kotlin/app/mauri/sukrara/integrations/nightscout/NsConfig.kt",
       "contains": "\"http\" -> if (isLoopback(host))",
       "reason": "Nightscout upload site rules: a typed http:// address is accepted only for this phone's loopback (localhost / 127.x / ::1), all network_security_config allows; any other http:// is refused with 'use https://'"
+    },
+    {
+      "path": "apps/android/integrations/src/main/kotlin/app/mauri/sukrara/integrations/localserver/NightscoutApiPage.kt",
+      "contains": "summary = \"http://${s.secret}@127.0.0.1:${NightscoutApi.PORT}\"",
+      "reason": "Nightscout API on this phone: the loopback address apps on this phone use, shown as text for copying (the server binds 127.0.0.1 only); nothing is opened"
+    },
+    {
+      "path": "apps/android/integrations/src/main/kotlin/app/mauri/sukrara/integrations/localserver/NightscoutApiPage.kt",
+      "contains": "summary = \"http://127.0.0.1:${NightscoutApi.PORT}/?token=${s.secret}\"",
+      "reason": "Nightscout API on this phone: the loopback address with the token, shown as text for copying (the server binds 127.0.0.1 only); nothing is opened"
     }
   ],
   "network_ok": [
@@ -80,6 +90,10 @@
     {
       "path": "apps/android/integrations/src/main/kotlin/app/mauri/sukrara/integrations/localserver/LocalHttpServer.kt",
       "reason": "xDrip+ server for Garmin watches: listens (never connects) on 127.0.0.1 only; bounded pool, request head and deadline; off by default"
+    },
+    {
+      "path": "apps/android/integrations/src/main/kotlin/app/mauri/sukrara/integrations/tidepool/TidepoolClient.kt",
+      "reason": "Tidepool upload: fixed https api.tidepool.org (tests: MockWebServer on loopback); redirects never followed; the session token never in logs or reasons"
     }
   ],
   "durations_ok": {},
@@ -110,10 +124,6 @@
     },
     {
       "section": "Sensor end in calendar",
-      "reason": "written before the Complete flows rule (round f29): audit its states and exits, then add the paragraph"
-    },
-    {
-      "section": "Tidepool upload (docs/27)",
       "reason": "written before the Complete flows rule (round f29): audit its states and exits, then add the paragraph"
     },
     {

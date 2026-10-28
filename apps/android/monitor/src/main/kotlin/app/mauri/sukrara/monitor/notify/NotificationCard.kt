@@ -12,6 +12,7 @@ import android.graphics.RectF
 import androidx.core.graphics.ColorUtils
 import androidx.core.graphics.createBitmap
 import app.mauri.sukrara.core.model.GlucoseState
+import app.mauri.sukrara.core.model.Reading
 import app.mauri.sukrara.core.model.Treatment
 import app.mauri.sukrara.graph.CardModel
 import app.mauri.sukrara.graph.CardPart
@@ -22,15 +23,32 @@ import app.mauri.sukrara.graph.GraphConfig
 import app.mauri.sukrara.graph.GraphPalette
 import app.mauri.sukrara.graph.RoundedFont
 import app.mauri.sukrara.graph.notificationCardStyle
+import app.mauri.sukrara.graph.stats.MetricsCache
+import app.mauri.sukrara.graph.stats.toPoint
+import java.time.Instant
 import kotlin.math.min
 
-/** What the custom card draws besides the content: the hub state, the treatments, the graph settings, the theme. */
+/**
+ * What the custom card draws besides the content: the hub state, the treatments, the graph settings, the theme, and the
+ * stored days before the live window ([stored], for the slots' 7–30-day windows).
+ */
 data class CardFrame(
     val state: GlucoseState,
     val treatments: List<Treatment>,
     val config: GraphConfig,
     val dark: Boolean,
-)
+    val stored: List<Reading> = emptyList(),
+) {
+    /** The stored days as points, mapped once per frame (they change hourly; the live window is joined per call). */
+    private val storedPoints by lazy { stored.map { it.toPoint() } }
+
+    /** The slots' numbers over the stored days and the live window, as home and the widgets count them. */
+    fun slots(now: Instant): MetricsCache {
+        val start = state.recent.firstOrNull()?.t
+        val older = if (start == null) storedPoints else storedPoints.filter { it.t < start.epochSecond }
+        return MetricsCache(older + state.recent.map { it.toPoint() }, now.epochSecond)
+    }
+}
 
 /** The custom card's pictures: the header row expanded and collapsed, and the chart on its rounded surface. */
 class NotificationArt(

@@ -323,7 +323,7 @@ read (new app id, no migration). Nothing is in cloud backup or device transfer (
 |---|---|---|
 | Settings | `datastore/<store>.preferences_pb`, one per schema store, keys from `contracts/settings/settings.json` | `SettingsRepository` + `SchemaSettings.number/bool/text(id)` |
 | Typed state (alert episodes, sensor pairing, …) | `files/state/<name>.json` (DataStore + kotlinx JSON) | `DataModule.typedStore(name, serializer, initial, whenCorrupt)` |
-| Secrets | `files/secure/<name>.bin` = `0x01` ‖ IV ‖ AES-256-GCM (AAD = name); Keystore alias `sukrara.<name>`, one key per purpose: `identity.owner`, `identity.follower`, `nightscout`, `tidepool`, `libreview`, `sensor` | `SecureStore` (`KeystoreSecureStore` on `SecretBox`) |
+| Secrets | `files/secure/<name>.bin` = `0x01` ‖ IV ‖ AES-256-GCM (AAD = name); Keystore alias `sukrara.<name>`, one key per purpose: `identity.owner`, `identity.follower`, `nightscout`, `nightscout-api`, `tidepool`, `libreview`, `sensor` | `SecureStore` (`KeystoreSecureStore` on `SecretBox`) |
 | History | `databases/sukrara.db` (Room v1, schema in `core/data/schemas/`): `readings` (PK t+source), `treatments` (LWW on `modified_at`, tombstones), `seen_wraps`, `rejects`, `outbox` | `ReadingsRepository`, `TreatmentsRepository`, DAOs for the sharing ledger |
 | Other files | `files/<path>` atomic tmp + fsync + rename | `DataModule.fileStore(path, codec)` → `Loaded / Missing / Corrupt` |
 | Diagnostics | `files/diag/diag.log` + `.1`, 512 KB each, `Redact` scrubs keys / tokens | `DiagLog` |
@@ -426,7 +426,11 @@ content the app wraps in the settings page frame (`AppsRoute`, `LibreViewRoute`,
   `SourceManager.sensorGlucose` (Libre 3 only, each batch tagged with its serial), mapped in `AppGraph`.
 - `localserver/` — `LocalHttpServer` (127.0.0.1, fixed pool, bounded head and deadline), `XdripEndpoint` (Juggluco's
   JSON, pure), `XdripServer` (follows `apps.xdrip` and the sensor source; readings from the store, "last asked" in
-  memory).
+  memory), `NightscoutApi` (the v1 read API, pure: routes, secret check, per-source `device` labels) and
+  `NightscoutApiServer` (`apps.nightscout` on 127.0.0.1:17581; the API secret only in SecureStore `nightscout-api`).
+- `tidepool/` — `TidepoolClient` (session login, token refresh; https, no redirects), `TidepoolData` (cbg / food /
+  insulin / notes with origin ids), `TidepoolQueue` (pure plan), `TidepoolUploader` (settings JSON `apps.tidepool`;
+  token + user id only in SecureStore `tidepool`, the password never stored; state in the typed store `tidepool-upload`).
 - `export/` — `GlucoseCsv` (`contracts/export`), `Exporter` (period → stores), `ExportViewModel` (SAF save, FileProvider
   `${applicationId}.export` share from `cache/export/`).
 

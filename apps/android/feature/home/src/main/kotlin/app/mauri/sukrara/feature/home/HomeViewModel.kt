@@ -261,6 +261,11 @@ class HomeViewModel(
         viewModelScope.launch { deps.bannerMemory.update { it.dismiss(kind, deps.clock.now()) } }
     }
 
+    /** Undo on the "Tip closed" snackbar. */
+    fun restore(kind: BannerKind) {
+        viewModelScope.launch { deps.bannerMemory.update { it.restore(kind) } }
+    }
+
     fun unmute() = deps.unmute()
 
     fun endQuiet(lowSide: Boolean) = deps.endQuiet(lowSide)

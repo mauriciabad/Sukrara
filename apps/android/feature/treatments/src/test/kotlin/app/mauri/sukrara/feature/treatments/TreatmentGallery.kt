@@ -58,7 +58,7 @@ class TreatmentGallery {
     @Test fun gallery() {
         val shots = mutableListOf<Triple<String, TreatmentFormState, LockInfo?>>()
         for ((name, make) in states) shots += Triple(name, make(), null)
-        shots += Triple("lock", TreatmentFormState(carbs = "15"), LockInfo(12) {})
+        shots += Triple("lock", TreatmentFormState(carbs = "15"), LockInfo(12, onUnlock = {}, spokenSeconds = 15, fraction = { 0.6f }))
         var current by mutableStateOf(shots.first())
         var dark by mutableStateOf(false)
         var scale by mutableFloatStateOf(1f)

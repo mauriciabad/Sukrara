@@ -74,5 +74,19 @@ class BannerSlotTest {
         assertEquals(BannerKind.RestartSystemUi, pick(env = env.copy(build = 8), memory = memory))
         assertEquals(BannerKind.RestartSystemUi, pick(env = env.copy(systemUiRestart = ModuleState.Update), memory = memory))
         assertEquals(BannerKind.NotBackedUp, pick(env = env.copy(systemUiRestart = null), memory = memory))
+        assertEquals(1, memory.closed)
+        assertEquals(BannerKind.RestartSystemUi, pick(env = env, memory = memory.restore(BannerKind.RestartSystemUi)))
+    }
+
+    @Test fun `Undo and Show closed tips bring closed tips back`() {
+        val env = HomeEnvironment(backedUp = false, widgetPlaced = false)
+        val two = BannerMemory().dismiss(BannerKind.NotBackedUp, NOW).dismiss(BannerKind.AddWidget, NOW)
+        assertEquals(2, two.closed)
+        assertEquals(null, pick(env = env, memory = two))
+        assertEquals(BannerKind.AddWidget, pick(env = env, memory = two.restore(BannerKind.AddWidget)))
+        assertEquals(BannerKind.NotBackedUp, pick(env = env, memory = two.restoreAll()))
+        assertEquals(0, two.restoreAll().closed)
+        // a kind this build no longer has isn't counted
+        assertEquals(0, BannerMemory(mapOf("Gone" to 1L)).closed)
     }
 }
