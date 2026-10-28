@@ -53,7 +53,54 @@ class LiveNotificationContentTest {
         )
     }
 
-    private fun content(state: GlucoseState) = LiveNotificationContent.from(state, now, LiveNotification::face)
+    /** Chip on and allowed unless said otherwise. */
+    private fun content(
+        state: GlucoseState,
+        prefs: NotificationPrefs = NotificationPrefs(chip = true, promotionAllowed = true),
+    ) = LiveNotificationContent.from(state, now, LiveNotification::face, prefs)
+
+    @Test
+    fun `chip on and allowed is a Live Update with the arrow icon`() {
+        val c = content(state())
+        assertEquals(LiveNotificationContent.Layout.LIVE_UPDATE, c.layout)
+        assertEquals(Icon.TREND, c.icon)
+        assertNull(c.cardKey)
+    }
+
+    @Test
+    fun `chip off is the colorized card with the number icon and its card key`() {
+        val c = content(state(), NotificationPrefs(chip = false, promotionAllowed = true, numberIcon = true, cardKey = "k"))
+        assertEquals(LiveNotificationContent.Layout.CARD, c.layout)
+        assertNull(c.chip)
+        assertEquals(Icon.NUMBER, c.icon)
+        assertEquals("138", c.look?.text)
+        assertEquals(138, c.mgdl)
+        assertEquals("k", c.cardKey)
+    }
+
+    @Test
+    fun `chip wanted but Live Updates refused falls back to the card`() {
+        val c = content(state(), NotificationPrefs(chip = true, promotionAllowed = false, numberIcon = false))
+        assertEquals(LiveNotificationContent.Layout.CARD, c.layout)
+        assertNull(c.chip)
+        assertEquals(Icon.TREND, c.icon)
+    }
+
+    @Test
+    fun `a struck value keeps the number icon struck, from the face`() {
+        val c = content(state(ageS = 600), NotificationPrefs(chip = false, numberIcon = true))
+        assertEquals(Icon.NUMBER, c.icon)
+        assertTrue(c.look!!.strike)
+    }
+
+    @Test
+    fun `states without a value are text whatever the settings`() {
+        for (prefs in listOf(NotificationPrefs(chip = false), NotificationPrefs(chip = true, promotionAllowed = true))) {
+            assertEquals(LiveNotificationContent.Layout.TEXT, content(state(mgdl = null), prefs).layout)
+            assertEquals(LiveNotificationContent.Layout.TEXT, content(state(sensor = SensorState.Ended), prefs).layout)
+            assertEquals(LiveNotificationContent.Layout.TEXT, content(state(ageS = 25 * 60), prefs).layout)
+        }
+    }
 
     @Test
     fun `a fresh value shows value and arrow in the title and the chip, no time`() {

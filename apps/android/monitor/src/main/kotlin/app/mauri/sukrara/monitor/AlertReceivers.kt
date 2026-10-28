@@ -83,15 +83,25 @@ class AlertActionReceiver : BroadcastReceiver() {
  */
 class AlertCheckReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
-        if (intent.action != ACTION_CHECK) return
         val module = context.alertsModule ?: return
-        runAsync(ACTION_CHECK) {
-            withTimeoutOrNull(ALERT_CHECK_BUDGET_MS) { module.check() } ?: Log.w(TAG, "alert check timed out")
-            module.restarter.restart()
+        when (val action = intent.action) {
+            ACTION_CHECK -> {
+                runAsync(action) {
+                    withTimeoutOrNull(ALERT_CHECK_BUDGET_MS) { module.check() } ?: Log.w(TAG, "alert check timed out")
+                    module.restarter.restart()
+                }
+            }
+
+            // a sensor countdown swiped away: kept away for this sensor
+            ACTION_COUNTDOWN_DISMISSED, ACTION_WARMUP_DISMISSED -> {
+                runAsync(action) { module.sensorEnd.dismissed(warmup = action == ACTION_WARMUP_DISMISSED) }
+            }
         }
     }
 
     companion object {
         const val ACTION_CHECK = "app.mauri.sukrara.alert.CHECK"
+        const val ACTION_COUNTDOWN_DISMISSED = "app.mauri.sukrara.sensor.COUNTDOWN_DISMISSED"
+        const val ACTION_WARMUP_DISMISSED = "app.mauri.sukrara.sensor.WARMUP_DISMISSED"
     }
 }

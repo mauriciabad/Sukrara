@@ -27,6 +27,11 @@ class Haptics internal constructor(
         view.performHapticFeedback(HapticFeedbackConstants.REJECT)
     }
 
+    /** One option of a set picked (a shuffle, a swatch): a light tick. */
+    fun tick() {
+        view.performHapticFeedback(HapticFeedbackConstants.SEGMENT_TICK)
+    }
+
     /** A toggle switched on / off. */
     fun toggle(on: Boolean) {
         view.performHapticFeedback(if (on) HapticFeedbackConstants.TOGGLE_ON else HapticFeedbackConstants.TOGGLE_OFF)

@@ -133,6 +133,7 @@ class HandleInbox(private val ctx: OwnerContext) {
                         ?.json
                         ?.toString(),
                 label = invite.label,
+                inviteSentAt = invite.sentAt,
             )
         val next =
             s.copy(
@@ -197,5 +198,20 @@ class SetWriter(private val ctx: OwnerContext) {
         val writers = if (allowed) s.writers + follower else s.writers - follower
         if (writers == s.writers) return null
         return ControlEvents.roster(ctx, s.copy(writers = writers), now) + { ControlEvents.backup(ctx, it, now) }
+    }
+}
+
+/**
+ * "How you appear": the wearer's name and picture for followers. A blank name keeps the previous one; the picture is
+ * kept as given (a newer version is forwarded unchanged). Followers learn it from the roster, sent at once; the backup
+ * keeps it. Null when nothing changed.
+ */
+class SetProfile(private val ctx: OwnerContext) {
+    operator fun invoke(s: OwnerState, profile: Profile, now: Long): Step? {
+        val previous = ControlEvents.profile(s)
+        val next = Profile(Profile.editedName(profile.name, previous?.name.orEmpty()), profile.avatar)
+        if (next == previous) return null
+        val json = next.toJson().toString()
+        return ControlEvents.roster(ctx, s.copy(profileJson = json), now) + { ControlEvents.backup(ctx, it, now) }
     }
 }

@@ -10,20 +10,24 @@ import app.mauri.sukrara.core.model.AlertReadinessSource
 import app.mauri.sukrara.core.model.AlertRequirement
 import app.mauri.sukrara.core.model.Clock
 import app.mauri.sukrara.core.model.GlucoseState
+import app.mauri.sukrara.core.model.Reading
 import app.mauri.sukrara.core.model.Treatment
 import app.mauri.sukrara.core.model.storage.StateStore
 import app.mauri.sukrara.core.model.storage.TreatmentsRepository
 import app.mauri.sukrara.feature.home.DataProblem
 import app.mauri.sukrara.feature.home.HomeDeps
+import app.mauri.sukrara.feature.home.HomeProfile
 import app.mauri.sukrara.feature.home.banners.BannerMemory
 import app.mauri.sukrara.feature.home.banners.HomeEnvironment
 import app.mauri.sukrara.feature.treatments.TreatmentLog
 import app.mauri.sukrara.graph.GraphConfig
+import app.mauri.sukrara.share.owner.OwnerShareState
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
@@ -39,8 +43,11 @@ class HomeModule(
     scope: CoroutineScope,
     override val glucose: StateFlow<GlucoseState>,
     override val graphConfig: Flow<GraphConfig>,
+    override val storedHistory: Flow<List<Reading>>,
     private val readinessSource: AlertReadinessSource,
     private val unmuteAlerts: () -> Unit,
+    /** Ends one side's quiet: the alert kind's wire name ("low" / "high"). */
+    private val endQuietAlerts: (String) -> Unit,
     private val resume: () -> Unit,
     /** First-run setup's first unfinished row, for the Finish-setup banner; null = done. */
     nextSetupStep: Flow<String?>,
@@ -49,6 +56,8 @@ class HomeModule(
     private val widgetPlaced: () -> Boolean? = { null },
     /** The phone's treatment writes (writer check, versioning, sync); a function: the treatments module needs home. */
     private val treatmentLog: () -> TreatmentLog,
+    /** The wearer's sharing state (profile row, "Not backed up"); a function: sharing is built on first use. */
+    private val sharing: () -> Flow<OwnerShareState> = { emptyFlow() },
 ) : HomeDeps {
     override val treatments: TreatmentsRepository get() = data.treatments
 
@@ -59,6 +68,24 @@ class HomeModule(
 
     init {
         scope.launch { nextSetupStep.collect { step -> env.update { it.copy(nextSetupStep = step) } } }
+        // "Not backed up" only for a wearer whose identity exists and lives on this phone alone
+        scope.launch {
+            sharing().collect { s -> env.update { it.copy(backedUp = (s as? OwnerShareState.Sharing)?.backedUp) } }
+        }
+    }
+
+    override val profile: Flow<HomeProfile?> by lazy {
+        sharing().map { s ->
+            (s as? OwnerShareState.Sharing)?.let {
+                HomeProfile(
+                    it.profile?.name.orEmpty(),
+                    it.profile?.avatar,
+                    it.followers.count { f ->
+                        f.active
+                    },
+                )
+            }
+        }
     }
 
     override val bannerMemory: StateStore<BannerMemory> by lazy {
@@ -84,6 +111,8 @@ class HomeModule(
     }
 
     override fun unmute() = unmuteAlerts()
+
+    override fun endQuiet(lowSide: Boolean) = endQuietAlerts(if (lowSide) "low" else "high")
 
     override fun resumeMonitoring() = resume()
 

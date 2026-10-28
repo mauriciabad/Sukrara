@@ -30,6 +30,13 @@ class TestTreatmentsApp :
     Application(),
     TreatmentsHost {
     val glucose = MutableStateFlow(GlucoseState.Initial)
+    var low = false
+    val hints =
+        object : AlertHints {
+            override fun lowNow() = low
+
+            override val quiet = kotlinx.coroutines.flow.flowOf(QuietRules(afterInsulinMin = 60, afterCarbsMin = 15))
+        }
 
     override val treatments by lazy {
         TreatmentsModule(
@@ -39,6 +46,7 @@ class TestTreatmentsApp :
             glucose,
             InMemorySettingsRepository(),
             CoroutineScope(Dispatchers.Unconfined),
+            hints,
         )
     }
 }
@@ -90,10 +98,10 @@ class QuickTreatmentTest {
         assertTrue(activity.isFinishing)
     }
 
-    @Test fun carbsFirstWhileALowIsGoingOn() {
-        app.glucose.value = GlucoseState.Initial.copy(role = Role.Wearer, alerts = AlertUiState(firingKinds = setOf("low")))
+    @Test fun carbsFirstWhileTheLatestReadingIsLow() {
+        app.low = true
         assertTrue(app.treatments.lowNow())
-        app.glucose.value = GlucoseState.Initial.copy(role = Role.Wearer, alerts = AlertUiState(firingKinds = setOf("high")))
+        app.low = false
         assertFalse(app.treatments.lowNow())
         assertFalse(QuickTreatmentIntents.focusCarbs(Intent()))
     }

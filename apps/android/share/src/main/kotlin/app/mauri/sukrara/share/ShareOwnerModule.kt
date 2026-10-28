@@ -12,6 +12,7 @@ import app.mauri.sukrara.core.model.DispatcherProvider
 import app.mauri.sukrara.core.model.GlucoseHub
 import app.mauri.sukrara.protocol.Wire
 import app.mauri.sukrara.share.crypto.SdkNostrCrypto
+import app.mauri.sukrara.share.owner.ApproveResult
 import app.mauri.sukrara.share.owner.OwnerEngine
 import app.mauri.sukrara.share.owner.OwnerIdentityStore
 import app.mauri.sukrara.share.owner.SeenWraps
@@ -91,7 +92,7 @@ class ShareOwnerModule(
         try {
             val request = engine.pendingRequest(follower) ?: return false
             if (!allow) return true.also { engine.deny(follower) }
-            return request.others == 0 && engine.approve(follower)
+            return request.others == 0 && engine.approve(follower) == ApproveResult.Allowed
         } finally {
             if (!wasRunning) engine.stop()
         }

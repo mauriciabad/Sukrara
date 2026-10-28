@@ -54,7 +54,15 @@ fun SettingsOverviewContent(
             }, summary = stringResource(R.string.st_overview_graph))
         }
         SettingsGroup {
+            NavigationRow(stringResource(R.string.st_statusbar_title), {
+                actions.open(SettingsRoute.StatusBar)
+            }, summary = stringResource(R.string.st_overview_statusbar))
+        }
+        SettingsGroup {
             NavigationRow(stringResource(R.string.st_sensor), actions.openSensor, summary = stringResource(R.string.st_sensor_summary))
+            NavigationRow(stringResource(R.string.st_sensorend_title), {
+                actions.open(SettingsRoute.SensorEnd)
+            }, summary = stringResource(R.string.st_overview_sensorend))
             NavigationRow(stringResource(R.string.st_sharing), actions.openSharing, summary = stringResource(R.string.st_sharing_summary))
         }
         SettingsGroup {

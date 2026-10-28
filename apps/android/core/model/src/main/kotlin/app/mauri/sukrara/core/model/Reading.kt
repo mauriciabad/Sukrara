@@ -48,3 +48,18 @@ enum class Trend {
 
 /** Whether this phone wears the sensor or follows someone who does. */
 enum class Role { Wearer, Follower }
+
+/** The stored days and the live window as one history. */
+object ReadingHistory {
+    /**
+     * [stored] (older readings, oldest first, read now and then) up to where the [live] window starts, then the whole
+     * live window (always the fresher copy: a backfill inside it shows at once). Nothing counts twice.
+     */
+    fun join(
+        stored: List<Reading>,
+        live: List<Reading>,
+    ): List<Reading> {
+        val start = live.firstOrNull()?.t ?: return stored
+        return stored.filter { it.t.isBefore(start) } + live
+    }
+}

@@ -35,20 +35,28 @@ The full catalog, with every rule and number, is [docs/FEATURES.md](docs/FEATURE
 - **Settings › Sensor**: the current sensor (status, serial, start, end and time left), the reading source (Libre 3
   directly or Juggluco, saying first what changes), the LibreView account (email and receiver ID, sign in / out; the
   password is never stored) and *Pair new sensor*.
-- **Home screen**, glucose first: the value, trend arrow and a 6 h chart you can scroll back, the sensor's end date,
+- **Home screen**, glucose first: the value, trend arrow and a 6 h chart you can scroll and pinch-zoom through the
+  last 31 days (7 / 14 / 30-day rings count them too), a pill that acts (*Eat carbs* opens Add treatment with Carbs
+  focused, a mute's pill its ways out), the sensor's end date with *Pair new sensor* in its last day,
   one banner at a time for what needs you (monitoring stopped, alerts may not ring,
   damaged saved data, finish setup), and the last 24 h of treatments with delete + undo. Never a bare "---": when
   there's no value it says why and what to do.
 - A **live notification** that is also a **Live Update chip** next to the clock (Android 16 QPR2+), with the same
   freshness steps as the card: from 5 min the number is struck through, from 20 min it's gone. Tap → *Add treatment*.
+  Without the chip it is a card in your range's colour with the graph, its icon the number itself (Settings › Status
+  bar); on Android 17 the Live Update expands to the value styled by range.
 - **Alerts**: very low, low, high, very high, rising / falling fast and no data; each on its own channel,
   "like an alarm" ones pass Do Not Disturb. *Mute…*, *Remind less*, *Unmute* and *Change time* on the notification,
   in the app and with TalkBack; *Mute all* with a visible strip to undo it. The no-data check runs from an exact alarm,
-  independent of the monitoring service. A *Sensor ends in 6 h* warning before the sensor's end.
+  independent of the monitoring service.
+- **Sensor end**: reminders you set (up to six, 0–3 days before at a time; earlier at the first unlock; one the
+  evening before a night-time end), a live countdown in the sensor's last hours, a warm-up countdown with *Sensor
+  ready*, and *Sensor ended* with *Replace sensor* (Settings › Sensor end).
 - **Monitoring** in one foreground service that comes back by itself (boot, update, a 15 min health check); before the
   first reading every surface says *Not monitoring: no sensor yet* and no no-data alarm is armed.
 - **Treatments**: a quick dialog for rapid / long insulin, carbs and a note (from the notification, the Quick
-  Settings tile *Add treatment* or home), with a short countdown when opened on the lock screen.
+  Settings tile *Add treatment* or home), *now*, a time or *minutes ago*, a line saying which alerts it quiets and for
+  how long, and a short countdown when opened on the lock screen.
 - **Home-screen widgets** (*Glucose*, *Glucose graph*, *Glucose and graph*) drawn by the same card renderer at the
   widget's real size; home offers *Add widget* until a graph widget is placed, and a tap opens *Add treatment*.
 - **Settings** for daily use: alerts (thresholds you confirm, repeats, sounds, quiet rules), an alert reliability
@@ -60,8 +68,11 @@ The full catalog, with every rule and number, is [docs/FEATURES.md](docs/FEATURE
 - **First-run setup** in a calm, fixed order: role (confirmed) → what alerts need → sensor → confirm your alert
   thresholds → your followers (restore once this phone has your sensor, or start fresh) → home. Any
   step can wait; home's *Finish setup* banner brings it back.
-- **Sharing screens**: invite one person (QR that springs in, link to send or copy, works once for 24 h), allow or deny
-  their request after comparing a 4-digit code, see and remove followers (confirmed), and a clear screen when another
+- **Sharing screens**: *How you appear* (your name and a generated picture, on home's top bar), invite one person (QR
+  that springs in, link to send or copy, works once for 24 h), allow or deny their request after comparing a 4-digit
+  code (the dialog shows over any screen, with their picture and the invite they used), see followers with their
+  pictures, let one *add entries*, remove them (confirmed; removed ones fold away), **Backup** to your password manager
+  or a recovery code (home says *Not backed up* until then; setup restores from either), and a clear screen when another
   device is sharing as you.
 - English and Spanish (Spain) everywhere.
 
@@ -90,8 +101,8 @@ The full catalog, with every rule and number, is [docs/FEATURES.md](docs/FEATURE
 
 **Not included**: the root status-bar
 icons and the LSPosed lock-screen widget, Dexcom / Aidex / SmartGuide (untested) sensors, Garmin via the local xDrip+
-server, Nightscout / Tidepool / LibreView uploads, Health Connect and broadcasts, insulin pens, the full sensor
-reminders page and calendar event, the glucose report and CSV export, settings export / import, following on
+server, Nightscout / Tidepool / LibreView uploads, Health Connect and broadcasts, insulin pens, the sensor-end
+calendar event, the glucose report and CSV export, settings export / import, following on
 Android and Bluetooth sharing from the phone, and the Mac's Juggluco-over-Wi-Fi source.
 
 **Garmin watch:** Sukrara has no watch server yet. A watch fed by **Juggluco** keeps working while Juggluco reads the

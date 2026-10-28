@@ -59,6 +59,12 @@ class HomeViewModelTest {
             unmuted++
         }
 
+        val quietEnded = mutableListOf<Boolean>()
+
+        override fun endQuiet(lowSide: Boolean) {
+            quietEnded += lowSide
+        }
+
         override fun fix(requirement: AlertRequirement) = Unit
 
         /** What the treatment log would allow (false = a follower and the wearer's entry). */

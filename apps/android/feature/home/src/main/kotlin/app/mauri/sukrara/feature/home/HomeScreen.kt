@@ -4,6 +4,7 @@
 package app.mauri.sukrara.feature.home
 
 import android.text.format.DateUtils
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -39,6 +40,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
@@ -59,6 +61,7 @@ import app.mauri.sukrara.core.model.Treatment
 import app.mauri.sukrara.core.model.TreatmentKind
 import app.mauri.sukrara.designsystem.alerts.MuteText
 import app.mauri.sukrara.designsystem.alerts.rememberAlertWords
+import app.mauri.sukrara.designsystem.avatar.AvatarImage
 import app.mauri.sukrara.designsystem.banner.Banner
 import app.mauri.sukrara.designsystem.banner.BannerSeverity
 import app.mauri.sukrara.designsystem.banner.BannerSlot
@@ -92,6 +95,7 @@ fun HomeScreen(
                 onDismiss = viewModel::dismiss,
                 onFix = viewModel::fix,
                 onUnmute = viewModel::unmute,
+                onEndQuiet = viewModel::endQuiet,
                 onDelete = viewModel::delete,
                 onUndo = viewModel::undoDelete,
                 onUndoGone = viewModel::undoShown,
@@ -107,6 +111,8 @@ data class HomeCallbacks(
     val onDismiss: (BannerKind) -> Unit = {},
     val onFix: (AlertRequirement) -> Unit = {},
     val onUnmute: () -> Unit = {},
+    /** Ends the quiet of the low ([lowSide]) or the high side ("Unmute", "Alert me anyway"). */
+    val onEndQuiet: (lowSide: Boolean) -> Unit = {},
     val onDelete: (Treatment) -> Unit = {},
     val onUndo: () -> Unit = {},
     val onUndoGone: () -> Unit = {},
@@ -144,8 +150,19 @@ fun HomeContent(
         modifier = modifier.fillMaxSize(),
         topBar = {
             TopAppBar(
-                title = { if (follower) FollowerHeader(state) else Text(stringResource(R.string.home_title)) },
+                title = {
+                    when {
+                        follower -> FollowerHeader(state)
+                        state.profile != null -> ProfileHeader(state.profile) { callbacks.onAction(HomeAction.OpenProfile) }
+                        else -> Text(stringResource(R.string.home_title))
+                    }
+                },
                 actions = {
+                    if (!follower && state.profile != null) {
+                        IconButton(onClick = { callbacks.onAction(HomeAction.Share) }) {
+                            Icon(painterResource(R.drawable.home_ic_share), contentDescription = stringResource(R.string.home_share))
+                        }
+                    }
                     IconButton(onClick = { callbacks.onAction(HomeAction.OpenSettings) }) {
                         Icon(painterResource(R.drawable.home_ic_settings), contentDescription = stringResource(R.string.home_settings))
                     }
@@ -188,6 +205,42 @@ fun HomeContent(
             }
             // room for the floating button over the last row
             Spacer(Modifier.height(88.dp))
+        }
+    }
+}
+
+/**
+ * The wearer as followers see them: picture, name (or "Add your name") and how many follow. Tapping it opens How you
+ * appear; it never pushes the card down (it is the top bar's title).
+ */
+@Composable
+private fun ProfileHeader(
+    profile: HomeProfile,
+    onClick: () -> Unit,
+) {
+    val name = profile.name.ifBlank { null }
+    Row(
+        Modifier
+            .clip(
+                MaterialTheme.shapes.medium,
+            ).clickable(role = androidx.compose.ui.semantics.Role.Button, onClick = onClick)
+            .padding(end = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        AvatarImage(profile.avatar, name.orEmpty(), size = 36.dp)
+        Column {
+            Text(
+                name ?: stringResource(R.string.home_add_your_name),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                color = if (name == null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+            )
+            Text(
+                pluralStringResource(R.plurals.home_followers, profile.followers, profile.followers),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
     }
 }
@@ -268,9 +321,12 @@ private fun GlucoseSection(
             }
         } else {
             Column {
+                val pill = pillAction(state)
+                var sheet by remember { mutableStateOf<PillAction?>(null) }
                 PanelCard(
                     glucose = state.glucose,
-                    treatments = state.treatments,
+                    history = state.history,
+                    treatments = state.chartTreatments,
                     now = state.now,
                     config = state.config,
                     description = cardDescription(state, resources),
@@ -281,7 +337,34 @@ private fun GlucoseSection(
                         } else {
                             emptyList()
                         },
+                    pill = pill,
+                    pillWords = pillWords(state, resources),
+                    onPill = { action ->
+                        when (action) {
+                            is PillAction.Treat -> callbacks.onAction(HomeAction.Treat(carbs = action.carbs))
+                            PillAction.ReplaceSensor -> callbacks.onAction(HomeAction.PairSensor)
+                            is PillAction.Quiet, PillAction.MuteAll -> sheet = action
+                            PillAction.None -> Unit
+                        }
+                    },
                 )
+                sheet?.let { shown ->
+                    QuietSheet(
+                        action = shown,
+                        onDismiss = { sheet = null },
+                        onEnd = {
+                            sheet = null
+                            when (shown) {
+                                is PillAction.Quiet -> callbacks.onEndQuiet(shown.lowSide)
+                                else -> callbacks.onUnmute()
+                            }
+                        },
+                        onSettings = {
+                            sheet = null
+                            callbacks.onAction(HomeAction.OpenAlertSettings)
+                        },
+                    )
+                }
                 BannerSlot(safetyBanner)
                 // Monitoring stopped already has its safety banner (banner 0): never say it twice
                 val compact =
@@ -290,21 +373,65 @@ private fun GlucoseSection(
                             state.banner == BannerKind.MonitoringStopped
                     }
                 ReasonRow(compact, state.now) { callbacks.onAction(it) }
-                SensorLine(state)
+                SensorLine(state) { callbacks.onAction(HomeAction.PairSensor) }
             }
         }
     }
 }
 
+/**
+ * When the sensor ends; in its last day (the wearer) *Pair new sensor* as a tonal button under it, so the new one can
+ * be put on before the old one stops.
+ */
 @Composable
-private fun SensorLine(state: HomeUiState) {
+private fun SensorLine(
+    state: HomeUiState,
+    onPair: () -> Unit,
+) {
     val ends = (state.glucose.sensor as? SensorState.Active)?.endsAt ?: return
-    Text(
-        stringResource(R.string.home_sensor_ends, relative(ends, state.now)),
-        style = MaterialTheme.typography.bodyMedium,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-        modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 4.dp),
+    Column(Modifier.padding(start = 16.dp, end = 16.dp, top = 4.dp)) {
+        Text(
+            stringResource(R.string.home_sensor_ends, relative(ends, state.now)),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Reveal(lastDay(state)) {
+            FilledTonalButton(onClick = onPair, modifier = Modifier.padding(top = 8.dp).fillMaxWidth()) {
+                Text(stringResource(R.string.home_pair_new_sensor))
+            }
+        }
+    }
+}
+
+/** The wearer's sensor ends within a day: home offers *Pair new sensor*. */
+internal fun lastDay(state: HomeUiState): Boolean {
+    val ends = (state.glucose.sensor as? SensorState.Active)?.endsAt ?: return false
+    return state.glucose.role == Role.Wearer && Duration.between(state.now, ends) <= Duration.ofDays(1)
+}
+
+/** What the card's pill does for [state] (only the wearer pairs a sensor; anyone with a role may add a treatment). */
+internal fun pillAction(state: HomeUiState): PillAction {
+    // the card draws *Replace sensor* there: only the wearer can act on it
+    if (state.glucose.sensor == SensorState.Ended && state.glucose.role != Role.Wearer) return PillAction.None
+    return PillAction.of(
+        state.glucose.alerts.status,
+        state.now.epochSecond,
+        canAdd = state.glucose.role != null,
+        ended = state.glucose.sensor == SensorState.Ended,
+        muteAll = state.mutedUntil != null,
     )
+}
+
+/** TalkBack's words for the pill: what it shows. */
+private fun pillWords(
+    state: HomeUiState,
+    resources: android.content.res.Resources,
+): String {
+    val words = CardWords.of(resources)
+    if (state.glucose.sensor == SensorState.Ended) return words.replaceSensor
+    return app.mauri.sukrara.graph.StatusBadge
+        .describe(state.glucose.alerts.status, state.now.epochSecond, words)
+        .orEmpty()
 }
 
 /** Before there is anything to draw: the reason in the card's place, announced politely. */

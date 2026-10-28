@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Sukrara — https://github.com/mauriciabad/sukrara
+     Copyright (C) 2026 Maurici Abad
+     SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- The glucose notification's card, collapsed (chip off): the renderer's header row (value, trend, the late reading's
+     time, the status pill, the slots). Android 12+ gives a collapsed custom view at most 48 dp. -->
+<ImageView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/monitor_notif_header"
+    android:layout_width="match_parent"
+    android:layout_height="48dp"
+    android:adjustViewBounds="true"
+    android:scaleType="fitStart" />

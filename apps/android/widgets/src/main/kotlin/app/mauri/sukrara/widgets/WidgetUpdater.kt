@@ -7,10 +7,14 @@ import app.mauri.sukrara.core.model.AlertUiState
 import app.mauri.sukrara.core.model.Clock
 import app.mauri.sukrara.core.model.GlucoseState
 import app.mauri.sukrara.core.model.LinkState
+import app.mauri.sukrara.core.model.Reading
+import app.mauri.sukrara.core.model.ReadingHistory
 import app.mauri.sukrara.core.model.SourceStatus
 import app.mauri.sukrara.core.model.Treatment
 import app.mauri.sukrara.graph.Freshness
 import app.mauri.sukrara.graph.GraphConfig
+import app.mauri.sukrara.graph.stats.MetricsCache
+import app.mauri.sukrara.graph.stats.toPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.Flow
@@ -32,7 +36,14 @@ data class WidgetFrame(
     val placements: WidgetPlacements,
     val now: Instant,
     val dark: Boolean,
-)
+    /** The stored days before the live window (the multi-day slots count them). */
+    val stored: List<Reading> = emptyList(),
+) {
+    /** The slots' numbers over the stored days and the live window: counted once per frame, for every widget and size. */
+    val slots: MetricsCache by lazy {
+        MetricsCache(ReadingHistory.join(stored, glucose.recent).map { it.toPoint() }, now.epochSecond)
+    }
+}
 
 /** The inputs of a frame, before the clock and the theme are read. */
 data class WidgetInputs(
@@ -40,6 +51,7 @@ data class WidgetInputs(
     val treatments: List<Treatment>,
     val config: GraphConfig,
     val placements: WidgetPlacements,
+    val stored: List<Reading> = emptyList(),
 )
 
 /**
@@ -55,6 +67,7 @@ class WidgetUpdater(
     private val treatments: Flow<List<Treatment>>,
     private val config: Flow<GraphConfig>,
     private val placements: Flow<WidgetPlacements>,
+    private val stored: Flow<List<Reading>>,
     private val freshnessTicks: Flow<Unit>,
     private val screenOn: Flow<Boolean>,
     private val dark: () -> Boolean,
@@ -73,7 +86,7 @@ class WidgetUpdater(
         if (job != null) return
         job =
             scope.launch {
-                val inputs = combine(glucose, treatments, config, placements, ::WidgetInputs)
+                val inputs = combine(glucose, treatments, config, placements, stored, ::WidgetInputs)
                 combine(inputs, freshnessTicks.onStart { emit(Unit) }, screenOn) { i, _, on -> i to on }
                     .collect { (i, on) -> onChange(i, on) }
             }
@@ -89,7 +102,7 @@ class WidgetUpdater(
         val key = DrawKey.of(inputs, now, night)
         if (key == drawnKey || !screenOn) return
         drawnKey = key
-        drawnFrame.value = WidgetFrame(inputs.glucose, inputs.treatments, inputs.config, inputs.placements, now, night)
+        drawnFrame.value = WidgetFrame(inputs.glucose, inputs.treatments, inputs.config, inputs.placements, now, night, inputs.stored)
         redraw()
     }
 
@@ -100,7 +113,7 @@ class WidgetUpdater(
     suspend fun current(): WidgetFrame {
         drawnFrame.value?.let { return it }
         val i = latestInputs.filterNotNull().first()
-        return WidgetFrame(i.glucose, i.treatments, i.config, i.placements, clock.now(), dark())
+        return WidgetFrame(i.glucose, i.treatments, i.config, i.placements, clock.now(), dark(), i.stored)
     }
 
     /** What a picture depends on: equal keys draw the same picture. */
