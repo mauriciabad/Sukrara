@@ -11,6 +11,7 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.provider.Settings
+import androidx.compose.foundation.layout.Box
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -47,6 +48,10 @@ import app.mauri.sukrara.feature.settings.sensor.SensorSettingsViewModel
 import app.mauri.sukrara.feature.sharing.setup.SetupScreen
 import app.mauri.sukrara.feature.sharing.setup.SetupStep
 import app.mauri.sukrara.feature.sharing.setup.SetupViewModel
+import app.mauri.sukrara.feature.sharing.share.ApproveHost
+import app.mauri.sukrara.feature.sharing.share.BackupPage
+import app.mauri.sukrara.feature.sharing.share.InviteHereScreen
+import app.mauri.sukrara.feature.sharing.share.ProfilePage
 import app.mauri.sukrara.feature.sharing.share.ShareScreen
 import app.mauri.sukrara.feature.sharing.share.SharingScreen
 import app.mauri.sukrara.feature.sharing.share.SharingViewModel
@@ -54,6 +59,7 @@ import app.mauri.sukrara.monitor.sensorend.AndroidSensorEndPresenter
 import kotlinx.coroutines.flow.first
 import kotlinx.serialization.Serializable
 import app.mauri.sukrara.feature.settings.R as SettingsR
+import app.mauri.sukrara.feature.sharing.R as SharingR
 
 /** The app's screens. Each is a key on the back stack (Navigation 3); predictive back comes with NavDisplay. */
 @Serializable
@@ -68,6 +74,20 @@ data object SharingRoute : NavKey
 
 @Serializable
 data object ShareRoute : NavKey
+
+/** An invite link opened on this phone: where it works (following from Android isn't in this version). */
+@Serializable
+data class InviteHereRoute(
+    val link: String,
+) : NavKey
+
+/** "How you appear": the wearer's name and picture for followers (home's profile row, Settings › Sharing). */
+@Serializable
+data object ProfileRoute : NavKey
+
+/** Backup: password manager, recovery code, relay backup (home's "Not backed up" card, Settings › Sharing). */
+@Serializable
+data object BackupRoute : NavKey
 
 /** Setup opened on one [step] (Settings › Sharing's Set up opens the identity step); Back returns where it was opened. */
 @Serializable
@@ -157,111 +177,144 @@ fun SukraraNavigation(
             backStack.add(SetupRoute)
         }
     }
-    // an invite link opens setup on top of home (Back lands on home), once per link: a recreated activity keeps it
+    // an invite link says where it works, on top of whatever is open (Back returns there), once per link: a recreated
+    // activity keeps it
     var handledLink by rememberSaveable { mutableStateOf<String?>(null) }
     LaunchedEffect(deepLink) {
         val link = deepLink?.toString()
-        if (isInviteLink(deepLink) && link != handledLink) {
+        if (link != null && isInviteLink(deepLink) && link != handledLink) {
             handledLink = link
-            if (backStack.last() != SetupRoute) backStack.add(SetupRoute)
+            backStack.push(InviteHereRoute(link))
         }
     }
     val context = LocalContext.current
-    NavDisplay(
-        backStack = backStack,
-        modifier = modifier,
-        onBack = { backStack.removeLastOrNull() },
-        entryDecorators = listOf(rememberSaveableStateHolderNavEntryDecorator(), rememberViewModelStoreNavEntryDecorator()),
-        entryProvider =
-            entryProvider {
-                entry<HomeRoute> {
-                    HomeScreen(
-                        viewModel = viewModel(factory = HomeViewModel.factory(graph.home)),
-                        onAction = { route(it, backStack, context, graph.home) },
-                        onOpenDataProblems = { backStack.add(DataProblemsRoute) },
-                    )
-                }
-                entry<SharingRoute> {
-                    val close = { backStack.pop(SharingRoute) }
-                    // the settings page's title and Back (system / predictive back comes with NavDisplay)
-                    SettingsPage(stringResource(SettingsR.string.st_sharing), close, scroll = false) {
-                        SharingScreen(
-                            viewModel = viewModel(factory = SharingViewModel.factory(graph.setup.sharing)),
-                            onSetUpSharing = { backStack.push(SetupStepRoute(SetupStep.Identity)) },
-                            onShare = { backStack.push(ShareRoute) },
-                            onClose = close,
+    Box(modifier) {
+        NavDisplay(
+            backStack = backStack,
+            onBack = { backStack.removeLastOrNull() },
+            entryDecorators = listOf(rememberSaveableStateHolderNavEntryDecorator(), rememberViewModelStoreNavEntryDecorator()),
+            entryProvider =
+                entryProvider {
+                    entry<HomeRoute> {
+                        HomeScreen(
+                            viewModel = viewModel(factory = HomeViewModel.factory(graph.home)),
+                            onAction = { route(it, backStack, context, graph.home) },
+                            onOpenDataProblems = { backStack.add(DataProblemsRoute) },
                         )
                     }
-                }
-                entry<ShareRoute> {
-                    val vm: SharingViewModel = viewModel(factory = SharingViewModel.factory(graph.setup.sharing))
-                    val invite by vm.invite.collectAsStateWithLifecycle()
-                    ShareScreen(invite, onCreate = vm::createInvite, onAnother = vm::newInvite)
-                }
-                entry<SetupRoute> {
-                    SetupScreen(
-                        viewModel = viewModel(factory = SetupViewModel.factory(graph.setup)),
-                        // the sensor step embeds the new-sensor flow; its Done / Cancel lands back on setup
-                        onOpenSensorSetup = { backStack.add(NewSensorKey) },
-                        thresholdRows = { settings, onThreshold -> AlertThresholdRows(settings, onThreshold) },
-                        onDone = { backStack.remove(SetupRoute) },
-                    )
-                }
-                entry<SetupStepRoute> { key ->
-                    SetupScreen(
-                        viewModel = viewModel(factory = SetupViewModel.factory(graph.setup, startAt = key.step)),
-                        onOpenSensorSetup = { backStack.add(NewSensorKey) },
-                        thresholdRows = { settings, onThreshold -> AlertThresholdRows(settings, onThreshold) },
-                        onDone = { backStack.pop(key) },
-                    )
-                }
-                entry<NewSensorKey> {
-                    NewSensorRoute(
-                        viewModel = viewModel(factory = graph.sensorUi.newSensorViewModels),
-                        onSignIn = { backStack.add(LibreViewSignInKey) },
-                        onDone = { backStack.remove(NewSensorKey) },
-                    )
-                }
-                entry<LibreViewSignInKey> {
-                    LibreViewSignInRoute(
-                        viewModel = viewModel(factory = graph.sensorUi.libreViewViewModels),
-                        onBack = { backStack.remove(LibreViewSignInKey) },
-                    )
-                }
-                entry<SettingsKey> { key ->
-                    SettingsScreen(
-                        deps = graph.settingsUi.deps,
-                        route = key.route(),
-                        navigate = { backStack.push(SettingsKey.of(it)) },
-                        onBack = { backStack.pop(key) },
-                        openSensor = { backStack.push(SensorSettingsKey) },
-                        // Settings › Sharing: share / QR, followers, requests (no identity yet: its Set up opens setup)
-                        openSharing = { backStack.push(SharingRoute) },
-                    )
-                }
-                entry<SensorSettingsKey> {
-                    SensorSettingsScreen(
-                        viewModel = viewModel(factory = SensorSettingsViewModel.factory(graph.sensorSettings)),
-                        clock = graph.clock,
-                        onPairNewSensor = { backStack.add(NewSensorKey) },
-                        onSignIn = { backStack.add(LibreViewSignInKey) },
-                        onBack = { backStack.remove(SensorSettingsKey) },
-                    )
-                }
-                entry<DataProblemsRoute> {
-                    val problems by graph.home.dataProblems.collectAsStateWithLifecycle()
-                    LaunchedEffect(problems.isEmpty()) { if (problems.isEmpty()) backStack.remove(DataProblemsRoute) }
-                    DataProblemScreen(
-                        problems = problems,
-                        onCopyReport = { copy(context, it) },
-                        onAcknowledge = graph.home::acknowledge,
-                        onBack = { backStack.removeLastOrNull() },
-                        // damaged settings lead straight to the alert levels
-                        onOpenAlertSettings = { backStack.push(SettingsKey.of(SettingsRoute.Alerts)) },
-                    )
-                }
-            },
-    )
+                    entry<SharingRoute> {
+                        val close = { backStack.pop(SharingRoute) }
+                        // the settings page's title and Back (system / predictive back comes with NavDisplay)
+                        SettingsPage(stringResource(SettingsR.string.st_sharing), close, scroll = false) {
+                            SharingScreen(
+                                viewModel = viewModel(factory = SharingViewModel.factory(graph.setup.sharing)),
+                                onSetUpSharing = { backStack.push(SetupStepRoute(SetupStep.Identity)) },
+                                onShare = { backStack.push(ShareRoute) },
+                                onReview = graph.setup.laterRequests::review,
+                                onProfile = { backStack.push(ProfileRoute) },
+                                onBackup = { backStack.push(BackupRoute) },
+                                onClose = close,
+                            )
+                        }
+                    }
+                    entry<InviteHereRoute> { key ->
+                        SettingsPage(stringResource(SharingR.string.sh_invite_here_page), { backStack.pop(key) }, scroll = false) {
+                            InviteHereScreen(key.link)
+                        }
+                    }
+                    entry<ProfileRoute> {
+                        val close = { backStack.pop(ProfileRoute) }
+                        SettingsPage(stringResource(SharingR.string.sh_profile_title), close) {
+                            ProfilePage(
+                                viewModel = viewModel(factory = SharingViewModel.factory(graph.setup.sharing)),
+                                onDone = close,
+                                onSetUpSharing = { backStack.push(SetupStepRoute(SetupStep.Identity)) },
+                            )
+                        }
+                    }
+                    entry<BackupRoute> {
+                        SettingsPage(stringResource(SharingR.string.sh_backup_title), { backStack.pop(BackupRoute) }) {
+                            BackupPage(
+                                viewModel = viewModel(factory = SharingViewModel.factory(graph.setup.sharing)),
+                                onSetUpSharing = { backStack.push(SetupStepRoute(SetupStep.Identity)) },
+                            )
+                        }
+                    }
+                    entry<ShareRoute> {
+                        val vm: SharingViewModel = viewModel(factory = SharingViewModel.factory(graph.setup.sharing))
+                        val invite by vm.invite.collectAsStateWithLifecycle()
+                        ShareScreen(invite, onCreate = vm::createInvite, onAnother = vm::newInvite)
+                    }
+                    entry<SetupRoute> {
+                        SetupScreen(
+                            viewModel = viewModel(factory = SetupViewModel.factory(graph.setup)),
+                            // the sensor step embeds the new-sensor flow; its Done / Cancel lands back on setup
+                            onOpenSensorSetup = { backStack.add(NewSensorKey) },
+                            thresholdRows = { settings, onThreshold -> AlertThresholdRows(settings, onThreshold) },
+                            onDone = { backStack.remove(SetupRoute) },
+                        )
+                    }
+                    entry<SetupStepRoute> { key ->
+                        SetupScreen(
+                            viewModel = viewModel(factory = SetupViewModel.factory(graph.setup, startAt = key.step)),
+                            onOpenSensorSetup = { backStack.add(NewSensorKey) },
+                            thresholdRows = { settings, onThreshold -> AlertThresholdRows(settings, onThreshold) },
+                            onDone = { backStack.pop(key) },
+                        )
+                    }
+                    entry<NewSensorKey> {
+                        NewSensorRoute(
+                            viewModel = viewModel(factory = graph.sensorUi.newSensorViewModels),
+                            onSignIn = { backStack.add(LibreViewSignInKey) },
+                            onDone = { backStack.remove(NewSensorKey) },
+                        )
+                    }
+                    entry<LibreViewSignInKey> {
+                        LibreViewSignInRoute(
+                            viewModel = viewModel(factory = graph.sensorUi.libreViewViewModels),
+                            onBack = { backStack.remove(LibreViewSignInKey) },
+                        )
+                    }
+                    entry<SettingsKey> { key ->
+                        SettingsScreen(
+                            deps = graph.settingsUi.deps,
+                            route = key.route(),
+                            navigate = { backStack.push(SettingsKey.of(it)) },
+                            onBack = { backStack.pop(key) },
+                            openSensor = { backStack.push(SensorSettingsKey) },
+                            // Settings › Sharing: share / QR, followers, requests (no identity yet: its Set up opens setup)
+                            openSharing = { backStack.push(SharingRoute) },
+                        )
+                    }
+                    entry<SensorSettingsKey> {
+                        SensorSettingsScreen(
+                            viewModel = viewModel(factory = SensorSettingsViewModel.factory(graph.sensorSettings)),
+                            clock = graph.clock,
+                            onPairNewSensor = { backStack.add(NewSensorKey) },
+                            onSignIn = { backStack.add(LibreViewSignInKey) },
+                            onBack = { backStack.remove(SensorSettingsKey) },
+                        )
+                    }
+                    entry<DataProblemsRoute> {
+                        val problems by graph.home.dataProblems.collectAsStateWithLifecycle()
+                        LaunchedEffect(problems.isEmpty()) { if (problems.isEmpty()) backStack.remove(DataProblemsRoute) }
+                        DataProblemScreen(
+                            problems = problems,
+                            onCopyReport = { copy(context, it) },
+                            onAcknowledge = graph.home::acknowledge,
+                            onBack = { backStack.removeLastOrNull() },
+                            // damaged settings lead straight to the alert levels
+                            onOpenAlertSettings = { backStack.push(SettingsKey.of(SettingsRoute.Alerts)) },
+                        )
+                    }
+                },
+        )
+        // an access request shows over whatever is open, except where the wearer is busy setting up or pairing
+        val busy = backStack.lastOrNull().let { it is SetupRoute || it is SetupStepRoute || it is NewSensorKey || it is LibreViewSignInKey }
+        if (!busy) {
+            ApproveHost(viewModel(factory = SharingViewModel.factory(graph.setup.sharing)), graph.setup.laterRequests)
+        }
+    }
 }
 
 /** Adds [key] on top unless it's already there (a double tap opens one page, not two). */
@@ -320,8 +373,20 @@ private fun route(
             }
         }
 
-        // their banners stay hidden until the owning chunks (13, integrations) provide the inputs and the route
-        HomeAction.OpenBackup, HomeAction.OpenClinicUpload -> {
+        HomeAction.OpenBackup -> {
+            backStack.push(BackupRoute)
+        }
+
+        HomeAction.OpenProfile -> {
+            backStack.push(ProfileRoute)
+        }
+
+        HomeAction.Share -> {
+            backStack.push(ShareRoute)
+        }
+
+        // its banner stays hidden until the integrations provide the input and the route
+        HomeAction.OpenClinicUpload -> {
             Unit
         }
     }

@@ -115,4 +115,13 @@
     <string name="data_store_keys_text">No se pudo leer una clave o un inicio de sesión guardado. Puede que tengas que iniciar sesión, emparejar o compartir de nuevo.</string>
     <string name="data_store_other_title">Otros datos guardados</string>
     <string name="data_store_other_text">Se reinició un archivo guardado; Sukrara lo empezó de nuevo vacío.</string>
+    <!-- Top bar button: share with someone (a new invite) -->
+    <string name="home_share">Compartir con alguien</string>
+    <!-- Wearer's row without a name yet -->
+    <string name="home_add_your_name">Añade tu nombre</string>
+    <!-- Wearer's row: how many follow -->
+    <plurals name="home_followers">
+        <item quantity="one">%1$d seguidor</item>
+        <item quantity="other">%1$d seguidores</item>
+    </plurals>
 </resources>

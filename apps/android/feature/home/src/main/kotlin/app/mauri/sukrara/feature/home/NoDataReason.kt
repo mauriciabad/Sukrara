@@ -130,5 +130,11 @@ sealed interface HomeAction {
 
     data object OpenBackup : HomeAction
 
+    /** "How you appear" (the wearer's profile row). */
+    data object OpenProfile : HomeAction
+
+    /** Share with someone (a new invite). */
+    data object Share : HomeAction
+
     data object OpenClinicUpload : HomeAction
 }

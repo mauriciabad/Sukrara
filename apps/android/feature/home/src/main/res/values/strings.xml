@@ -121,4 +121,13 @@
     <string name="data_store_keys_text">A saved key or sign-in couldn\'t be read. You may need to sign in, pair or share again.</string>
     <string name="data_store_other_title">Other saved data</string>
     <string name="data_store_other_text">A saved file was reset; Sukrara started it again from empty.</string>
+    <!-- Top bar button: share with someone (a new invite) -->
+    <string name="home_share">Share with someone</string>
+    <!-- Wearer's row without a name yet -->
+    <string name="home_add_your_name">Add your name</string>
+    <!-- Wearer's row: how many follow -->
+    <plurals name="home_followers">
+        <item quantity="one">%1$d follower</item>
+        <item quantity="other">%1$d followers</item>
+    </plurals>
 </resources>

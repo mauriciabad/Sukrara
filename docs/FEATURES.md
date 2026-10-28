@@ -199,11 +199,14 @@ System back on the first step leaves setup (home shows "Not monitoring: setup in
 
 ## Following (Android)
 
-Not in this build: the role step says so and keeps the person on it; invite links opened on a wearer
-phone open setup. Follow with Sukrara for Mac meanwhile.
+Not in this build: the role step says so and keeps the person on it. An invite link opened on an Android phone (any
+role, also during first-run setup) opens *Open this invite on a Mac*: following from an Android phone comes later, open
+the link in Sukrara for Mac; *Copy link*; the invite stays unused. The share screen tells the wearer the same ("Send
+them the link, or let them scan this code, in Sukrara for Mac").
 
 **States and exits**: Role step with *I follow someone* selected → the note "Following on Android comes in a later version" →
-choose *I wear the sensor* or leave setup.
+choose *I wear the sensor* or leave setup. *Open this invite on a Mac* → *Copy link* (stays) or Back (returns to what was
+open, setup included).
 
 ## Readings and backfill
 
@@ -675,17 +678,39 @@ Wearer only (`sensorend/`; rules in `SensorEndPlan`, tests `SensorEndPlanTest`);
 The wearer's phone shares readings, alerts and the stream's roster with approved followers over Nostr relays
 (contracts/protocol/PROTOCOL-v2.md; `apps/android/share`).
 
-- **Identity**: one sharing identity (key I) per wearer, created on first use or **restored from a recovery code**
-  (the `ncryptsec` / `nsec` of *Export recovery code*). Kept encrypted
-  with the Android Keystore (`sukrara.identity.owner`), never in backups or logs.
-- **Restore** (switching phones): the code → the newest owner backup on the relays →
+- **Identity**: one sharing identity (key I) per wearer, created on first use (setup's *Start fresh*: the person's name
+  and picture first, a name is needed) or **restored** from the password manager or a recovery code (the `ncryptsec` /
+  `nsec` of *Recovery code*). Kept encrypted with the Android Keystore (`sukrara.identity.owner`), never in backups or
+  logs.
+- **How you appear** (home's top bar: the picture, the name or *Add your name*, *N followers*; Settings › Sharing's
+  first row): name (≤ 40 characters, trimmed, blank keeps the previous) and a generated picture (*Shuffle*;
+  *Customize*: shape chips Cube / Drop / Dots / Rings / Letter, eight colour swatches named for TalkBack, *Turn the
+  colours*). Pictures are drawn by THE avatar renderer (`core/designsystem` `AvatarDrawing` + `AvatarImage`, v1 of
+  PROTOCOL-v2 §Profiles; a newer version or none draws the grey initial). *Save* sends the roster at once (and the
+  backup); followers see it the next time their app connects. During *Another app is sharing as you* Save is refused
+  with a note and the edit stays.
+- **Backup** (home's *Not backed up* card, Settings › Sharing › Backup): *Save to password manager* (Credential Manager
+  password `Sukrara · npub1…`, the system's sheet asks; saved / cancelled / failed shown under it), *Recovery code*
+  (a password of ≥ 12 characters → the code in a secure dialog — no screenshots, hidden in Recents — *Copy and close*
+  copies it marked sensitive), *Follower list on relays* (when the encrypted owner backup last went out). The phone
+  counts as backed up once the password manager took it or a code was copied (a restore counts too); until then home
+  shows *Not backed up* (dismissable, back after a while).
+- **Restore** (switching phones): *Restore from password manager* (only once the restore gate is open: the secret is
+  never fetched before; an `ncryptsec` fills the code field and asks for its password) or the pasted code → the newest
+  owner backup on the relays →
   followers, invites, writers and profile come back; this phone gets a new device key and a new epoch, every follower
   gets the new read key before the new roster, so existing followers (Mac included) keep following without doing
-  anything. Credential Manager password-save is optional.
+  anything.
 - **Invite** → single-use link (`https://sukrara.mauri.app/join#…`, 24 h, a label for who it's for); the first phone
   to use it claims it, later ones get *invite used* and the request shows how many others tried.
-- **Approve / Deny** a request (4-digit match code); **Remove** a follower → *revoked* notice + new epoch, so it
-  can't read anything new. Writers (followers allowed to add treatments) are named in the roster.
+- **Approve / Deny** a request; **Remove** a follower → *revoked* notice + new epoch, so it can't read anything new.
+  Writers (followers allowed to add treatments) are named in the roster. The **approve dialog** shows over whatever
+  screen is open (not over setup or sensor pairing): the follower's picture and name (control / direction characters
+  removed), *Your invite* with the wearer's label and a *Name matches* / *Different name* hint, *Sent 10:02 · asked
+  10:05*, the 4-digit code to compare (read digit by digit by TalkBack), *Later* / *Deny* / *Allow*. Allow is armed
+  600 ms after the dialog appears and works once per tap. When other phones also tried the same link the wearer types
+  the code shown on the follower's phone instead (the engine refuses Allow without it). An Allow that didn't happen
+  says *Couldn't give access*.
 - **Readings**: live event per new reading (< 10 min old), hour chunks of the last 25 h (current hour at most every
   5 min), all of the last 24 h again on start, approval and rotation. **Alerts** go out at once.
 - **Access request notification** (channel *Access requests*, Sukrara's info group): *Ana wants to see your glucose ·
@@ -713,11 +738,12 @@ The wearer's phone shares readings, alerts and the stream's roster with approved
   followers step alone; done or Back → Settings › Sharing, Back also leaves *Restore your followers* on home's
   Finish setup card), sharing → Followers, conflict → the conflict screen): *Share with someone* (a label only
   the wearer sees, *Create invite* → the QR springs in with a confirm haptic, the link as selectable text, *Send link* /
-  *Copy*, "works once, until <date>", *They'll see*, *Invite someone else*); the approve dialog (name, the invite's
-  label, the 4-digit code to compare — read digit by digit by TalkBack — a warning when other phones tried the same
-  link, *Allow* with a haptic / *Deny*, dismiss = later); *Followers* (waiting requests → review, followers since <date>
-  → dialog → *Remove* confirmed "They stop seeing your data. To follow again they need a new invite.", empty state →
-  *Share with someone*); *Another app is sharing as you* screen (what
+  *Copy*, "works once, until <date>", *They'll see*, *Invite someone else*); *Settings › Sharing* (your row → How you
+  appear, *Backup*, *Share with someone*, *Waiting for you* requests → the approve dialog, followers with their
+  pictures, since <date> and *Can add entries* / *Sees only* → dialog with the picture, a *Can add entries* switch — a
+  refused change snaps back and says why — and *Remove* confirmed "They stop seeing your data. To follow again they need
+  a new invite."; removed followers folded under an *N Removed* pill → their group with the date, *See less*);
+  *Another app is sharing as you* screen (what
   happened, whether followers still receive readings, *I turned it off. Retry*,
   *Close*; it blocks only the sharing area — readings and alerts keep running).
 - **Another app sharing as you**: a newer roster / backup signed by this identity from another device (the
@@ -728,8 +754,12 @@ The wearer's phone shares readings, alerts and the stream's roster with approved
 errors → *Needs password* (type it), *Wrong password* / *Not a recovery code* (edit and retry), *Relays unreachable*
 (retry when online), *No backup found* (check the code; nothing changed), *Backup unreadable*; none of them changes
 anything. *Identity unreadable* (blocking; the file is never replaced silently) → *Retry* (when the Keystore was busy)
-or *Restore from recovery code*. *Sharing* → invite, approve / deny, remove, allow / stop a follower adding entries, export recovery code.
-*Request waiting* → notification *Allow* (needs unlock) / *Deny*, or the app; the notification leaves once answered. *Another app is sharing as you* (home + Settings › Sharing; says whether followers
+or *Restore from recovery code*. *Sharing* → invite, approve / deny, remove, allow / stop a follower adding entries,
+How you appear (*Save* / *Cancel* / Back; leaving drops an unsaved edit), Backup (each row can be repeated; closing the
+recovery dialog while the code is being made drops it; a code not copied isn't a backup). *Not backed up* → *Backup*
+or dismiss. *Request waiting* → the approve dialog over the app (*Later* or Back hides that request until the app
+process restarts; Settings › Sharing's request row shows it again), notification *Allow* (needs unlock) / *Deny*;
+both leave once answered. *Removed* pill → expand / *See less*. *Another app is sharing as you* (home + Settings › Sharing; says whether followers
 still get readings) → turn off sharing in the other app or uninstall it, then *I turned it off — retry* (republishes once,
 past the other app's event; blocks again if it's still running) or *Help*.
 
@@ -813,6 +843,6 @@ past the other app's event; blocks again if it's still running) or *Help*.
 - Android settings pages: settings export / import / reset, settings search, the ring order and slot editors (graph.slots, ringOrder, ringRange, lastPlace / lastElse), lines across the graph, treatment marks options, per-place graph time and sensor time, the follower's *Settings from* page, relay / epoch / statistics / log pages, battery-lab knobs, mmol/L in the settings pages (thresholds and ranges are shown and typed in mg/dL; schema `general.unit` is set elsewhere), and the alert sound preview (play / vibration) in settings. Reason: only what daily use needs; the defaults are the owner's own values.
 - Mac: Juggluco over Wi-Fi (LAN source and subnet discovery) and the Nostr v1 `cgmnostr:` follow link (v1 links carried plaintext secrets and had no UI). Follow the wearer with a protocol v2 invite instead.
 - Sensors: Dexcom G6 / ONE, Dexcom G7 / ONE+ / G7 15 Day / Stelo, Aidex X, Accu-Chek SmartGuide, the "other sensors" scan and the untested-sensor banner; the Libre 3 experiment preferences (minimal subscription set, connection priority, screen-off skip). Reason: no hardware to test them, the owner uses a Libre 3.
-- Planned (issues filed): the Android follower role (join flow, follower home and Following page), the Android Backup page and profile editor, the glucose report card, LibreView / Nightscout / Tidepool uploads, the local xDrip+ (Garmin) and Nightscout servers, Health Connect and broadcasts, insulin pens, the full sensor reminders page, the calendar event and the *Sensor ready* notification, CSV export, Bluetooth sharing from the phone. The sections above that describe them are the behaviour to build. Reason: what daily use needs comes first.
+- Planned (issues filed): the Android follower role (join flow, follower home and Following page), the glucose report card, LibreView / Nightscout / Tidepool uploads, the local xDrip+ (Garmin) and Nightscout servers, Health Connect and broadcasts, insulin pens, the full sensor reminders page, the calendar event and the *Sensor ready* notification, CSV export, Bluetooth sharing from the phone. The sections above that describe them are the behaviour to build. Reason: what daily use needs comes first.
 
 **States and exits**: none (these features aren't in the app).

@@ -8,9 +8,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -19,24 +16,28 @@ import app.mauri.sukrara.designsystem.state.StateKind
 import app.mauri.sukrara.designsystem.state.StateScreen
 import app.mauri.sukrara.feature.sharing.R
 import app.mauri.sukrara.feature.sharing.conflict.IdentityConflictScreen
+import app.mauri.sukrara.feature.sharing.followers.FollowersActions
 import app.mauri.sukrara.feature.sharing.followers.FollowersPage
 import app.mauri.sukrara.share.owner.OwnerShareState
 
 /**
- * Settings › Sharing: the followers page while sharing (requests open the approve dialog), the conflict screen while
- * another app shares as this identity, and the way into setup's identity step when there is no identity yet. The app
- * places it under the settings top bar (title and Back, like every settings page).
+ * Settings › Sharing: the followers page while sharing (a waiting request opens the approve dialog the app shows over
+ * every screen, [onReview]), the conflict screen while another app shares as this identity, and the way into setup's
+ * identity step when there is no identity yet. The app places it under the settings top bar (title and Back).
  */
 @Composable
 fun SharingScreen(
     viewModel: SharingViewModel,
     onSetUpSharing: () -> Unit,
     onShare: () -> Unit,
+    onReview: (String) -> Unit,
+    onProfile: () -> Unit,
+    onBackup: () -> Unit,
     onClose: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
-    var reviewing by rememberSaveable { mutableStateOf<String?>(null) }
+    val writerRefused by viewModel.writerRefused.collectAsStateWithLifecycle()
     Box(modifier.fillMaxSize()) {
         when (val s = state) {
             OwnerShareState.Loading -> {
@@ -62,26 +63,17 @@ fun SharingScreen(
 
             is OwnerShareState.Sharing -> {
                 FollowersPage(
-                    s.followers,
-                    s.pending,
-                    onReview = { reviewing = it.follower },
-                    onRemove = { viewModel.remove(it.key) },
-                    onShare = onShare,
+                    s,
+                    FollowersActions(
+                        review = onReview,
+                        remove = { viewModel.remove(it) },
+                        setWriter = viewModel::setWriter,
+                        share = onShare,
+                        profile = onProfile,
+                        backup = onBackup,
+                    ),
+                    writerRefused = writerRefused,
                 )
-                s.pending.firstOrNull { it.follower == reviewing }?.let { request ->
-                    ApproveDialog(
-                        request,
-                        onAllow = {
-                            viewModel.approve(request.follower)
-                            reviewing = null
-                        },
-                        onDeny = {
-                            viewModel.deny(request.follower)
-                            reviewing = null
-                        },
-                        onLater = { reviewing = null },
-                    )
-                }
             }
         }
     }

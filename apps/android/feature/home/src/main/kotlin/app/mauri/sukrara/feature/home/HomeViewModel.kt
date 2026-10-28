@@ -11,6 +11,7 @@ import app.mauri.sukrara.core.model.AlertReadiness
 import app.mauri.sukrara.core.model.AlertRequirement
 import app.mauri.sukrara.core.model.Clock
 import app.mauri.sukrara.core.model.GlucoseState
+import app.mauri.sukrara.core.model.Role
 import app.mauri.sukrara.core.model.ServiceState
 import app.mauri.sukrara.core.model.Treatment
 import app.mauri.sukrara.core.model.storage.StateStore
@@ -21,6 +22,7 @@ import app.mauri.sukrara.feature.home.banners.HomeBanners
 import app.mauri.sukrara.feature.home.banners.HomeEnvironment
 import app.mauri.sukrara.graph.GlucoseLook
 import app.mauri.sukrara.graph.GraphConfig
+import app.mauri.sukrara.protocol.event.Avatar
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -31,6 +33,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.mapLatest
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -87,7 +90,13 @@ interface HomeDeps {
 
     /** Whether this phone may delete treatment [id] (a follower only the entries it added). */
     suspend fun mayChangeTreatment(id: String): Boolean
+
+    /** How the wearer appears to followers, while this phone shares (null = no identity, or not the wearer). */
+    val profile: Flow<HomeProfile?> get() = flowOf(null)
 }
+
+/** The wearer's own row on home: picture, name (blank = not set yet) and how many follow. */
+data class HomeProfile(val name: String, val avatar: Avatar?, val followers: Int)
 
 /** Everything the home screen draws, from one source. */
 data class HomeUiState(
@@ -108,6 +117,8 @@ data class HomeUiState(
     val config: GraphConfig = GraphConfig(),
     /** Ids of [treatments] this phone may not delete (a follower and the wearer's entries): no Delete button. */
     val readOnly: Set<String> = emptySet(),
+    /** The wearer's profile while sharing (the top bar shows it, with Share). */
+    val profile: HomeProfile? = null,
 ) {
     val mutedUntil: Instant? get() = glucose.alerts.mutedUntil?.takeIf { it > now }
 }
@@ -139,9 +150,9 @@ class HomeViewModel(
             deps.glucose,
             minutes,
             deps.readiness,
-            deps.environment,
+            combine(deps.environment, deps.profile, ::Pair),
             combine(deps.bannerMemory.data, recentTreatments, undo, deps.dataProblems, deps.graphConfig, ::Extras),
-        ) { glucose, tick, readiness, env, (memory, recent, pendingUndo, problems, config) ->
+        ) { glucose, tick, readiness, (env, profile), (memory, recent, pendingUndo, problems, config) ->
             val now = maxOf(tick, deps.clock.now())
             val look = homeLook(glucose, now)
             HomeUiState(
@@ -157,6 +168,7 @@ class HomeViewModel(
                 undo = pendingUndo,
                 config = config,
                 readOnly = recent.readOnly,
+                profile = profile?.takeIf { glucose.role != Role.Follower },
             )
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), initial())
 

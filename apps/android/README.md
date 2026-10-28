@@ -28,7 +28,7 @@ Several agents build in parallel on one 16 GB Mac: run the tasks of the module y
 | `:core:alerts` | JVM | the pure alert engine |
 | `:core:protocol` | JVM | Nostr protocol v2 wire formats (no nostr-sdk) |
 | `:core:data` | Android | DataStore settings/state, SecureStore, Room |
-| `:core:designsystem` | Android | theme, motion, shared rows |
+| `:core:designsystem` | Android | theme, motion, shared rows, the avatar renderer (uses `:core:protocol`'s `Avatar`) |
 | `:core:graph` | Android | the one card/graph renderer |
 | `:monitor` | Android | `GlucoseHub` implementation, monitoring service, alert runtime, notifications |
 | `:sensor` | Android + JNI | Bluetooth link, Libre 3 (native core `Libre3Crypto`), pairing, Juggluco source |

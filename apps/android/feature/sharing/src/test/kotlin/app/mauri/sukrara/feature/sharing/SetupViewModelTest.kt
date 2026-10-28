@@ -27,6 +27,7 @@ import app.mauri.sukrara.feature.sharing.setup.RestoreUi
 import app.mauri.sukrara.feature.sharing.setup.SetupRecord
 import app.mauri.sukrara.feature.sharing.setup.SetupStep
 import app.mauri.sukrara.feature.sharing.setup.SetupViewModel
+import app.mauri.sukrara.protocol.event.Profile
 import app.mauri.sukrara.share.owner.OwnerShareState
 import app.mauri.sukrara.share.owner.usecase.RestoreIdentity
 import kotlinx.coroutines.Dispatchers
@@ -183,7 +184,7 @@ class SetupViewModelTest {
             assertEquals(listOf("restore"), sharing.calls)
             assertEquals(RestoreUi.Failed(RestoreIdentity.Result.WrongPassword), vm.ui.first { it?.restore is RestoreUi.Failed }!!.restore)
             assertTrue(SetupStep.Identity !in record.data.first().completed)
-            assertTrue("startFresh" !in sharing.calls)
+            assertTrue(sharing.calls.none { it.startsWith("startFresh") })
         }
 
     @Test
@@ -202,7 +203,7 @@ class SetupViewModelTest {
             val u = vm.ui.first { it != null }!!
             assertEquals(SetupStep.Identity, u.step)
             assertTrue(u.single)
-            vm.startFresh()
+            vm.startFresh(Profile("Alex", null))
             assertEquals(null, vm.ui.first { it?.step != SetupStep.Identity }!!.step)
         }
 
