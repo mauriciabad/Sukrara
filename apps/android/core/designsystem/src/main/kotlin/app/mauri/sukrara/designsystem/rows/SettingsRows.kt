@@ -105,6 +105,7 @@ private fun RowFrame(
     enabled: Boolean,
     modifier: Modifier = Modifier,
     titleColor: Color = MaterialTheme.colorScheme.onSurface,
+    leading: (@Composable () -> Unit)? = null,
     trailing: @Composable RowScope.() -> Unit = {},
 ) {
     Row(
@@ -116,7 +117,10 @@ private fun RowFrame(
             .alpha(if (enabled) 1f else DisabledAlpha),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        if (icon != null) {
+        if (leading != null) {
+            leading()
+            Spacer(Modifier.width(16.dp))
+        } else if (icon != null) {
             Icon(painterResource(icon), contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
             Spacer(Modifier.width(16.dp))
         }
@@ -197,7 +201,10 @@ fun SplitSwitchRow(
     }
 }
 
-/** Opens another screen; a chevron at the end. */
+/**
+ * Opens another screen; a chevron at the end. [leading] replaces [icon] with other content (the overview's
+ * [CategoryIcon], a picture): decorative, the title says what the row is.
+ */
 @Composable
 fun NavigationRow(
     title: String,
@@ -206,8 +213,9 @@ fun NavigationRow(
     summary: String? = null,
     @DrawableRes icon: Int? = null,
     enabled: Boolean = true,
+    leading: (@Composable () -> Unit)? = null,
 ) {
-    RowFrame(title, summary, icon, enabled, modifier.clickable(enabled, role = Role.Button, onClick = onClick)) {
+    RowFrame(title, summary, icon, enabled, modifier.clickable(enabled, role = Role.Button, onClick = onClick), leading = leading) {
         Icon(
             painterResource(R.drawable.ds_ic_chevron_right),
             contentDescription = null,

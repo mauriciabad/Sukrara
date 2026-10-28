@@ -17,6 +17,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -172,6 +173,9 @@ data class SettingsKey(
             "sensorend" -> SettingsRoute.SensorEnd
             "about" -> SettingsRoute.About
             "review" -> SettingsRoute.ThresholdReview
+            "advanced" -> SettingsRoute.Advanced
+            "log" -> SettingsRoute.Log
+            "from" -> SettingsRoute.SettingsFrom
             else -> SettingsRoute.Overview
         }
 
@@ -193,6 +197,9 @@ data class SettingsKey(
                 SettingsRoute.SensorEnd -> SettingsKey("sensorend")
                 SettingsRoute.About -> SettingsKey("about")
                 SettingsRoute.ThresholdReview -> SettingsKey("review")
+                SettingsRoute.Advanced -> SettingsKey("advanced")
+                SettingsRoute.Log -> SettingsKey("log")
+                SettingsRoute.SettingsFrom -> SettingsKey("from")
             }
     }
 }
@@ -314,8 +321,7 @@ fun SukraraNavigation(
                     }
                     entry<SharingRoute> {
                         val close = { backStack.pop(SharingRoute) }
-                        val role by graph.role.data
-                            .map { it.role }
+                        val role by remember(graph.role) { graph.role.data.map { it.role } }
                             .collectAsStateWithLifecycle(null)
                         if (role == Role.Follower) {
                             SettingsPage(stringResource(SharingR.string.sh_following_title), close, scroll = false) {
@@ -413,6 +419,9 @@ fun SukraraNavigation(
                             openSharing = { backStack.push(SharingRoute) },
                             openApps = { backStack.push(AppsRoute) },
                             openClinicUpload = { backStack.push(LibreViewRoute) },
+                            openProfile = { backStack.push(ProfileRoute) },
+                            openBackup = { backStack.push(BackupRoute) },
+                            openExport = { backStack.push(ExportRoute) },
                             // the Ranges and Graph pages show home's own panel, redrawn as each setting changes
                             preview = { PanelPreview(viewModel(factory = HomeViewModel.factory(graph.home))) },
                         )

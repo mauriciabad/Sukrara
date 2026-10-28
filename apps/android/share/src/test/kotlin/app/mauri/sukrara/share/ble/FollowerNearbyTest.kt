@@ -32,6 +32,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
+import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
@@ -39,6 +40,7 @@ import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.time.Duration
 import java.time.Instant
 
 /** The follower engine with a fake Bluetooth path beside the fake relays (the test plays the wearer's phone). */
@@ -155,8 +157,17 @@ class FollowerNearbyTest {
             finder.info(BleMessages.Owner.Unknown, phone = "other")
             runCurrent()
             assertEquals(listOf(NearbyOffer("ana", pairing)), search!!.offers)
-            // each phone is left for a while so the scan moves on to the next
-            assertEquals(listOf("ana" to FollowerEngine.NEARBY_RECHECK_S, "other" to FollowerEngine.NEARBY_RECHECK_S), finder.left)
+            // each phone is left so the scan moves on to the next: one offering is looked at again soon, one offering
+            // nothing only in a minute
+            assertEquals(listOf("ana" to FollowerEngine.NEARBY_OFFER_RECHECK_S, "other" to FollowerEngine.NEARBY_IDLE_S), finder.left)
+            // the phone stops answering (it stopped advertising): gone after a missed check, not minutes later
+            clock.advance(Duration.ofSeconds(FollowerEngine.NEARBY_OFFER_DROP_S + 1))
+            advanceTimeBy(1_100)
+            assertTrue(search!!.offers.isEmpty())
+            // back in range, still offering
+            finder.info(BleMessages.Owner.Unknown, phone = "ana", pairing = pairing)
+            runCurrent()
+            assertEquals(listOf(NearbyOffer("ana", pairing)), search!!.offers)
             // the offer closes on the phone: gone from the list at its next check
             finder.info(BleMessages.Owner.Unknown, phone = "ana")
             runCurrent()

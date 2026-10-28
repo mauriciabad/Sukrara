@@ -4,6 +4,7 @@
 package app.mauri.sukrara.feature.settings.sensor
 
 import android.content.Intent
+import android.net.Uri
 import android.provider.Settings
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -40,6 +41,7 @@ import app.mauri.sukrara.designsystem.rows.FooterText
 import app.mauri.sukrara.designsystem.rows.InfoRow
 import app.mauri.sukrara.designsystem.rows.NavigationRow
 import app.mauri.sukrara.designsystem.rows.SettingsGroup
+import app.mauri.sukrara.designsystem.rows.SwitchRow
 import app.mauri.sukrara.feature.settings.ConfirmDialog
 import app.mauri.sukrara.feature.settings.R
 import app.mauri.sukrara.feature.settings.SettingsPage
@@ -49,6 +51,7 @@ import kotlinx.coroutines.delay
 import java.time.Duration
 import java.time.Instant
 import java.time.ZoneId
+import app.mauri.sukrara.core.designsystem.R as DsR
 import app.mauri.sukrara.graph.Clock as ClockText
 
 /** Where the page's buttons lead: the sensor feature's new-sensor flow and LibreView sign-in. */
@@ -57,6 +60,8 @@ class SensorSettingsActions(
     val signIn: () -> Unit = {},
     val setSource: (SourceChoice) -> Unit = {},
     val signOut: () -> Unit = {},
+    val setOpenOnScan: (Boolean) -> Unit = {},
+    val forget: () -> Unit = {},
 )
 
 /** Settings › Sensor with its ViewModel; the "ends in" time moves every minute. */
@@ -79,7 +84,14 @@ fun SensorSettingsScreen(
         state,
         now,
         clock.zone,
-        SensorSettingsActions(onPairNewSensor, onSignIn, viewModel::setSource, viewModel::signOut),
+        SensorSettingsActions(
+            onPairNewSensor,
+            onSignIn,
+            viewModel::setSource,
+            viewModel::signOut,
+            viewModel::setOpenOnScan,
+            viewModel::forget,
+        ),
         onBack,
     )
 }
@@ -101,6 +113,7 @@ fun SensorSettingsContent(
         var confirming by rememberSaveable { mutableStateOf<SourceChoice?>(null) }
         StateNotice(state, actions) { confirming = SourceChoice.Juggluco }
         SensorGroup(state, now, zone, actions)
+        if (state.source == SourceChoice.Libre3Direct) ThisPhoneGroup(state, actions)
         SourceGroup(state.source) { confirming = it }
         AccountGroup(state.account, actions)
         FooterText(stringResource(R.string.st_sensor_footer))
@@ -211,12 +224,17 @@ private fun SensorGroup(
             InfoRow(
                 stringResource(R.string.st_sensor_family),
                 summary = if (f.untested) stringResource(R.string.st_sensor_family_untested, f.label) else f.label,
+                icon = DsR.drawable.ds_ic_dia_sensor,
             )
         }
-        InfoRow(stringResource(R.string.st_sensor_status), summary = statusText(state, zone))
+        InfoRow(stringResource(R.string.st_sensor_status), summary = statusText(state, zone), icon = DsR.drawable.ds_ic_info)
         state.sensor?.let { sensor ->
-            InfoRow(stringResource(R.string.st_sensor_serial), summary = sensor.serial)
-            InfoRow(stringResource(R.string.st_sensor_started), summary = ClockText.dateTime(sensor.startedAt.epochSecond, zone = zone))
+            InfoRow(stringResource(R.string.st_sensor_serial), summary = sensor.serial, icon = DsR.drawable.ds_ic_edit_note)
+            InfoRow(
+                stringResource(R.string.st_sensor_started),
+                summary = ClockText.dateTime(sensor.startedAt.epochSecond, zone = zone),
+                icon = DsR.drawable.ds_ic_calendar_month,
+            )
             val endsAt = ClockText.dateTime(sensor.endsAt.epochSecond, zone = zone)
             // time left only for a running sensor: an ended one (also ended early) has none
             val left = Duration.between(now, sensor.endsAt).toMinutes()
@@ -224,6 +242,7 @@ private fun SensorGroup(
             val words = CardWords.of(LocalContext.current.resources).durations
             InfoRow(
                 stringResource(R.string.st_sensor_ends),
+                icon = DsR.drawable.ds_ic_hourglass_top,
                 summary =
                     if (running &&
                         left > 0
@@ -237,6 +256,7 @@ private fun SensorGroup(
         NavigationRow(
             stringResource(R.string.st_sensor_pair_new),
             actions.pairNewSensor,
+            icon = DsR.drawable.ds_ic_add,
             summary =
                 stringResource(
                     if (state.source ==
@@ -248,6 +268,54 @@ private fun SensorGroup(
                     },
                 ),
         )
+    }
+}
+
+/**
+ * What this phone does with the sensor: open Sukrara when a sensor is scanned (NFC; blocked by Android → the switch
+ * opens Sukrara's app page, where tag intents are allowed again) and *Forget this sensor* (asks first).
+ */
+@Composable
+private fun ThisPhoneGroup(
+    state: SensorSettingsState,
+    actions: SensorSettingsActions,
+) {
+    val scan = state.openOnScan
+    if (scan == null && !state.paired) return
+    val context = LocalContext.current
+    SettingsGroup(title = stringResource(R.string.st_sensor_this_phone)) {
+        scan?.let {
+            val blocked = it.on && it.blocked
+            SwitchRow(
+                stringResource(R.string.st_sensor_open_on_scan),
+                it.on,
+                actions.setOpenOnScan,
+                summary =
+                    stringResource(if (blocked) R.string.st_sensor_open_on_scan_blocked else R.string.st_sensor_open_on_scan_summary),
+                icon = if (blocked) DsR.drawable.ds_ic_nfc_off else DsR.drawable.ds_ic_nfc,
+            )
+            if (blocked) {
+                NavigationRow(
+                    stringResource(R.string.st_sensor_open_on_scan_allow),
+                    {
+                        context.startActivity(
+                            Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", context.packageName, null)),
+                        )
+                    },
+                )
+            }
+        }
+        if (state.paired) {
+            DangerRow(
+                title = stringResource(R.string.st_sensor_forget),
+                confirmTitle = stringResource(R.string.st_sensor_forget_title),
+                confirmText = stringResource(R.string.st_sensor_forget_text),
+                confirmAction = stringResource(R.string.st_sensor_forget_confirm),
+                onConfirm = actions.forget,
+                summary = stringResource(R.string.st_sensor_forget_summary),
+                icon = DsR.drawable.ds_ic_link_off,
+            )
+        }
     }
 }
 
@@ -414,14 +482,21 @@ private fun AccountGroup(
                 Button(onClick = actions.signIn, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.st_sensor_sign_in)) }
             }
         } else {
-            InfoRow(stringResource(R.string.st_sensor_signed_in_as), summary = account.email)
-            account.receiverId?.let { InfoRow(stringResource(R.string.st_sensor_receiver_id), summary = it.toString()) }
+            InfoRow(stringResource(R.string.st_sensor_signed_in_as), summary = account.email, icon = DsR.drawable.ds_ic_account_circle)
+            account.receiverId?.let {
+                InfoRow(
+                    stringResource(R.string.st_sensor_receiver_id),
+                    summary = it.toString(),
+                    icon = DsR.drawable.ds_ic_key,
+                )
+            }
             DangerRow(
                 title = stringResource(R.string.st_sensor_sign_out),
                 confirmTitle = stringResource(R.string.st_sensor_sign_out_title),
                 confirmText = stringResource(R.string.st_sensor_sign_out_text),
                 confirmAction = stringResource(R.string.st_sensor_sign_out),
                 onConfirm = actions.signOut,
+                icon = DsR.drawable.ds_ic_link_off,
             )
         }
     }

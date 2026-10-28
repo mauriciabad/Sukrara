@@ -7,8 +7,12 @@ import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import app.mauri.sukrara.core.model.AlertReadiness
@@ -17,8 +21,14 @@ import app.mauri.sukrara.core.model.Clock
 import app.mauri.sukrara.designsystem.banner.Banner
 import app.mauri.sukrara.designsystem.banner.BannerSlot
 import app.mauri.sukrara.designsystem.haptics.rememberHaptics
+import app.mauri.sukrara.designsystem.rows.Category
+import app.mauri.sukrara.designsystem.rows.CategoryIcon
 import app.mauri.sukrara.designsystem.rows.NavigationRow
 import app.mauri.sukrara.designsystem.rows.SettingsGroup
+import app.mauri.sukrara.feature.settings.follower.SettingsFromState
+import app.mauri.sukrara.feature.settings.follower.settingsFromLabel
+import app.mauri.sukrara.feature.settings.search.OtherPage
+import app.mauri.sukrara.feature.settings.search.SettingsSearchBar
 import kotlinx.coroutines.launch
 import app.mauri.sukrara.core.designsystem.R as DsR
 
@@ -38,6 +48,12 @@ class OverviewActions(
     val restoreClosedTips: () -> Unit = {},
     /** Settings › Insulin pens is offered (the wearer's phone with NFC). */
     val pens: Boolean = false,
+    /** The sharing profile (name and picture followers see). */
+    val openProfile: () -> Unit = {},
+    /** Backup of the sharing identity (password manager, recovery code). */
+    val openBackup: () -> Unit = {},
+    /** Export data (CSV / Nightscout JSON). */
+    val openExport: () -> Unit = {},
 )
 
 /** The settings overview (wearer): *Share your data with your clinic* until set up, Mute all's state with Unmute, then one row per page. */
@@ -51,15 +67,36 @@ fun SettingsOverviewContent(
     appsShared: Set<AppOutput> = emptySet(),
     clinicBanner: Boolean = false,
     closedTips: Int = 0,
+    sharing: OverviewSharing = OverviewSharing(),
+    /** A follower's *Settings from* (null on the wearer's phone: no row). */
+    settingsFrom: SettingsFromState? = null,
     onBack: () -> Unit,
 ) {
     val snackbar = remember { SnackbarHostState() }
+    var searching by rememberSaveable { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     val haptics = rememberHaptics()
     val closedText = stringResource(R.string.st_tip_closed)
     val shownText = stringResource(R.string.st_tips_shown)
     val undoText = stringResource(R.string.st_undo)
     SettingsPage(stringResource(R.string.st_settings_title), onBack, snackbar = snackbar) {
+        SettingsSearchBar(
+            onOpen = actions.open,
+            onOpenOther = {
+                when (it) {
+                    OtherPage.Sensor -> actions.openSensor()
+                    OtherPage.Sharing -> actions.openSharing()
+                    OtherPage.Apps -> actions.openApps()
+                    OtherPage.Profile -> actions.openProfile()
+                    OtherPage.Backup -> actions.openBackup()
+                    OtherPage.Export -> actions.openExport()
+                }
+            },
+            pens = actions.pens,
+            onActiveChange = { searching = it },
+        )
+        // while searching, the results replace the rows
+        if (searching) return@SettingsPage
         BannerSlot(
             Banner(
                 "clinic",
@@ -84,12 +121,23 @@ fun SettingsOverviewContent(
                 },
             ).takeIf { clinicBanner },
         )
+        if (sharing.wearer) {
+            SettingsGroup {
+                NavigationRow(
+                    sharing.name?.takeIf { it.isNotBlank() } ?: stringResource(R.string.st_profile_add_name),
+                    actions.openProfile,
+                    summary = stringResource(R.string.st_profile_summary),
+                    leading = { CategoryIcon(DsR.drawable.ds_ic_account_circle, Category.Grey) },
+                )
+            }
+        }
         MuteAllStrip(alerts, clock, actions.unmuteAll) { actions.open(SettingsRoute.Alerts) }
         SettingsGroup {
             NavigationRow(
                 stringResource(R.string.st_alerts_title),
                 { actions.open(SettingsRoute.Alerts) },
                 summary = stringResource(if (alertsOn) R.string.st_overview_alerts_on else R.string.st_overview_alerts_off),
+                leading = { CategoryIcon(DsR.drawable.ds_ic_notifications, Category.Red) },
             )
             NavigationRow(
                 stringResource(R.string.st_reliability_title),
@@ -97,36 +145,136 @@ fun SettingsOverviewContent(
                 summary =
                     readiness.firstProblem?.let { stringResource(R.string.st_overview_reliability_problem, readiness.missing.size) }
                         ?: stringResource(R.string.st_reliability_ready),
+                leading = { CategoryIcon(DsR.drawable.ds_ic_check_circle, Category.Red) },
             )
         }
         SettingsGroup {
-            NavigationRow(stringResource(R.string.st_ranges_title), {
-                actions.open(SettingsRoute.Ranges)
-            }, summary = stringResource(R.string.st_overview_ranges))
-            NavigationRow(stringResource(R.string.st_graph_title), {
-                actions.open(SettingsRoute.Graph)
-            }, summary = stringResource(R.string.st_overview_graph))
-        }
-        SettingsGroup {
-            NavigationRow(stringResource(R.string.st_statusbar_title), {
-                actions.open(SettingsRoute.StatusBar)
-            }, summary = stringResource(R.string.st_overview_statusbar))
-            NavigationRow(stringResource(R.string.st_lock_title), {
-                actions.open(SettingsRoute.LockScreen)
-            }, summary = stringResource(R.string.st_overview_lock))
-        }
-        SettingsGroup {
-            NavigationRow(stringResource(R.string.st_sensor), actions.openSensor, summary = stringResource(R.string.st_sensor_summary))
-            NavigationRow(stringResource(R.string.st_sensorend_title), {
-                actions.open(SettingsRoute.SensorEnd)
-            }, summary = stringResource(R.string.st_overview_sensorend))
-            NavigationRow(stringResource(R.string.st_sharing), actions.openSharing, summary = stringResource(R.string.st_sharing_summary))
-            NavigationRow(stringResource(R.string.st_apps), actions.openApps, summary = appsSummary(appsShared))
-            if (actions.pens) {
-                NavigationRow(stringResource(R.string.st_pens_title), {
-                    actions.open(SettingsRoute.Pens)
-                }, summary = stringResource(R.string.st_overview_pens))
+            if (settingsFrom != null) {
+                NavigationRow(
+                    stringResource(R.string.st_from_title),
+                    { actions.open(SettingsRoute.SettingsFrom) },
+                    summary = settingsFromLabel(settingsFrom),
+                    leading = { CategoryIcon(DsR.drawable.ds_ic_tune, Category.Blue) },
+                )
             }
+            NavigationRow(
+                stringResource(R.string.st_ranges_title),
+                {
+                    actions.open(SettingsRoute.Ranges)
+                },
+                summary =
+                    stringResource(
+                        R.string.st_overview_ranges,
+                    ),
+                leading = { CategoryIcon(DsR.drawable.ds_ic_dia_range, Category.Purple) },
+            )
+            NavigationRow(
+                stringResource(R.string.st_graph_title),
+                {
+                    actions.open(SettingsRoute.Graph)
+                },
+                summary =
+                    stringResource(
+                        R.string.st_overview_graph,
+                    ),
+                leading = { CategoryIcon(DsR.drawable.ds_ic_monitoring, Category.Purple) },
+            )
+        }
+        SettingsGroup {
+            NavigationRow(
+                stringResource(R.string.st_statusbar_title),
+                {
+                    actions.open(SettingsRoute.StatusBar)
+                },
+                summary =
+                    stringResource(
+                        R.string.st_overview_statusbar,
+                    ),
+                leading = { CategoryIcon(DsR.drawable.ds_ic_smartphone, Category.Indigo) },
+            )
+            NavigationRow(
+                stringResource(R.string.st_lock_title),
+                {
+                    actions.open(SettingsRoute.LockScreen)
+                },
+                summary =
+                    stringResource(
+                        R.string.st_overview_lock,
+                    ),
+                leading = { CategoryIcon(DsR.drawable.ds_ic_screen_lock_portrait, Category.Teal) },
+            )
+        }
+        SettingsGroup {
+            NavigationRow(
+                stringResource(
+                    R.string.st_sensor,
+                ),
+                actions.openSensor,
+                summary = stringResource(R.string.st_sensor_summary),
+                leading = {
+                    CategoryIcon(DsR.drawable.ds_ic_dia_sensor, Category.Green)
+                },
+            )
+            NavigationRow(
+                stringResource(R.string.st_sensorend_title),
+                {
+                    actions.open(SettingsRoute.SensorEnd)
+                },
+                summary =
+                    stringResource(
+                        R.string.st_overview_sensorend,
+                    ),
+                leading = { CategoryIcon(DsR.drawable.ds_ic_hourglass_top, Category.Orange) },
+            )
+            NavigationRow(
+                stringResource(
+                    R.string.st_sharing,
+                ),
+                actions.openSharing,
+                summary = stringResource(R.string.st_sharing_summary),
+                leading = {
+                    CategoryIcon(DsR.drawable.ds_ic_group, Category.Blue)
+                },
+            )
+            NavigationRow(stringResource(R.string.st_apps), actions.openApps, summary = appsSummary(appsShared), leading = {
+                CategoryIcon(DsR.drawable.ds_ic_apps, Category.Orange)
+            })
+            if (actions.pens) {
+                NavigationRow(
+                    stringResource(R.string.st_pens_title),
+                    {
+                        actions.open(SettingsRoute.Pens)
+                    },
+                    summary =
+                        stringResource(
+                            R.string.st_overview_pens,
+                        ),
+                    leading = { CategoryIcon(DsR.drawable.ds_ic_dia_pen, Category.Blue) },
+                )
+            }
+        }
+        SettingsGroup {
+            if (sharing.wearer) {
+                NavigationRow(
+                    stringResource(R.string.st_backup_title),
+                    actions.openBackup,
+                    summary =
+                        stringResource(
+                            when (sharing.backedUp) {
+                                true -> R.string.st_backup_saved
+                                false -> R.string.st_backup_not_saved
+                                null -> R.string.st_backup_no_identity
+                            },
+                        ),
+                    leading = { CategoryIcon(DsR.drawable.ds_ic_backup, if (sharing.backedUp == false) Category.Red else Category.Green) },
+                )
+            }
+            NavigationRow(
+                stringResource(R.string.st_export_title),
+                actions.openExport,
+                summary = stringResource(R.string.st_export_summary),
+                leading = { CategoryIcon(DsR.drawable.ds_ic_file_export, Category.Yellow) },
+            )
         }
         SettingsGroup {
             if (closedTips > 0) {
@@ -138,9 +286,23 @@ fun SettingsOverviewContent(
                         scope.launch { snackbar.showSnackbar(shownText, withDismissAction = true, duration = SnackbarDuration.Short) }
                     },
                     summary = pluralStringResource(R.plurals.st_closed_tips, closedTips, closedTips),
+                    leading = { CategoryIcon(DsR.drawable.ds_ic_lightbulb, Category.Grey) },
                 )
             }
-            NavigationRow(stringResource(R.string.st_about_title), { actions.open(SettingsRoute.About) })
+            NavigationRow(
+                stringResource(R.string.st_adv_title),
+                {
+                    actions.open(SettingsRoute.Advanced)
+                },
+                summary =
+                    stringResource(
+                        R.string.st_adv_overview_summary,
+                    ),
+                leading = { CategoryIcon(DsR.drawable.ds_ic_code, Category.Grey) },
+            )
+            NavigationRow(stringResource(R.string.st_about_title), {
+                actions.open(SettingsRoute.About)
+            }, leading = { CategoryIcon(DsR.drawable.ds_ic_info, Category.Grey) })
         }
     }
 }

@@ -82,7 +82,6 @@ class AndroidNearbyCentral(
     private val outstanding = ConcurrentHashMap.newKeySet<CompletableDeferred<Boolean>>()
     private var opTimeout: Runnable? = null
     private var receiverOn = false
-    private val scanStarts = ArrayDeque<Long>()
     private var failures = 0
 
     private val receiver =
@@ -180,20 +179,18 @@ class AndroidNearbyCentral(
     private fun granted() = PERMISSIONS.all { context.checkSelfPermission(it) == PackageManager.PERMISSION_GRANTED }
 
     /**
-     * Android allows 5 scan starts per 30 s (more fail silently) and turns a scan older than 30 min into an
-     * opportunistic one: starts are spaced, and a long search restarts every [SCAN_RESTART_MS].
+     * Android allows 5 scan starts per 30 s per app ([ScanStartBudget.App], shared with the app's other central) and
+     * turns a scan older than 30 min into an opportunistic one: a long search restarts every [SCAN_RESTART_MS].
      */
     private fun scan(adapter: BluetoothAdapter) {
         // null right after Bluetooth comes on: try again shortly
         val scanner = adapter.bluetoothLeScanner ?: return retryIn(RESCAN_MS)
-        val t = now()
-        scanStarts.removeAll { t - it > SCAN_WINDOW_MS }
-        if (scanStarts.size >= SCAN_STARTS) {
+        val wait = ScanStartBudget.App.take(now())
+        if (wait > 0) {
             _status.value = NearbyStatus.Searching
-            retryIn(SCAN_WINDOW_MS - (t - scanStarts.first()) + 100)
+            retryIn(wait)
             return
         }
-        scanStarts += t
         handler.removeCallbacks(restartScan)
         handler.postDelayed(restartScan, SCAN_RESTART_MS)
         guarded {
@@ -466,8 +463,6 @@ class AndroidNearbyCentral(
         const val SILENCE_DROP_MS = 300_000L
         const val RESCAN_MS = 3_000L
         private const val SCAN_RETRY_MS = 30_000L
-        private const val SCAN_WINDOW_MS = 30_000L
-        private const val SCAN_STARTS = 4
         private const val SCAN_RESTART_MS = 25 * 60_000L
         private const val MAX_BACKOFF_MS = 60_000L
         private const val SEND_TIMEOUT_MS = 60_000L

@@ -33,6 +33,7 @@ import androidx.glance.layout.Box
 import androidx.glance.layout.ContentScale
 import androidx.glance.layout.fillMaxSize
 import app.mauri.sukrara.core.model.Role
+import app.mauri.sukrara.core.model.SensorState
 import app.mauri.sukrara.graph.A11y
 import app.mauri.sukrara.graph.CardModel
 import app.mauri.sukrara.graph.CardPart
@@ -171,6 +172,7 @@ fun widgetTap(
         mgdl = model.latest?.sgv,
         lowLimit = frame.config.bands.low,
         firingKinds = frame.glucose.alerts.firingKinds,
+        sensorEnded = frame.glucose.sensor == SensorState.Ended,
     )
 }
 

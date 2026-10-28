@@ -3,6 +3,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.feature.settings
 
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -12,13 +15,20 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.dp
 import app.mauri.sukrara.alerts.AlertKind
 import app.mauri.sukrara.alerts.AlertSettings
+import app.mauri.sukrara.core.model.AlertQuietSide
 import app.mauri.sukrara.core.model.AlertUiState
 import app.mauri.sukrara.core.model.Clock
 import app.mauri.sukrara.designsystem.alerts.MuteText
+import app.mauri.sukrara.designsystem.alerts.QuietExit
+import app.mauri.sukrara.designsystem.alerts.QuietExits
+import app.mauri.sukrara.designsystem.alerts.QuietRow
 import app.mauri.sukrara.designsystem.alerts.rememberAlertWords
 import app.mauri.sukrara.designsystem.alerts.rememberCountdownNow
 import app.mauri.sukrara.designsystem.dialog.Choice
@@ -33,6 +43,7 @@ import app.mauri.sukrara.designsystem.rows.SwitchRow
 import app.mauri.sukrara.designsystem.rows.ValueRow
 import app.mauri.sukrara.settings.SettingsSpec
 import java.time.Instant
+import app.mauri.sukrara.core.designsystem.R as DsR
 
 /** What the Alerts page can do (the ViewModel's actions; no-ops in screenshots). */
 class AlertsActions(
@@ -42,6 +53,10 @@ class AlertsActions(
     val openKind: (AlertKind) -> Unit = {},
     val openReview: () -> Unit = {},
     val playback: AlertPlayback = AlertPlayback.None,
+    /** A quiet side's way out under Active now (Unmute, Alert me anyway, Remind as usual). */
+    val quietExit: (AlertQuietSide, QuietExit) -> Unit = { _, _ -> },
+    /** A muted side's *Change to* length: kind (wire name), minutes. */
+    val muteSide: (String, Int) -> Unit = { _, _ -> },
 )
 
 /** The alert rows' groups: lows, highs, rates, signal. */
@@ -69,6 +84,28 @@ fun kindSummary(
     return listOf(thresholdSentence(kind, rule.threshold), repeat, packName(s.sounds.soundOf(kind))).joinToString(" · ")
 }
 
+/**
+ * Active now: every quiet side on this phone (muted, quiet after a treatment or while falling back, reminding less)
+ * with its ways out, counting down; nothing while none is.
+ */
+@Composable
+private fun ActiveNow(
+    alerts: AlertUiState,
+    clock: Clock,
+    actions: AlertsActions,
+) {
+    val rows = QuietExits.active(alerts)
+    if (rows.isEmpty()) return
+    SettingsGroup(title = stringResource(R.string.st_active_now), modifier = Modifier.testTag("active-now")) {
+        Column(Modifier.padding(horizontal = 16.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(20.dp)) {
+            for (q in rows) {
+                val now = rememberCountdownNow(q.until, clock::now)
+                QuietRow(q, now, onExit = { actions.quietExit(q, it) }, onChangeTo = { actions.muteSide(q.kind, it) })
+            }
+        }
+    }
+}
+
 /** Mute all's "Alerts muted · 1 h 12 min left · Unmute · Change time" strip ([MuteText], counting down), or nothing. */
 @Composable
 fun MuteAllStrip(
@@ -90,6 +127,8 @@ fun AlertsSettingsContent(
     confirmedAt: Instant?,
     clock: Clock,
     actions: AlertsActions,
+    /** Above the page's groups (a follower's *Settings from* note). */
+    header: @Composable () -> Unit = {},
     onBack: () -> Unit,
 ) {
     val s = ui.settings
@@ -97,12 +136,15 @@ fun AlertsSettingsContent(
     var dialog by rememberSaveable { mutableStateOf<String?>(null) }
     SettingsPage(stringResource(R.string.st_alerts_title), onBack) {
         MuteAllStrip(ui.alerts, clock, actions.unmuteAll) { dialog = "muteAll" }
+        header()
+        ActiveNow(ui.alerts, clock, actions)
         SettingsGroup {
             SwitchRow(
                 stringResource(R.string.st_alerts_main),
                 s.on,
                 { on -> if (on) actions.edit { it.copy(on = true) } else dialog = "alertsOff" },
                 summary = stringResource(if (s.on) R.string.st_alerts_main_on else R.string.st_alerts_main_off),
+                icon = DsR.drawable.ds_ic_notifications,
             )
             ValueRow(
                 stringResource(R.string.st_mute_all),
@@ -116,6 +158,7 @@ fun AlertsSettingsContent(
                     }
                 } ?: stringResource(R.string.st_not_muted),
                 { dialog = "muteAll" },
+                icon = DsR.drawable.ds_ic_notifications_off,
             )
         }
         AlertsLately(ui.alerts.lately, clock)
@@ -139,6 +182,7 @@ fun AlertsSettingsContent(
                         { actions.openKind(kind) },
                         summary = if (rule.on) kindSummary(s, kind) else stringResource(R.string.st_off),
                         enabled = s.on,
+                        icon = kindIcon(kind),
                     )
                 }
             }
@@ -149,6 +193,7 @@ fun AlertsSettingsContent(
                 actions.openReview,
                 summary =
                     confirmedAt?.let { stringResource(R.string.st_review_confirmed) } ?: stringResource(R.string.st_review_not_confirmed),
+                icon = DsR.drawable.ds_ic_rule,
             )
         }
         SettingsGroup(title = stringResource(R.string.st_quiet_title)) {
@@ -166,12 +211,13 @@ fun AlertsSettingsContent(
                     rule.on,
                     { on -> actions.edit(AlertEdits.quiet(which) { it.copy(on = on) }) },
                     summary = stringResource(R.string.st_quiet_for, numberLabel(spec, rule.min.toDouble())),
+                    icon = quietIcon(which),
                 )
                 if (rule.on) {
                     ValueRow(stringResource(R.string.st_quiet_length), numberLabel(spec, rule.min.toDouble()), {
                         dialog =
                             "quiet:${which.name}"
-                    })
+                    }, icon = DsR.drawable.ds_ic_timer)
                 }
             }
         }
@@ -184,6 +230,7 @@ fun AlertsSettingsContent(
                 {
                     dialog = "actionMute"
                 },
+                icon = DsR.drawable.ds_ic_notifications_off,
             )
             ValueRow(
                 stringResource(
@@ -193,6 +240,7 @@ fun AlertsSettingsContent(
                 {
                     dialog = "actionRelax"
                 },
+                icon = DsR.drawable.ds_ic_snooze,
             )
             ValueRow(
                 stringResource(
@@ -202,6 +250,7 @@ fun AlertsSettingsContent(
                 {
                     dialog = "backMgdl"
                 },
+                icon = DsR.drawable.ds_ic_trending_down,
             )
             ValueRow(
                 stringResource(
@@ -211,20 +260,28 @@ fun AlertsSettingsContent(
                 {
                     dialog = "backMin"
                 },
+                icon = DsR.drawable.ds_ic_repeat,
             )
         }
         SettingsGroup(title = stringResource(R.string.st_sounds_title)) {
-            ValueRow(stringResource(R.string.st_sound_pack), packName(s.sounds.pack), { dialog = "pack" })
+            ValueRow(
+                stringResource(R.string.st_sound_pack),
+                packName(s.sounds.pack),
+                { dialog = "pack" },
+                icon = DsR.drawable.ds_ic_volume_up,
+            )
             SwitchRow(
                 stringResource(R.string.st_shuffle),
                 s.sounds.shuffle,
                 { on -> actions.edit { it.copy(sounds = it.sounds.copy(shuffle = on)) } },
                 summary = stringResource(R.string.st_shuffle_summary),
+                icon = DsR.drawable.ds_ic_shuffle,
             )
             NavigationRow(
                 stringResource(R.string.st_notification_settings),
                 { context.openNotificationSettings() },
                 summary = stringResource(R.string.st_notification_settings_summary),
+                icon = DsR.drawable.ds_ic_tune,
             )
         }
         FooterText(stringResource(R.string.st_alerts_footer))

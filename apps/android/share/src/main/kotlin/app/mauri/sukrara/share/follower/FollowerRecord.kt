@@ -270,3 +270,11 @@ internal object FollowerCodec {
     @Suppress("unused")
     private fun JsonElement.isNull() = this is JsonNull
 }
+
+/**
+ * The wearer's newest mirrored settings ([payload] = the settings event's content, null = none), kept in a plain file
+ * outside the secret follower record: they aren't secret, and a Keystore that can't open the record at start must not
+ * make the follower's alerts fall back to this phone's own thresholds.
+ */
+@kotlinx.serialization.Serializable
+data class WearerSettingsCache(val payload: String? = null)

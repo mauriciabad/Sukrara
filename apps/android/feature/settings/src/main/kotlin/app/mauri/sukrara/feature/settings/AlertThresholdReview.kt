@@ -33,6 +33,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import app.mauri.sukrara.core.designsystem.R as DsR
 
 /** The result the setup step gets back. */
 sealed interface ThresholdReviewResult {
@@ -135,6 +136,7 @@ fun AlertThresholdRows(
                 kindName(kind),
                 if (rule.on) sentence else stringResource(R.string.st_review_off, sentence),
                 { editing = kind },
+                icon = kindIcon(kind),
             )
         }
     }

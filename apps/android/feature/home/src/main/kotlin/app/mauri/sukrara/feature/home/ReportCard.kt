@@ -41,6 +41,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
@@ -63,7 +64,6 @@ import app.mauri.sukrara.graph.stats.Goal
 import app.mauri.sukrara.graph.stats.ShareText
 import app.mauri.sukrara.graph.stats.toPoint
 import java.time.Instant
-import java.util.Locale
 
 /** The report's periods, days; it opens on [REPORT_DEFAULT_DAYS] like the clinic's report (not stored: a view control). */
 internal val REPORT_DAYS = listOf(1, 7, 14, 30)
@@ -115,6 +115,7 @@ internal fun ReportCardContent(
     val palette = GraphPalette.of(dark)
     val tone = GoalTone(good = Color(palette.tight), bad = Color(palette.high))
     val haptics = rememberHaptics()
+    val locale = LocalConfiguration.current.locales[0]
     Card(modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
         Column(
             Modifier.padding(16.dp).animateContentSize(),
@@ -154,7 +155,7 @@ internal fun ReportCardContent(
             )
             MetricRow(
                 stringResource(R.string.report_gmi),
-                String.format(Locale.getDefault(), "%.1f %% · %d mmol/mol", metrics.gmi, Math.round(metrics.gmiMmolMol)),
+                String.format(locale, "%.1f %% · %d mmol/mol", metrics.gmi, Math.round(metrics.gmiMmolMol)),
                 listOf(Goal.GMI.text, "< 53 mmol/mol"),
                 Goal.GMI.met(metrics),
                 tone,
@@ -162,7 +163,7 @@ internal fun ReportCardContent(
             )
             MetricRow(
                 stringResource(R.string.report_cv),
-                String.format(Locale.getDefault(), "%.1f %%", metrics.cv),
+                String.format(locale, "%.1f %%", metrics.cv),
                 listOf(Goal.CV.text),
                 Goal.CV.met(metrics),
                 tone,

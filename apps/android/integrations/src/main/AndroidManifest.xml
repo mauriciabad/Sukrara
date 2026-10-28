@@ -4,6 +4,9 @@
      SPDX-License-Identifier: GPL-3.0-or-later -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
+    <!-- Nightscout API on the home Wi-Fi: LanWatcher reads the active network to serve only on Wi-Fi -->
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+
     <!-- Share with apps: Garmin Connect / Connect IQ read the xDrip+ server for the watch ("read by …") -->
     <queries>
         <package android:name="com.garmin.android.apps.connectmobile" />
