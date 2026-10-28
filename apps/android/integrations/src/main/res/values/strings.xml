@@ -142,4 +142,33 @@
     <string name="in_lv_take_over_title">Another device uploads for this account</string>
     <string name="in_lv_take_over_text">LibreView takes data from one device per account, today another one (LibreLink, the Libre 3 app or Juggluco). If Sukrara takes over, that device stops uploading to LibreView. Take over only if Sukrara should be the one that uploads.</string>
     <string name="in_lv_take_over">Take over</string>
+    <!-- Tidepool upload -->
+    <string name="in_tp_title" translatable="false">Tidepool</string>
+    <string name="in_tp_intro">Tidepool keeps your diabetes data in one place for you and your clinic. Sukrara can upload your glucose and your insulin, carbs and notes to your Tidepool account.</string>
+    <string name="in_tp_intro_follower">Tidepool keeps diabetes data in one place. If you choose to, Sukrara can upload the glucose and entries of the person you follow to a Tidepool account.</string>
+    <string name="in_tp_account">Account</string>
+    <string name="in_tp_sign_in">Sign in</string>
+    <string name="in_tp_signed_in">Signed in</string>
+    <string name="in_tp_main">Upload to Tidepool</string>
+    <string name="in_tp_main_needs_account">Sign in first</string>
+    <string name="in_tp_status_setup">Sign in first</string>
+    <string name="in_tp_status_auth">Signed out by Tidepool: sign in again</string>
+    <string name="in_tp_status_choice">Waiting for your choice below</string>
+    <string name="in_tp_follow">Upload the person you follow</string>
+    <string name="in_tp_follow_off">Off: nothing is uploaded from this phone</string>
+    <string name="in_tp_follow_on">Their data goes to the account above</string>
+    <string name="in_tp_glucose">Glucose readings</string>
+    <string name="in_tp_glucose_summary">One every 5 minutes, the last 30 days included</string>
+    <string name="in_tp_sign_out">Sign out</string>
+    <string name="in_tp_sign_out_title">Sign out of Tidepool?</string>
+    <string name="in_tp_sign_out_text">Nothing more goes up until you sign in again. What Tidepool already has stays there.</string>
+    <string name="in_tp_footer">Sukrara signs in with Tidepool\'s own login and keeps only the session, never your password. If Tidepool already gets your Libre data through LibreView, turn glucose off here, or each reading shows up twice.</string>
+    <string name="in_tp_dialog_title">Sign in to Tidepool</string>
+    <string name="in_tp_email">Email</string>
+    <string name="in_tp_password">Password</string>
+    <string name="in_tp_password_note">Used once to sign in, never saved</string>
+    <string name="in_tp_sign_in_action">Sign in</string>
+    <string name="in_tp_signing_in">Signing in…</string>
+    <string name="in_tp_bad_credentials">Tidepool didn\'t accept this email and password</string>
+    <string name="in_tp_failed">Couldn\'t sign in (%1$s)</string>
 </resources>
