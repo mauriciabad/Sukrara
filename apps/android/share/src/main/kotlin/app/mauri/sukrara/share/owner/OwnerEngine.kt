@@ -115,7 +115,14 @@ class OwnerEngine(
             }
         }
 
-    suspend fun stop() = locked { halt() }
+    suspend fun stop() =
+        locked {
+            // a closed Pair nearby can't be claimed later over the relays
+            pairingNow.value?.let { p ->
+                owner?.let { s -> CloseNearbyPairing(ctx)(s, p.token, now())?.let { apply(it, overBluetooth = false) } }
+            }
+            halt()
+        }
 
     private fun halt() {
         jobs.forEach { it.cancel() }
@@ -224,7 +231,9 @@ class OwnerEngine(
         }
     }
 
-    private suspend fun run(scope: CoroutineScope, s: OwnerState) {
+    private suspend fun run(scope: CoroutineScope, s0: OwnerState) {
+        // Pair nearby never survives a restart: its unclaimed invite can't be claimed (persisted with the next change)
+        val s = s0.copy(invites = s0.invites.filterNot { it.nearby && it.claimedBy == null })
         owner = s
         runScope = scope
         val identity = s.identity(ctx.crypto).public.hex

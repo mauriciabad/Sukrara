@@ -130,7 +130,12 @@ fun FollowersPage(
                 summary = nearbySummary(nearby.status, nearby.on, wearer = true),
             )
             if (nearby.on) NearbyFixRow(nearby.status, AndroidNearbyServer.PERMISSIONS, actions.refreshNearby)
-            if (nearby.on && nearby.status !in BLOCKED) PairNearbyRow(nearby.pairingUntil, actions.pairNearby, now)
+            // an open pairing always keeps its switch (the way to stop it)
+            if ((nearby.on && nearby.status !in BLOCKED) ||
+                nearby.pairingUntil != null
+            ) {
+                PairNearbyRow(nearby.pairingUntil, actions.pairNearby, now)
+            }
         }
         // only links whose identity proof named an active follower: an unnamed one is never listed (no made-up name)
         val devices = nearby.links.mapNotNull { l -> active.firstOrNull { it.key == l.follower }?.let { it to l } }

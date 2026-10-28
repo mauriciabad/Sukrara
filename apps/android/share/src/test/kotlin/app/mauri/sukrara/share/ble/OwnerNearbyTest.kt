@@ -25,6 +25,7 @@ import app.mauri.sukrara.share.OwnerFixtures.crypto
 import app.mauri.sukrara.share.owner.ApproveResult
 import app.mauri.sukrara.share.owner.OwnerEngine
 import app.mauri.sukrara.share.owner.OwnerIdentityStore
+import app.mauri.sukrara.share.owner.usecase.ControlEvents
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
@@ -143,6 +144,10 @@ class OwnerNearbyTest {
             assertEquals(e.nearbyPairing.value!!.token, pairing.token)
             assertTrue("no invite wrap on the relays", relay.published.none { it.kind == Wire.KIND_WRAP })
             assertTrue(state().invites.single { it.token == pairing.token }.nearby)
+            // a restore keeps it a nearby invite (its request still needs the typed code)
+            val st = state()
+            val restored = ControlEvents.fromBackup(crypto, st.identityHex, st.deviceHex, ControlEvents.backupPayload(crypto, st))!!
+            assertTrue(restored.invites.single { it.token == pairing.token }.nearby)
 
             val mom = crypto.generate()
             host.onEvent(OwnerFixtures.request(mom, state(), pairing.token, "Mom"), "aa:bb")

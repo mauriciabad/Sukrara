@@ -144,6 +144,8 @@ class EngineOwnerSharing(
 
     override suspend fun setNearby(on: Boolean) {
         settings.set(ShareOwnerModule.NearbySharing, on)
+        // no Pair nearby row without Bluetooth sharing: it closes with the switch
+        if (!on) engine.closeNearbyPairing()
     }
 
     override fun refreshNearby() = engine.refreshNearby()

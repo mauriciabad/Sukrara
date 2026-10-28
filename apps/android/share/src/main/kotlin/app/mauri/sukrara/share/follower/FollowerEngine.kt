@@ -305,20 +305,37 @@ class FollowerEngine(
                 send(NearbySearch(NearbyStatus.Unsupported, emptyList()))
                 return@channelFlow
             }
-            val offers = MutableStateFlow<Map<String, NearbyOffer>>(emptyMap())
+            // by token (a phone's address rotates), with when it was last seen: a phone that stopped offering or went
+            // out of range leaves the list after two checks
+            val offers = MutableStateFlow<Map<String, Pair<NearbyOffer, Long>>>(emptyMap())
+            val ticks =
+                flow {
+                    while (true) {
+                        emit(Unit)
+                        delay(1_000)
+                    }
+                }
             nb.start()
             try {
                 launch {
                     nb.events.collect { e ->
                         if (e !is NearbyEvent.Info) return@collect
                         val p = e.pairing
-                        offers.value = if (p != null) offers.value + (e.phone to NearbyOffer(e.phone, p)) else offers.value - e.phone
+                        val others = offers.value.filterValues { it.first.phone != e.phone }
+                        offers.value = if (p != null) others + (p.token to (NearbyOffer(e.phone, p) to now())) else others
                         // on to the next phone; this one is looked at again later
                         nb.leave(e.phone, NEARBY_RECHECK_S)
                     }
                 }
-                combine(nb.status, offers) { status, o ->
-                    NearbySearch(status, o.values.filter { it.pairing.expiry > now() })
+                combine(nb.status, offers, ticks) { status, o, _ ->
+                    val t = now()
+                    NearbySearch(
+                        status,
+                        o.values
+                            .filter { (offer, seen) ->
+                                offer.pairing.expiry > t && t - seen <= 2 * NEARBY_RECHECK_S
+                            }.map { it.first },
+                    )
                 }.collect { send(it) }
             } finally {
                 nb.stop()
@@ -500,7 +517,8 @@ class FollowerEngine(
                     // the phone proved it's the wearer's: entries still pending go to it now (no internet needed); a
                     // request still waiting (no key yet: the phone offers *Pair nearby*) goes over Bluetooth too
                     BleMessages.Owner.Ours -> {
-                        if (record?.stream?.sid == null) sendRequest()
+                        val status = follower?.state?.status
+                        if (record?.stream?.sid == null && (status == FollowStatus.New || status == FollowStatus.Requested)) sendRequest()
                         resendPending()
                     }
 

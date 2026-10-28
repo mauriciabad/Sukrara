@@ -939,14 +939,16 @@ past the other app's event; blocks again if it's still running) or *Help*.
   a single-use invite for 10 minutes (`OwnerEngine.openNearbyPairing`; no link and no invite wrap on the relays, the
   backup records the token). While open the phone advertises even with no follower and its `INFO` carries `i`, `relays`
   and `pair` (token, expiry, the wearer's profile; B§7.3); the summary counts down (*Open · closes in 9:41*). It closes
-  at the first request with it, after 10 minutes, or with the switch (*Stop* drops the unclaimed invite). A request made
+  at the first request with it, after 10 minutes, with the switch (*Stop*), when *Share over Bluetooth* is turned off
+  or when sharing stops or the app restarts; each drops the unclaimed invite (a restore keeps an invite nearby). A request made
   with it is marked nearby: the approve dialog says anyone in Bluetooth range could have asked and Allow needs the code
   typed from the follower's phone (never compare-only), and its notification has no Allow (*Open Sukrara and type the
   code*).
 - **Find phones nearby** (Android follower, setup's join step, under the link field): looks over Bluetooth while the list
   shows (`FollowerEngine.findNearby`): each phone found is connected in turn, sent a `HELLO` without a proof, its `INFO`
   read and the phone left for 15 s (nothing else is written: with no identity every phone is "unknown", B§6); phones with
-  an open, unexpired `pair` are listed with the wearer's picture and name. A tap joins with that offer (no relay lookup)
+  an open, unexpired `pair` are listed with the wearer's picture and name (by invite; a phone not seen for 30 s leaves
+  the list). A follow that ended never asks again over Bluetooth. A tap joins with that offer (no relay lookup)
   as the name typed above; the follow's own Bluetooth link then sends the request to the phone whose `INFO` names that
   identity, and to the relays. The join step shows the match code as for a link. The Mac follower does the same from its
   follow window.
