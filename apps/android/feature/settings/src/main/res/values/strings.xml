@@ -377,6 +377,7 @@
     <string name="st_try_title">Try it</string>
     <string name="st_play_sound">Play sound</string>
     <string name="st_play_vibrate">Play with vibration</string>
+    <string name="st_play_option">Play %1$s</string>
     <string name="st_send_test">Send a test alert</string>
     <string name="st_send_test_summary">The real notification, marked as a test · not sent to followers</string>
     <string name="st_send_test_sent">Sent: check your notifications. It goes away by itself in 2 min.</string>

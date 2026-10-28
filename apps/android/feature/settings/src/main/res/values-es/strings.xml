@@ -378,6 +378,7 @@
     <string name="st_try_title">Pruébala</string>
     <string name="st_play_sound">Reproducir el sonido</string>
     <string name="st_play_vibrate">Con vibración</string>
+    <string name="st_play_option">Reproducir %1$s</string>
     <string name="st_send_test">Enviar una alerta de prueba</string>
     <string name="st_send_test_summary">La notificación real, marcada como prueba · no se envía a quien te sigue</string>
     <string name="st_send_test_sent">Enviada: mira tus notificaciones. Se va sola en 2 min.</string>

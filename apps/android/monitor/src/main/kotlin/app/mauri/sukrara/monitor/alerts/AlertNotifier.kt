@@ -84,6 +84,12 @@ class AlertNotifier(private val ctx: Context) : AlertPresenter {
      * Do Not Disturb behaviour), worded as a test with no reading in it, in its own slot ([NotificationIds.ALERT_TEST])
      * and without Mute / Remind actions, so it can't touch the alert runtime, replace a real alert or be taken for one.
      * No full-screen intent (the person is in the app). It goes away on a tap, a swipe or after [TEST_TIMEOUT_MS].
+     *
+     * Android 15+ notification cooldown (NotificationAttentionHelper `StrategyPerApp`, when the person applies it to all
+     * apps): a sounding notification starts a per-app window (60 s quieter, 10 s muted) for the app's next ones.
+     * `CATEGORY_ALARM` posts are exempt, so a test on an alarm channel changes nothing; a test on a notification
+     * channel makes a real notification-channel alert in the next minute ring quieter (not muted unless a third one
+     * comes within 10 s). Tapping the test resets the window (a user interaction). Alarm alerts are never affected.
      */
     fun showTest(kind: AlertKind, settings: AlertSettings) {
         val alarm = settings.rule(kind).alarm

@@ -42,12 +42,13 @@ import app.mauri.sukrara.core.designsystem.R
 import app.mauri.sukrara.designsystem.haptics.rememberHaptics
 import app.mauri.sukrara.settings.NumberSpec
 
-/** One option of a [ChoiceDialog]. */
+/** One option of a [ChoiceDialog]; [trailing] sits at the row's end (a ▶ preview), outside the row's selection. */
 data class Choice<T>(
     val label: String,
     val value: T,
     val sub: String? = null,
     val enabled: Boolean = true,
+    val trailing: (@Composable () -> Unit)? = null,
 )
 
 /** A single choice: radio rows; choosing saves and closes. Cancel (or back) leaves the value as it was. */
@@ -66,7 +67,7 @@ fun <T> ChoiceDialog(
         text = {
             Column(Modifier.selectableGroup().verticalScroll(rememberScrollState())) {
                 for (o in options) {
-                    RadioRow(o.label, o.sub, o.value == selected, o.enabled) {
+                    RadioRow(o.label, o.sub, o.value == selected, o.enabled, o.trailing) {
                         haptics.confirm()
                         onChoose(o.value)
                         onClose()
@@ -86,24 +87,28 @@ internal fun RadioRow(
     sub: String?,
     selected: Boolean,
     enabled: Boolean,
+    trailing: (@Composable () -> Unit)? = null,
     onClick: () -> Unit,
 ) {
-    Row(
-        Modifier
-            .fillMaxWidth()
-            .heightIn(min = 48.dp)
-            .selectable(selected = selected, enabled = enabled, role = Role.RadioButton, onClick = onClick)
-            .padding(vertical = 4.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        RadioButton(selected = selected, onClick = null, enabled = enabled)
-        Spacer(Modifier.width(16.dp))
-        Column(Modifier.weight(1f).alpha(if (enabled) 1f else 0.38f)) {
-            Text(text, style = MaterialTheme.typography.bodyLarge)
-            if (!sub.isNullOrEmpty()) {
-                Text(sub, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Row(
+            Modifier
+                .weight(1f)
+                .heightIn(min = 48.dp)
+                .selectable(selected = selected, enabled = enabled, role = Role.RadioButton, onClick = onClick)
+                .padding(vertical = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            RadioButton(selected = selected, onClick = null, enabled = enabled)
+            Spacer(Modifier.width(16.dp))
+            Column(Modifier.weight(1f).alpha(if (enabled) 1f else 0.38f)) {
+                Text(text, style = MaterialTheme.typography.bodyLarge)
+                if (!sub.isNullOrEmpty()) {
+                    Text(sub, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
             }
         }
+        trailing?.invoke()
     }
 }
 
