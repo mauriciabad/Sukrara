@@ -12,4 +12,11 @@
     <string name="share_request_deny">Denegar</string>
     <string name="share_request_failed_title">No se ha podido dar acceso</string>
     <string name="share_request_failed_text">La invitación ha caducado, la petición ya no está pendiente o compartir está en pausa. Abre Sukrara para enviar una invitación nueva.</string>
+    <string name="share_follow_someone">La persona a la que sigues</string>
+    <string name="share_follow_used_title">Invitación ya usada</string>
+    <string name="share_follow_used_text">Otro teléfono usó antes esta invitación de %1$s. Pídele un enlace nuevo y vuelve a unirte en Ajustes › Compartir.</string>
+    <string name="share_follow_declined_title">%1$s no te ha dado acceso</string>
+    <string name="share_follow_declined_text">Se ha rechazado tu solicitud para seguir a %1$s. Pídele un enlace nuevo si ha sido un error.</string>
+    <string name="share_follow_revoked_title">Ya no sigues a %1$s</string>
+    <string name="share_follow_revoked_text">%1$s ha dejado de compartir contigo. Sus lecturas ya no llegan a este teléfono.</string>
 </resources>

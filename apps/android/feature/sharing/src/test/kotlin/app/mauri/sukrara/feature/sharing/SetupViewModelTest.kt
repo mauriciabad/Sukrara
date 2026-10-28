@@ -23,11 +23,15 @@ import app.mauri.sukrara.core.testing.FakeClock
 import app.mauri.sukrara.core.testing.InMemorySettingsRepository
 import app.mauri.sukrara.core.testing.InMemoryStateStore
 import app.mauri.sukrara.feature.sharing.setup.AlertSettingsAccess
+import app.mauri.sukrara.feature.sharing.setup.JoinUi
 import app.mauri.sukrara.feature.sharing.setup.RestoreUi
 import app.mauri.sukrara.feature.sharing.setup.SetupRecord
 import app.mauri.sukrara.feature.sharing.setup.SetupStep
 import app.mauri.sukrara.feature.sharing.setup.SetupViewModel
 import app.mauri.sukrara.protocol.event.Profile
+import app.mauri.sukrara.protocol.follow.FollowStatus
+import app.mauri.sukrara.share.follower.FollowState
+import app.mauri.sukrara.share.follower.JoinResult
 import app.mauri.sukrara.share.owner.OwnerShareState
 import app.mauri.sukrara.share.owner.usecase.RestoreIdentity
 import kotlinx.coroutines.Dispatchers
@@ -76,9 +80,29 @@ class SetupViewModelTest {
                 startMonitoring = { events += "start" },
                 readiness = readiness,
                 clock = clock,
+                follower = follower,
             )
         return SetupViewModel(module, startAt)
     }
+
+    private var joinedAs: Profile? = null
+
+    private val follower =
+        object : FollowerSharing {
+            override val state = MutableStateFlow<FollowState>(FollowState.NotFollowing)
+
+            override suspend fun join(
+                link: String,
+                me: Profile?,
+            ): JoinResult {
+                if (link != LINK) return JoinResult.InvalidLink
+                joinedAs = me
+                state.value = FollowState.Following(FollowStatus.Requested, Profile("Ana", null), "0420", false, null, emptyMap())
+                return JoinResult.Joined
+            }
+
+            override suspend fun stopFollowing() = true
+        }
 
     @Before
     fun setUp() = Dispatchers.setMain(UnconfinedTestDispatcher())
@@ -120,13 +144,22 @@ class SetupViewModelTest {
         }
 
     @Test
-    fun `follower isn't stored while following isn't in this build`() =
+    fun `a follower joins, sees the waiting code, and moves on with Continue`() =
         runTest {
             val vm = vm()
             vm.ui.launchIn(backgroundScope)
             vm.ui.first { it != null }
             vm.chooseRole(Role.Follower)
-            assertTrue(events.isEmpty())
+            assertEquals(listOf("reset", "role:Follower", "start"), events)
+            assertEquals(SetupStep.Join, vm.ui.first { it?.step == SetupStep.Join }!!.step)
+            vm.join("https://sukrara.mauri.app/join#bad", "Bea")
+            assertEquals(JoinUi.Failed(JoinResult.InvalidLink), vm.ui.first { it?.join is JoinUi.Failed }!!.join)
+            vm.join(LINK, "  Bea ")
+            val waiting = vm.ui.first { (it?.follow as? FollowState.Following)?.status == FollowStatus.Requested }!!
+            assertEquals(SetupStep.Join, waiting.step)
+            assertEquals("Bea", joinedAs?.name)
+            vm.completeJoin()
+            assertEquals(SetupStep.Permissions, vm.ui.first { it?.step == SetupStep.Permissions }!!.step)
         }
 
     @Test
@@ -284,3 +317,5 @@ class SetupViewModelTest {
         override fun setLink(link: LinkState?) = Unit
     }
 }
+
+private const val LINK = "https://sukrara.mauri.app/join#AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"

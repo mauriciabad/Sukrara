@@ -206,14 +206,49 @@ System back on the first step leaves setup (home shows "Not monitoring: setup in
 
 ## Following (Android)
 
-Not in this build: the role step says so and keeps the person on it. An invite link opened on an Android phone (any
-role, also during first-run setup) opens *Open this invite on a Mac*: following from an Android phone comes later, open
-the link in Sukrara for Mac; *Copy link*; the invite stays unused. The share screen tells the wearer the same ("Send
-them the link, or let them scan this code, in Sukrara for Mac").
+- **Join** (setup, after *I follow someone*): the *Follow someone* step takes the wearer's invite link (pasted, or filled
+  in when the link was opened on this phone) and an optional name the wearer sees. *Join* looks up the invite on the
+  default relays (AUTH as the invite key, up to ~25 s while the wearer's phone may still be publishing it) and opens it;
+  errors say what to do (*not a Sukrara invite link*, *not found — ask for a new link*, *expired*, *doesn't match its
+  link*, *no internet*, *already follows someone*, *couldn't save the key*). Joined: a new follower key goes to the
+  SecureStore, any previous follow's readings and entries are wiped, the alert state and "monitoring since" are reset,
+  monitoring starts and sends the access request (gift wrap to the identity, 7 d; again on every connect while it waits).
+  The step then shows *Waiting for Ana to allow you* with her picture and the 4-digit code she may ask for; *Continue*
+  goes on to permissions and alerts. Back on the join step returns to the role step.
+- **The stream** (`:share` `FollowerEngine`, connected exactly while the monitoring service runs it as the follower's
+  reading source): subscriptions as the Mac follower (inbox; once approved: roster, hour chunks with a 13 h – 7 d
+  backfill, live + alert events, mirrored settings, treatments), every event judged by `StreamFollower` (the acceptance
+  rules of PROTOCOL-v2, pinned by the sync fixtures: only the wearer's identity and roster devices are believed).
+  Readings go to the hub (home, widgets, the live notification and alerts follow them), the wearer's sensor to the hub's
+  sensor state, entries to the treatment log, `alert` events and the mirrored alert settings to the follower's own
+  alert runtime (its mute stays on this phone). A missed rotation sends a rekey request (≤ 1 per epoch per 5 min); after
+  the chunk backfill, missing hours of the last 12 are asked for (≤ 1 per 30 min, only while the stream is live). A
+  roster or key with other relays reconnects there. The record (key, read keys, roster, marks) is saved when what it
+  trusts changes, else every 5 min.
+- **No data**: the follower's `no_data` alarm is the same alarm-driven runtime as the wearer's (it runs with the service
+  dead and restarts it), armed by the first reading that arrives; a follow that ends (declined, invite used, removed)
+  disarms it, so nothing rings for a stream that won't come. A follower key the Keystore can't open now is never treated
+  as "not following": the service keeps running the source, retries 5 s doubling to 5 min, and the stored readings keep
+  alerting.
+- **Entries**: a follower the wearer lets *add entries* writes in the treatment log as its follower key; each entry is
+  *pending* until a relay accepts it (resent on every connect), then delivered.
+- **Notifications** (info channel *Requests*): *Invite already used*, *Ana didn't allow you*, *You no longer follow Ana*;
+  a tap opens the app.
+- **Following page** (Settings › Sharing on a follower): picture and name, *Waiting for Ana to allow you* with the code
+  or *You follow Ana*, when the last reading arrived, whether this phone may add entries, the relay connection, and
+  *Stop following* (confirmed: the key, readings and entries leave the phone, the alert state resets, the role is cleared
+  and setup opens). A follow that ended says why with *Join with a new link*.
+- **Invite links** opened on a phone with no role or a follower that follows no one open setup's join step with the link;
+  on a wearer phone (or one already following) they open *This phone shares its own readings* with *Copy link*.
+- Not included yet: scanning the invite QR code (camera / picture), the *Settings from* page (the follower's alert
+  runtime uses the wearer's mirrored alert settings as `AlertMirror` decides), Bluetooth from the wearer's phone.
 
-**States and exits**: Role step with *I follow someone* selected → the note "Following on Android comes in a later version" →
-choose *I wear the sensor* or leave setup. *Open this invite on a Mac* → *Copy link* (stays) or Back (returns to what was
-open, setup included).
+**States and exits**: Role step → *I follow someone* → join step (Back → role step). Join step: typing (Join, Back),
+looking up (spinner, the fields locked), failed (the reason; edit the link to clear it, Join again), waiting (code,
+*Continue*). Following page: waiting (code, *Stop following*), following (*Stop following*), ended — declined / invite
+used / removed (*Join with a new link* → join step, *Stop following*), key unreadable (*Stop following*), damaged (*Stop
+following*). Stop following → confirm dialog (Cancel / *Stop following*) → setup's role step. Notifications → tap opens
+the app (Settings › Sharing shows the same state). Invite link on a wearer phone → *Copy link* or Back.
 
 ## Readings and backfill
 
@@ -884,6 +919,6 @@ past the other app's event; blocks again if it's still running) or *Help*.
 - Android settings pages: settings export / import / reset, settings search, the follower's *Settings from* page, relay / epoch / statistics / log pages, battery-lab knobs, mmol/L in the settings pages (thresholds and ranges are shown and typed in mg/dL; schema `general.unit` is set elsewhere),, the ▶ beside each sound in the Sound dialog (the alert's page has *Play sound*) and icons on every row. Reason: only what daily use needs; the defaults are the owner's own values.
 - Mac: Juggluco over Wi-Fi (LAN source and subnet discovery) and the Nostr v1 `cgmnostr:` follow link (v1 links carried plaintext secrets and had no UI). Follow the wearer with a protocol v2 invite instead.
 - Sensors: Dexcom G6 / ONE, Dexcom G7 / ONE+ / G7 15 Day / Stelo, Aidex X, Accu-Chek SmartGuide, the "other sensors" scan and the untested-sensor banner; the Libre 3 experiment preferences (minimal subscription set, connection priority, screen-off skip). Reason: no hardware to test them, the owner uses a Libre 3.
-- Planned (issues filed): the Android follower role (join flow, follower home and Following page), the glucose report card, LibreView / Nightscout / Tidepool uploads, the local xDrip+ (Garmin) and Nightscout servers, Health Connect and broadcasts, insulin pens, the calendar event, CSV export, Bluetooth sharing from the phone. The sections above that describe them are the behaviour to build. Reason: what daily use needs comes first.
+- Planned (issues filed): scanning an invite's QR code on Android and the follower's *Settings from* page, the glucose report card, LibreView / Nightscout / Tidepool uploads, the local xDrip+ (Garmin) and Nightscout servers, Health Connect and broadcasts, insulin pens, the calendar event, CSV export, Bluetooth sharing from the phone. The sections above that describe them are the behaviour to build. Reason: what daily use needs comes first.
 
 **States and exits**: none (these features aren't in the app).
