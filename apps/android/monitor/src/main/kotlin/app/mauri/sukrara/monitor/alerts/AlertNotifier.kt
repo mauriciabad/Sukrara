@@ -79,6 +79,25 @@ class AlertNotifier(private val ctx: Context) : AlertPresenter {
         post(group, b.build(), AlertChannels.id(kind, alarm))
     }
 
+    /**
+     * Settings › an alert › *Send a test alert*: [kind]'s notification on its real channel (its sound, vibration and
+     * Do Not Disturb behaviour), worded as a test with no reading in it, in its own slot ([NotificationIds.ALERT_TEST])
+     * and without Mute / Remind actions, so it can't touch the alert runtime, replace a real alert or be taken for one.
+     * No full-screen intent (the person is in the app). It goes away on a tap, a swipe or after [TEST_TIMEOUT_MS].
+     */
+    fun showTest(kind: AlertKind, settings: AlertSettings) {
+        val alarm = settings.rule(kind).alarm
+        val n =
+            base(kind, alarm, silent = false)
+                .setContentTitle(ctx.getString(R.string.alert_test_title, words.get("alert_headline_${kind.wire}")))
+                .setContentText(ctx.getString(R.string.alert_test_text))
+                .setShowWhen(true)
+                .setAutoCancel(true)
+                .setTimeoutAfter(TEST_TIMEOUT_MS)
+                .build()
+        post(NotificationIds.ALERT_TEST, n, AlertChannels.id(kind, alarm))
+    }
+
     override fun clear(group: AlertGroup) = NotificationGroups.cancel(ctx, idOf(group), NotificationGroups.Group.ALERTS)
 
     override fun deliveryProblems(alarmKinds: Set<AlertKind>): Set<AlertDeliveryProblem> =
@@ -91,13 +110,15 @@ class AlertNotifier(private val ctx: Context) : AlertPresenter {
 
     @Volatile private var channelsReady = false
 
-    private fun post(group: AlertGroup, n: Notification, channelId: String) {
+    private fun post(group: AlertGroup, n: Notification, channelId: String) = post(idOf(group), n, channelId)
+
+    private fun post(id: Int, n: Notification, channelId: String) {
         // the channels exist before the first alert of this process (also created by AlertsModule.attach)
         if (!channelsReady) {
             AlertChannels.ensure(ctx)
             channelsReady = true
         }
-        NotificationGroups.post(ctx, idOf(group), n, NotificationGroups.Group.ALERTS, channelId)
+        NotificationGroups.post(ctx, id, n, NotificationGroups.Group.ALERTS, channelId)
     }
 
     private fun base(kind: AlertKind, alarm: Boolean, silent: Boolean): Notification.Builder =
@@ -166,6 +187,8 @@ class AlertNotifier(private val ctx: Context) : AlertPresenter {
     companion object {
         /** One notification id per alert group ([NotificationIds]). */
         fun idOf(group: AlertGroup): Int = NotificationIds.ALERTS_BASE + group.ordinal
+
+        const val TEST_TIMEOUT_MS = 2 * 60_000L
 
         private fun requestCode(kind: AlertKind, what: String) = 2000 + kind.ordinal * 16 + AlertActionReceiver.ACTIONS.indexOf(what)
 

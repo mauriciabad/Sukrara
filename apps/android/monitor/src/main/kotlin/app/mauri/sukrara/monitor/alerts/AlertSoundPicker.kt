@@ -11,7 +11,7 @@ import app.mauri.sukrara.alerts.SoundSettings
  * notification sound, or silence. Pure, so the choice is tested on the JVM.
  */
 class AlertSoundPicker(private val random: (IntRange) -> Int = { it.random() }) {
-    private class Pick(val name: String, val atMs: Long)
+    private class Pick(val name: String, val atMs: Long, val pack: String, val shuffle: Boolean)
 
     private val picks = HashMap<AlertKind, Pick>()
     private val lastVariant = HashMap<AlertKind, Int>()
@@ -23,8 +23,9 @@ class AlertSoundPicker(private val random: (IntRange) -> Int = { it.random() }) 
      */
     @Synchronized
     fun pick(kind: AlertKind, s: SoundSettings, nowMs: Long): String {
-        picks[kind]?.let { if (nowMs - it.atMs < HOLD_MS) return it.name }
         val pack = s.soundOf(kind)
+        // the same file for one notification's opens; a changed pack or shuffle (Settings, then a test) picks anew
+        picks[kind]?.let { if (nowMs - it.atMs < HOLD_MS && it.pack == pack && it.shuffle == s.shuffle) return it.name }
         val name =
             when (pack) {
                 SYSTEM -> {
@@ -43,7 +44,7 @@ class AlertSoundPicker(private val random: (IntRange) -> Int = { it.random() }) 
                     "${known}_${kind.wire}_$n"
                 }
             }
-        picks[kind] = Pick(name, nowMs)
+        picks[kind] = Pick(name, nowMs, pack, s.shuffle)
         return name
     }
 

@@ -373,7 +373,7 @@ internal fun pillAction(state: HomeUiState): PillAction {
 }
 
 /** TalkBack's words for the pill: what it shows. */
-private fun pillWords(
+internal fun pillWords(
     state: HomeUiState,
     resources: android.content.res.Resources,
 ): String {

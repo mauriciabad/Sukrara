@@ -162,6 +162,9 @@ object NotificationIds {
     const val ALERTS_SUMMARY = 1000
     const val ALERTS_BASE = 1001
 
+    /** Settings › an alert › *Send a test alert*: its own slot, so a test never replaces (or is replaced by) a real alert. */
+    const val ALERT_TEST = 1010
+
     /** The `info` notification group's summary. */
     const val INFO_SUMMARY = 1100
 }

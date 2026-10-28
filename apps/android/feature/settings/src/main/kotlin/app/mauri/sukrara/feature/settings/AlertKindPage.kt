@@ -4,6 +4,7 @@
 package app.mauri.sukrara.feature.settings
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -33,10 +34,11 @@ class AlertKindActions(
     val edit: ((app.mauri.sukrara.alerts.AlertSettings) -> app.mauri.sukrara.alerts.AlertSettings) -> Unit = {},
     val unmute: (AlertKind) -> Unit = {},
     val remindAsUsual: (AlertKind) -> Unit = {},
+    val playback: AlertPlayback = AlertPlayback.None,
 )
 
 /** Turning these off removes a safety net: it asks first (ux §2 #9). */
-private val ConfirmOff = setOf(AlertKind.VERY_LOW, AlertKind.NO_DATA)
+internal val ConfirmOff = setOf(AlertKind.VERY_LOW, AlertKind.NO_DATA)
 
 /**
  * The side's quiet state with its exit, worded by [MuteText] and counting down: "Low alerts muted · 12 min left ·
@@ -122,6 +124,7 @@ fun AlertKindContent(
                 summary = stringResource(R.string.st_notification_settings_summary),
             )
         }
+        TryOutGroup(kind, ui.settings, actions.playback)
         FooterText(stringResource(if (kind.isLevel) R.string.st_kind_footer_level else R.string.st_kind_footer_other))
     }
     when (dialog) {
@@ -186,4 +189,63 @@ fun AlertKindContent(
             }
         }
     }
+}
+
+/**
+ * Hear it before it matters: *Play sound* (its sound on the volume it rings on, with its vibration while *Play with
+ * vibration* is on; stops when the page closes), *Send a test alert* (the real notification, worded as a test, nothing
+ * else changes) and its Android notification channel (sound, vibration, Do Not Disturb override).
+ */
+@Composable
+private fun TryOutGroup(
+    kind: AlertKind,
+    settings: app.mauri.sukrara.alerts.AlertSettings,
+    playback: AlertPlayback,
+) {
+    val context = LocalContext.current
+    val rule = settings.rule(kind)
+    val pack = settings.sounds.soundOf(kind)
+    var vibrate by rememberSaveable { mutableStateOf(true) }
+    var sent by rememberSaveable { mutableStateOf(false) }
+    DisposableEffect(playback) { onDispose { playback.stop() } }
+    val volume = stringResource(if (rule.alarm) R.string.st_volume_alarm else R.string.st_volume_notification)
+    SettingsGroup(title = stringResource(R.string.st_try_title)) {
+        ValueRow(
+            stringResource(R.string.st_play_sound),
+            listOf(packName(pack), volume).joinToString(" · "),
+            { playback.play(kind, pack, rule.alarm, vibrate) },
+            icon = R.drawable.st_ic_play_arrow,
+            enabled = pack != "none" || vibrate,
+        )
+        SwitchRow(stringResource(R.string.st_play_vibrate), vibrate, { vibrate = it })
+        ValueRow(
+            stringResource(R.string.st_send_test),
+            stringResource(if (sent) R.string.st_send_test_sent else R.string.st_send_test_summary),
+            {
+                playback.sendTest(kind, settings)
+                sent = true
+            },
+            icon = R.drawable.st_ic_science,
+            enabled = settings.on,
+        )
+        playback.channelId(kind, rule.alarm)?.let { channel ->
+            NavigationRow(
+                stringResource(R.string.st_channel_settings),
+                { context.openChannelSettings(channel) },
+                summary = stringResource(R.string.st_channel_settings_summary),
+                icon = R.drawable.st_ic_tune,
+            )
+        }
+    }
+}
+
+/** Opens Android's settings of one notification channel of this app. */
+fun android.content.Context.openChannelSettings(channel: String) {
+    startActivity(
+        android.content
+            .Intent(android.provider.Settings.ACTION_CHANNEL_NOTIFICATION_SETTINGS)
+            .putExtra(android.provider.Settings.EXTRA_APP_PACKAGE, packageName)
+            .putExtra(android.provider.Settings.EXTRA_CHANNEL_ID, channel)
+            .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK),
+    )
 }

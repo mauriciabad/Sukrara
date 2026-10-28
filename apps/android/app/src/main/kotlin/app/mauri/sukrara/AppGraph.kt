@@ -4,6 +4,7 @@
 package app.mauri.sukrara
 
 import android.app.Application
+import app.mauri.sukrara.alerts.AlertKind
 import app.mauri.sukrara.alerts.AlertSettings
 import app.mauri.sukrara.core.data.DataModule
 import app.mauri.sukrara.core.data.settings.SchemaSettings
@@ -15,6 +16,7 @@ import app.mauri.sukrara.core.model.Role
 import app.mauri.sukrara.core.model.SystemClock
 import app.mauri.sukrara.core.model.Treatment
 import app.mauri.sukrara.feature.sensor.SensorUiModule
+import app.mauri.sukrara.feature.settings.AlertPlayback
 import app.mauri.sukrara.feature.settings.AlertSettingsStore
 import app.mauri.sukrara.feature.settings.SettingsModule
 import app.mauri.sukrara.feature.sharing.EngineOwnerSharing
@@ -172,6 +174,27 @@ class AppGraph(
             dispatchers = dispatchers,
             clock = clock,
             sensor = monitor.hub.state.map { it.sensor },
+            alertPlayback =
+                object : AlertPlayback {
+                    override fun play(
+                        kind: AlertKind,
+                        pack: String,
+                        alarm: Boolean,
+                        vibrate: Boolean,
+                    ) = alerts.tryOut.play(kind, pack, alarm, vibrate)
+
+                    override fun stop() = alerts.tryOut.stop()
+
+                    override fun sendTest(
+                        kind: AlertKind,
+                        settings: AlertSettings,
+                    ) = alerts.tryOut.sendTest(kind, settings)
+
+                    override fun channelId(
+                        kind: AlertKind,
+                        alarm: Boolean,
+                    ) = alerts.tryOut.channelId(kind, alarm)
+                },
         )
     }
 

@@ -59,9 +59,11 @@ The full catalog, with every rule and number, is [docs/FEATURES.md](docs/FEATURE
   how long, and a short countdown when opened on the lock screen.
 - **Home-screen widgets** (*Glucose*, *Glucose graph*, *Glucose and graph*) drawn by the same card renderer at the
   widget's real size; home offers *Add widget* until a graph widget is placed, and a tap opens *Add treatment*.
-- **Settings** for daily use: alerts (thresholds you confirm, repeats, sounds, quiet rules), an alert reliability
-  checklist with *Fix* buttons (notifications, alarms, full-screen, battery, Do Not Disturb, Bluetooth), ranges,
-  graph basics, sensor, and About with an update check against this repo's releases.
+- **Settings** for daily use: alerts (an on/off switch on each alert row, thresholds you confirm, repeats, sounds,
+  quiet rules, *Play sound* and *Send a test alert*), an alert reliability checklist with *Fix* buttons
+  (notifications, alarms, full-screen, battery, Do Not Disturb, Bluetooth), ranges and the whole graph (lines, time
+  per place, slots, ring order, treatments on the graph, sensor time; your card live on top), lock screen
+  *Time to save*, sensor, and About with an update check against this repo's releases.
 - **Sharing core**: your sharing identity, restorable from its recovery code so existing followers keep following;
   readings and alerts go to approved followers over Nostr relays (protocol v2). If another device is publishing as
   the same identity, Sukrara stops and says so instead of fighting it.

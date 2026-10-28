@@ -77,7 +77,10 @@ object GraphSettings {
         val texts = combine(listOf(Slots, RingOrder, Lines, LastElse, Marks).map(settings::flow)) { it.toList() }
         val hours =
             combine(GraphPlace.entries.map { settings.flow(PlaceHours.getValue(it)) }) { v ->
-                GraphPlace.entries.zip(v.map(Double::toInt)).filter { it.second > 0 }.toMap()
+                GraphPlace.entries
+                    .zip(v.map(Double::toInt))
+                    .filter { it.second > 0 }
+                    .toMap()
             }
         val hidden =
             combine(GraphPlace.entries.map { settings.flow(SensorTime.getValue(it)) }) { v ->
