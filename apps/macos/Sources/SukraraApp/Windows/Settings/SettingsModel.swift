@@ -67,7 +67,7 @@ public final class SettingsModel {
         guard let wearer else { return }
         let g = GraphConfig.load(from: WearerOnly(), wearer: wearer)
         writeGraph(g)
-        let copied = alerts.settings.mirroring(wearer)
+        let copied = alerts.settings.withMirroredDefaults().mirroring(wearer)
         alerts.update { $0 = copied }
         settingsFrom = .custom
     }
@@ -78,13 +78,12 @@ public final class SettingsModel {
         case .custom: return L10n.t("This Mac's own settings, in the Graph, Rings and Alerts panes.")
         case .default: return L10n.t("Sukrara's defaults.")
         case .wearer:
+            let who = wearer?.wearer ?? L10n.t("the wearer")
+            if wearer != nil { return L10n.t("\(who)'s settings from their phone.") }
             guard case .following = follow.status else {
                 return L10n.t("Not following anyone, so Sukrara's defaults are used.")
             }
-            let who = wearer?.wearer ?? L10n.t("the wearer")
-            return wearer == nil
-                ? L10n.t("Waiting for \(who)'s settings. Sukrara's defaults are used until they arrive.")
-                : L10n.t("\(who)'s settings from their phone.")
+            return L10n.t("Waiting for \(who)'s settings. Sukrara's defaults are used until they arrive.")
         }
     }
 

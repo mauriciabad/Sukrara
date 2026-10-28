@@ -147,8 +147,23 @@ public final class AppModel {
         CardData(
             readings: readings.map { GraphReading(t: $0.t.timeIntervalSince1970, v: Double($0.mgdl), rate: $0.rate) },
             marks: marks, sensor: sensor,
-            alerts: CardAlertsMapping.of(alerts?.ui ?? .idle, settings: alerts?.settings, marks: marks, now: now),
-            now: now.timeIntervalSince1970)
+            alerts: cardAlerts, now: now.timeIntervalSince1970)
+    }
+
+    /// The card's alert decision: the engine's state, or while mirroring the wearer's alerts the same rules over the
+    /// latest reading (this Mac's engine then runs only no data).
+    private var cardAlerts: CardAlerts {
+        var card = CardAlertsMapping.of(alerts?.ui ?? .idle, settings: alerts?.settings, marks: marks, now: now)
+        if let alerts, alerts.mirroring {
+            let latest = readings.last.map { GlucoseSample(at: $0.t, mgdl: Double($0.mgdl), rate: $0.rate) }
+            card.status = CardAlertsMapping.mirroredStatus(
+                latest: latest, settings: alerts.settings, marks: marks, sideMutes: alerts.mirroredSideMutes(at: now),
+                muteAll: alerts.ui.muteAllUntil, now: now)
+            card.last = CardAlertsMapping.lastTreatment(marks, status: card.status, now: now.timeIntervalSince1970) {
+                card.muteEnds[$0.id]
+            }
+        }
+        return card
     }
 
     /// Nobody is followed and nothing is on its way (not following, declined, revoked, invite used, broken).

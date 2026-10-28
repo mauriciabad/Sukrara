@@ -97,6 +97,34 @@ import Testing
         #expect(CardAlertsMapping.status(high, marks: [], now: now) == .paused(.high, until: t + 720))
     }
 
+    @Test func mirroringShowsTakenNeededAndPaused() {
+        let carbs = treatment("c1", .carbs, 20, minutesAgo: 5)
+        let marks = CardAlertsMapping.marks([carbs])
+        let low = GlucoseSample(at: now, mgdl: 62)
+        func status(_ m: [GraphMark], mutes: [AlertSide: Date] = [:], all: Date? = nil, _ r: GlucoseSample? = nil)
+            -> AlertStatus
+        {
+            CardAlertsMapping.mirroredStatus(
+                latest: r ?? low, settings: AlertSettings(), marks: m, sideMutes: mutes, muteAll: all, now: now)
+        }
+        #expect(status(marks) == .taken(.low, treatment: marks[0], until: marks[0].t + 900))
+        #expect(status([]) == .needed(.low))
+        #expect(status([], mutes: [.low: now.addingTimeInterval(600)]) == .paused(.low, until: t + 600))
+        #expect(
+            status([], all: now.addingTimeInterval(300), GlucoseSample(at: now, mgdl: 110)) == .muted(until: t + 300))
+    }
+
+    @Test func rulesInUseFollowSettingsFrom() throws {
+        var own = AlertSettings()
+        own[.low].threshold = 80
+        let wearer = try #require(WearerSettings(json: #"{"alerts":{"alerts":{"high":{"mgdl":200}}}}"#, wearer: "Ana"))
+        let w = own.inUse(from: .wearer, wearer: wearer)
+        #expect(w[.high].threshold == 200 && w[.low].threshold == 70 && w.source == .wearer)  // not sent: default
+        #expect(own.inUse(from: .default, wearer: wearer)[.low].threshold == 70)
+        let c = own.inUse(from: .custom, wearer: wearer)
+        #expect(c[.low].threshold == 80 && c.source == .own)
+    }
+
     @Test func badgeFollowsMutes() {
         var low = AlertUIState.idle
         low.active[.level] = .init(kind: .low, quiet: nil, firedAt: now, n: 1)

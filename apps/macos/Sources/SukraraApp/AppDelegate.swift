@@ -22,6 +22,7 @@ public final class AppDelegate: NSObject, NSApplicationDelegate {
     private var windows: WindowCoordinator?
     /// The wearer's mirrored settings while following (nil otherwise).
     private var wearer: WearerSettings?
+    private var settingsPending = false
 
     public init(plan: LaunchPlan) {
         let services = AppServices(plan: plan)
@@ -117,7 +118,7 @@ public final class AppDelegate: NSObject, NSApplicationDelegate {
             NotificationCenter.default.addObserver(
                 forName: UserDefaults.didChangeNotification, object: nil, queue: .main
             ) { [weak self] _ in
-                Task { @MainActor in self?.settingsChanged() }
+                Task { @MainActor in self?.scheduleSettingsChanged() }
             })
         observers.append(
             NotificationCenter.default.addObserver(forName: .NSSystemClockDidChange, object: nil, queue: .main) {
@@ -154,6 +155,16 @@ public final class AppDelegate: NSObject, NSApplicationDelegate {
     private func pathChanged(satisfied: Bool) {
         defer { networkSatisfied = satisfied }
         if satisfied && networkSatisfied == false { model.networkCameBack() }
+    }
+
+    /// Many defaults written together (one Settings edit stores every card setting) are handled once.
+    private func scheduleSettingsChanged() {
+        guard !settingsPending else { return }
+        settingsPending = true
+        Task { @MainActor in
+            settingsPending = false
+            settingsChanged()
+        }
     }
 
     /// A defaults change (Settings window, another process): the alert rules, the unit and the card follow.

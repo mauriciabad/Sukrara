@@ -11,7 +11,7 @@ struct RingsPane: View {
     @Bindable var model: SettingsModel
 
     private var g: GraphConfig { model.graph }
-    private static let slotNames = [L10n.t("Main"), L10n.t("Second"), L10n.t("Third")]
+    private static var slotNames: [String] { [L10n.t("Main"), L10n.t("Second"), L10n.t("Third")] }
 
     var body: some View {
         Form {

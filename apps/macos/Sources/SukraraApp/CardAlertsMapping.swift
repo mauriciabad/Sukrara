@@ -16,7 +16,7 @@ enum CardAlertsMapping {
         _ ui: AlertUIState, settings: AlertSettings? = nil, marks: [GraphMark] = [], now: Date
     ) -> CardAlerts {
         var ends: [String: TimeInterval] = [:]
-        if let settings, settings.on {
+        if let settings {
             for m in marks { if let e = muteEnd(m, settings) { ends[m.id] = e } }
         }
         let status = status(ui, marks: marks, now: now)
@@ -48,6 +48,31 @@ enum CardAlertsMapping {
         case nil:
             return all.map { .paused(side, until: $0) } ?? .needed(side)
         }
+    }
+
+    /// The badge while this Mac mirrors the wearer's alerts (its engine then runs only no data, so it has no level
+    /// episode): the same rules over the latest reading and the rules in use (the wearer's): a covering treatment →
+    /// Taken; this Mac's Mute of the side or Mute all → paused; else Needed; in range with Mute all → muted.
+    static func mirroredStatus(
+        latest: GlucoseSample?, settings: AlertSettings, marks: [GraphMark], sideMutes: [AlertSide: Date],
+        muteAll: Date?, now: Date
+    ) -> AlertStatus {
+        let t = now.timeIntervalSince1970
+        let all = muteAll.map { min($0.timeIntervalSince1970, AlertStatus.never) }
+        guard let kind = AlertEngine.level(of: latest, settings, at: now) else {
+            return all.map { .muted(until: $0) } ?? .none
+        }
+        let side: AlertStatus.Side = kind.isBelowThreshold ? .low : .high
+        if let by = settings.quietedBy(kind) {
+            let k = by == .carbs ? Treatment.Kind.carbs.rawValue : Treatment.Kind.rapid.rawValue
+            let cover = marks.filter { $0.k == k && $0.t <= t }
+                .compactMap { m in muteEnd(m, settings).map { (m, $0) } }
+                .filter { $0.1 > t }
+                .max { $0.0.t < $1.0.t }
+            if let cover { return .taken(side, treatment: cover.0, until: cover.1) }
+        }
+        let paused = max(sideMutes[kind.side].map(\.timeIntervalSince1970) ?? 0, all ?? 0)
+        return paused > t ? .paused(side, until: paused) : .needed(side)
     }
 
     /// When `m`'s quiet window ends, or nil when its kind quiets nothing (the rule is off, long-acting, a note).

@@ -157,7 +157,7 @@ struct GraphPane: View {
                 }
             }
             if g.lines.count < SettingsSpec.line.maxItems {
-                AddLineRow { model.addLine($0) }
+                AddLineRow(existing: g.lines) { model.addLine($0) }
             }
         } header: {
             Text(L10n.t("Lines across the graph"))
@@ -247,13 +247,15 @@ struct GraphPane: View {
 
 /// "Add a line at": the one number input with the line format, and Add.
 private struct AddLineRow: View {
+    /// The lines already there: adding one of them again does nothing, so Add is dimmed.
+    let existing: [Int]
     let add: (Double) -> Void
     @State private var value = SettingsSpec.line.default
 
     var body: some View {
         HStack(alignment: .firstTextBaseline) {
             NumberSettingRow(label: L10n.t("Add a line at"), format: SettingsSpec.line, value: $value)
-            Button(L10n.t("Add")) { add(value) }
+            Button(L10n.t("Add")) { add(value) }.disabled(existing.contains(Int(value)))
         }
     }
 }
