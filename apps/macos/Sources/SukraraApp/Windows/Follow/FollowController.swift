@@ -55,6 +55,8 @@ public protocol FollowActions: AnyObject {
     func joinNearby(name: String) async throws(FollowFailure)
     /// How this Mac appears to the wearer (used by the next join; sent at once while following).
     func setProfile(name: String, avatar: Avatar?) async
+    /// The name for the next join, keeping the picture the runtime has.
+    func setName(_ name: String) async
     func cancelJoin() async
     func unfollow() async
 }
@@ -105,7 +107,7 @@ public final class FollowModel {
         }
         let before = status
         status = .joining
-        await actions?.setProfile(name: macName, avatar: me?.avatar)
+        await actions?.setName(macName)
         do {
             try await actions?.join(link: link)
         } catch {

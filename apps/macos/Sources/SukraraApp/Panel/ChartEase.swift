@@ -88,6 +88,8 @@ struct ChartEase: Equatable {
             low.retarget(y.lowerBound, at: t, instant: instant || !hasY)
             high.retarget(y.upperBound, at: t, instant: instant || !hasY)
             hasY = true
+        } else {
+            hasY = false  // a window without readings: the renderer's own range
         }
         pill.retarget(away ? 1 : 0, at: t, instant: instant || !started)
         started = true

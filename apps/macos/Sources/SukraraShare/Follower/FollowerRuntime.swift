@@ -375,7 +375,8 @@ public actor FollowerRuntime: FollowerService {
             persist(force: true)
             await publish(update)
         }
-        await publishSnapshot()
+        // without a follow the snapshot doesn't show `me`: publishing would only race the join's own status
+        if session != nil { await publishSnapshot() }
     }
 
     // MARK: - unfollowing

@@ -6688,6 +6688,22 @@
           }
         }
       }
+    },
+    "Only the people you share with see your name and picture. They travel end-to-end encrypted and are never posted publicly." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Only the people you share with see your name and picture. They travel end-to-end encrypted and are never posted publicly."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Solo las personas con las que compartes ven tu nombre y tu imagen. Viajan cifrados de extremo a extremo y nunca se publican."
+          }
+        }
+      }
     }
   },
   "version" : "1.0"

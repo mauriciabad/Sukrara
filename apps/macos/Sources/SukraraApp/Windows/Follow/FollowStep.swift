@@ -61,7 +61,7 @@ struct FollowStep: View {
     }
 }
 
-/// The name the wearer will see for this Mac (the computer's name until changed); a blank one sends the computer's.
+/// The name the wearer will see for this Mac (the computer's name until changed); a blank one keeps the name sent last.
 struct MacNameField: View {
     @Bindable var follow: FollowModel
 

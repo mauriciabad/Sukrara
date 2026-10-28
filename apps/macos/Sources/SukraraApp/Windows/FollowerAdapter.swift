@@ -27,7 +27,7 @@ final class FollowerAdapter: FollowActions, TreatmentActions {
     /// The typed name goes with the request (the runtime keeps the picture it has).
     func joinNearby(name: String) async throws(FollowFailure) {
         guard let offer else { throw .notFound }
-        await follower.setProfile(name: name, avatar: me?.avatar)
+        await setName(name)
         do {
             try await follower.joinNearby(offer)
         } catch {
@@ -36,6 +36,8 @@ final class FollowerAdapter: FollowActions, TreatmentActions {
     }
 
     func setProfile(name: String, avatar: Avatar?) async { await follower.setProfile(name: name, avatar: avatar) }
+
+    func setName(_ name: String) async { await follower.setProfile(name: name, avatar: me?.avatar) }
 
     func cancelJoin() async { await follower.cancelJoin() }
     func unfollow() async { await follower.unfollow() }

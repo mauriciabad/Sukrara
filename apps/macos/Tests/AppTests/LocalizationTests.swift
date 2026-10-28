@@ -65,14 +65,15 @@ import Testing
     /// found on their own).
     static func l10nKeys(in source: String) -> [String] {
         let chars = Array(source)
-        let marker = Array("L10n.t(\"")
+        let marker = Array("L10n.t(")
         var keys: [String] = []
         var i = 0
         while i + marker.count <= chars.count {
-            if chars[i] == "L", Array(chars[i..<i + marker.count]) == marker,
-                let (key, _) = literal(chars, from: i + marker.count)
-            {
-                keys.append(key)
+            if chars[i] == "L", Array(chars[i..<i + marker.count]) == marker {
+                // the literal may start on the next line (a wrapped call)
+                var j = i + marker.count
+                while j < chars.count, chars[j].isWhitespace { j += 1 }
+                if j < chars.count, chars[j] == "\"", let (key, _) = literal(chars, from: j + 1) { keys.append(key) }
             }
             i += 1
         }

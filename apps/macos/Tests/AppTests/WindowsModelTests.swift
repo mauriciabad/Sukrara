@@ -372,6 +372,7 @@ final class RecordingSender: TreatmentActions {
             func join(link: String) async throws(FollowFailure) { calls += 1 }
             func joinNearby(name: String) async throws(FollowFailure) { calls += 1 }
             func setProfile(name: String, avatar: Avatar?) async { names.append(name) }
+            func setName(_ name: String) async { names.append(name) }
             func cancelJoin() async {}
             func unfollow() async {}
         }

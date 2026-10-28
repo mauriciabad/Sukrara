@@ -186,7 +186,7 @@ struct PanelView: View {
     private func chart(_ data: CardData) -> ChartActions.Bounds {
         ChartActions.Bounds(
             default: GlucoseCard.chartSpan(surface: .menubarCard, config: model.graph) ?? 12 * 3600,
-            first: data.readings.map(\.t).min() ?? data.now, now: data.now)
+            first: data.readings.first?.t ?? data.now, now: data.now)
     }
 
     private func moveChart(by dx: CGFloat, plotWidth: CGFloat, _ data: CardData) {
