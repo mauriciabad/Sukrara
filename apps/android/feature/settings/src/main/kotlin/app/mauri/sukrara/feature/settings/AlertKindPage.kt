@@ -32,6 +32,7 @@ import app.mauri.sukrara.designsystem.rows.SettingsGroup
 import app.mauri.sukrara.designsystem.rows.SwitchRow
 import app.mauri.sukrara.designsystem.rows.ValueRow
 import app.mauri.sukrara.settings.SettingsSpec
+import app.mauri.sukrara.core.designsystem.R as DsR
 
 /** What an alert's page can do besides editing its rule. */
 class AlertKindActions(
@@ -94,6 +95,7 @@ fun AlertKindContent(
                 { on -> if (!on && kind in ConfirmOff) dialog = "off" else actions.edit(AlertEdits.kindOn(kind, on)) },
                 enabled = ui.settings.on,
                 summary = if (ui.settings.on) null else stringResource(R.string.st_alerts_main_off),
+                icon = kindIcon(kind),
                 readOnly = ui.mirrors(kind),
             )
         }
@@ -103,6 +105,7 @@ fun AlertKindContent(
                 thresholdSentence(kind, rule.threshold),
                 { dialog = "threshold" },
                 enabled = rule.on,
+                icon = DsR.drawable.ds_ic_dia_range,
                 readOnly = ui.mirrors(kind),
             )
             ValueRow(
@@ -110,6 +113,7 @@ fun AlertKindContent(
                 numberLabel(repeatSpec, rule.repeatMin.toDouble()),
                 { dialog = "repeat" },
                 enabled = rule.on,
+                icon = DsR.drawable.ds_ic_repeat,
                 readOnly = ui.mirrors(kind),
             )
         }
@@ -121,6 +125,7 @@ fun AlertKindContent(
                 { on -> if (!on && kind in ConfirmOff) dialog = "alarmOff" else actions.edit(AlertEdits.alarm(kind, on)) },
                 summary = stringResource(R.string.st_alarm_summary),
                 enabled = rule.on,
+                icon = DsR.drawable.ds_ic_notifications_active,
             )
             val own = ui.settings.sounds.perKind[kind]
             ValueRow(
@@ -128,11 +133,13 @@ fun AlertKindContent(
                 own?.let { packName(it) } ?: stringResource(R.string.st_sound_same, packName(ui.settings.sounds.pack)),
                 { dialog = "sound" },
                 enabled = rule.on,
+                icon = DsR.drawable.ds_ic_music_note,
             )
             NavigationRow(
                 stringResource(R.string.st_notification_settings),
                 { context.openNotificationSettings() },
                 summary = stringResource(R.string.st_notification_settings_summary),
+                icon = DsR.drawable.ds_ic_tune,
             )
         }
         TryOutGroup(kind, ui.settings, actions.playback)
@@ -232,10 +239,10 @@ private fun TryOutGroup(
             stringResource(R.string.st_play_sound),
             if (silenced) stringResource(R.string.st_silenced_by_android) else listOf(packName(pack), volume).joinToString(" · "),
             { playback.play(kind, pack, rule.alarm, vibrate) },
-            icon = R.drawable.st_ic_play_arrow,
+            icon = DsR.drawable.ds_ic_play_arrow,
             enabled = pack != "none" || vibrate,
         )
-        SwitchRow(stringResource(R.string.st_play_vibrate), vibrate, { vibrate = it })
+        SwitchRow(stringResource(R.string.st_play_vibrate), vibrate, { vibrate = it }, icon = DsR.drawable.ds_ic_vibration)
         ValueRow(
             stringResource(R.string.st_send_test),
             stringResource(if (sent) R.string.st_send_test_sent else R.string.st_send_test_summary),
@@ -243,7 +250,7 @@ private fun TryOutGroup(
                 playback.sendTest(kind, settings)
                 sent = true
             },
-            icon = R.drawable.st_ic_science,
+            icon = DsR.drawable.ds_ic_science,
             enabled = settings.on,
         )
         playback.channelId(kind, rule.alarm)?.let { channel ->
@@ -251,7 +258,7 @@ private fun TryOutGroup(
                 stringResource(R.string.st_channel_settings),
                 { context.openChannelSettings(channel) },
                 summary = stringResource(R.string.st_channel_settings_summary),
-                icon = R.drawable.st_ic_tune,
+                icon = DsR.drawable.ds_ic_tune,
             )
         }
     }
@@ -277,7 +284,7 @@ internal fun soundPreview(
                 haptics.tick()
                 playback.play(kind, pack, alarm, vibrate = false)
             }) {
-                Icon(painterResource(R.drawable.st_ic_play_arrow), stringResource(R.string.st_play_option, packName(pack)))
+                Icon(painterResource(DsR.drawable.ds_ic_play_arrow), stringResource(R.string.st_play_option, packName(pack)))
             }
         }
     }

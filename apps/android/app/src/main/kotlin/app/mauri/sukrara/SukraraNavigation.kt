@@ -173,6 +173,8 @@ data class SettingsKey(
             "sensorend" -> SettingsRoute.SensorEnd
             "about" -> SettingsRoute.About
             "review" -> SettingsRoute.ThresholdReview
+            "advanced" -> SettingsRoute.Advanced
+            "log" -> SettingsRoute.Log
             "from" -> SettingsRoute.SettingsFrom
             else -> SettingsRoute.Overview
         }
@@ -195,6 +197,8 @@ data class SettingsKey(
                 SettingsRoute.SensorEnd -> SettingsKey("sensorend")
                 SettingsRoute.About -> SettingsKey("about")
                 SettingsRoute.ThresholdReview -> SettingsKey("review")
+                SettingsRoute.Advanced -> SettingsKey("advanced")
+                SettingsRoute.Log -> SettingsKey("log")
                 SettingsRoute.SettingsFrom -> SettingsKey("from")
             }
     }
@@ -415,6 +419,9 @@ fun SukraraNavigation(
                             openSharing = { backStack.push(SharingRoute) },
                             openApps = { backStack.push(AppsRoute) },
                             openClinicUpload = { backStack.push(LibreViewRoute) },
+                            openProfile = { backStack.push(ProfileRoute) },
+                            openBackup = { backStack.push(BackupRoute) },
+                            openExport = { backStack.push(ExportRoute) },
                             // the Ranges and Graph pages show home's own panel, redrawn as each setting changes
                             preview = { PanelPreview(viewModel(factory = HomeViewModel.factory(graph.home))) },
                         )

@@ -24,6 +24,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import app.mauri.sukrara.core.designsystem.R as DsR
 
 /** The six stored ranges the Ranges page shows (mg/dL), lowest first. */
 data class GraphPrefs(
@@ -94,6 +95,15 @@ fun RangesContent(
             R.string.st_band_very_high,
             R.string.st_band_extremely_high,
         )
+    val bandIcons =
+        listOf(
+            DsR.drawable.ds_ic_dia_very_low,
+            DsR.drawable.ds_ic_dia_low,
+            DsR.drawable.ds_ic_dia_range,
+            DsR.drawable.ds_ic_dia_high,
+            DsR.drawable.ds_ic_dia_very_high,
+            DsR.drawable.ds_ic_dia_extremely_high,
+        )
     SettingsPage(stringResource(R.string.st_ranges_title), onBack) {
         PreviewCard(preview)
         SettingsGroup {
@@ -102,6 +112,7 @@ fun RangesContent(
                     stringResource(titles[i]),
                     numberLabel(SchemaPrefs.bandSpec(setting), prefs.bands[i]),
                     { editing = i },
+                    icon = bandIcons[i],
                     readOnly = readOnly,
                 )
             }
@@ -113,7 +124,7 @@ fun RangesContent(
                     stringResource(R.string.st_ranges_reset),
                     stringResource(R.string.st_ranges_reset_summary),
                     onReset,
-                    icon = R.drawable.st_ic_restart_alt,
+                    icon = DsR.drawable.ds_ic_restart_alt,
                 )
             }
         }

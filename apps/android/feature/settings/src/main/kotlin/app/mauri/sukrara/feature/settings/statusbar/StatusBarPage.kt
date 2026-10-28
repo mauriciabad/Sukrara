@@ -30,6 +30,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import app.mauri.sukrara.core.designsystem.R as DsR
 
 /** Settings › Status bar: the glucose notification's Live Update chip and number icon; with root, the value itself. */
 data class StatusBarPrefs(
@@ -153,12 +154,14 @@ fun StatusBarContent(
                 prefs.chip,
                 onChip,
                 summary = stringResource(R.string.st_statusbar_chip_summary),
+                icon = DsR.drawable.ds_ic_timelapse,
             )
             if (prefs.chip && !liveUpdatesAllowed) {
                 NavigationRow(
                     stringResource(R.string.st_statusbar_allow_live_updates),
                     onAllowLiveUpdates,
                     summary = stringResource(R.string.st_statusbar_allow_live_updates_summary),
+                    icon = DsR.drawable.ds_ic_tune,
                 )
             }
             val chipShows = prefs.chip && liveUpdatesAllowed
@@ -171,6 +174,7 @@ fun StatusBarContent(
                         if (chipShows) R.string.st_statusbar_number_icon_chip else R.string.st_statusbar_number_icon_summary,
                     ),
                 enabled = !chipShows,
+                icon = DsR.drawable.ds_ic_notifications,
             )
         }
         FooterText(stringResource(R.string.st_statusbar_footer))

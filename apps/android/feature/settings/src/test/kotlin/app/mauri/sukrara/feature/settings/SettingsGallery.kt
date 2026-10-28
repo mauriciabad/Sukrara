@@ -30,6 +30,11 @@ import app.mauri.sukrara.core.model.SensorState
 import app.mauri.sukrara.core.model.SystemAccessState
 import app.mauri.sukrara.core.testing.FakeClock
 import app.mauri.sukrara.designsystem.theme.SukraraTheme
+import app.mauri.sukrara.feature.settings.advanced.AdvancedActions
+import app.mauri.sukrara.feature.settings.advanced.AdvancedContent
+import app.mauri.sukrara.feature.settings.advanced.AdvancedState
+import app.mauri.sukrara.feature.settings.advanced.LogContent
+import app.mauri.sukrara.feature.settings.advanced.RelayRow
 import app.mauri.sukrara.feature.settings.follower.SettingsFromActions
 import app.mauri.sukrara.feature.settings.follower.SettingsFromContent
 import app.mauri.sukrara.feature.settings.follower.SettingsFromNote
@@ -40,6 +45,7 @@ import app.mauri.sukrara.feature.settings.graph.GraphMarksContent
 import app.mauri.sukrara.feature.settings.graph.Reorder
 import app.mauri.sukrara.feature.settings.lock.LockScreenContent
 import app.mauri.sukrara.feature.settings.sensor.LibreViewSummary
+import app.mauri.sukrara.feature.settings.sensor.OpenOnScan
 import app.mauri.sukrara.feature.settings.sensor.SensorSettingsActions
 import app.mauri.sukrara.feature.settings.sensor.SensorSettingsContent
 import app.mauri.sukrara.feature.settings.sensor.SensorSettingsState
@@ -257,6 +263,42 @@ class SettingsGallery {
             "about-update" to { AboutContent("0.12.0", UpdateState.Available(release), {}) {} },
             "about-offline" to { AboutContent("0.12.0", UpdateState.Offline, {}) {} },
             "sensor" to { SensorSettingsContent(sensorWorking, now, zone, SensorSettingsActions()) {} },
+            "sensor-this-phone" to {
+                SensorSettingsContent(
+                    sensorWorking.copy(paired = true, openOnScan = OpenOnScan(on = true, blocked = true)),
+                    now,
+                    zone,
+                    SensorSettingsActions(),
+                ) {}
+            },
+            "overview-sharing" to {
+                SettingsOverviewContent(
+                    true,
+                    AlertUiState(),
+                    AlertReadiness.Ready,
+                    clock,
+                    OverviewActions(),
+                    sharing = OverviewSharing(name = "Alex", backedUp = false),
+                ) {}
+            },
+            "advanced" to {
+                AdvancedContent(
+                    AdvancedState(
+                        relays =
+                            listOf(
+                                RelayRow("wss://relay.example.invalid/", connected = true),
+                                RelayRow("wss://relay2.example.invalid", connected = false, error = "timeout"),
+                            ),
+                        identity = "npub1qqqqsynth…xyzxyz",
+                        epoch = 3,
+                    ),
+                    AdvancedActions(),
+                ) {}
+            },
+            "advanced-none" to { AdvancedContent(AdvancedState(follower = true), AdvancedActions()) {} },
+            "log" to {
+                LogContent(listOf("2026-10-28T10:00:00Z share relay connected", "2026-10-28T09:59:00Z sensor link live"), {})
+            },
             "sensor-ended" to
                 { SensorSettingsContent(sensorWorking.copy(state = SensorState.Ended), now, zone, SensorSettingsActions()) {} },
             "sensor-juggluco-signed-out" to {

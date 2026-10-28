@@ -19,6 +19,7 @@ import app.mauri.sukrara.core.data.secure.KeystoreSecureStore
 import app.mauri.sukrara.core.data.secure.SecretBox
 import app.mauri.sukrara.core.data.settings.DataStoreSettingsRepository
 import app.mauri.sukrara.core.data.settings.PreferenceStores
+import app.mauri.sukrara.core.data.settings.SettingsTransfer
 import app.mauri.sukrara.core.data.state.TypedStore
 import app.mauri.sukrara.core.model.Clock
 import app.mauri.sukrara.core.model.DispatcherProvider
@@ -56,7 +57,7 @@ data class Retention(
  */
 class DataModule(
     private val context: Context,
-    appVersion: String,
+    private val appVersion: String,
     private val dispatchers: DispatcherProvider,
     private val clock: Clock,
     private val retention: Retention = Retention(),
@@ -77,9 +78,14 @@ class DataModule(
 
     val diagLog: DiagLog by lazy { DiagLog(File(context.filesDir, "diag"), clock, dispatchers.io, scope) }
 
-    val settings: SettingsRepository by lazy {
-        DataStoreSettingsRepository(PreferenceStores(datastoreDir, corruption, clock, scope))
-    }
+    private val preferenceStores by lazy { PreferenceStores(datastoreDir, corruption, clock, scope) }
+
+    val settings: SettingsRepository by lazy { DataStoreSettingsRepository(preferenceStores) }
+
+    /** Settings › Advanced's settings file; [normalize] checks JSON values by `store:key` (the alert settings). */
+    fun settingsTransfer(
+        normalize: Map<String, (String) -> String?>,
+    ): SettingsTransfer = SettingsTransfer(preferenceStores, appVersion, normalize)
 
     val secureStore: SecureStore by lazy {
         KeystoreSecureStore(File(context.filesDir, "secure"), secretBox, corruption, clock, dispatchers.io)

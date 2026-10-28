@@ -21,6 +21,8 @@ import androidx.lifecycle.viewmodel.viewModelFactory
 import app.mauri.sukrara.alerts.AlertKind
 import app.mauri.sukrara.alerts.AlertSettings
 import app.mauri.sukrara.core.model.AlertUiState
+import app.mauri.sukrara.feature.settings.advanced.AdvancedScreen
+import app.mauri.sukrara.feature.settings.advanced.LogScreen
 import app.mauri.sukrara.feature.settings.follower.SettingsFromActions
 import app.mauri.sukrara.feature.settings.follower.SettingsFromContent
 import app.mauri.sukrara.feature.settings.follower.SettingsFromNote
@@ -45,6 +47,7 @@ import app.mauri.sukrara.feature.settings.statusbar.StatusBarContent
 import app.mauri.sukrara.feature.settings.statusbar.StatusBarViewModel
 import app.mauri.sukrara.feature.settings.statusbar.liveUpdatesAllowed
 import app.mauri.sukrara.feature.settings.statusbar.openLiveUpdateSettings
+import java.time.LocalDate
 
 /** The settings pages (the app's Nav3 entries map one key to each). */
 sealed interface SettingsRoute {
@@ -83,6 +86,12 @@ sealed interface SettingsRoute {
     /** The threshold review (also the setup's "Review alert thresholds" step). */
     data object ThresholdReview : SettingsRoute
 
+    /** Settings › Advanced: settings file, relays, log, identity. */
+    data object Advanced : SettingsRoute
+
+    /** Settings › Advanced › Log. */
+    data object Log : SettingsRoute
+
     /** Settings › Settings from (a follower). */
     data object SettingsFrom : SettingsRoute
 }
@@ -102,6 +111,9 @@ fun SettingsScreen(
     openSharing: () -> Unit,
     openApps: () -> Unit = {},
     openClinicUpload: () -> Unit = {},
+    openProfile: () -> Unit = {},
+    openBackup: () -> Unit = {},
+    openExport: () -> Unit = {},
     onReviewFinish: (ThresholdReviewResult) -> Unit = { onBack() },
     /** The live card the Ranges and Graph pages show on top (the app's own panel; nothing in tests). */
     preview: @Composable () -> Unit = {},
@@ -115,6 +127,7 @@ fun SettingsScreen(
             val apps by deps.appsShared.collectAsStateWithLifecycle(emptySet())
             val clinic by deps.clinicBanner.collectAsStateWithLifecycle(false)
             val closedTips by deps.closedTips.collectAsStateWithLifecycle(0)
+            val sharing by deps.overviewSharing.collectAsStateWithLifecycle(OverviewSharing())
             val from by deps.settingsFrom.state.collectAsStateWithLifecycle(null)
             LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { deps.readiness.refresh() }
             SettingsOverviewContent(
@@ -133,10 +146,14 @@ fun SettingsScreen(
                     restoreClinicBanner = deps::restoreClinicBanner,
                     restoreClosedTips = deps::restoreClosedTips,
                     pens = deps.pensAvailable(),
+                    openProfile = openProfile,
+                    openBackup = openBackup,
+                    openExport = openExport,
                 ),
                 apps,
                 clinic,
                 closedTips,
+                sharing,
                 from,
                 onBack,
             )
@@ -302,6 +319,20 @@ fun SettingsScreen(
             val vm = viewModel { AboutViewModel(deps.releases, deps.appVersion, deps.prerelease) }
             val state by vm.state.collectAsStateWithLifecycle()
             AboutContent(vm.installed, state, vm::check, onBack)
+        }
+
+        SettingsRoute.Advanced -> {
+            AdvancedScreen(
+                deps.advanced,
+                { LocalDate.now(clock.zone) },
+                { navigate(SettingsRoute.Log) },
+                { navigate(SettingsRoute.ThresholdReview) },
+                onBack,
+            )
+        }
+
+        SettingsRoute.Log -> {
+            LogScreen(deps.advanced, onBack)
         }
 
         SettingsRoute.SettingsFrom -> {

@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Sukrara — https://github.com/mauriciabad/sukrara
+     Copyright (C) 2026 Maurici Abad
+     SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- Custom icon: a very low alert: the reading below two threshold lines. Drawn on the Material Symbols grid (960 units = 24 dp, 80-unit strokes = weight
+     400, round caps), so it sits with the Material Symbols rows; tinted by Compose Icon. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="24dp" android:height="24dp"
+    android:viewportWidth="960" android:viewportHeight="960" android:autoMirrored="false">
+    <path android:pathData="M160,200 L800,200" android:strokeColor="@android:color/white" android:strokeWidth="80" android:strokeLineCap="round" android:strokeLineJoin="round"/>
+    <path android:pathData="M160,360 L800,360" android:strokeColor="@android:color/white" android:strokeWidth="80" android:strokeLineCap="round" android:strokeLineJoin="round"/>
+    <path android:fillColor="@android:color/white" android:pathData="M360,660 a120,120 0 1,0 240,0 a120,120 0 1,0 -240,0 Z"/>
+</vector>

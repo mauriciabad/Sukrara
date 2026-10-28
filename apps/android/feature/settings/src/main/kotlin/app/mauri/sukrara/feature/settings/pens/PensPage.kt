@@ -46,6 +46,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import app.mauri.sukrara.core.designsystem.R as DsR
 
 /** One rule of *Automatic detection*: its setting, number format and row title / summary. */
 private data class Rule(
@@ -182,12 +183,15 @@ fun PensContent(
         // Android blocks the taps (reading Ask or On): every tap does nothing until allowed
         if (ui.reading != "off" && ui.taps.blocked) TapsBlockedCard(vm::allowTaps)
         SettingsGroup {
-            ValueRow(stringResource(R.string.st_pens_reading), readingLabels.getValue(ui.reading), { choosing = true })
+            ValueRow(stringResource(R.string.st_pens_reading), readingLabels.getValue(ui.reading), {
+                choosing = true
+            }, icon = DsR.drawable.ds_ic_dia_pen)
             if (ui.reading != "off" && ui.taps.nfcOff) {
                 NavigationRow(
                     stringResource(R.string.st_pens_nfc_off),
                     vm::openNfc,
                     summary = stringResource(R.string.st_pens_nfc_off_summary),
+                    icon = DsR.drawable.ds_ic_nfc_off,
                 )
             }
             if (ui.notify && ui.taps.notifyBlocked) {
@@ -198,6 +202,7 @@ fun PensContent(
                     vm::setNotify,
                     vm::openNotify,
                     summary = stringResource(R.string.st_pens_notify_blocked),
+                    icon = DsR.drawable.ds_ic_notifications,
                 )
             } else {
                 SwitchRow(
@@ -205,21 +210,34 @@ fun PensContent(
                     ui.notify,
                     vm::setNotify,
                     summary = stringResource(R.string.st_pens_notify_summary),
+                    icon = DsR.drawable.ds_ic_notifications,
                 )
             }
         }
         FooterText(stringResource(R.string.st_pens_reading_footer))
         SettingsGroup(title = stringResource(R.string.st_pens_yours)) {
-            if (ui.pens.isEmpty()) InfoRow(stringResource(R.string.st_pens_none), summary = stringResource(R.string.st_pens_none_summary))
-            for (p in ui.pens) NavigationRow(p.name, { openPen(p.serial) }, summary = penSummary(p))
+            if (ui.pens.isEmpty()) {
+                InfoRow(
+                    stringResource(R.string.st_pens_none),
+                    summary = stringResource(R.string.st_pens_none_summary),
+                    icon = DsR.drawable.ds_ic_dia_pen,
+                )
+            }
+            for (p in ui.pens) NavigationRow(p.name, { openPen(p.serial) }, summary = penSummary(p), icon = DsR.drawable.ds_ic_dia_pen)
         }
         SettingsGroup(title = stringResource(R.string.st_pens_detection)) {
-            Rules.forEachIndexed { i, r -> ValueRow(stringResource(r.title), label(r.spec, ui.rules[i]), { editing = i }) }
+            Rules.forEachIndexed {
+                i,
+                r,
+                ->
+                ValueRow(stringResource(r.title), label(r.spec, ui.rules[i]), { editing = i }, icon = DsR.drawable.ds_ic_tune)
+            }
             ValueRow(
                 stringResource(R.string.st_pens_reset),
                 stringResource(R.string.st_pens_reset_summary),
                 { resetting = true },
                 enabled = Rules.indices.any { ui.rules[it] != Rules[it].spec.default },
+                icon = DsR.drawable.ds_ic_restart_alt,
             )
         }
         FooterText(stringResource(R.string.st_pens_detection_footer))
