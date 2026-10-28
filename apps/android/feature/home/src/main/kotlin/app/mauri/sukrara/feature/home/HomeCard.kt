@@ -367,11 +367,16 @@ private fun panelMotion(
     var from by remember { mutableStateOf<String?>(null) }
     var shown by remember { mutableStateOf(number) }
     var up by remember { mutableStateOf(true) }
+    // the mg/dL behind the shown text (LO / HI are 39 / 401): LO → 45 rolls up
+    var shownMgdl by remember { mutableStateOf(glucose.latest?.mgdl) }
     LaunchedEffect(number, reduced) {
         val last = shown
+        val lastMgdl = shownMgdl
+        val newMgdl = glucose.latest?.mgdl
         shown = number
+        shownMgdl = newMgdl
         if (!reduced && number != null && last != null && number != last) {
-            up = glucose.latest?.mgdl?.let { new -> (last.toIntOrNull() ?: new) < new } ?: true
+            up = lastMgdl == null || newMgdl == null || lastMgdl < newMgdl
             from = last
             roll.snapTo(0f)
             roll.animateTo(1f, Motion.defaultSpatial())
