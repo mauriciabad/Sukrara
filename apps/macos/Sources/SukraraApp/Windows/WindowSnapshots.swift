@@ -172,7 +172,15 @@
                             model: general, loginItem: nil, updateResult: nil, checkForUpdates: {}, openFollow: {}
                         ).frame(width: 600, height: 860))
                 ))
-            out.append(("treatment-add", AnyView(AddTreatmentView(focusCarbs: true, save: { _ in }, cancel: {}))))
+            out.append(
+                (
+                    "treatment-add",
+                    AnyView(
+                        AddTreatmentView(
+                            focus: .carbs,
+                            quiet: { _, carbs, _ in carbs ? L10n.t("Lows quiet for \(Durations.text(15))") : nil },
+                            save: { _ in }, cancel: {}))
+                ))
             let t0 = Int64(Date().timeIntervalSince1970)
             let rows: [TreatmentsModel.Row] = [
                 .init(treatment: Treatment(id: "1", k: .rapid, a: 4.5, t: t0 - 600, u: 1, o: .mac), delivery: .sending),

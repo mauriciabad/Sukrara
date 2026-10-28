@@ -3,7 +3,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 import AppKit
 import SukraraAlerts
+import SukraraCore
 import SukraraGraph
+import SukraraShare
 import SwiftUI
 
 /// The dropdown under the status item. Every state it shows has its way out right here: not monitoring → why (and
@@ -41,7 +43,7 @@ struct PanelView: View {
                 if model.focusCanHoldAlerts { focusNote }
                 if let alerts = model.alerts { AlertBlocks(alerts: alerts, now: context.date) }
                 if let updates = model.updates { UpdateRow(updates: updates) }
-                if let links { ActionRows(links: links) }
+                if let links { ActionRows(links: links, add: AddTreatmentAvailability(link: model.link)) }
             }
             .padding(14)
             .frame(width: Self.cardSize.width + 28, alignment: .leading)
@@ -57,7 +59,63 @@ struct PanelView: View {
             Image(decorative: image, scale: 2)
                 .accessibilityElement()
                 .accessibilityLabel(
-                    GlucoseCard.accessibilityLabel(data, unit: model.unit, surface: .menubarCard, config: model.graph))
+                    GlucoseCard.accessibilityLabel(data, unit: model.unit, surface: .menubarCard, config: model.graph)
+                )
+                .overlay(alignment: .topLeading) { pill(data) }
+        }
+    }
+
+    /// The card's pill as a control over the spot the renderer drew it: Eat carbs / Take insulin opens Add Treatment
+    /// with that field focused, a mute pill opens its ways out (the same as the blocks below).
+    @ViewBuilder private func pill(_ data: CardData) -> some View {
+        let canAdd = AddTreatmentAvailability(link: model.link) == .available && links != nil
+        let action = PillAction.of(data.alerts.status, canAdd: canAdd)
+        if action != .none,
+            let rect = GlucoseCard.pillRect(
+                surface: .menubarCard, size: Self.cardSize, config: model.graph, data: data, unit: model.unit)
+        {
+            let spot = Color.clear.contentShape(Capsule()).frame(width: rect.width, height: rect.height)
+            Group {
+                switch action {
+                case .treat(let kind):
+                    Button {
+                        links?.openAddTreatment(kind)
+                    } label: {
+                        spot
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(kind == .carbs ? L10n.t("Eat carbs") : L10n.t("Take insulin"))
+                    .accessibilityHint(L10n.t("Add Treatment"))
+                case .quiet(let side):
+                    if let alerts = model.alerts {
+                        Menu {
+                            QuietMenu(alerts: alerts, side: side, now: Date())
+                        } label: {
+                            spot
+                        }
+                        .menuStyle(.button)
+                        .buttonStyle(.plain)
+                        .menuIndicator(.hidden)
+                        .accessibilityLabel(L10n.t("Show Alert Options"))
+                    }
+                case .muteAll:
+                    if let alerts = model.alerts {
+                        Menu {
+                            Button(L10n.t("Unmute")) { alerts.perform(.unmuteAll) }
+                            MuteAllLengths(alerts: alerts, now: Date(), custom: .constant(false), offerCustom: false)
+                        } label: {
+                            spot
+                        }
+                        .menuStyle(.button)
+                        .buttonStyle(.plain)
+                        .menuIndicator(.hidden)
+                        .accessibilityLabel(L10n.t("Show Alert Options"))
+                    }
+                case .none: EmptyView()
+                }
+            }
+            .help(L10n.t("Show what you can do"))
+            .offset(x: rect.minX, y: rect.minY)
         }
     }
 
@@ -105,29 +163,67 @@ struct PanelLinks {
     let treatments: TreatmentsModel
     let openSetup: () -> Void
     let openFollow: () -> Void
-    let openAddTreatment: () -> Void
+    /// Add Treatment with a field focused (nil: the one the latest reading suggests).
+    let openAddTreatment: (Treatment.Kind?) -> Void
     let openTreatments: () -> Void
     let openReport: () -> Void
     let openSettings: () -> Void
 }
 
-/// Whether the panel's Add Treatment… can open, and why not in words (on the row, its tooltip and VoiceOver hint).
+/// Whether the panel's Add Treatment… can open, and why not in words (on the row, its tooltip and VoiceOver hint):
+/// each follow state names what would change it.
 enum AddTreatmentAvailability: Equatable {
     case available
     /// Following nobody: there's no wearer to log for.
     case notFollowing
-    /// Following, but the wearer hasn't allowed this Mac to add entries.
-    case notAllowed
+    /// Access asked, the wearer hasn't allowed this Mac yet.
+    case waiting(wearer: String?)
+    /// Following, but the wearer hasn't turned on "Can add entries" for this Mac.
+    case notWriter(wearer: String?)
+    /// The wearer stopped sharing with this Mac.
+    case revoked
+    /// The link is over (declined, invite used elsewhere, broken): a new invite is needed.
+    case ended
 
-    init(isFollowing: Bool, canWrite: Bool) {
-        self = !isFollowing ? .notFollowing : canWrite ? .available : .notAllowed
+    init(link: LinkState) {
+        switch link {
+        case .following(let wearer, let canWrite): self = canWrite ? .available : .notWriter(wearer: wearer)
+        case .requested(_, let wearer, _): self = .waiting(wearer: wearer)
+        case .joining: self = .waiting(wearer: nil)
+        case .revoked: self = .revoked
+        case .declined, .inviteUsed, .broken: self = .ended
+        case .notFollowing: self = .notFollowing
+        }
     }
 
     var reason: String? {
         switch self {
         case .available: nil
         case .notFollowing: L10n.t("Follow someone to add treatments.")
-        case .notAllowed: L10n.t("Can't add treatments (the wearer decides)")
+        case .waiting(let w?): L10n.t("Waiting for \(w) to approve this Mac")
+        case .waiting(nil): L10n.t("Waiting for the wearer to approve this Mac")
+        case .notWriter(let w?): L10n.t("\(w) hasn't turned on “Can add entries” for this Mac")
+        case .notWriter(nil): L10n.t("The wearer hasn't turned on “Can add entries” for this Mac")
+        case .revoked: L10n.t("The wearer stopped sharing with this Mac")
+        case .ended: L10n.t("Not following anyone: ask for a new invite")
+        }
+    }
+}
+
+/// What pressing the card's pill does: Eat carbs / Take insulin → Add Treatment with that field focused (where this
+/// Mac may log); a side's mute → its ways out; Mute all's → Unmute / Change Time.
+enum PillAction: Equatable {
+    case treat(Treatment.Kind)
+    case quiet(AlertSide)
+    case muteAll
+    case none
+
+    static func of(_ status: AlertStatus, canAdd: Bool) -> PillAction {
+        switch status {
+        case .none: .none
+        case .needed(let side): canAdd ? .treat(side == .low ? .carbs : .rapid) : .none
+        case .taken(let side, _, _), .paused(let side, _): .quiet(side == .low ? .low : .high)
+        case .muted: .muteAll
         }
     }
 }
@@ -135,13 +231,14 @@ enum AddTreatmentAvailability: Equatable {
 /// The panel's menu-like rows: Add Treatment… (the default button: Return), Treatments…, Settings… ⌘,.
 private struct ActionRows: View {
     let links: PanelLinks
+    let add: AddTreatmentAvailability
 
     var body: some View {
-        let add = AddTreatmentAvailability(
-            isFollowing: links.treatments.isFollowing, canWrite: links.treatments.canWrite)
         VStack(alignment: .leading, spacing: 2) {
             Divider().padding(.bottom, 4)
-            Button(action: links.openAddTreatment) {
+            Button {
+                links.openAddTreatment(nil)
+            } label: {
                 PanelRowLabel(
                     title: L10n.t("Add Treatment…"), symbol: "plus.circle", shortcut: add == .available ? "↩" : nil)
             }
@@ -234,10 +331,13 @@ private struct SetupRows: View {
     }
 }
 
-/// Mute all and each side's quiet, with countdowns (`MuteCopy`) and their exits.
+/// Mute all and each side's quiet, with countdowns (`MuteCopy`) and their exits: Unmute (a side's Mute) or Alert Me
+/// Anyway (a treatment or falling-back quiet), Remind as Usual / Remind Less, and the lengths to change or start a
+/// mute; Mute all: Unmute and Change Time, or Mute All Alerts with a typed Custom… length.
 private struct AlertBlocks: View {
     let alerts: AlertController
     let now: Date
+    @State private var custom = false
 
     var body: some View {
         let ui = alerts.ui
@@ -246,35 +346,136 @@ private struct AlertBlocks: View {
                 Label(line, systemImage: "bell.slash.fill")
                 Spacer()
                 Button(L10n.t("Unmute")) { alerts.perform(.unmuteAll) }
+                    .accessibilityLabel(L10n.t("Alerts: Unmute"))
+                Menu(L10n.t("Change Time")) {
+                    MuteAllLengths(alerts: alerts, now: now, custom: $custom, offerCustom: true)
+                }
+                .fixedSize()
+                .accessibilityLabel(L10n.t("Alerts: Change time"))
             }
         }
         ForEach(ui.quiets, id: \.kind) { q in
-            if let reason = q.quiet, let line = MuteCopy.line(reason, side: q.side, now: now) {
-                HStack {
-                    Text(line)
-                    Spacer()
-                    if case .sideMuted = reason { Button(L10n.t("Unmute")) { alerts.perform(.unmute(q.side)) } }
+            VStack(alignment: .leading, spacing: 4) {
+                if let reason = q.quiet, let line = MuteCopy.line(reason, side: q.side, now: now) {
+                    Label(line, systemImage: "bell.slash")
                 }
-            }
-            if q.relaxMin > 0 {
-                HStack {
-                    Text(MuteCopy.sideLess(q.side, intervalMin: q.relaxMin))
-                    Spacer()
-                    Button(L10n.t("Remind as Usual")) { alerts.perform(.remindAsUsual(q.side)) }
+                if q.relaxMin > 0 {
+                    Label(MuteCopy.sideLess(q.side, intervalMin: q.relaxMin), systemImage: "bell.badge.waveform")
                 }
+                HStack {
+                    QuietMenu(alerts: alerts, side: q.side, now: now)
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
             }
         }
         if ui.muteAllUntil == nil {
             Menu(L10n.t("Mute All Alerts")) {
-                ForEach(AlertLimits.muteAllPresets, id: \.self) { minutes in
-                    Button(MuteCopy.choice(minutes)) {
-                        alerts.perform(.muteAll(until: now.addingTimeInterval(TimeInterval(minutes * 60))))
-                    }
-                }
-                Button(MuteCopy.menuForever) { alerts.perform(.muteAll(until: muteAllForever)) }
+                MuteAllLengths(alerts: alerts, now: now, custom: $custom, offerCustom: true)
             }
             .fixedSize()
         }
+        if custom { CustomMuteAll(alerts: alerts, done: { custom = false }) }
+    }
+}
+
+/// A side's ways out, as buttons (the panel) or menu items (the pill's menu): Unmute / Alert Me Anyway, Remind as
+/// Usual / Remind Less, and Change Time / Mute with the mute lengths.
+struct QuietMenu: View {
+    let alerts: AlertController
+    let side: AlertSide
+    let now: Date
+
+    var body: some View {
+        let q = alerts.ui.quiets.first { $0.side == side }
+        let sideMuted: Bool = {
+            if case .sideMuted = q?.quiet { return true }
+            return false
+        }()
+        if let q, let quiet = q.quiet, MuteCopy.line(quiet, side: side, now: now) != nil {
+            if sideMuted {
+                Button(L10n.t("Unmute")) { alerts.perform(.unmute(side)) }
+            } else if case .allMuted = quiet {
+                EmptyView()
+            } else {
+                // a treatment or falling back keeps it quiet: the engine lifts that cover for this episode
+                Button(L10n.t("Alert Me Anyway")) { alerts.perform(.unmute(side)) }
+            }
+        }
+        if let q, q.relaxMin > 0 {
+            Button(L10n.t("Remind as Usual")) { alerts.perform(.remindAsUsual(side)) }
+        } else if q?.canRelax == true {
+            Button(L10n.t("Remind Less")) { alerts.perform(.remindLess(side)) }
+        }
+        Menu(sideMuted ? L10n.t("Change Time") : L10n.t("Mute")) {
+            ForEach(AlertLimits.mutePresets, id: \.self) { minutes in
+                Button(MuteCopy.choice(minutes)) { alerts.perform(.mute(side, minutes: minutes)) }
+            }
+        }
+        .accessibilityLabel(
+            sideMuted
+                ? L10n.t("\(MuteCopy.sideName(side)) alerts: Change time")
+                : L10n.t("\(MuteCopy.sideName(side)) alerts: Mute"))
+    }
+}
+
+/// Mute all's lengths: For 30 min … For 8 h, Until You Turn It Off, and Custom… (a typed length).
+struct MuteAllLengths: View {
+    let alerts: AlertController
+    let now: Date
+    @Binding var custom: Bool
+    let offerCustom: Bool
+
+    var body: some View {
+        ForEach(AlertLimits.muteAllPresets.filter { $0 > 0 }, id: \.self) { minutes in
+            Button(MuteCopy.choice(minutes)) {
+                alerts.perform(.muteAll(until: now.addingTimeInterval(TimeInterval(minutes * 60))))
+            }
+        }
+        Button(MuteCopy.menuForever) { alerts.perform(.muteAll(until: muteAllForever)) }
+        if offerCustom {
+            Divider()
+            Button(L10n.t("Custom…")) { custom = true }
+        }
+    }
+}
+
+/// Mute all for a typed length ("2 h 30 min", "90"), within the schema's range; Escape or Cancel closes it.
+private struct CustomMuteAll: View {
+    let alerts: AlertController
+    let done: () -> Void
+    @State private var text = ""
+    @State private var invalid = false
+    @FocusState private var focused: Bool
+
+    private var range: ClosedRange<Int> { Int(SettingsSpec.muteAll.min)...Int(SettingsSpec.muteAll.max) }
+    private var note: String {
+        L10n.t("Enter \(Durations.text(range.lowerBound))–\(Durations.text(range.upperBound)), e.g. 1 h 30 min")
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack {
+                TextField(L10n.t("Mute alerts for"), text: $text, prompt: Text(verbatim: "2 h 30 min"))
+                    .textFieldStyle(.roundedBorder)
+                    .focused($focused)
+                    .onSubmit(commit)
+                    .accessibilityHint(note)
+                Button(L10n.t("Mute"), action: commit).disabled(text.isEmpty)
+                Button(L10n.t("Cancel"), action: done).keyboardShortcut(.cancelAction)
+            }
+            Text(note).font(.caption).foregroundStyle(invalid ? Color.red : Color.secondary)
+        }
+        .onAppear { focused = true }
+    }
+
+    private func commit() {
+        guard let m = Durations.parse(text), range.contains(m) else {
+            invalid = true
+            return
+        }
+        alerts.perform(.muteAll(until: Date().addingTimeInterval(TimeInterval(m * 60))))
+        done()
     }
 }
 

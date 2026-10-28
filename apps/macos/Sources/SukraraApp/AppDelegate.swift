@@ -52,7 +52,7 @@ public final class AppDelegate: NSObject, NSApplicationDelegate {
             setup: windows.setup, treatments: windows.treatments,
             openSetup: { [weak self] in self?.fromPanel { $0.openSetup() } },
             openFollow: { [weak self] in self?.fromPanel { $0.openFollow() } },
-            openAddTreatment: { [weak self] in self?.fromPanel { $0.openAddTreatment() } },
+            openAddTreatment: { [weak self] focus in self?.fromPanel { $0.openAddTreatment(focus: focus) } },
             openTreatments: { [weak self] in self?.fromPanel { $0.openTreatments() } },
             openReport: { [weak self] in self?.fromPanel { $0.openReport() } },
             openSettings: { [weak self] in self?.fromPanel { $0.openSettings() } })

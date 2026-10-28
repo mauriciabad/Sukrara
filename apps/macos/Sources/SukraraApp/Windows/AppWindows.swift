@@ -32,6 +32,13 @@ public final class AppWindows: NSObject, NSWindowDelegate {
 
     public func close(_ kind: Kind) { windows[kind]?.close() }
 
+    /// Puts `kind`'s window at the top right of the screen with the menu bar, under it, where the status item is.
+    public func placeNearMenuBar(_ kind: Kind) {
+        guard let w = windows[kind], let screen = NSScreen.screens.first else { return }
+        let area = screen.visibleFrame
+        w.setFrameTopLeftPoint(NSPoint(x: area.maxX - w.frame.width - 12, y: area.maxY - 6))
+    }
+
     public func windowWillClose(_ notification: Notification) {
         guard let w = notification.object as? NSWindow, let kind = windows.first(where: { $0.value === w })?.key else {
             return

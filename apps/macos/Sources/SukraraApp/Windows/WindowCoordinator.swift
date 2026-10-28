@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 import AppKit
 import SukraraCore
+import SukraraGraph
 import SukraraShare
 import SwiftUI
 
@@ -91,11 +92,21 @@ final class WindowCoordinator {
         windows.show(.report, title: L10n.t("Glucose Report")) { ReportView(model: report) }
     }
 
-    /// Add treatment; while low the Carbs field has the focus.
-    func openAddTreatment() {
+    /// Add treatment, placed under the menu bar: the Carbs field has the focus while the latest reading is below
+    /// the range (or a low alert is up), else Rapid; the card's pill names the field itself (`focus`).
+    func openAddTreatment(focus: Treatment.Kind? = nil) {
+        let low =
+            model.isLow
+            || (model.look.state == .value && GlucoseCard.rangeSide(model.cardData, config: model.graph) == .below)
+        let field = focus ?? (low ? .carbs : .rapid)
         windows.show(.addTreatment, title: L10n.t("Add Treatment")) {
             AddTreatmentView(
-                focusCarbs: model.isLow,
+                focus: field,
+                quiet: { [weak model] rapid, carbs, at in
+                    TreatmentQuietNote.of(
+                        rapid: rapid, carbs: carbs, at: at, now: Int64(Date().timeIntervalSince1970),
+                        settings: model?.alerts?.settings, mirroring: model?.alerts?.mirroring ?? false)
+                },
                 save: { [weak self] entries in
                     guard let self else { return }
                     Task { await self.treatments.add(entries) }
@@ -103,6 +114,7 @@ final class WindowCoordinator {
                 },
                 cancel: { [weak self] in self?.windows.close(.addTreatment) })
         }
+        windows.placeNearMenuBar(.addTreatment)
     }
 
     /// Opens the menu bar panel (set by `AppDelegate`; `sukrara://open`).
