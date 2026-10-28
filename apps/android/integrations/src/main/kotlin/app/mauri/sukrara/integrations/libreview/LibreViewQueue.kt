@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.integrations.libreview
 
+import app.mauri.sukrara.core.model.Treatment
 import app.mauri.sukrara.core.model.TreatmentOrigin
 import app.mauri.sukrara.core.model.storage.TreatmentRecord
 import app.mauri.sukrara.integrations.upload.SentRanges
@@ -55,6 +56,9 @@ data class LvState(
     val lastCount: Int = 0,
     val lastError: String? = null,
 )
+
+/** Where an entry stands with LibreView ([LibreViewQueue.mark]). */
+enum class LvMark { Uploaded, Updating, Pending }
 
 /** Pure planning of one LibreView upload: `stores − state`. */
 object LibreViewQueue {
@@ -112,6 +116,27 @@ object LibreViewQueue {
                 }
             }.toList()
 
+    /**
+     * Where entry [t] stands with LibreView, by the rules of [entries]: the version it has, an older version (being
+     * corrected), or a new entry it will get ([from] = entries go up when changed after it, epoch s; 0 = entries are
+     * off). Null = LibreView has nothing of it and never will (changed before [from], or older than [WINDOW_S]).
+     */
+    fun mark(
+        t: Treatment,
+        ledger: Map<String, LvSent>,
+        from: Long,
+        nowS: Long,
+    ): LvMark? {
+        if (t.deleted) return null
+        val has = ledger[t.id]?.v?.takeIf { it != 0L }
+        return when {
+            has == t.modifiedAt.toEpochMilli() -> LvMark.Uploaded
+            has != null -> LvMark.Updating
+            from > 0 && t.at.epochSecond >= nowS - WINDOW_S && t.modifiedAt.epochSecond >= from -> LvMark.Pending
+            else -> null
+        }
+    }
+
     /** The ledger after LibreView accepted [sent], trimmed to the window. */
     fun sent(
         ledger: Map<String, LvSent>,
@@ -123,7 +148,9 @@ object LibreViewQueue {
                 sent.groupBy { it.id }.mapValues { (_, es) ->
                     // a kind change sends a retraction (old kind) and the new version: remember the new one
                     val e = es.firstOrNull { !it.del } ?: es.first()
-                    LvSent(e.u, e.t, e.k)
+                    // a retracted entry has no live record: an Undo goes up as new, never retracting a record that
+                    // never existed (v = 0 = nothing live; it stays in the ledger so it is still followed)
+                    LvSent(if (e.del) 0L else e.u, e.t, e.k)
                 }
         ).filterValues { it.t >= nowS - LEDGER_S }
 

@@ -33,6 +33,7 @@ import app.mauri.sukrara.integrations.upload.UploadStatus
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import okhttp3.OkHttpClient
 
@@ -109,6 +110,13 @@ class IntegrationsModule(
         combine(nightscout.page, xdrip.on, libreView.page) { ns, x, lv ->
             AppsSummary(ns.status != UploadStatus.Off, x, lv.status != UploadStatus.Off && lv.status != UploadStatus.Setup)
         }
+
+    /**
+     * Whether the wearer's data goes to their clinic (LibreView signed in and on), for the *Share your data with your
+     * clinic* banner; null on a follower's phone (it never shows there).
+     */
+    val clinicUploadSet: Flow<Boolean?> =
+        combine(wearer, libreView.page) { w, lv -> if (w) lv.settings.on && lv.signedIn else null }.distinctUntilChanged()
 
     suspend fun load() {
         nightscout.load()

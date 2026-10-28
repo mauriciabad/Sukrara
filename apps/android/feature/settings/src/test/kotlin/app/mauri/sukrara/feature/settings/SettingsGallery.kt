@@ -121,6 +121,9 @@ class SettingsGallery {
                         OverviewActions(),
                     ) {}
                 },
+            "overview-clinic" to {
+                SettingsOverviewContent(true, AlertUiState(), AlertReadiness.Ready, clock, OverviewActions(), clinicBanner = true) {}
+            },
             "overview-muted" to { SettingsOverviewContent(true, muted, AlertReadiness.Ready, clock, OverviewActions()) {} },
             "alerts" to { AlertsSettingsContent(AlertsUi(AlertSettings(), AlertUiState()), null, clock, AlertsActions()) {} },
             "alerts-muted-forever" to {

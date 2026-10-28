@@ -82,6 +82,7 @@ fun SettingsScreen(
     openSensor: () -> Unit,
     openSharing: () -> Unit,
     openApps: () -> Unit = {},
+    openClinicUpload: () -> Unit = {},
     onReviewFinish: (ThresholdReviewResult) -> Unit = { onBack() },
     /** The live card the Ranges and Graph pages show on top (the app's own panel; nothing in tests). */
     preview: @Composable () -> Unit = {},
@@ -93,6 +94,7 @@ fun SettingsScreen(
             val ui by vm.ui.collectAsStateWithLifecycle()
             val readiness by deps.readiness.readiness.collectAsStateWithLifecycle()
             val apps by deps.appsShared.collectAsStateWithLifecycle(emptySet())
+            val clinic by deps.clinicBanner.collectAsStateWithLifecycle(false)
             LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { deps.readiness.refresh() }
             SettingsOverviewContent(
                 ui?.settings?.on ?: true,
@@ -105,9 +107,12 @@ fun SettingsScreen(
                     openSharing = openSharing,
                     openApps = openApps,
                     unmuteAll = vm::unmuteAll,
+                    openClinicUpload = openClinicUpload,
+                    dismissClinicBanner = deps::dismissClinicBanner,
                     pens = deps.pensAvailable(),
                 ),
                 apps,
+                clinic,
                 onBack,
             )
         }

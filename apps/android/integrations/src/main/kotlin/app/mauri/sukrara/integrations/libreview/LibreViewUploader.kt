@@ -6,6 +6,7 @@ package app.mauri.sukrara.integrations.libreview
 import app.mauri.sukrara.core.data.settings.SchemaSettings
 import app.mauri.sukrara.core.model.Clock
 import app.mauri.sukrara.core.model.Role
+import app.mauri.sukrara.core.model.Treatment
 import app.mauri.sukrara.core.model.storage.SecretUnreadableException
 import app.mauri.sukrara.core.model.storage.SecureStore
 import app.mauri.sukrara.core.model.storage.SettingsRepository
@@ -63,6 +64,25 @@ data class LvPageState(
     val glucoseFrom: Instant?,
 )
 
+/**
+ * What LibreView has of the entries while the upload runs (the wearer, signed in, switch on), for home's list: [from] =
+ * new entries go up when changed after it (epoch s; 0 = the entries switch is off: no marks); [stopped] = nothing goes
+ * up until the person acts (sign in again, or LibreView refused the last upload).
+ */
+data class LvEntryMarks(
+    val ledger: Map<String, LvSent>,
+    val from: Long,
+    val stopped: Boolean,
+) {
+    fun mark(
+        t: Treatment,
+        now: Instant,
+    ): LvMark? = if (from == 0L) null else LibreViewQueue.mark(t, ledger, from, now.epochSecond)
+
+    /** Deleting [t] takes it out of LibreView on the next upload (it has a live version and the upload isn't stopped). */
+    fun removesOnDelete(t: Treatment): Boolean = !stopped && (ledger[t.id]?.v ?: 0L) != 0L
+}
+
 /** The result of the page's sign-in. */
 sealed interface LvSignIn {
     data object Done : LvSignIn
@@ -112,6 +132,16 @@ class LibreViewUploader(
         combine(settingsFlow, signedIn, store.data, role) { s, signed, st, r ->
             LvPageState(s, signed, st.email, status(s, signed, st, r), st.glucoseFrom.takeIf { it > 0 }?.let(Instant::ofEpochSecond))
         }
+
+    /** What LibreView has of the entries while the upload runs (home's cloud marks); null while it's off. */
+    val entryMarks: Flow<LvEntryMarks?> =
+        combine(settingsFlow, signedIn, store.data, role) { s, signed, st, r ->
+            if (s.on && signed && r == Role.Wearer) {
+                LvEntryMarks(st.ledger, if (s.treatments) st.entriesFrom else 0L, st.authFailed || st.refused)
+            } else {
+                null
+            }
+        }.distinctUntilChanged()
 
     /** Reads whether a token is saved; call once from the app's load step. */
     suspend fun load() {

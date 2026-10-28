@@ -12,6 +12,7 @@ import app.mauri.sukrara.core.model.SensorState
 import app.mauri.sukrara.core.model.SystemAccessPort
 import app.mauri.sukrara.core.model.storage.SettingsRepository
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flowOf
 import okhttp3.OkHttpClient
 import java.time.Instant
 
@@ -35,6 +36,8 @@ class SettingsModule(
     systemAccess: SystemAccessPort,
     alertPlayback: AlertPlayback,
     pensAvailable: () -> Boolean = { false },
+    clinicBanner: Flow<Boolean> = flowOf(false),
+    dismissClinicBanner: () -> Unit = {},
 ) {
     val deps: SettingsDeps =
         object : SettingsDeps {
@@ -52,7 +55,11 @@ class SettingsModule(
             override val systemAccess = systemAccess
             override val alertPlayback = alertPlayback
 
+            override val clinicBanner = clinicBanner
+
             override fun pensAvailable() = pensAvailable()
+
+            override fun dismissClinicBanner() = dismissClinicBanner()
         }
 
     /** When the alert thresholds were confirmed (null = never): home's Finish-setup card asks until they are. */

@@ -357,6 +357,7 @@ fun SukraraNavigation(
                             // Settings › Sharing: share / QR, followers, requests (no identity yet: its Set up opens setup)
                             openSharing = { backStack.push(SharingRoute) },
                             openApps = { backStack.push(AppsRoute) },
+                            openClinicUpload = { backStack.push(LibreViewRoute) },
                             // the Ranges and Graph pages show home's own panel, redrawn as each setting changes
                             preview = { PanelPreview(viewModel(factory = HomeViewModel.factory(graph.home))) },
                         )
@@ -501,9 +502,9 @@ private fun route(
             backStack.push(ShareRoute)
         }
 
-        // its banner stays hidden until the integrations provide the input and the route
+        // LibreView is the clinic upload this app has
         HomeAction.OpenClinicUpload -> {
-            Unit
+            backStack.push(LibreViewRoute)
         }
     }
 }

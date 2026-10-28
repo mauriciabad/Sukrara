@@ -407,4 +407,7 @@
     <string name="st_pens_reset_confirm">Reset</string>
     <string name="st_pens_detection_footer">Doses under the priming size before a bigger one are priming. Doses this close are one injection. Small doses alone wait this long for an injection before Sukrara asks. A dose you typed this close to a pen dose, and about the same amount, is replaced by the pen\'s.</string>
     <string name="st_pens_supported">Sukrara reads NovoPen Echo Plus and NovoPen 6 (untested: not logged yet). Other NFC pens, and Bluetooth pens or caps like Tempo, InPen or Mallya, aren\'t supported.</string>
+    <string name="st_clinic_title">Share your data with your clinic</string>
+    <string name="st_clinic_text">Upload your readings and entries to LibreView so your care team sees them.</string>
+    <string name="st_clinic_action">Set up</string>
 </resources>

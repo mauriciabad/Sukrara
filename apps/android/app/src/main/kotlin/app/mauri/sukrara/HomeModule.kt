@@ -17,6 +17,7 @@ import app.mauri.sukrara.core.model.storage.TreatmentsRepository
 import app.mauri.sukrara.feature.home.DataProblem
 import app.mauri.sukrara.feature.home.HomeDeps
 import app.mauri.sukrara.feature.home.HomeProfile
+import app.mauri.sukrara.feature.home.UploadMarks
 import app.mauri.sukrara.feature.home.banners.BannerMemory
 import app.mauri.sukrara.feature.home.banners.HomeEnvironment
 import app.mauri.sukrara.feature.treatments.TreatmentLog
@@ -58,6 +59,10 @@ class HomeModule(
     private val treatmentLog: () -> TreatmentLog,
     /** The wearer's sharing state (profile row, "Not backed up"); a function: sharing is built on first use. */
     private val sharing: () -> Flow<OwnerShareState> = { emptyFlow() },
+    /** The wearer's clinic upload is set (null on a follower): the *Share your data with your clinic* banner. */
+    private val clinicUploadSet: () -> Flow<Boolean?> = { emptyFlow() },
+    /** What the clinic upload has of the entries (the list's cloud marks); a function: integrations start later. */
+    private val clinicMarks: () -> Flow<UploadMarks?> = { emptyFlow() },
 ) : HomeDeps {
     override val treatments: TreatmentsRepository get() = data.treatments
 
@@ -72,6 +77,7 @@ class HomeModule(
         scope.launch {
             sharing().collect { s -> env.update { it.copy(backedUp = (s as? OwnerShareState.Sharing)?.backedUp) } }
         }
+        scope.launch { clinicUploadSet().collect { set -> env.update { it.copy(clinicUploadSet = set) } } }
     }
 
     override val profile: Flow<HomeProfile?> by lazy {
@@ -87,6 +93,8 @@ class HomeModule(
             }
         }
     }
+
+    override val uploadMarks: Flow<UploadMarks?> by lazy { clinicMarks() }
 
     override val bannerMemory: StateStore<BannerMemory> by lazy {
         data.typedStore("home-banners", BannerMemory.serializer(), BannerMemory(), whenCorrupt = BannerMemory())

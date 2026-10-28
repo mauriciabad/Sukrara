@@ -76,8 +76,8 @@
     <string name="banner_widget_title">Añade el widget de glucosa</string>
     <string name="banner_widget_text">Mira tu glucosa en la pantalla de inicio sin abrir la app.</string>
     <string name="banner_widget_action">Añadir widget</string>
-    <string name="banner_clinic_title">Comparte con tu clínica</string>
-    <string name="banner_clinic_text">Sube las lecturas a LibreView o Tidepool para que tu equipo médico las vea.</string>
+    <string name="banner_clinic_title">Comparte tus datos con tu clínica</string>
+    <string name="banner_clinic_text">Sube tus lecturas y anotaciones a LibreView para que tu equipo médico las vea.</string>
     <string name="banner_clinic_action">Configurar</string>
 
     <string name="home_unmute">Reactivar</string>
@@ -95,6 +95,11 @@
     <string name="home_treatment_note">Nota</string>
     <string name="home_treatment_delete">Borrar %1$s de las %2$s</string>
     <string name="home_treatment_deleted">Tratamiento borrado</string>
+    <string name="home_treatment_deleted_clinic">Tratamiento borrado. También se quitará de LibreView.</string>
+    <string name="home_treatment_in_clinic">En LibreView</string>
+    <string name="home_treatment_not_in_clinic">Aún no está en LibreView</string>
+    <string name="home_treatment_clinic_updating">LibreView tiene una versión anterior: actualizando</string>
+    <string name="home_treatment_clinic_stopped">La subida a LibreView está parada: abre Ajustes › Compartir con apps › LibreView</string>
     <string name="home_undo">Deshacer</string>
 
     <string name="data_title">Datos dañados</string>

@@ -237,6 +237,42 @@ class LibreViewUploaderTest {
                     .first()
                     .ledger.keys,
             )
+
+            // Undo after the retraction went up: the entry goes up as new, never retracting a record LibreView never had
+            val vDel = clock.now().toEpochMilli()
+            clock.advance(Duration.ofMinutes(1))
+            treatments.upsertIfNewer(treatment("new", 5, amount = 3.0, modified = clock.now()))
+            uploader.cycle()
+            val undo = uploads().last()
+            assertFalse("\"action\":\"deleted\"" in undo)
+            assertFalse(LibreViewPayload.recordNumber("new", "rapid", vDel).toString() in undo)
+            assertTrue(LibreViewPayload.recordNumber("new", "rapid", clock.now().toEpochMilli()).toString() in undo)
+        }
+
+    @Test
+    fun `home's marks follow the ledger, and a stopped upload marks nothing as on its way`() =
+        runBlocking {
+            signedInAndOn()
+            treatments.upsertIfNewer(treatment("a", 5))
+            val a = treatments.get("a")!!.treatment
+            assertEquals(LvMark.Pending, uploader.entryMarks.first()!!.mark(a, clock.now()))
+            assertFalse(uploader.entryMarks.first()!!.removesOnDelete(a))
+            uploader.cycle()
+            val marks = uploader.entryMarks.first()!!
+            assertEquals(LvMark.Uploaded, marks.mark(a, clock.now()))
+            assertTrue(marks.removesOnDelete(a))
+            // edited: LibreView has the older version
+            assertEquals(LvMark.Updating, marks.mark(a.copy(amount = 4.0, modifiedAt = clock.now() + Duration.ofSeconds(5)), clock.now()))
+            // changed before the upload was switched on: never goes up, no mark
+            val old = treatment("old", 600, modified = clock.now() - Duration.ofDays(1)).treatment
+            assertEquals(null, marks.mark(old, clock.now()))
+
+            measurements = MockResponse().setBody("""{"status":20,"reason":"wrongDeviceInToken"}""")
+            treatments.upsertIfNewer(treatment("b", 5))
+            uploader.cycle()
+            val stopped = uploader.entryMarks.first()!!
+            assertTrue(stopped.stopped)
+            assertFalse(stopped.removesOnDelete(a))
         }
 
     @Test

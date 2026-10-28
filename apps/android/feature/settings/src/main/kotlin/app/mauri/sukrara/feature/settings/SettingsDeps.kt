@@ -13,6 +13,7 @@ import app.mauri.sukrara.core.model.SensorState
 import app.mauri.sukrara.core.model.SystemAccessPort
 import app.mauri.sukrara.core.model.storage.SettingsRepository
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flowOf
 
 /**
  * What the settings pages need from the rest of the app (features never depend on `:app` or on each other). The app
@@ -53,6 +54,12 @@ interface SettingsDeps {
 
     /** Which outputs Share with apps has on (the overview row's summary). */
     val appsShared: Flow<Set<AppOutput>>
+
+    /** The wearer's data doesn't go to their clinic yet and the banner wasn't dismissed (the same memory as home's). */
+    val clinicBanner: Flow<Boolean> get() = flowOf(false)
+
+    /** *Share your data with your clinic*: Dismiss (on home too). */
+    fun dismissClinicBanner() {}
 
     /** An alert's sound preview and *Send a test alert* (the alert runtime's notifier); nothing in screenshots. */
     val alertPlayback: AlertPlayback get() = AlertPlayback.None
