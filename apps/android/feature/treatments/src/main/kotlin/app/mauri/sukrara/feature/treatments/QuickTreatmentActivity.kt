@@ -11,6 +11,7 @@ import android.content.IntentFilter
 import android.os.Bundle
 import android.os.PowerManager
 import android.os.SystemClock
+import android.view.HapticFeedbackConstants
 import android.view.accessibility.AccessibilityManager
 import android.widget.Toast
 import androidx.activity.ComponentActivity
@@ -24,19 +25,24 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameMillis
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.lifecycleScope
+import app.mauri.sukrara.designsystem.motion.LocalReducedMotion
 import app.mauri.sukrara.designsystem.theme.SukraraTheme
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 /**
@@ -53,6 +59,7 @@ class QuickTreatmentActivity : ComponentActivity() {
     private val keyguard by lazy { getSystemService(KeyguardManager::class.java) }
     private var countdown by mutableStateOf<LockCountdown?>(null)
     private var now by mutableLongStateOf(0L)
+    private var warnings by mutableIntStateOf(0)
     private var unlocking = false
     private var form = TreatmentFormState()
 
@@ -120,7 +127,7 @@ class QuickTreatmentActivity : ComponentActivity() {
                         onCancel = ::finish,
                         // over the lock screen Unlock takes Open Sukrara's place
                         onOpenApp = if (cd == null) ::openApp else null,
-                        lock = cd?.let { LockInfo(it.wholeSeconds(now), ::unlock) },
+                        lock = cd?.let { lockInfo(it) },
                         quiet = quiet,
                         // the card swallows taps so they don't reach the scrim
                         modifier = Modifier.pointerInput(Unit) { detectTapGestures { } },
@@ -172,17 +179,37 @@ class QuickTreatmentActivity : ComponentActivity() {
         finish()
     }
 
+    /**
+     * The countdown as the dialog shows it: the digits and TalkBack's 5 s steps recompose only when they change; the
+     * ring reads the time in its draw (every frame, stepped once a second with reduced motion).
+     */
+    @Composable
+    private fun lockInfo(cd: LockCountdown): LockInfo {
+        val seconds by remember(cd) { derivedStateOf { cd.wholeSeconds(now) } }
+        val spoken by remember(cd) { derivedStateOf { cd.spokenSeconds(now) } }
+        val reduced = LocalReducedMotion.current
+        return LockInfo(seconds, ::unlock, spoken, { cd.fraction(now, stepped = reduced) }, warnings)
+    }
+
     private suspend fun runCountdown(cd: LockCountdown) {
         cd.firstFrame(SystemClock.elapsedRealtime())
+        var warned = cd.warning(SystemClock.elapsedRealtime())
         while (countdown === cd && !cd.stopped) {
             now = SystemClock.elapsedRealtime()
+            if (!warned && cd.warning(now)) {
+                warned = true
+                // the last 5 s: the ring pulses once; one haptic tick only when something was typed (in a pocket, none)
+                warnings++
+                if (form.hasInput) window.decorView.performHapticFeedback(HapticFeedbackConstants.SEGMENT_TICK)
+            }
             if (cd.expired(now)) {
                 // nothing is saved; a toast only if something had been typed (no haptic: from a pocket it means nothing)
                 if (form.hasInput) Toast.makeText(this, R.string.treatment_lock_not_saved, Toast.LENGTH_SHORT).show()
                 finish()
                 return
             }
-            delay(TICK_MS)
+            // every frame: the ring empties smoothly (its draw reads [now]; the dialog recomposes only for the digits)
+            withFrameMillis { }
         }
     }
 
@@ -258,7 +285,6 @@ class QuickTreatmentActivity : ComponentActivity() {
     }
 
     private companion object {
-        const val TICK_MS = 250L
         const val KEY_LEFT = "lock_left_ms"
     }
 }

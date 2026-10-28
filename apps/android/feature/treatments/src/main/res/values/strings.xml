@@ -24,6 +24,11 @@
     <string name="treatment_unlock">Unlock</string>
     <string name="treatment_lock_closes">Closes unsaved in %1$d s</string>
     <string name="treatment_lock_not_saved">Not saved: the dialog closed on the lock screen</string>
+    <!-- The countdown on Cancel over the lock screen, for TalkBack (5 s steps); %1$d = seconds [CHAR LIMIT=40] -->
+    <plurals name="treatment_lock_closes_in">
+        <item quantity="one">Closes in %1$d second</item>
+        <item quantity="other">Closes in %1$d seconds</item>
+    </plurals>
     <plurals name="treatment_saved">
         <item quantity="one">%1$d entry saved</item>
         <item quantity="other">%1$d entries saved</item>

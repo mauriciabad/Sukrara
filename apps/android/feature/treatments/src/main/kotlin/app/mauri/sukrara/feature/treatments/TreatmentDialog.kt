@@ -3,12 +3,25 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.feature.treatments
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.shrinkHorizontally
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
@@ -17,6 +30,8 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -42,19 +57,26 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import app.mauri.sukrara.core.model.Durations
 import app.mauri.sukrara.designsystem.haptics.rememberHaptics
+import app.mauri.sukrara.designsystem.motion.LocalReducedMotion
 import app.mauri.sukrara.designsystem.motion.Reveal
 import app.mauri.sukrara.graph.CardWords
 import app.mauri.sukrara.graph.Clock
@@ -113,10 +135,17 @@ class TreatmentFormState(
 @Composable
 fun rememberTreatmentFormState(): TreatmentFormState = rememberSaveable(saver = TreatmentFormState.Saver) { TreatmentFormState() }
 
-/** Seconds left before the quick dialog closes over the lock screen, and the way to keep it open. */
+/**
+ * The quick dialog's countdown over the lock screen: [seconds] left (the ring's digits), [spokenSeconds] (TalkBack's
+ * calmer 5 s steps), the ring's [fraction] (1 = full), [warnings] (bumps once at the last 5 s: the ring pulses) and
+ * the way to keep it open.
+ */
 data class LockInfo(
     val seconds: Int,
     val onUnlock: () -> Unit,
+    val spokenSeconds: Int = seconds,
+    val fraction: () -> Float = { 1f },
+    val warnings: Int = 0,
 )
 
 /**
@@ -207,7 +236,7 @@ fun TreatmentDialogContent(
             if (lock != null) LockRow(lock)
             FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp, androidx.compose.ui.Alignment.End)) {
                 if (onOpenApp != null) TextButton(onClick = onOpenApp) { Text(stringResource(R.string.treatment_open_app)) }
-                TextButton(onClick = onCancel) { Text(stringResource(R.string.treatment_cancel)) }
+                CountdownCancel(lock, onCancel)
                 Button(onClick = save, enabled = form.canSave, modifier = Modifier.testTag("treatment-save")) {
                     Text(stringResource(R.string.treatment_save))
                 }
@@ -358,6 +387,99 @@ private fun LockRow(lock: LockInfo) {
             modifier = Modifier.weight(1f),
         )
         TextButton(onClick = lock.onUnlock) { Text(stringResource(R.string.treatment_unlock)) }
+    }
+}
+
+/**
+ * *Cancel*. Over the lock screen the countdown ring is its leading icon (it does what the timeout does: closes without
+ * saving) and TalkBack hears *Closes in N seconds* as its state; after an unlock the ring shrinks and fades away.
+ */
+@Composable
+private fun CountdownCancel(
+    lock: LockInfo?,
+    onCancel: () -> Unit,
+) {
+    val state = lock?.let { pluralStringResource(R.plurals.treatment_lock_closes_in, it.spokenSeconds, it.spokenSeconds) }
+    // keeps drawing the last countdown while the ring leaves after an unlock
+    var last by remember { mutableStateOf(lock) }
+    if (lock != null) last = lock
+    TextButton(
+        onClick = onCancel,
+        modifier =
+            Modifier.animateContentSize().semantics {
+                if (state != null) stateDescription = state
+            },
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            AnimatedVisibility(
+                lock != null,
+                enter = fadeIn(tween(0)),
+                exit = fadeOut(tween(200)) + scaleOut(tween(200)) + shrinkHorizontally(tween(200)),
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    last?.let { CountdownRing(it, stopped = lock == null) }
+                    Spacer(Modifier.width(ButtonDefaults.IconSpacing))
+                }
+            }
+            Text(stringResource(R.string.treatment_cancel))
+        }
+    }
+}
+
+/**
+ * The 24 dp ring with the seconds left inside: full at the start, emptying smoothly, primary on its track (red is for
+ * errors only). It fills in with the dialog (300 ms) and pulses once (1 → 1.2 → 1) at 5 s left. Reduced motion: it
+ * steps once a second (the activity's [LockInfo.fraction]), no fill-in, no pulse. The digits are hidden from TalkBack,
+ * which hears the 5 s steps on Cancel instead.
+ */
+@Composable
+private fun CountdownRing(
+    lock: LockInfo,
+    stopped: Boolean,
+) {
+    val reduced = LocalReducedMotion.current
+    val fill = remember { Animatable(if (reduced) 1f else 0f) }
+    LaunchedEffect(Unit) { if (!reduced) fill.animateTo(1f, tween(300)) }
+    val pulse = remember { Animatable(1f) }
+    LaunchedEffect(lock.warnings) {
+        if (lock.warnings > 0 && !reduced) {
+            pulse.animateTo(1.2f, spring(Spring.DampingRatioNoBouncy, Spring.StiffnessMedium))
+            pulse.animateTo(1f, spring(Spring.DampingRatioMediumBouncy, Spring.StiffnessMedium))
+        }
+    }
+    // a fixed size (dp, not sp): the number has to fit inside the ring; TalkBack and the ring carry the meaning
+    val digits = with(LocalDensity.current) { 10.dp.toSp() }
+    Box(
+        Modifier
+            .size(24.dp)
+            .graphicsLayer {
+                scaleX = pulse.value
+                scaleY = pulse.value
+            }.clearAndSetSemantics { },
+        contentAlignment = Alignment.Center,
+    ) {
+        CircularProgressIndicator(
+            progress = { (if (stopped) 1f else lock.fraction()) * fill.value },
+            modifier = Modifier.size(24.dp),
+            color = MaterialTheme.colorScheme.primary,
+            trackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.24f),
+            strokeWidth = 2.dp,
+            strokeCap = StrokeCap.Round,
+            gapSize = 0.dp,
+        )
+        // tabular figures so 10 → 9 doesn't jump sideways
+        Text(
+            "${lock.seconds}",
+            style =
+                MaterialTheme.typography.labelSmall.copy(
+                    fontSize = digits,
+                    lineHeight = digits,
+                    fontFeatureSettings = "tnum",
+                    fontWeight = FontWeight.Medium,
+                ),
+            color = MaterialTheme.colorScheme.primary,
+            maxLines = 1,
+        )
     }
 }
 
