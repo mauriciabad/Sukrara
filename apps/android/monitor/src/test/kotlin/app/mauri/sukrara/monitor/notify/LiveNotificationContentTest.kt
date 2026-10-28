@@ -153,11 +153,21 @@ class LiveNotificationContentTest {
     /** Same rate, same arrow: the title writes the fixture's arrow (contracts/graph/trend), the chip's icon draws it. */
     @Test
     fun `the title's arrow is the renderer's for every rate of the trend fixture`() {
-        val cases = Json.parseToJsonElement(Contracts.file("graph/trend/trend.json").readText()).jsonObject.getValue("cases").jsonArray
+        val cases =
+            Json
+                .parseToJsonElement(Contracts.file("graph/trend/trend.json").readText())
+                .jsonObject
+                .getValue("cases")
+                .jsonArray
         assertTrue(cases.isNotEmpty())
         cases.map { it.jsonObject }.forEach { c ->
             val rate = c.getValue("rate").jsonPrimitive.doubleOrNull
-            val want = c.getValue("expect").jsonObject.getValue("text").jsonPrimitive.content
+            val want =
+                c
+                    .getValue("expect")
+                    .jsonObject
+                    .getValue("text")
+                    .jsonPrimitive.content
             val name = c.getValue("name").jsonPrimitive.content
             val content = content(state(rate = rate))
             assertEquals(name, UiText(R.string.monitor_notif_value, listOf("138", want)), content.title)

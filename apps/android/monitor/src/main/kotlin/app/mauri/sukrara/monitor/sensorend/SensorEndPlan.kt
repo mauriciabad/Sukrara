@@ -31,22 +31,28 @@ object SensorEndPlan {
 
     /** [endsAt] null: no sensor end known (no sensor, or the source can't tell): nothing to show, no alarm. */
     fun decide(endsAt: Long?, now: Long, memory: SensorEndMemory, warnHours: Int = DEFAULT_WARN_HOURS): Decision {
-        if (endsAt == null) return Decision(warn = false, ended = false, clear = memory.endsAt != 0L, next = null, memory = SensorEndMemory())
-        val replaced = memory.endsAt != 0L && kotlin.math.abs(memory.endsAt - endsAt) > SAME_SENSOR_S
-        val m = if (memory.endsAt == 0L || replaced) {
-            SensorEndMemory(endsAt)
-        } else {
-            memory.copy(endsAt = endsAt)
+        if (endsAt ==
+            null
+        ) {
+            return Decision(warn = false, ended = false, clear = memory.endsAt != 0L, next = null, memory = SensorEndMemory())
         }
+        val replaced = memory.endsAt != 0L && kotlin.math.abs(memory.endsAt - endsAt) > SAME_SENSOR_S
+        val m =
+            if (memory.endsAt == 0L || replaced) {
+                SensorEndMemory(endsAt)
+            } else {
+                memory.copy(endsAt = endsAt)
+            }
         val warnAt = endsAt - warnHours * 3600L
         val ended = now >= endsAt
         val warn = !ended && now >= warnAt && !m.warned
         val showEnded = ended && !m.endedShown && now - endsAt <= ENDED_GRACE_S
-        val next = when {
-            !ended && now < warnAt -> warnAt
-            !ended -> endsAt
-            else -> null
-        }
+        val next =
+            when {
+                !ended && now < warnAt -> warnAt
+                !ended -> endsAt
+                else -> null
+            }
         return Decision(warn, showEnded, replaced, next, m.copy(warned = m.warned || warn || ended, endedShown = m.endedShown || ended))
     }
 }

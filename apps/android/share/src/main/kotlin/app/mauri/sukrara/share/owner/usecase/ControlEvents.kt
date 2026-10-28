@@ -63,7 +63,14 @@ internal object ControlEvents {
 
     /** The current read key to [follower] (30501 `key`, devices = this phone only). */
     fun deliverKey(ctx: OwnerContext, s: OwnerState, follower: String, now: Long): Step {
-        val rumor = Rumor.KeyDelivery(s.sid, s.current.n, ctx.crypto.nsec(s.readKey(ctx.crypto).secret), listOf(s.device(ctx.crypto).public.hex), s.relays)
+        val rumor =
+            Rumor.KeyDelivery(
+                s.sid,
+                s.current.n,
+                ctx.crypto.nsec(s.readKey(ctx.crypto).secret),
+                listOf(s.device(ctx.crypto).public.hex),
+                s.relays,
+            )
         val ev = ctx.events.gift(s.identity(ctx.crypto), PublicKeyHex(follower), rumor, now, now + Wire.TTL_KEY_DELIVERY)
         return pending(s, "key:$follower", ev, follower)
     }
@@ -81,15 +88,16 @@ internal object ControlEvents {
 
     fun profile(s: OwnerState): Profile? = s.profileJson?.let { Profile.of(Json.parseToJsonElement(it)) }
 
-    fun backupPayload(crypto: NostrCrypto, s: OwnerState) = BackupPayload(
-        sid = s.sid,
-        epochs = s.epochs.sortedBy { it.n }.map { BackupEpoch(it.n, crypto.nsec(SecretKey.ofHex(it.secretHex)!!)) },
-        followers = s.followers.map { BackupFollower(it.key, it.name, avatar(it.avatarJson), it.since, it.revoked) },
-        invites = s.invites.map { BackupInvite(it.token, it.expiry, it.label, false, it.sentAt, it.claimedBy, it.done) },
-        relays = s.relays,
-        writers = s.writers.toList(),
-        profile = profile(s),
-    )
+    fun backupPayload(crypto: NostrCrypto, s: OwnerState) =
+        BackupPayload(
+            sid = s.sid,
+            epochs = s.epochs.sortedBy { it.n }.map { BackupEpoch(it.n, crypto.nsec(SecretKey.ofHex(it.secretHex)!!)) },
+            followers = s.followers.map { BackupFollower(it.key, it.name, avatar(it.avatarJson), it.since, it.revoked) },
+            invites = s.invites.map { BackupInvite(it.token, it.expiry, it.label, false, it.sentAt, it.claimedBy, it.done) },
+            relays = s.relays,
+            writers = s.writers.toList(),
+            profile = profile(s),
+        )
 
     /** The state a backup describes, with this phone's new device key (restore). Null if an epoch key is unreadable. */
     fun fromBackup(crypto: NostrCrypto, identityHex: String, deviceHex: String, b: BackupPayload): OwnerState? {

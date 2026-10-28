@@ -25,11 +25,12 @@ interface ShareOwnerHost {
 class RequestActionReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         val follower = intent.getStringExtra(EXTRA_FOLLOWER) ?: return
-        val allow = when (intent.action) {
-            ACTION_ALLOW -> true
-            ACTION_DENY -> false
-            else -> return
-        }
+        val allow =
+            when (intent.action) {
+                ACTION_ALLOW -> true
+                ACTION_DENY -> false
+                else -> return
+            }
         val module = (context.applicationContext as? ShareOwnerHost)?.shareOwner ?: return
         val result = goAsync()
         module.scope.launch {

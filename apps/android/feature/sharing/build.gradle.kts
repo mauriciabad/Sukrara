@@ -12,7 +12,9 @@ plugins {
 
 android {
     // Robolectric's resource loader reads FileDescriptor internals on JDK 21
-    testOptions.unitTests.all { it.jvmArgs("--add-opens=java.base/java.io=ALL-UNNAMED", "--add-exports=java.base/jdk.internal.access=ALL-UNNAMED") }
+    testOptions.unitTests.all {
+        it.jvmArgs("--add-opens=java.base/java.io=ALL-UNNAMED", "--add-exports=java.base/jdk.internal.access=ALL-UNNAMED")
+    }
     testOptions.unitTests.isIncludeAndroidResources = true
 }
 

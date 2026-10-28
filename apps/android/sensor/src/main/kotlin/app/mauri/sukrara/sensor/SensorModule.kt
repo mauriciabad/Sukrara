@@ -49,17 +49,18 @@ class SensorModule(
     val hasLibre3Core: Boolean get() = Libre3Crypto.isAvailable
 
     @OptIn(ExperimentalCoroutinesApi::class)
-    val source = SourceManager(
-        kind = sourceKind,
-        pairings = pairings,
-        security = Libre3Crypto.takeIf { it.isAvailable },
-        connector = AndroidGatt(app),
-        juggluco = { JugglucoSource(http, zone = { clock.zone }) },
-        clock = clock,
-        dispatcher = dispatchers.default.limitedParallelism(1),
-        io = dispatchers.io,
-        log = log,
-    )
+    val source =
+        SourceManager(
+            kind = sourceKind,
+            pairings = pairings,
+            security = Libre3Crypto.takeIf { it.isAvailable },
+            connector = AndroidGatt(app),
+            juggluco = { JugglucoSource(http, zone = { clock.zone }) },
+            clock = clock,
+            dispatcher = dispatchers.default.limitedParallelism(1),
+            io = dispatchers.io,
+            log = log,
+        )
 
     val libreView = LibreViewAccount(receiverIds, http, dispatchers.io)
 

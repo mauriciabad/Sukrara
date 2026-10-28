@@ -22,4 +22,6 @@ dependencies {
 }
 
 // Robolectric (SukraraDatabaseTest) reaches into FileDescriptor internals on JDK 21
-tasks.withType<Test>().configureEach { jvmArgs("--add-opens=java.base/java.io=ALL-UNNAMED", "--add-exports=java.base/jdk.internal.access=ALL-UNNAMED") }
+tasks.withType<Test>().configureEach {
+    jvmArgs("--add-opens=java.base/java.io=ALL-UNNAMED", "--add-exports=java.base/jdk.internal.access=ALL-UNNAMED")
+}

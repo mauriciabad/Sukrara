@@ -89,8 +89,12 @@ class HomeGallery {
             "bluetooth-off" to ui(Samples.wearer(ageMin = 25, sensor = SensorState.BluetoothOff)),
             "core-missing" to ui(Samples.wearer(sensor = SensorState.CoreMissing)),
             "monitoring-stopped" to
-                ui(Samples.wearer(ageMin = 25).copy(service = ServiceState.Stopped(StopReason.StartDenied)), banner = BannerKind.MonitoringStopped),
-            "wearer-silent" to ui(Samples.wearer(ageMin = 30).copy(role = Role.Follower, link = LinkState("Ana", NOW.minus(Duration.ofMinutes(30))))),
+                ui(
+                    Samples.wearer(ageMin = 25).copy(service = ServiceState.Stopped(StopReason.StartDenied)),
+                    banner = BannerKind.MonitoringStopped,
+                ),
+            "wearer-silent" to
+                ui(Samples.wearer(ageMin = 30).copy(role = Role.Follower, link = LinkState("Ana", NOW.minus(Duration.ofMinutes(30))))),
             "link-revoked" to ui(follower.copy(link = LinkState("Ana", NOW.minus(Duration.ofMinutes(5)), revoked = true))),
             "follower" to ui(follower),
             "muted" to ui(Samples.wearer().copy(alerts = AlertUiState(mutedUntil = NOW.plus(Duration.ofMinutes(72))))),
@@ -131,11 +135,13 @@ class HomeGallery {
 
     @Test fun darkLargest() = gallery(dark = true, fontScale = 2f)
 
-    @Test @Config(qualifiers = "es")
+    @Test
+    @Config(qualifiers = "es")
     fun spanishInRange() = gallery(dark = true, fontScale = 1f, only = listOf("in-range", "no-sensor-yet"), prefix = "es-")
 
     /** A small phone at the largest font: a safety banner must be on screen without scrolling (ux-batch1 F2). */
-    @Test @Config(qualifiers = "w360dp-h640dp-xhdpi")
+    @Test
+    @Config(qualifiers = "w360dp-h640dp-xhdpi")
     fun smallPhoneSafetyBanner() =
         gallery(dark = false, fontScale = 2f, only = listOf("alerts-unreliable", "monitoring-stopped"), prefix = "360x640-")
 

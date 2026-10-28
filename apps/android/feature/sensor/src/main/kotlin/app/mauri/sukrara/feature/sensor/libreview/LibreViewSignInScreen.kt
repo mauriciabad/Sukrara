@@ -56,7 +56,7 @@ fun LibreViewSignInRoute(
     BackHandler(onBack = onBack)
     LibreViewSignInContent(
         ui,
-        modifier,
+        modifier = modifier,
         canSubmit = viewModel.canSubmit,
         onSignIn = viewModel::signIn,
         onSignOut = {
@@ -71,11 +71,11 @@ fun LibreViewSignInRoute(
 @Composable
 fun LibreViewSignInContent(
     ui: SignInUi,
-    modifier: Modifier = Modifier,
     canSubmit: (String, String) -> Boolean,
     onSignIn: (String, String) -> Unit,
     onSignOut: () -> Unit,
     onBack: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     Column(
         modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 24.dp, vertical = 32.dp),
@@ -173,18 +173,20 @@ private fun Form(
 }
 
 private val SignInError.message: Int
-    get() = when (this) {
-        SignInError.WrongPassword -> R.string.libreview_error_wrong_password
-        SignInError.AcceptTerms -> R.string.libreview_error_accept_terms
-        SignInError.Failed -> R.string.libreview_error_failed
-    }
+    get() =
+        when (this) {
+            SignInError.WrongPassword -> R.string.libreview_error_wrong_password
+            SignInError.AcceptTerms -> R.string.libreview_error_accept_terms
+            SignInError.Failed -> R.string.libreview_error_failed
+        }
 
 /** One page per kind of state (the form keeps its fields across Working and an error). */
 private enum class Page { Loading, Form, SignedIn }
 
 private val SignInUi.page: Page
-    get() = when (this) {
-        SignInUi.Loading -> Page.Loading
-        is SignInUi.SignedIn -> Page.SignedIn
-        else -> Page.Form
-    }
+    get() =
+        when (this) {
+            SignInUi.Loading -> Page.Loading
+            is SignInUi.SignedIn -> Page.SignedIn
+            else -> Page.Form
+        }

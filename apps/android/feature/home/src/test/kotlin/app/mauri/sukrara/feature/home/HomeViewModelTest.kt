@@ -3,7 +3,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.feature.home
 
-import app.mauri.sukrara.graph.GraphConfig
 import app.mauri.sukrara.core.model.AlertReadiness
 import app.mauri.sukrara.core.model.AlertRequirement
 import app.mauri.sukrara.core.model.GlucoseState
@@ -16,6 +15,7 @@ import app.mauri.sukrara.core.testing.InMemoryTreatmentsRepository
 import app.mauri.sukrara.feature.home.banners.BannerKind
 import app.mauri.sukrara.feature.home.banners.BannerMemory
 import app.mauri.sukrara.feature.home.banners.HomeEnvironment
+import app.mauri.sukrara.graph.GraphConfig
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -127,7 +127,11 @@ class HomeViewModelTest {
             assertEquals(setOf(t.id), vm.state.value.readOnly)
             assertEquals(listOf("delete ${t.id}"), deps.writes)
             assertNull(vm.state.value.undo)
-            assertEquals(listOf(t.id), vm.state.value.treatments.map { it.id })
+            assertEquals(
+                listOf(t.id),
+                vm.state.value.treatments
+                    .map { it.id },
+            )
         }
 
     @Test fun `delete leaves a tombstone, undo brings it back as a newer version`() =
@@ -138,13 +142,24 @@ class HomeViewModelTest {
             val vm = HomeViewModel(deps)
             backgroundScope.launch { vm.state.collect {} }
             runCurrent()
-            assertEquals(listOf(t.id), vm.state.value.treatments.map { it.id })
+            assertEquals(
+                listOf(t.id),
+                vm.state.value.treatments
+                    .map { it.id },
+            )
 
             vm.delete(t)
             runCurrent()
-            assertTrue(deps.treatments.get(t.id)!!.treatment.deleted)
+            assertTrue(
+                deps.treatments
+                    .get(t.id)!!
+                    .treatment.deleted,
+            )
             assertEquals(t, vm.state.value.undo)
-            assertTrue(vm.state.value.treatments.isEmpty())
+            assertTrue(
+                vm.state.value.treatments
+                    .isEmpty(),
+            )
 
             vm.undoDelete()
             runCurrent()
@@ -153,7 +168,11 @@ class HomeViewModelTest {
             assertEquals(false, restored.deleted)
             assertTrue(restored.modifiedAt > t.modifiedAt)
             assertNull(vm.state.value.undo)
-            assertEquals(listOf(t.id), vm.state.value.treatments.map { it.id })
+            assertEquals(
+                listOf(t.id),
+                vm.state.value.treatments
+                    .map { it.id },
+            )
         }
 
     @Test fun `the undo offer expires after 5 s`() =

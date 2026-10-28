@@ -17,35 +17,40 @@ import org.junit.Test
 class OwnerIdentityStoreTest {
     private val state = CreateIdentity(OwnerFixtures.context())(null, OwnerFixtures.NOW).state
 
-    @Test fun roundTripAndMissing() = runTest {
-        val store = OwnerIdentityStore(InMemorySecureStore())
-        assertEquals(OwnerIdentityStore.Load.Missing, store.load())
-        assertTrue(store.save(state))
-        assertEquals(OwnerIdentityStore.Load.Loaded(state), store.load())
-    }
-
-    @Test fun corruptStateIsUnreadableAndNeverReplacedSilently() = runTest {
-        val secure = InMemorySecureStore()
-        secure.write(OwnerIdentityStore.NAME, "not json".encodeToByteArray())
-        val store = OwnerIdentityStore(secure)
-        assertEquals(OwnerIdentityStore.Load.Unreadable(transient = false), store.load())
-        assertFalse(store.save(state))
-        assertTrue(store.save(state, replaceUnreadable = true))
-        assertEquals(OwnerIdentityStore.Load.Loaded(state), store.load())
-    }
-
-    @Test fun keystoreBusyIsTransient() = runTest {
-        val busy = object : SecureStore {
-            override suspend fun read(name: String): ByteArray? = throw SecretUnreadableException(name, transient = true, cause = null)
-
-            override suspend fun write(name: String, bytes: ByteArray) = error("must not write")
-
-            override suspend fun delete(name: String) = error("must not delete")
+    @Test fun roundTripAndMissing() =
+        runTest {
+            val store = OwnerIdentityStore(InMemorySecureStore())
+            assertEquals(OwnerIdentityStore.Load.Missing, store.load())
+            assertTrue(store.save(state))
+            assertEquals(OwnerIdentityStore.Load.Loaded(state), store.load())
         }
-        val store = OwnerIdentityStore(busy)
-        assertEquals(OwnerIdentityStore.Load.Unreadable(transient = true), store.load())
-        assertFalse(store.save(state))
-    }
+
+    @Test fun corruptStateIsUnreadableAndNeverReplacedSilently() =
+        runTest {
+            val secure = InMemorySecureStore()
+            secure.write(OwnerIdentityStore.NAME, "not json".encodeToByteArray())
+            val store = OwnerIdentityStore(secure)
+            assertEquals(OwnerIdentityStore.Load.Unreadable(transient = false), store.load())
+            assertFalse(store.save(state))
+            assertTrue(store.save(state, replaceUnreadable = true))
+            assertEquals(OwnerIdentityStore.Load.Loaded(state), store.load())
+        }
+
+    @Test fun keystoreBusyIsTransient() =
+        runTest {
+            val busy =
+                object : SecureStore {
+                    override suspend fun read(name: String): ByteArray? =
+                        throw SecretUnreadableException(name, transient = true, cause = null)
+
+                    override suspend fun write(name: String, bytes: ByteArray) = error("must not write")
+
+                    override suspend fun delete(name: String) = error("must not delete")
+                }
+            val store = OwnerIdentityStore(busy)
+            assertEquals(OwnerIdentityStore.Load.Unreadable(transient = true), store.load())
+            assertFalse(store.save(state))
+        }
 
     @Test fun toStringHoldsNoSecrets() {
         assertFalse(state.toString().contains(state.identityHex))

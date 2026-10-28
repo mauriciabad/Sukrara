@@ -89,10 +89,13 @@ import Testing
         let data = CardData(readings: rs, now: now)
         #expect(
             spoken(data, surface: .widgetCombined)
-                == "120 milligrams per decilitre, steady, in range, just now. Last 12 hours: 75% in range, 0% below, 25% above")
+                == "120 milligrams per decilitre, steady, in range, just now. Last 12 hours: 75% in range, 0% below, 25% above"
+        )
         var six = GraphConfig()
         six.hours = 6
-        #expect(spoken(data, surface: .menubarCard, config: six).hasSuffix("Last 6 hours: 100% in range, 0% below, 0% above"))
+        #expect(
+            spoken(data, surface: .menubarCard, config: six).hasSuffix(
+                "Last 6 hours: 100% in range, 0% below, 0% above"))
         // the graph widget shows no value: its data's time (as its pill, at every age), then the summary; the menu bar
         // title: the value only
         #expect(spoken(data, surface: .widgetGraph).hasPrefix("Glucose: last reading "))
@@ -108,7 +111,8 @@ import Testing
             readings: [GraphReading(t: now - 120, v: 64, rate: -2.5)], alerts: CardAlerts(status: .none), now: now)
         #expect(
             spoken(low, surface: .widgetCombined, words: .es)
-                == "64 miligramos por decilitro, bajando rápido, baja, hace 2 min. Últimas 12 horas: 0% en rango, 100% por debajo, 0% por encima")
+                == "64 miligramos por decilitro, bajando rápido, baja, hace 2 min. Últimas 12 horas: 0% en rango, 100% por debajo, 0% por encima"
+        )
         #expect(spoken(CardData(readings: [], now: now), words: .es) == "Glucosa: aún no hay lecturas")
         // the status pill's sentence too
         let bolus = GraphMark(t: now - 600, k: "carbs", a: 30, id: "c1")
@@ -116,7 +120,8 @@ import Testing
             readings: low.readings, alerts: CardAlerts(status: .taken(.low, treatment: bolus, until: now + 600)),
             now: now)
         #expect(
-            spoken(taken, words: .es).hasSuffix("Alertas de glucosa baja silenciadas tras los hidratos · quedan 10 min"))
+            spoken(taken, words: .es).hasSuffix("Alertas de glucosa baja silenciadas tras los hidratos · quedan 10 min")
+        )
         let needed = CardData(readings: low.readings, alerts: CardAlerts(status: .needed(.low)), now: now)
         #expect(spoken(needed, words: .es).hasSuffix(". Come hidratos"))
     }

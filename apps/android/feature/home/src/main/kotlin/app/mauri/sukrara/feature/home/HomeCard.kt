@@ -22,9 +22,9 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.nativeCanvas
-import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -72,10 +72,17 @@ fun homeLook(
     val warming = info != null && SensorLife.warming(info, state.latest?.t?.epochSecond, now.epochSecond)
     val sensor =
         when (val s = state.sensor) {
-            SensorState.Ended -> SensorBadge.Look(label = "", life = 0f, ended = true)
-            is SensorState.WarmingUp ->
+            SensorState.Ended -> {
+                SensorBadge.Look(label = "", life = 0f, ended = true)
+            }
+
+            is SensorState.WarmingUp -> {
                 if (warming) SensorBadge.Look(label = "", life = 1f, ended = false, warmup = "", readyAt = s.readyAt.epochSecond) else null
-            else -> null
+            }
+
+            else -> {
+                null
+            }
         }
     return GlucoseCard.face(state.latest?.toPoint(), now.epochSecond, sensor, CardSurface.APP_PANEL)
 }
@@ -86,13 +93,22 @@ fun homeLook(
  */
 private fun SensorState.info(now: Instant): SensorInfo? =
     when (this) {
-        SensorState.Ended -> SensorInfo(startS = now.epochSecond - SENSOR_LIFE.seconds, endS = now.epochSecond)
-        is SensorState.Active -> endsAt?.let { SensorInfo(startS = it.epochSecond - SENSOR_LIFE.seconds, endS = it.epochSecond) }
+        SensorState.Ended -> {
+            SensorInfo(startS = now.epochSecond - SENSOR_LIFE.seconds, endS = now.epochSecond)
+        }
+
+        is SensorState.Active -> {
+            endsAt?.let { SensorInfo(startS = it.epochSecond - SENSOR_LIFE.seconds, endS = it.epochSecond) }
+        }
+
         is SensorState.WarmingUp -> {
             val start = readyAt.epochSecond - WARMUP.seconds
             SensorInfo(startS = start, endS = start + SENSOR_LIFE.seconds, warmupEndS = readyAt.epochSecond)
         }
-        else -> null
+
+        else -> {
+            null
+        }
     }
 
 private val SENSOR_LIFE = Duration.ofDays(15)
@@ -154,7 +170,18 @@ fun PanelCard(
         ) {
             val view = ChartView(endS = endS ?: nowS)
             drawIntoCanvas { canvas ->
-                GlucoseCard.draw(canvas.nativeCanvas, size.width, size.height, model, style, palette, density, CardSurface.APP_PANEL, CardPart.ALL, view = view)
+                GlucoseCard.draw(
+                    canvas.nativeCanvas,
+                    size.width,
+                    size.height,
+                    model,
+                    style,
+                    palette,
+                    density,
+                    CardSurface.APP_PANEL,
+                    CardPart.ALL,
+                    view = view,
+                )
             }
         }
         if (endS != null) {

@@ -50,7 +50,8 @@ object NotificationGroups {
     }
 
     private fun summary(ctx: Context, group: Group, channelId: String, icon: Int): Notification =
-        Notification.Builder(ctx, channelId)
+        Notification
+            .Builder(ctx, channelId)
             .setSmallIcon(icon)
             .setContentTitle(group.name(ctx))
             .setGroup(group.key)

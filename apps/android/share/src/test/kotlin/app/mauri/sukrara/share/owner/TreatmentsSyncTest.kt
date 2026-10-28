@@ -21,13 +21,13 @@ import app.mauri.sukrara.share.OwnerFixtures.crypto
 import app.mauri.sukrara.share.owner.usecase.SyncTreatments
 import app.mauri.sukrara.share.owner.usecase.SyncTreatments.Verdict
 import app.mauri.sukrara.share.owner.usecase.TreatmentWire
-import java.time.Instant
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.time.Instant
 
 /**
  * The owner side of contracts/protocol/sync/treatments-writer.json: the writer's own events from the fixture are judged
@@ -38,25 +38,35 @@ class TreatmentsSyncTest {
     private val fx = ContractFiles.json("protocol/sync/treatments-writer.json")
     private val keys = fx.getValue("keys").jsonObject
     private val events = fx.getValue("events").jsonObject
-    private val now = fx.getValue("now").jsonPrimitive.content.toLong()
+    private val now =
+        fx
+            .getValue("now")
+            .jsonPrimitive.content
+            .toLong()
     private val sid = fx.getValue("sid").jsonPrimitive.content
 
     private fun key(name: String): KeyPair {
-        val sec = keys.getValue(name).jsonObject.getValue("sec").jsonPrimitive.content
+        val sec =
+            keys
+                .getValue(name)
+                .jsonObject
+                .getValue("sec")
+                .jsonPrimitive.content
         return crypto.keyPair(SecretKey.ofHex(sec)!!)!!
     }
 
     private fun event(name: String) = SignedEvent.parse(events.getValue(name).toString())!!
 
     private val w = key("W")
-    private val owner = OwnerState(
-        identityHex = key("I").secret.revealHex(),
-        deviceHex = key("D").secret.revealHex(),
-        sid = sid,
-        epochs = listOf(EpochKey(1, key("G1").secret.revealHex())),
-        followers = listOf(FollowerRecord(w.public.hex, "Ana", now - 1000), FollowerRecord(key("F").public.hex, "Mac", now - 1000)),
-        writers = setOf(w.public.hex),
-    )
+    private val owner =
+        OwnerState(
+            identityHex = key("I").secret.revealHex(),
+            deviceHex = key("D").secret.revealHex(),
+            sid = sid,
+            epochs = listOf(EpochKey(1, key("G1").secret.revealHex())),
+            followers = listOf(FollowerRecord(w.public.hex, "Ana", now - 1000), FollowerRecord(key("F").public.hex, "Mac", now - 1000)),
+            writers = setOf(w.public.hex),
+        )
 
     /** What the wearer's own event in the fixture holds, as the phone's log stores it (the wearer's own: no creator). */
     private fun wearerRecord(name: String): TreatmentRecord {
@@ -65,64 +75,82 @@ class TreatmentsSyncTest {
         return TreatmentRecord(TreatmentWire.toTreatment(TreatmentCodec.decode(plain)))
     }
 
-    @Test fun writerScopeOnTheOwnerAndTheEchoesGiveTheFixturesFollowerState() = runTest {
-        val repo = InMemoryTreatmentsRepository()
-        val sync = SyncTreatments(OwnerFixtures.context(), repo)
-        val carbs = wearerRecord("owner-carbs")
-        repo.upsertIfNewer(carbs)
-        val published = mutableListOf(sync.publish(owner, carbs, now))
+    @Test fun writerScopeOnTheOwnerAndTheEchoesGiveTheFixturesFollowerState() =
+        runTest {
+            val repo = InMemoryTreatmentsRepository()
+            val sync = SyncTreatments(OwnerFixtures.context(), repo)
+            val carbs = wearerRecord("owner-carbs")
+            repo.upsertIfNewer(carbs)
+            val published = mutableListOf(sync.publish(owner, carbs, now))
 
-        val rapid = sync.receive(owner, event("writer-rapid"), now, "relay")
-        val edit = sync.receive(owner, event("writer-edit"), now, "relay")
-        assertEquals(Verdict.Accepted, rapid.verdict)
-        assertEquals(Verdict.Accepted, edit.verdict)
-        // the writer tries to change the wearer's carbs entry: refused, nothing echoed
-        assertEquals(SyncTreatments.Received(Verdict.NotCreator), sync.receive(owner, event("writer-hijack"), now, "relay"))
-        published += listOfNotNull(rapid.echo, edit.echo)
+            val rapid = sync.receive(owner, event("writer-rapid"), now, "relay")
+            val edit = sync.receive(owner, event("writer-edit"), now, "relay")
+            assertEquals(Verdict.Accepted, rapid.verdict)
+            assertEquals(Verdict.Accepted, edit.verdict)
+            // the writer tries to change the wearer's carbs entry: refused, nothing echoed
+            assertEquals(SyncTreatments.Received(Verdict.NotCreator), sync.receive(owner, event("writer-hijack"), now, "relay"))
+            published += listOfNotNull(rapid.echo, edit.echo)
 
-        val writerEntry = repo.get(TreatmentCodec.decode(plainOf(edit.echo!!)).id)!!
-        assertEquals(w.public.hex, writerEntry.creator)
-        assertEquals(TreatmentOrigin.Follower, writerEntry.treatment.origin)
+            val writerEntry = repo.get(TreatmentCodec.decode(plainOf(edit.echo!!)).id)!!
+            assertEquals(w.public.hex, writerEntry.creator)
+            assertEquals(TreatmentOrigin.Follower, writerEntry.treatment.origin)
 
-        val delete = wearerRecord("owner-delete")
-        repo.upsertIfNewer(delete)
-        published += sync.publish(owner, delete, now)
+            val delete = wearerRecord("owner-delete")
+            repo.upsertIfNewer(delete)
+            published += sync.publish(owner, delete, now)
 
-        // every owner event is the device key's (the merged log), under the current epoch
-        assertTrue(published.all { it.pubkey == owner.device(crypto).public.hex && it.tag("gk") == Wire.gk(owner.readKey(crypto).public) })
+            // every owner event is the device key's (the merged log), under the current epoch
+            val device = owner.device(crypto).public.hex
+            val gk = Wire.gk(owner.readKey(crypto).public)
+            assertTrue(published.all { it.pubkey == device && it.tag("gk") == gk })
 
-        val follower = FollowerModel(crypto, FollowerState(follower = key("F"), identity = key("I").public))
-        follower.feed(event("key-1"), now)
-        follower.feed(event("roster-writer"), now)
-        published.forEach { assertTrue(it.id, follower.feed(it, now) is FollowResult.Accepted) }
-        assertEquals(fx.getValue("expected").jsonObject.getValue("treatments"), follower.stateJson().getValue("treatments"))
-    }
+            val follower = FollowerModel(crypto, FollowerState(follower = key("F"), identity = key("I").public))
+            follower.feed(event("key-1"), now)
+            follower.feed(event("roster-writer"), now)
+            published.forEach { assertTrue(it.id, follower.feed(it, now) is FollowResult.Accepted) }
+            assertEquals(fx.getValue("expected").jsonObject.getValue("treatments"), follower.stateJson().getValue("treatments"))
+        }
 
-    @Test fun anOlderWriterVersionAndANonWriterAreNotMerged() = runTest {
-        val repo = InMemoryTreatmentsRepository()
-        val sync = SyncTreatments(OwnerFixtures.context(), repo)
-        assertEquals(Verdict.Accepted, sync.receive(owner, event("writer-edit"), now, null).verdict)
-        assertEquals(Verdict.Older, sync.receive(owner, event("writer-rapid"), now, null).verdict)
-        // the writer lost "Can add entries"
-        assertEquals(Verdict.NotWriter, sync.receive(owner.copy(writers = emptySet()), event("writer-edit"), now, null).verdict)
-    }
+    @Test fun anOlderWriterVersionAndANonWriterAreNotMerged() =
+        runTest {
+            val repo = InMemoryTreatmentsRepository()
+            val sync = SyncTreatments(OwnerFixtures.context(), repo)
+            assertEquals(Verdict.Accepted, sync.receive(owner, event("writer-edit"), now, null).verdict)
+            assertEquals(Verdict.Older, sync.receive(owner, event("writer-rapid"), now, null).verdict)
+            // the writer lost "Can add entries"
+            assertEquals(Verdict.NotWriter, sync.receive(owner.copy(writers = emptySet()), event("writer-edit"), now, null).verdict)
+        }
 
-    @Test fun republishSendsTheLast30DaysWithTombstonesAndStampsIt() = runTest {
-        val repo = InMemoryTreatmentsRepository()
-        val sync = SyncTreatments(OwnerFixtures.context(), repo)
-        val deleted = wearerRecord("owner-delete").let { it.copy(treatment = it.treatment.copy(modifiedAt = Instant.ofEpochSecond(now - Wire.DAY))) }
-        val old = deleted.treatment.copy(id = "c0000000-0000-4000-8000-00000000000c", modifiedAt = Instant.ofEpochSecond(now - 40 * Wire.DAY))
-        repo.upsertIfNewer(deleted)
-        repo.upsertIfNewer(TreatmentRecord(old))
+    @Test fun republishSendsTheLast30DaysWithTombstonesAndStampsIt() =
+        runTest {
+            val repo = InMemoryTreatmentsRepository()
+            val sync = SyncTreatments(OwnerFixtures.context(), repo)
+            val deleted =
+                wearerRecord("owner-delete").let {
+                    it.copy(treatment = it.treatment.copy(modifiedAt = Instant.ofEpochSecond(now - Wire.DAY)))
+                }
+            val old =
+                deleted.treatment.copy(
+                    id = "c0000000-0000-4000-8000-00000000000c",
+                    modifiedAt = Instant.ofEpochSecond(now - 40 * Wire.DAY),
+                )
+            repo.upsertIfNewer(deleted)
+            repo.upsertIfNewer(TreatmentRecord(old))
 
-        val step = sync.republish(owner, now)
-        assertEquals(now, step.state.treatmentsPublishedAt)
-        val sent = step.publish.map { TreatmentCodec.decode(plainOf(it)) }
-        assertEquals(listOf(deleted.treatment.id), sent.map { it.id })
-        assertTrue(sent.single().deleted)
-        // created_at strictly increases per entry, or relays keep the older version
-        assertTrue(sync.republish(owner, now).publish.single().createdAt > step.publish.single().createdAt)
-    }
+            val step = sync.republish(owner, now)
+            assertEquals(now, step.state.treatmentsPublishedAt)
+            val sent = step.publish.map { TreatmentCodec.decode(plainOf(it)) }
+            assertEquals(listOf(deleted.treatment.id), sent.map { it.id })
+            assertTrue(sent.single().deleted)
+            // created_at strictly increases per entry, or relays keep the older version
+            assertTrue(
+                sync
+                    .republish(owner, now)
+                    .publish
+                    .single()
+                    .createdAt > step.publish.single().createdAt,
+            )
+        }
 
     @Test fun theWriterSubscriptionFollowsTheActiveWriters() {
         val sync = SyncTreatments(OwnerFixtures.context(), InMemoryTreatmentsRepository())

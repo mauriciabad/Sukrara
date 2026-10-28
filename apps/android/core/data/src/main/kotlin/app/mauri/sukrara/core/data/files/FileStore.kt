@@ -50,29 +50,32 @@ class FileStore<T>(
     private val lock = Mutex()
     private var quarantined: FileLoad.Corrupt? = null
 
-    suspend fun load(): FileLoad<T> = withContext(io) {
-        lock.withLock {
-            if (!file.exists()) return@withLock FileLoad.Missing
-            when (val decoded = decode(file.readBytes())) {
-                is Decoded.Ok -> FileLoad.Loaded(decoded.value)
-                is Decoded.Damaged -> quarantine(decoded.reason)
+    suspend fun load(): FileLoad<T> =
+        withContext(io) {
+            lock.withLock {
+                if (!file.exists()) return@withLock FileLoad.Missing
+                when (val decoded = decode(file.readBytes())) {
+                    is Decoded.Ok -> FileLoad.Loaded(decoded.value)
+                    is Decoded.Damaged -> quarantine(decoded.reason)
+                }
             }
         }
-    }
 
-    suspend fun save(value: T) = withContext(io) {
-        lock.withLock {
-            writeAtomically(file, codec.encode(value))
-            quarantined = null
+    suspend fun save(value: T) =
+        withContext(io) {
+            lock.withLock {
+                writeAtomically(file, codec.encode(value))
+                quarantined = null
+            }
         }
-    }
 
-    suspend fun delete() = withContext(io) {
-        lock.withLock {
-            if (file.exists() && !file.delete()) throw IOException("can't delete ${file.name}")
-            quarantined = null
+    suspend fun delete() =
+        withContext(io) {
+            lock.withLock {
+                if (file.exists() && !file.delete()) throw IOException("can't delete ${file.name}")
+                quarantined = null
+            }
         }
-    }
 
     private sealed interface Decoded<out T> {
         data class Ok<T>(val value: T) : Decoded<T>

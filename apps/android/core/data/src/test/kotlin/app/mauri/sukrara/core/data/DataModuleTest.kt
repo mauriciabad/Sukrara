@@ -31,31 +31,50 @@ class DataModuleTest {
     fun close() = data.database.close()
 
     @Test
-    fun `ready prunes old history but keeps recent readings and pending outbox entries`() = runTest {
-        val now = clock.now()
-        data.readings.upsert(
-            listOf(
-                Reading(now - Duration.ofDays(91), 100, null, SourceId.Libre3),
-                Reading(now - Duration.ofDays(89), 110, null, SourceId.Libre3),
-            ),
-        )
-        val old = (now - Duration.ofDays(30)).toEpochMilli()
-        data.database.outbox().put(OutboxEntity("pending", 1, "{}", createdAt = old, sentAt = null))
-        data.database.outbox().put(OutboxEntity("sent", 1, "{}", createdAt = old, sentAt = old))
+    fun `ready prunes old history but keeps recent readings and pending outbox entries`() =
+        runTest {
+            val now = clock.now()
+            data.readings.upsert(
+                listOf(
+                    Reading(now - Duration.ofDays(91), 100, null, SourceId.Libre3),
+                    Reading(now - Duration.ofDays(89), 110, null, SourceId.Libre3),
+                ),
+            )
+            val old = (now - Duration.ofDays(30)).toEpochMilli()
+            data.database.outbox().put(OutboxEntity("pending", 1, "{}", createdAt = old, sentAt = null))
+            data.database.outbox().put(OutboxEntity("sent", 1, "{}", createdAt = old, sentAt = old))
 
-        data.ready()
+            data.ready()
 
-        assertEquals(listOf(110), data.readings.window(Instant.EPOCH).first().map { it.mgdl })
-        assertEquals(listOf("pending"), data.database.outbox().pending().first().map { it.id })
-    }
+            assertEquals(
+                listOf(110),
+                data.readings
+                    .window(Instant.EPOCH)
+                    .first()
+                    .map { it.mgdl },
+            )
+            assertEquals(
+                listOf("pending"),
+                data.database
+                    .outbox()
+                    .pending()
+                    .first()
+                    .map { it.id },
+            )
+        }
 
     @Test
-    fun `ready re-reports damaged files kept by an earlier run`() = runTest {
-        File(context.filesDir, "state").mkdirs()
-        File(context.filesDir, "state/pairing.json.corrupt-1700000000000").writeText("{bad")
+    fun `ready re-reports damaged files kept by an earlier run`() =
+        runTest {
+            File(context.filesDir, "state").mkdirs()
+            File(context.filesDir, "state/pairing.json.corrupt-1700000000000").writeText("{bad")
 
-        data.ready()
+            data.ready()
 
-        assertEquals(listOf("pairing.json"), data.corruption.files.value.map { it.store })
-    }
+            assertEquals(
+                listOf("pairing.json"),
+                data.corruption.files.value
+                    .map { it.store },
+            )
+        }
 }

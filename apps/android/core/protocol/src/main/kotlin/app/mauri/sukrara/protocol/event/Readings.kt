@@ -61,17 +61,19 @@ object ReadingsCodec {
     fun decodeLive(json: String): LivePayload {
         val o = Payload.parse(json)
         o.requireV(Wire.V)
-        val reading = if ("t" in o || "sgv" in o) {
-            WireReading(o.long("t"), sgv(o.long("sgv")), o.numberOrNull("r"), o.string("dev").orEmpty())
-        } else {
-            null
-        }
-        val sensor = if ("se" in o) {
-            val ss = o.longOrNull("ss") ?: 0L
-            SensorLife(ss, o.long("se"), o.longOrNull("sw") ?: (ss + DEFAULT_WARMUP_S))
-        } else {
-            null
-        }
+        val reading =
+            if ("t" in o || "sgv" in o) {
+                WireReading(o.long("t"), sgv(o.long("sgv")), o.numberOrNull("r"), o.string("dev").orEmpty())
+            } else {
+                null
+            }
+        val sensor =
+            if ("se" in o) {
+                val ss = o.longOrNull("ss") ?: 0L
+                SensorLife(ss, o.long("se"), o.longOrNull("sw") ?: (ss + DEFAULT_WARMUP_S))
+            } else {
+                null
+            }
         return LivePayload(reading, sensor)
     }
 
@@ -106,15 +108,16 @@ object ReadingsCodec {
         if (Math.floorMod(hour, Wire.HOUR) != 0L) throw InvalidPayload("h is not an hour start")
         val rows = o["r"] as? JsonArray ?: throw InvalidPayload("r must be an array")
         val dev = o.string("dev").orEmpty()
-        val readings = rows.map { row ->
-            val cells = row as? JsonArray ?: throw InvalidPayload("bad row")
-            if (cells.size < 2) throw InvalidPayload("bad row")
-            val dt = Payload.asLong(cells[0], "dt") ?: throw InvalidPayload("bad row")
-            val sgv = Payload.asLong(cells[1], "sgv") ?: throw InvalidPayload("bad row")
-            if (dt !in 0 until Wire.HOUR) throw InvalidPayload("row out of range")
-            val rate100 = cells.getOrNull(2)?.let { Payload.asLong(it, "rate") }
-            WireReading(hour + dt, sgv(sgv), rate100?.let { it / 100.0 }, dev)
-        }
+        val readings =
+            rows.map { row ->
+                val cells = row as? JsonArray ?: throw InvalidPayload("bad row")
+                if (cells.size < 2) throw InvalidPayload("bad row")
+                val dt = Payload.asLong(cells[0], "dt") ?: throw InvalidPayload("bad row")
+                val sgv = Payload.asLong(cells[1], "sgv") ?: throw InvalidPayload("bad row")
+                if (dt !in 0 until Wire.HOUR) throw InvalidPayload("row out of range")
+                val rate100 = cells.getOrNull(2)?.let { Payload.asLong(it, "rate") }
+                WireReading(hour + dt, sgv(sgv), rate100?.let { it / 100.0 }, dev)
+            }
         return ChunkPayload(hour, readings)
     }
 

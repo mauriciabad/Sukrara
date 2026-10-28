@@ -30,33 +30,55 @@ import org.junit.Test
 class SettingsMirrorTest {
     private val fx = ContractFiles.json("protocol/sync/settings-mirror.json")
     private val keys = fx.getValue("keys").jsonObject
-    private val now = fx.getValue("now").jsonPrimitive.content.toLong()
+    private val now =
+        fx
+            .getValue("now")
+            .jsonPrimitive.content
+            .toLong()
 
     private fun key(name: String): KeyPair =
-        crypto.keyPair(SecretKey.ofHex(keys.getValue(name).jsonObject.getValue("sec").jsonPrimitive.content)!!)!!
+        crypto.keyPair(
+            SecretKey.ofHex(
+                keys
+                    .getValue(name)
+                    .jsonObject
+                    .getValue("sec")
+                    .jsonPrimitive.content,
+            )!!,
+        )!!
 
-    private fun event(name: String) = SignedEvent.parse(fx.getValue("events").jsonObject.getValue(name).toString())!!
+    private fun event(name: String) =
+        SignedEvent.parse(
+            fx
+                .getValue("events")
+                .jsonObject
+                .getValue(name)
+                .toString(),
+        )!!
 
-    private val owner = OwnerState(
-        identityHex = key("I").secret.revealHex(),
-        deviceHex = key("D").secret.revealHex(),
-        sid = fx.getValue("sid").jsonPrimitive.content,
-        epochs = listOf(EpochKey(1, key("G1").secret.revealHex())),
-    )
+    private val owner =
+        OwnerState(
+            identityHex = key("I").secret.revealHex(),
+            deviceHex = key("D").secret.revealHex(),
+            sid = fx.getValue("sid").jsonPrimitive.content,
+            epochs = listOf(EpochKey(1, key("G1").secret.revealHex())),
+        )
 
     private fun obj(json: String) = Json.parseToJsonElement(json).jsonObject
 
     /** The settings layer's full values: graph keys incl. a per-device one, the whole SPEC §3 alert settings. */
-    private fun wearer(low: Int = 70) = WearerSettings(
-        graph = obj("""{"low":$low,"high":180,"defaultHours":6,"placeHours":3,"slots":"TIR:86400:1,TIR:604800:1,GMI:1209600:1"}"""),
-        alerts = obj(
-            """{"v":1,"on":true,"alerts":{"low":{"on":true,"mgdl":$low,"repeatMin":15,"alarm":true},
+    private fun wearer(low: Int = 70) =
+        WearerSettings(
+            graph = obj("""{"low":$low,"high":180,"defaultHours":6,"placeHours":3,"slots":"TIR:86400:1,TIR:604800:1,GMI:1209600:1"}"""),
+            alerts =
+                obj(
+                    """{"v":1,"on":true,"alerts":{"low":{"on":true,"mgdl":$low,"repeatMin":15,"alarm":true},
                "no_data":{"on":true,"min":20,"repeatMin":30,"alarm":false},
                "falling_fast":{"on":false,"rate":2.0,"repeatMin":0,"alarm":false}},
                "muteAfterInsulin":{"on":true,"min":60},"sounds":{"pack":"arcade"},
                "notificationActions":{"muteMin":30},"source":"own"}""",
-        ),
-    )
+                ),
+        )
 
     @Test fun onlyTheSchemasMirroredRowsGoOut() {
         val out = SettingsMirror.select(wearer())
@@ -90,7 +112,10 @@ class SettingsMirrorTest {
         assertTrue(follower.feed(first.publish.single(), now) is FollowResult.Accepted)
         assertEquals(FollowResult.Ignored("settings-older"), follower.feed(again.publish.single(), now))
         assertTrue(follower.feed(changed.publish.single(), now) is FollowResult.Accepted)
-        assertEquals(obj("""{"low":75,"high":180,"defaultHours":6,"slots":"TIR:86400:1,TIR:604800:1,GMI:1209600:1"}"""), follower.settings!!.graph)
+        assertEquals(
+            obj("""{"low":75,"high":180,"defaultHours":6,"slots":"TIR:86400:1,TIR:604800:1,GMI:1209600:1"}"""),
+            follower.settings!!.graph,
+        )
     }
 
     @Test fun nothingIsPublishedBeforeTheSettingsLayerGaveAnything() {

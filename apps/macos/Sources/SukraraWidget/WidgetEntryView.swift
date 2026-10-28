@@ -39,7 +39,8 @@ struct WidgetEntryView: View {
                     .accessibilityElement(children: .ignore)
                     .accessibilityLabel(
                         GlucoseCard.accessibilityLabel(
-                            data, unit: snapshot.unit, surface: kind.surface, config: snapshot.config))
+                            data, unit: snapshot.unit, surface: kind.surface, config: snapshot.config)
+                    )
                     .widgetURL(URL(string: SukraraIDs.Link.newTreatment))
             } else {
                 openApp

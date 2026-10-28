@@ -40,12 +40,14 @@ class PreferenceStores(
         return opened.getOrPut(name) {
             val file = File(dir, "$name.preferences_pb")
             PreferenceDataStoreFactory.create(
-                corruptionHandler = ReplaceFileCorruptionHandler { error ->
-                    val now = clock.now()
-                    val copy = file.takeIf { it.exists() }?.copyTo(FileStore.quarantineTarget(file, now.toEpochMilli()), overwrite = true)
-                    corruption.report(CorruptFile("settings:$name", copy, now, error.message.orEmpty()))
-                    emptyPreferences()
-                },
+                corruptionHandler =
+                    ReplaceFileCorruptionHandler { error ->
+                        val now = clock.now()
+                        val target = FileStore.quarantineTarget(file, now.toEpochMilli())
+                        val copy = file.takeIf { it.exists() }?.copyTo(target, overwrite = true)
+                        corruption.report(CorruptFile("settings:$name", copy, now, error.message.orEmpty()))
+                        emptyPreferences()
+                    },
                 scope = scope,
                 produceFile = { file },
             )
@@ -61,7 +63,9 @@ fun schemaStores(): Set<String> =
 class DataStoreSettingsRepository(private val stores: PreferenceStores) : SettingsRepository {
     override fun <T> flow(spec: SettingSpec<T>): Flow<T> {
         val setting = spec.asSetting()
-        return stores.store(setting.store).data
+        return stores
+            .store(setting.store)
+            .data
             .map { prefs -> prefs[setting.preferenceKey]?.let(setting.sanitize) ?: setting.default }
             .distinctUntilChanged()
     }

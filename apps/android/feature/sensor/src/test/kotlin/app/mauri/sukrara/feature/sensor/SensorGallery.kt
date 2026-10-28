@@ -44,15 +44,16 @@ class SensorGallery {
     /** The two screens closing themselves show for a frame at most: not reviewed. */
     private val steps = Steps.all.filter { it.second != NewSensorStep.LeftRunning && it.second != NewSensorStep.Cancelled }
 
-    private val signIn = listOf(
-        "loading" to SignInUi.Loading,
-        "signed-out" to SignInUi.SignedOut(),
-        "working" to SignInUi.Working,
-        "wrong-password" to SignInUi.SignedOut(SignInError.WrongPassword),
-        "accept-terms" to SignInUi.SignedOut(SignInError.AcceptTerms),
-        "failed" to SignInUi.SignedOut(SignInError.Failed),
-        "signed-in" to SignInUi.SignedIn("ana@example.com"),
-    )
+    private val signIn =
+        listOf(
+            "loading" to SignInUi.Loading,
+            "signed-out" to SignInUi.SignedOut(),
+            "working" to SignInUi.Working,
+            "wrong-password" to SignInUi.SignedOut(SignInError.WrongPassword),
+            "accept-terms" to SignInUi.SignedOut(SignInError.AcceptTerms),
+            "failed" to SignInUi.SignedOut(SignInError.Failed),
+            "signed-in" to SignInUi.SignedIn("ana@example.com"),
+        )
 
     @Composable
     private fun Frame(dark: Boolean, fontScale: Float, content: @Composable () -> Unit) {
@@ -102,11 +103,13 @@ class SensorGallery {
 
     @Test fun darkLargest() = gallery(dark = true, fontScale = 2f)
 
-    @Test @Config(qualifiers = "+es")
-    fun spanish() = gallery(
-        dark = true,
-        fontScale = 1f,
-        prefix = "es-",
-        only = setOf("needs-libreview", "takeover-failed", "warming-up", "accept-terms", "signed-in"),
-    )
+    @Test
+    @Config(qualifiers = "+es")
+    fun spanish() =
+        gallery(
+            dark = true,
+            fontScale = 1f,
+            prefix = "es-",
+            only = setOf("needs-libreview", "takeover-failed", "warming-up", "accept-terms", "signed-in"),
+        )
 }

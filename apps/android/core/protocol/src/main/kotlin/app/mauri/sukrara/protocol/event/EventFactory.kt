@@ -18,20 +18,35 @@ import app.mauri.sukrara.protocol.Wire
 class EventFactory(private val crypto: NostrCrypto) {
     /** live (21078) signed by the device key [device], encrypted to the read key [readKey], expires now + 1 h. */
     fun live(device: KeyPair, readKey: PublicKeyHex, payload: LivePayload, now: Long): SignedEvent =
-        data(device, Wire.KIND_LIVE, readKey, ReadingsCodec.encodeLive(payload), listOf(gkTag(readKey), expiration(now + Wire.TTL_LIVE)), now)
+        data(
+            device,
+            Wire.KIND_LIVE,
+            readKey,
+            ReadingsCodec.encodeLive(payload),
+            listOf(gkTag(readKey), expiration(now + Wire.TTL_LIVE)),
+            now,
+        )
 
     /** alert (21079): the live envelope. */
     fun alert(device: KeyPair, readKey: PublicKeyHex, payload: AlertPayload, now: Long): SignedEvent =
         data(device, Wire.KIND_ALERT, readKey, AlertCodec.encode(payload), listOf(gkTag(readKey), expiration(now + Wire.TTL_LIVE)), now)
 
     /** hour chunk (30078), expires hour + 7 d. */
-    fun chunk(device: KeyPair, readKey: PublicKeyHex, sid: String, hour: Long, readings: Collection<WireReading>, createdAt: Long): SignedEvent {
-        val tags = listOf(
-            listOf("d", Wire.chunkD(sid, hour)),
-            listOf("c", Wire.glucoseC(sid)),
-            gkTag(readKey),
-            expiration(hour + Wire.TTL_CHUNK_AFTER_HOUR),
-        )
+    fun chunk(
+        device: KeyPair,
+        readKey: PublicKeyHex,
+        sid: String,
+        hour: Long,
+        readings: Collection<WireReading>,
+        createdAt: Long,
+    ): SignedEvent {
+        val tags =
+            listOf(
+                listOf("d", Wire.chunkD(sid, hour)),
+                listOf("c", Wire.glucoseC(sid)),
+                gkTag(readKey),
+                expiration(hour + Wire.TTL_CHUNK_AFTER_HOUR),
+            )
         return data(device, Wire.KIND_DATA, readKey, ReadingsCodec.encodeChunk(hour, readings), tags, createdAt)
     }
 
@@ -43,12 +58,13 @@ class EventFactory(private val crypto: NostrCrypto) {
 
     /** treatment (30078) signed by the wearer's device (merged log) or a writer (its own entries), expires now + 30 d. */
     fun treatment(signer: KeyPair, readKey: PublicKeyHex, sid: String, tr: TreatmentPayload, createdAt: Long): SignedEvent {
-        val tags = listOf(
-            listOf("d", Wire.treatmentD(sid, tr.id)),
-            listOf("c", Wire.treatmentsC(sid)),
-            gkTag(readKey),
-            expiration(createdAt + Wire.TTL_TREATMENT),
-        )
+        val tags =
+            listOf(
+                listOf("d", Wire.treatmentD(sid, tr.id)),
+                listOf("c", Wire.treatmentsC(sid)),
+                gkTag(readKey),
+                expiration(createdAt + Wire.TTL_TREATMENT),
+            )
         return data(signer, Wire.KIND_DATA, readKey, TreatmentCodec.encode(tr), tags, createdAt)
     }
 
@@ -68,7 +84,14 @@ class EventFactory(private val crypto: NostrCrypto) {
     fun gift(sender: KeyPair, recipient: PublicKeyHex, rumor: Rumor, now: Long, expiration: Long): SignedEvent =
         crypto.giftWrap(sender, recipient, rumor.kind, RumorCodec.encode(rumor), now, expiration)
 
-    private fun data(signer: KeyPair, kind: Int, readKey: PublicKeyHex, plaintext: String, tags: List<List<String>>, createdAt: Long): SignedEvent =
+    private fun data(
+        signer: KeyPair,
+        kind: Int,
+        readKey: PublicKeyHex,
+        plaintext: String,
+        tags: List<List<String>>,
+        createdAt: Long,
+    ): SignedEvent =
         crypto.sign(signer, UnsignedEvent(kind, crypto.encrypt(signer.secret, readKey, plaintext), tags, createdAt))
 
     private fun gkTag(readKey: PublicKeyHex) = listOf("gk", Wire.gk(readKey))

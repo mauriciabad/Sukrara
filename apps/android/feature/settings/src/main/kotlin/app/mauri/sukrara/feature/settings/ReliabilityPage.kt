@@ -26,7 +26,7 @@ import app.mauri.sukrara.designsystem.rows.whyRes
  * and, while missing, a Fix button that opens the system screen for it. The page refreshes when it comes back.
  */
 @Composable
-fun ReliabilityContent(
+internal fun ReliabilityContent(
     readiness: AlertReadiness,
     onFix: (AlertRequirement) -> Unit,
     onBack: () -> Unit,
@@ -49,10 +49,17 @@ fun ReliabilityContent(
                             color = if (missing) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
                         )
                     }
-                    Text(stringResource(requirement.whyRes()), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(
+                        stringResource(requirement.whyRes()),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
                     if (missing) {
                         val fixLabel = stringResource(R.string.st_fix_item, titleText)
-                        FilledTonalButton(onClick = { onFix(requirement) }, modifier = Modifier.semantics { contentDescription = fixLabel }) {
+                        FilledTonalButton(
+                            onClick = { onFix(requirement) },
+                            modifier = Modifier.semantics { contentDescription = fixLabel },
+                        ) {
                             Text(stringResource(R.string.st_fix))
                         }
                     }

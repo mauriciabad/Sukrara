@@ -25,17 +25,24 @@ class AlertSoundPicker(private val random: (IntRange) -> Int = { it.random() }) 
     fun pick(kind: AlertKind, s: SoundSettings, nowMs: Long): String {
         picks[kind]?.let { if (nowMs - it.atMs < HOLD_MS) return it.name }
         val pack = s.soundOf(kind)
-        val name = when (pack) {
-            SYSTEM -> SYSTEM
-            NONE -> SILENCE
-            else -> {
-                // an unknown pack (a newer peer's, a bad value) plays the default pack: never silence by accident
-                val known = pack.takeIf { it in PACKS } ?: DEFAULT_PACK
-                val n = if (!s.shuffle) 1 else (1..VARIANTS).filter { it != lastVariant[kind] }.let { it[random(it.indices)] }
-                lastVariant[kind] = n
-                "${known}_${kind.wire}_$n"
+        val name =
+            when (pack) {
+                SYSTEM -> {
+                    SYSTEM
+                }
+
+                NONE -> {
+                    SILENCE
+                }
+
+                else -> {
+                    // an unknown pack (a newer peer's, a bad value) plays the default pack: never silence by accident
+                    val known = pack.takeIf { it in PACKS } ?: DEFAULT_PACK
+                    val n = if (!s.shuffle) 1 else (1..VARIANTS).filter { it != lastVariant[kind] }.let { it[random(it.indices)] }
+                    lastVariant[kind] = n
+                    "${known}_${kind.wire}_$n"
+                }
             }
-        }
         picks[kind] = Pick(name, nowMs)
         return name
     }

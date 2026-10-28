@@ -29,11 +29,13 @@ class RestoreIdentityTest {
 
     /** The old phone: identity, one approved follower, its published roster + backup. */
     private val identityStep = CreateIdentity(ctx)(null, NOW - 50)
-    private val old = run {
-        val created = CreateInvite(ctx)(identityStep.state, "Mac", NOW)
-        val req = HandleInbox(ctx)(created.step.state, OwnerFixtures.request(follower, created.step.state, created.link.token, "Mac"), NOW)
-        ApproveRequest(ctx)(req.step.state, follower.public.hex, NOW)!!
-    }
+    private val old =
+        run {
+            val created = CreateInvite(ctx)(identityStep.state, "Mac", NOW)
+            val request = OwnerFixtures.request(follower, created.step.state, created.link.token, "Mac")
+            val req = HandleInbox(ctx)(created.step.state, request, NOW)
+            ApproveRequest(ctx)(req.step.state, follower.public.hex, NOW)!!
+        }
     private val relayEvents = (identityStep.publish + old.publish).filter { it.kind == Wire.KIND_DATA }
 
     @Test fun nsecAndNcryptsecCodesParse() {
@@ -63,13 +65,18 @@ class RestoreIdentityTest {
         assertNotEquals(old.state.deviceHex, s.deviceHex)
         assertEquals(old.state.current.n + 1, s.current.n)
         // the follower gets the new epoch with the new device before the roster, so it keeps following (rotation.json)
-        val key = r.step.publish.mapNotNull { OwnerFixtures.open(follower, it) }.filterIsInstance<Rumor.KeyDelivery>().single()
+        val key =
+            r.step.publish
+                .mapNotNull { OwnerFixtures.open(follower, it) }
+                .filterIsInstance<Rumor.KeyDelivery>()
+                .single()
         assertEquals(s.current.n, key.epoch)
         assertEquals(listOf(s.device(crypto).public.hex), key.devices)
         val rosterIndex = r.step.publish.indexOfFirst { it.tag("d") == Wire.rosterD(s.sid) }
         assertTrue(rosterIndex > r.step.publish.indexOfFirst { OwnerFixtures.open(follower, it) != null })
         val roster = r.step.publish[rosterIndex]
-        assertEquals(listOf(s.device(crypto).public.hex), RosterCodec.decode(crypto.decrypt(s.readKey(crypto).secret, identity.public, roster.content)!!).devices)
+        val decrypted = crypto.decrypt(s.readKey(crypto).secret, identity.public, roster.content)!!
+        assertEquals(listOf(s.device(crypto).public.hex), RosterCodec.decode(decrypted).devices)
         // relays keep the newest (author, d): the new roster beats the old phone's
         assertTrue(roster.createdAt > relayEvents.filter { it.tag("d") == Wire.rosterD(s.sid) }.maxOf { it.createdAt })
     }

@@ -14,9 +14,11 @@ struct AlertsRangesPane: View {
         Form {
             if model.alerts.readError {
                 Section {
-                    Label(L10n.t("Alert settings couldn't be read. Sukrara keeps using the last ones it read."),
-                        systemImage: "exclamationmark.triangle.fill")
-                        .foregroundStyle(.red)
+                    Label(
+                        L10n.t("Alert settings couldn't be read. Sukrara keeps using the last ones it read."),
+                        systemImage: "exclamationmark.triangle.fill"
+                    )
+                    .foregroundStyle(.red)
                     Button(L10n.t("Reset alert settings")) { model.alerts.resetToDefaults() }
                 }
             }
@@ -73,12 +75,15 @@ struct AlertsRangesPane: View {
                     set: { v in model.alerts.update { $0[kind].repeatMin = Int(v) } }),
                 readOnly: mirrored)
         } label: {
-            Toggle(Self.kindName(kind), isOn: Binding(
-                get: {
-                    (mirrored ? model.wearer?.bool("alerts.kind.on", kind: kind.rawValue) : nil)
-                        ?? model.alerts.settings[kind].on
-                },
-                set: { v in model.alerts.update { $0[kind].on = v } }))
+            Toggle(
+                Self.kindName(kind),
+                isOn: Binding(
+                    get: {
+                        (mirrored ? model.wearer?.bool("alerts.kind.on", kind: kind.rawValue) : nil)
+                            ?? model.alerts.settings[kind].on
+                    },
+                    set: { v in model.alerts.update { $0[kind].on = v } })
+            )
             .disabled(mirrored)
         }
     }
@@ -100,7 +105,8 @@ struct AlertsRangesPane: View {
     }
 
     private func alertBinding<V>(_ path: WritableKeyPath<AlertSettings, V>) -> Binding<V> {
-        Binding(get: { model.alerts.settings[keyPath: path] }, set: { v in model.alerts.update { $0[keyPath: path] = v } })
+        Binding(
+            get: { model.alerts.settings[keyPath: path] }, set: { v in model.alerts.update { $0[keyPath: path] = v } })
     }
 
     static func kindName(_ k: AlertKind) -> String {
@@ -144,7 +150,8 @@ struct MirroredSection: View {
         if model.wearer != nil {
             Section {
                 if model.mirrors {
-                    Label(L10n.t("From \(model.wearer?.wearer ?? L10n.t("the wearer")): these follow their phone"),
+                    Label(
+                        L10n.t("From \(model.wearer?.wearer ?? L10n.t("the wearer")): these follow their phone"),
                         systemImage: "iphone")
                     HStack {
                         Button(L10n.t("Use my own settings")) { model.useOwn() }

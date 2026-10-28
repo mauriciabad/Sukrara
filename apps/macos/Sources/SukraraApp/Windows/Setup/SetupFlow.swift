@@ -60,7 +60,8 @@ public struct SetupFlow: Equatable, Sendable {
     public init(store: some SettingsStoring) {
         let data = store.value(MacSettings.setupSteps)
         let raw = (try? JSONDecoder().decode([String: StepState].self, from: data)) ?? [:]
-        self.init(states: Dictionary(uniqueKeysWithValues: raw.compactMap { k, v in Step(rawValue: k).map { ($0, v) } }))
+        self.init(
+            states: Dictionary(uniqueKeysWithValues: raw.compactMap { k, v in Step(rawValue: k).map { ($0, v) } }))
     }
 
     public func save(to store: some SettingsStoring) {

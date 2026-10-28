@@ -39,9 +39,10 @@ object SensorLife {
     fun ended(info: SensorInfo, now: Long): Boolean = now >= info.endEpoch
 
     /** The hub's sensor state for a running sensor at [now]. */
-    fun state(info: SensorInfo, latestT: Long?, now: Long): SensorState = when {
-        ended(info, now) -> SensorState.Ended
-        warming(info, latestT, now) -> SensorState.WarmingUp(Instant.ofEpochSecond(info.warmupEndEpoch))
-        else -> SensorState.Active(Instant.ofEpochSecond(info.endEpoch))
-    }
+    fun state(info: SensorInfo, latestT: Long?, now: Long): SensorState =
+        when {
+            ended(info, now) -> SensorState.Ended
+            warming(info, latestT, now) -> SensorState.WarmingUp(Instant.ofEpochSecond(info.warmupEndEpoch))
+            else -> SensorState.Active(Instant.ofEpochSecond(info.endEpoch))
+        }
 }

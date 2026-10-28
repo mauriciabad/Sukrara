@@ -54,7 +54,7 @@ import app.mauri.sukrara.share.owner.usecase.RestoreIdentity
  * Already sharing → Continue. Another app sharing as this identity → the conflict content (no restore, no new identity).
  */
 @Composable
-fun ColumnScope.IdentityStep(
+internal fun ColumnScope.IdentityStep(
     u: SetupUi,
     actions: SetupActions,
 ) {
@@ -64,10 +64,12 @@ fun ColumnScope.IdentityStep(
             NoteCard(stringResource(R.string.sh_identity_sharing, share.followers.count { it.active }))
             StepButtons(stringResource(R.string.sh_setup_continue), actions.completeIdentity)
         }
+
         is OwnerShareState.AnotherAppSharingAsYou -> {
             ConflictContent(share, onRetry = actions.retryConflict)
             StepButtons(null, {}, secondary = listOf(stringResource(R.string.sh_setup_later) to { actions.skip(SetupStep.Identity) }))
         }
+
         else -> {
             if (share is OwnerShareState.IdentityUnreadable) NoteCard(stringResource(R.string.sh_identity_unreadable), error = true)
             RestoreForm(u, actions)
@@ -96,7 +98,11 @@ private fun ColumnScope.RestoreForm(
         if (!sensorLive) Text(stringResource(R.string.sh_restore_block_no_reading), style = MaterialTheme.typography.bodyMedium)
     }
     NumberedItem(2, stringResource(R.string.sh_restore_step_code)) {
-        Text(stringResource(R.string.sh_restore_where), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(
+            stringResource(R.string.sh_restore_where),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
     }
     val restoring = u.restore is RestoreUi.Busy
     OutlinedTextField(
@@ -128,18 +134,22 @@ private fun ColumnScope.RestoreForm(
         )
     }
     when (val r = u.restore) {
-        RestoreUi.Busy ->
+        RestoreUi.Busy -> {
             Row(Modifier.semantics { liveRegion = LiveRegionMode.Polite }, verticalAlignment = Alignment.CenterVertically) {
                 CircularProgressIndicator(Modifier.heightIn(max = 24.dp))
                 Text(stringResource(R.string.sh_restore_busy), modifier = Modifier.padding(start = 12.dp))
             }
-        is RestoreUi.Failed ->
+        }
+
+        is RestoreUi.Failed -> {
             Text(
                 restoreError(r.result),
                 color = MaterialTheme.colorScheme.error,
                 style = MaterialTheme.typography.bodyMedium,
                 modifier = Modifier.semantics { liveRegion = LiveRegionMode.Assertive },
             )
+        }
+
         is RestoreUi.Restored -> {
             LaunchedEffect(r) {
                 code = ""
@@ -147,7 +157,10 @@ private fun ColumnScope.RestoreForm(
             }
             NoteCard(stringResource(R.string.sh_restore_done, r.followers))
         }
-        RestoreUi.Idle -> Unit
+
+        RestoreUi.Idle -> {
+            Unit
+        }
     }
     StepButtons(
         stringResource(R.string.sh_restore_action),

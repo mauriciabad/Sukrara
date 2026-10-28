@@ -80,19 +80,30 @@ class SetupViewModel(
     private val editing = MutableStateFlow<AlertSettings?>(null)
 
     private val inputs =
-        combine(m.setupStore.data, m.roles.role, m.hub.state, m.sharing.state, combine(m.alertSettings.settings, m.alertsConfirmedAt, ::Pair)) {
-                record,
-                role,
-                glucose,
-                share,
-                (alerts, confirmedAt),
+        combine(
+            m.setupStore.data,
+            m.roles.role,
+            m.hub.state,
+            m.sharing.state,
+            combine(m.alertSettings.settings, m.alertsConfirmedAt, ::Pair),
+        ) {
+            record,
+            role,
+            glucose,
+            share,
+            (alerts, confirmedAt),
             ->
             Inputs(record, role, glucose, share, alerts, confirmedAt != null)
         }
 
     val ui: StateFlow<SetupUi?> =
         // the checklist is THE live flow (the monitor computes it asynchronously): never a copy taken on resume
-        combine(inputs, m.readiness.readiness, shown, combine(restore, busy, single, editing, ready, ::Locals)) { i, readiness, override, l ->
+        combine(
+            inputs,
+            m.readiness.readiness,
+            shown,
+            combine(restore, busy, single, editing, ready, ::Locals),
+        ) { i, readiness, override, l ->
             if (!l.ready) return@combine null
             // opened on one step: nothing until this flow itself sees the reopened record (no early "setup is over")
             if (openedOn != null && !seenOpen) {
@@ -275,7 +286,14 @@ class SetupViewModel(
                 RestoreIdentity.Result.RelaysUnreachable
             }
         restore.value = if (result is RestoreIdentity.Result.Restored) RestoreUi.Restored(result.followers) else RestoreUi.Failed(result)
-        if (result is RestoreIdentity.Result.Restored) m.setupStore.update { SetupMachine.completeIdentity(it, u.facts.copy(hasIdentity = true)) }
+        if (result is RestoreIdentity.Result.Restored) {
+            m.setupStore.update {
+                SetupMachine.completeIdentity(
+                    it,
+                    u.facts.copy(hasIdentity = true),
+                )
+            }
+        }
     }
 
     fun clearRestoreError() {
@@ -330,4 +348,3 @@ class SetupViewModel(
         ) = viewModelFactory { initializer { SetupViewModel(module, startAt) } }
     }
 }
-

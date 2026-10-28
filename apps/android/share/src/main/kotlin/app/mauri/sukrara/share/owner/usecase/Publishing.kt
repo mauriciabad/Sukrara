@@ -99,7 +99,10 @@ class IdentityConflictDetector(private val ctx: OwnerContext) {
     /** The state with the conflict recorded, or null when [ev] is fine (ours, older or unrelated). */
     fun check(s: OwnerState, ev: SignedEvent, now: Long): OwnerState? =
         when (val r = IdentityConflict.check(ctx.crypto, s.marks(ctx.crypto), ev)) {
-            IdentityCheck.Fine -> null
+            IdentityCheck.Fine -> {
+                null
+            }
+
             is IdentityCheck.Conflict -> {
                 val newest = maxOf(ev.createdAt, s.conflict?.eventCreatedAt ?: 0)
                 s.copy(conflict = ConflictRecord(r.reason, now, newest))
@@ -115,11 +118,12 @@ class IdentityConflictDetector(private val ctx: OwnerContext) {
         // the conflict's created_at is the floor for this publish (ControlEvents.nextAt), then it is forgotten. After
         // the other app rotated (unknown epoch) a plain roster would be older than its epoch: rotate instead, so our
         // followers get a newer key naming this phone.
-        val step = if (conflict.reason == IdentityCheck.Reason.RosterUnknownEpoch) {
-            Rotate(ctx)(s, now)
-        } else {
-            ControlEvents.roster(ctx, s, now) + { ControlEvents.backup(ctx, it, now) }
-        }
+        val step =
+            if (conflict.reason == IdentityCheck.Reason.RosterUnknownEpoch) {
+                Rotate(ctx)(s, now)
+            } else {
+                ControlEvents.roster(ctx, s, now) + { ControlEvents.backup(ctx, it, now) }
+            }
         return Step(step.state.copy(conflict = null), step.publish)
     }
 

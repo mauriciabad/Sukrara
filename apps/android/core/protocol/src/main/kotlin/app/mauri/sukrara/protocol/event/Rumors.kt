@@ -48,7 +48,13 @@ sealed interface Rumor {
     }
 
     /** Owner → follower (30501): the read key of [epoch] (as nsec), the stream id and the publishing devices. */
-    data class KeyDelivery(val sid: String, val epoch: Int, val readKeyNsec: String, val devices: List<String>, val relays: List<String>) : Rumor {
+    data class KeyDelivery(
+        val sid: String,
+        val epoch: Int,
+        val readKeyNsec: String,
+        val devices: List<String>,
+        val relays: List<String>,
+    ) : Rumor {
         override val kind = Wire.KIND_TO_FOLLOWER
         override val type = "key"
 
@@ -94,9 +100,19 @@ object RumorCodec {
                 put("token", r.token)
                 put("profile", r.profile?.toJson() ?: JsonNull)
             }
-            is Rumor.ProfileUpdate -> put("profile", r.profile.toJson())
-            is Rumor.Rekey -> put("have", r.have)
-            is Rumor.History -> put("since", r.since)
+
+            is Rumor.ProfileUpdate -> {
+                put("profile", r.profile.toJson())
+            }
+
+            is Rumor.Rekey -> {
+                put("have", r.have)
+            }
+
+            is Rumor.History -> {
+                put("since", r.since)
+            }
+
             is Rumor.KeyDelivery -> {
                 put("sid", r.sid)
                 put("epoch", r.epoch)
@@ -104,12 +120,16 @@ object RumorCodec {
                 put("devices", buildJsonArray { r.devices.forEach { add(JsonPrimitive(it)) } })
                 put("relays", buildJsonArray { r.relays.forEach { add(JsonPrimitive(it)) } })
             }
+
             is Rumor.Invite -> {
                 put("x", r.expiry)
                 put("r", buildJsonArray { r.relays.forEach { add(JsonPrimitive(it)) } })
                 put("profile", r.profile?.toJson() ?: JsonNull)
             }
-            Rumor.Revoked, Rumor.InviteUsed, Rumor.Declined -> Unit
+
+            Rumor.Revoked, Rumor.InviteUsed, Rumor.Declined -> {
+                Unit
+            }
         }
     }
 
@@ -119,30 +139,67 @@ object RumorCodec {
         val type = o.string("type") ?: throw InvalidPayload("rumor without type")
         o.requireV(if (kind == Wire.KIND_INVITE) Wire.INVITE_V else Wire.V)
         return when (kind) {
-            Wire.KIND_TO_OWNER -> toOwner(type, o)
-            Wire.KIND_TO_FOLLOWER -> toFollower(type, o)
-            Wire.KIND_INVITE -> if (type == "invite") Rumor.Invite(o.long("x"), Wire.secureRelays(o.strings("r")), Profile.of(o["profile"])) else null
+            Wire.KIND_TO_OWNER -> {
+                toOwner(type, o)
+            }
+
+            Wire.KIND_TO_FOLLOWER -> {
+                toFollower(type, o)
+            }
+
+            Wire.KIND_INVITE -> {
+                if (type ==
+                    "invite"
+                ) {
+                    Rumor.Invite(o.long("x"), Wire.secureRelays(o.strings("r")), Profile.of(o["profile"]))
+                } else {
+                    null
+                }
+            }
+
+            else -> {
+                null
+            }
+        }
+    }
+
+    private fun toOwner(type: String, o: JsonObject): Rumor? =
+        when (type) {
+            "request" -> Rumor.Request(o.string("token") ?: throw InvalidPayload("request without token"), Profile.of(o["profile"]))
+            "profile" -> Profile.of(o.obj("profile"))?.let(Rumor::ProfileUpdate) ?: throw InvalidPayload("profile update without profile")
+            "rekey" -> Rumor.Rekey(o.string("have") ?: throw InvalidPayload("rekey without have"))
+            "history" -> Rumor.History(o.long("since"))
             else -> null
         }
-    }
 
-    private fun toOwner(type: String, o: JsonObject): Rumor? = when (type) {
-        "request" -> Rumor.Request(o.string("token") ?: throw InvalidPayload("request without token"), Profile.of(o["profile"]))
-        "profile" -> Profile.of(o.obj("profile"))?.let(Rumor::ProfileUpdate) ?: throw InvalidPayload("profile update without profile")
-        "rekey" -> Rumor.Rekey(o.string("have") ?: throw InvalidPayload("rekey without have"))
-        "history" -> Rumor.History(o.long("since"))
-        else -> null
-    }
+    private fun toFollower(type: String, o: JsonObject): Rumor? =
+        when (type) {
+            "key" -> {
+                val sid = o.string("sid")?.takeIf(Hex::isKey) ?: throw InvalidPayload("bad sid")
+                val g = o.string("g") ?: throw InvalidPayload("key without g")
+                Rumor.KeyDelivery(
+                    sid,
+                    o.long("epoch").toInt(),
+                    g,
+                    o.strings("devices").filter(Hex::isKey),
+                    Wire.secureRelays(o.strings("relays")),
+                )
+            }
 
-    private fun toFollower(type: String, o: JsonObject): Rumor? = when (type) {
-        "key" -> {
-            val sid = o.string("sid")?.takeIf(Hex::isKey) ?: throw InvalidPayload("bad sid")
-            val g = o.string("g") ?: throw InvalidPayload("key without g")
-            Rumor.KeyDelivery(sid, o.long("epoch").toInt(), g, o.strings("devices").filter(Hex::isKey), Wire.secureRelays(o.strings("relays")))
+            "revoked" -> {
+                Rumor.Revoked
+            }
+
+            "invite-used" -> {
+                Rumor.InviteUsed
+            }
+
+            "declined" -> {
+                Rumor.Declined
+            }
+
+            else -> {
+                null
+            }
         }
-        "revoked" -> Rumor.Revoked
-        "invite-used" -> Rumor.InviteUsed
-        "declined" -> Rumor.Declined
-        else -> null
-    }
 }

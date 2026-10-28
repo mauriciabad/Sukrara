@@ -19,11 +19,19 @@ object Http {
 
     fun client(appVersion: String): OkHttpClient {
         val agent = userAgent(appVersion)
-        return OkHttpClient.Builder()
+        return OkHttpClient
+            .Builder()
             .connectTimeout(CONNECT_TIMEOUT)
             .readTimeout(READ_TIMEOUT)
             .callTimeout(CALL_TIMEOUT)
-            .addInterceptor { chain -> chain.proceed(chain.request().newBuilder().header("User-Agent", agent).build()) }
-            .build()
+            .addInterceptor { chain ->
+                chain.proceed(
+                    chain
+                        .request()
+                        .newBuilder()
+                        .header("User-Agent", agent)
+                        .build(),
+                )
+            }.build()
     }
 }

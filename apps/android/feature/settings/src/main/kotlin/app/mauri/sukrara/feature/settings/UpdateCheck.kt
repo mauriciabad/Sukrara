@@ -88,7 +88,12 @@ object UpdateCheck {
         a: String,
         b: String,
     ): Int {
-        fun numbers(v: String) = v.removePrefix("v").substringBefore('-').split('.').map { it.toIntOrNull() ?: 0 }
+        fun numbers(v: String) =
+            v
+                .removePrefix("v")
+                .substringBefore('-')
+                .split('.')
+                .map { it.toIntOrNull() ?: 0 }
         val x = numbers(a)
         val y = numbers(b)
         for (i in 0 until maxOf(x.size, y.size)) {
@@ -99,8 +104,11 @@ object UpdateCheck {
         val sb = b.substringAfter('-', "")
         return when {
             sa.isEmpty() && sb.isEmpty() -> 0
+
             sa.isEmpty() -> 1
+
             sb.isEmpty() -> -1
+
             // "rc2" > "rc1": the suffix's number decides
             else -> (sa.filter(Char::isDigit).toIntOrNull() ?: 0).compareTo(sb.filter(Char::isDigit).toIntOrNull() ?: 0)
         }

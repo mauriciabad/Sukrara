@@ -48,12 +48,21 @@ object RosterCodec {
         o.requireV(Wire.V)
         val devices = keys(o, "devices", required = true)
         val writers = keys(o, "writers", required = false)
-        return RosterPayload(o.long("epoch").toInt(), devices, writers, Wire.secureRelays(o.strings("relays")), Profile.of(o.obj("profile")))
+        return RosterPayload(
+            o.long("epoch").toInt(),
+            devices,
+            writers,
+            Wire.secureRelays(o.strings("relays")),
+            Profile.of(o.obj("profile")),
+        )
     }
 
     private fun keys(o: JsonObject, key: String, required: Boolean): List<String> {
         val arr = o[key] as? JsonArray ?: if (required) throw InvalidPayload("$key must be hex pubkeys") else return emptyList()
-        return arr.map { (it as? JsonPrimitive)?.takeIf { p -> p.isString && Hex.isKey(p.content) }?.content ?: throw InvalidPayload("$key must be hex pubkeys") }
+        return arr.map {
+            (it as? JsonPrimitive)?.takeIf { p -> p.isString && Hex.isKey(p.content) }?.content
+                ?: throw InvalidPayload("$key must be hex pubkeys")
+        }
     }
 }
 
@@ -126,7 +135,19 @@ object BackupCodec {
         buildJsonObject {
             put("v", Wire.V)
             put("sid", b.sid)
-            put("epochs", buildJsonArray { b.epochs.forEach { add(buildJsonObject { put("n", it.n); put("g", it.nsec) }) } })
+            put(
+                "epochs",
+                buildJsonArray {
+                    b.epochs.forEach {
+                        add(
+                            buildJsonObject {
+                                put("n", it.n)
+                                put("g", it.nsec)
+                            },
+                        )
+                    }
+                },
+            )
             put(
                 "followers",
                 buildJsonArray {
@@ -153,36 +174,43 @@ object BackupCodec {
         val o = Payload.parse(json)
         o.requireV(Wire.V)
         val sid = o.string("sid")?.takeIf(Hex::isKey) ?: throw InvalidPayload("bad sid")
-        val epochs = objects(o, "epochs").map { BackupEpoch(it.long("n").toInt(), it.string("g") ?: throw InvalidPayload("epoch without g")) }
-        val followers = objects(o, "followers").mapNotNull { f ->
-            val key = f.string("f")?.takeIf(Hex::isKey) ?: return@mapNotNull null
-            BackupFollower(key, f.string("name").orEmpty(), Avatar.of(f["avatar"]), f.longOrNull("since") ?: 0, f.longOrNull("revoked"))
-        }
-        val invites = objects(o, "invites").mapNotNull { i ->
-            val token = i.string("t") ?: return@mapNotNull null
-            BackupInvite(
-                token = token,
-                expiry = i.longOrNull("x") ?: 0,
-                label = i.string("label").orEmpty(),
-                nearby = i.bool("nearby") ?: false,
-                sentAt = i.longOrNull("sentAt") ?: 0,
-                claimedBy = i.string("claimedBy")?.takeIf(Hex::isKey),
-                done = i.bool("done") ?: false,
-            )
-        }
+        val epochs =
+            objects(
+                o,
+                "epochs",
+            ).map { BackupEpoch(it.long("n").toInt(), it.string("g") ?: throw InvalidPayload("epoch without g")) }
+        val followers =
+            objects(o, "followers").mapNotNull { f ->
+                val key = f.string("f")?.takeIf(Hex::isKey) ?: return@mapNotNull null
+                BackupFollower(key, f.string("name").orEmpty(), Avatar.of(f["avatar"]), f.longOrNull("since") ?: 0, f.longOrNull("revoked"))
+            }
+        val invites =
+            objects(o, "invites").mapNotNull { i ->
+                val token = i.string("t") ?: return@mapNotNull null
+                BackupInvite(
+                    token = token,
+                    expiry = i.longOrNull("x") ?: 0,
+                    label = i.string("label").orEmpty(),
+                    nearby = i.bool("nearby") ?: false,
+                    sentAt = i.longOrNull("sentAt") ?: 0,
+                    claimedBy = i.string("claimedBy")?.takeIf(Hex::isKey),
+                    done = i.bool("done") ?: false,
+                )
+            }
         val writers = o.strings("writers").filter(Hex::isKey)
         return BackupPayload(sid, epochs, followers, invites, Wire.secureRelays(o.strings("relays")), writers, Profile.of(o.obj("profile")))
     }
 
-    private fun invite(i: BackupInvite) = buildJsonObject {
-        put("t", i.token)
-        put("x", i.expiry)
-        put("label", i.label)
-        put("nearby", i.nearby)
-        put("sentAt", i.sentAt)
-        put("claimedBy", i.claimedBy?.let(::JsonPrimitive) ?: JsonNull)
-        put("done", i.done)
-    }
+    private fun invite(i: BackupInvite) =
+        buildJsonObject {
+            put("t", i.token)
+            put("x", i.expiry)
+            put("label", i.label)
+            put("nearby", i.nearby)
+            put("sentAt", i.sentAt)
+            put("claimedBy", i.claimedBy?.let(::JsonPrimitive) ?: JsonNull)
+            put("done", i.done)
+        }
 
     private fun objects(o: JsonObject, key: String): List<JsonObject> = (o[key] as? JsonArray)?.filterIsInstance<JsonObject>().orEmpty()
 }

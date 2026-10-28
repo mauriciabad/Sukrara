@@ -61,11 +61,12 @@ object AlertCodec {
         o.requireV(Wire.V)
         if (o.string("type") != "alert") throw InvalidPayload("type must be alert")
         val kind = o.string("k")?.takeIf { it in KINDS } ?: throw InvalidPayload("unknown alert kind")
-        val fire = when (o.string("state")) {
-            "fire" -> true
-            "clear" -> false
-            else -> throw InvalidPayload("state must be fire|clear")
-        }
+        val fire =
+            when (o.string("state")) {
+                "fire" -> true
+                "clear" -> false
+                else -> throw InvalidPayload("state must be fire|clear")
+            }
         val id = o.string("id")?.takeIf { it.isNotEmpty() } ?: throw InvalidPayload("missing id")
         return AlertPayload(
             id = id,

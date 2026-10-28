@@ -64,7 +64,8 @@ class HomeTextTest {
         compose.onNodeWithText("Alerts muted until you turn it off").assertIsDisplayed()
     }
 
-    @Test @Config(qualifiers = "es")
+    @Test
+    @Config(qualifiers = "es")
     fun spanishLines() {
         show(muted)
         compose.onNodeWithText("Alertas silenciadas · quedan 1 h 12 min").assertIsDisplayed()

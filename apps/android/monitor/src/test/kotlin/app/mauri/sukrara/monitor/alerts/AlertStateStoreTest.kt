@@ -23,54 +23,70 @@ import org.junit.Test
 class AlertStateStoreTest {
     private val rig = AlertRig()
 
-    @Test fun episodeAndMuteSurviveProcessDeathWithoutRingingAgain() = runTest {
-        val first = rig.runtime()
-        first.onState(rig.wearerState(latest = rig.reading(60)))
-        assertEquals(listOf("show low"), rig.presenter.log)
-        first.mute("low", 30)
-        rig.presenter.log.clear()
+    @Test fun episodeAndMuteSurviveProcessDeathWithoutRingingAgain() =
+        runTest {
+            val first = rig.runtime()
+            first.onState(rig.wearerState(latest = rig.reading(60)))
+            assertEquals(listOf("show low"), rig.presenter.log)
+            first.mute("low", 30)
+            rig.presenter.log.clear()
 
-        val second = rig.runtime() // the process died
-        second.start()
-        assertFalse("an ongoing alert never rings again after a restart", rig.presenter.log.any { it.startsWith("show") })
-        assertEquals(AlertQuietReason.Muted, rig.published.quiet.single().reason)
-        assertTrue(rig.presenter.slots[AlertGroup.LEVEL]!!.startsWith("muted low"))
-    }
+            val second = rig.runtime() // the process died
+            second.start()
+            assertFalse("an ongoing alert never rings again after a restart", rig.presenter.log.any { it.startsWith("show") })
+            assertEquals(
+                AlertQuietReason.Muted,
+                rig.published.quiet
+                    .single()
+                    .reason,
+            )
+            assertTrue(rig.presenter.slots[AlertGroup.LEVEL]!!.startsWith("muted low"))
+        }
 
-    @Test fun muteAllSurvivesAndHasItsWayOut() = runTest {
-        val first = rig.runtime()
-        first.onState(rig.wearerState(latest = rig.reading(120)))
-        first.muteAll(null)
-        assertEquals(AlertUiState.UNTIL_TURNED_OFF, rig.published.mutedUntil)
-        val second = rig.runtime()
-        second.start()
-        assertEquals(AlertUiState.UNTIL_TURNED_OFF, rig.published.mutedUntil)
-        second.unmuteAll()
-        assertEquals(null, rig.published.mutedUntil)
-    }
+    @Test fun muteAllSurvivesAndHasItsWayOut() =
+        runTest {
+            val first = rig.runtime()
+            first.onState(rig.wearerState(latest = rig.reading(120)))
+            first.muteAll(null)
+            assertEquals(AlertUiState.UNTIL_TURNED_OFF, rig.published.mutedUntil)
+            val second = rig.runtime()
+            second.start()
+            assertEquals(AlertUiState.UNTIL_TURNED_OFF, rig.published.mutedUntil)
+            second.unmuteAll()
+            assertEquals(null, rig.published.mutedUntil)
+        }
 
+    @Test fun recordRoundTripsThroughJson() =
+        runTest {
+            rig.runtime().onState(rig.wearerState(latest = rig.reading(60)))
+            val saved = rig.record.data.first()
+            val back = Json.decodeFromString(AlertRecord.serializer(), Json.encodeToString(AlertRecord.serializer(), saved))
+            assertEquals(Json.encodeToString(AlertRecord.serializer(), saved), Json.encodeToString(AlertRecord.serializer(), back))
+            assertTrue(back.monitoring)
+        }
 
-    @Test fun recordRoundTripsThroughJson() = runTest {
-        rig.runtime().onState(rig.wearerState(latest = rig.reading(60)))
-        val saved = rig.record.data.first()
-        val back = Json.decodeFromString(AlertRecord.serializer(), Json.encodeToString(AlertRecord.serializer(), saved))
-        assertEquals(Json.encodeToString(AlertRecord.serializer(), saved), Json.encodeToString(AlertRecord.serializer(), back))
-        assertTrue(back.monitoring)
-    }
+    @Test fun badSettingsJsonReadsAsDefaults() =
+        runTest {
+            rig.settingsRepo.set(AlertStateStore.SETTINGS, "not json")
+            assertEquals(AlertSettings(), rig.store.settings.first())
+            val custom = AlertSettings().withRule(AlertKind.LOW, KindRule(on = true, threshold = 75.0, repeatMin = 5))
+            rig.store.setSettings(custom)
+            assertEquals(
+                75.0,
+                rig.store.settings
+                    .first()
+                    .rule(AlertKind.LOW)
+                    .threshold,
+                0.0,
+            )
+        }
 
-    @Test fun badSettingsJsonReadsAsDefaults() = runTest {
-        rig.settingsRepo.set(AlertStateStore.SETTINGS, "not json")
-        assertEquals(AlertSettings(), rig.store.settings.first())
-        val custom = AlertSettings().withRule(AlertKind.LOW, KindRule(on = true, threshold = 75.0, repeatMin = 5))
-        rig.store.setSettings(custom)
-        assertEquals(75.0, rig.store.settings.first().rule(AlertKind.LOW).threshold, 0.0)
-    }
-
-    @Test fun updatesFromTwoScreensBothLand() = runTest {
-        rig.store.updateSettings { it.withRule(AlertKind.LOW, it.rule(AlertKind.LOW).copy(threshold = 75.0)) }
-        rig.store.updateSettings { it.withRule(AlertKind.HIGH, it.rule(AlertKind.HIGH).copy(threshold = 200.0)) }
-        val stored = rig.store.settings.first()
-        assertEquals(75.0, stored.rule(AlertKind.LOW).threshold, 0.0)
-        assertEquals(200.0, stored.rule(AlertKind.HIGH).threshold, 0.0)
-    }
+    @Test fun updatesFromTwoScreensBothLand() =
+        runTest {
+            rig.store.updateSettings { it.withRule(AlertKind.LOW, it.rule(AlertKind.LOW).copy(threshold = 75.0)) }
+            rig.store.updateSettings { it.withRule(AlertKind.HIGH, it.rule(AlertKind.HIGH).copy(threshold = 200.0)) }
+            val stored = rig.store.settings.first()
+            assertEquals(75.0, stored.rule(AlertKind.LOW).threshold, 0.0)
+            assertEquals(200.0, stored.rule(AlertKind.HIGH).threshold, 0.0)
+        }
 }

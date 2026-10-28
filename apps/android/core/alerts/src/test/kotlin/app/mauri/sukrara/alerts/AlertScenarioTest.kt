@@ -20,7 +20,10 @@ class AlertScenarioTest(private val name: String, private val sc: AlertScenarios
     companion object {
         @JvmStatic
         @Parameterized.Parameters(name = "{0}")
-        fun scenarios(): List<Array<Any>> = AlertScenarios.load().also { assertTrue("no scenarios found", it.isNotEmpty()) }
-            .map { arrayOf("${it.file}: ${it.title}", it) }
+        fun scenarios(): List<Array<Any>> =
+            AlertScenarios
+                .load()
+                .also { assertTrue("no scenarios found", it.isNotEmpty()) }
+                .map { arrayOf("${it.file}: ${it.title}", it) }
     }
 }

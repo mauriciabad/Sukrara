@@ -13,19 +13,20 @@ import org.junit.Test
 class RequestNotifierTest {
     private val shown = mutableListOf<String>()
     private var cancels = 0
-    private val notifier = RequestNotifier(
-        object : RequestNotifications {
-            override fun show(request: PendingRequest) {
-                shown += request.follower
-            }
+    private val notifier =
+        RequestNotifier(
+            object : RequestNotifications {
+                override fun show(request: PendingRequest) {
+                    shown += request.follower
+                }
 
-            override fun showNotAllowed() = Unit
+                override fun showNotAllowed() = Unit
 
-            override fun cancel() {
-                cancels++
-            }
-        },
-    )
+                override fun cancel() {
+                    cancels++
+                }
+            },
+        )
     private val ana = PendingRequest("ana", "Ana", "tok", "12", 100)
 
     private fun sharing(vararg pending: PendingRequest) = OwnerShareState.Sharing(1, emptyList(), pending.toList(), emptyMap(), 0, 0)

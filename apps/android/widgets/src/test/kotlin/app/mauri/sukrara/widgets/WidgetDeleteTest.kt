@@ -37,7 +37,16 @@ class WidgetDeleteTest {
         val scope = CoroutineScope(SupervisorJob())
         val store = InMemoryStateStore(WidgetPlacements(mapOf(7 to WidgetOverrides(hours = 3), 8 to WidgetOverrides(rings = 1))))
         override val widgets by lazy {
-            WidgetsModule(this, scope, FakeClock(), emptyFlow<GlucoseState>(), flowOf(emptyList()), flowOf(GraphConfig()), emptyFlow(), store)
+            WidgetsModule(
+                this,
+                scope,
+                FakeClock(),
+                emptyFlow<GlucoseState>(),
+                flowOf(emptyList()),
+                flowOf(GraphConfig()),
+                emptyFlow(),
+                store,
+            )
         }
         var readyAwaited = false
 
@@ -56,7 +65,12 @@ class WidgetDeleteTest {
         runTest {
             GraphWidget().onDelete(app, AppWidgetId(7))
             assertEquals(true, app.readyAwaited)
-            assertEquals(mapOf(8 to WidgetOverrides(rings = 1)), app.store.data.first().byId)
+            assertEquals(
+                mapOf(8 to WidgetOverrides(rings = 1)),
+                app.store.data
+                    .first()
+                    .byId,
+            )
         }
 
     @Test

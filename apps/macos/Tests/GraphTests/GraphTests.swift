@@ -168,12 +168,15 @@ func fixtureSetHasCases(_ set: String) {
             let st = CardStyle(graph: GraphStyle(), rings: [], value: false, sensorTime: false)
             let size = CGSize(width: w, height: 60)
             let lay = GlucoseCard.draw(
-                cardContext(size), size: size, readings: readings, marks: [], now: now, st, GraphPalette.of(dark: false),
+                cardContext(size), size: size, readings: readings, marks: [], now: now, st,
+                GraphPalette.of(dark: false),
                 surface: .widgetGraph, part: .all)
             guard let chart = lay.first("chart")?.box, let pill = lay.first("graph.age")?.box else {
                 Issue.record("w=\(w) age=\(age): no chart or pill"); continue
             }
-            #expect(pill.minX >= chart.minX - 0.01 && pill.maxX <= chart.maxX + 0.01, "w=\(w) age=\(age): \(pill) in \(chart)")
+            #expect(
+                pill.minX >= chart.minX - 0.01 && pill.maxX <= chart.maxX + 0.01,
+                "w=\(w) age=\(age): \(pill) in \(chart)")
         }
     }
 }

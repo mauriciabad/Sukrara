@@ -25,25 +25,64 @@ class MuteCopyTest {
 
     private fun side(c: JsonObject) = Side.entries.single { it.wire == c["side"]!!.jsonPrimitive.content }
 
-    private fun line(c: JsonObject): MuteLine = when (val st = c["state"]!!.jsonPrimitive.content) {
-        "side_muted" -> MuteLine.SideMuted(side(c), c["leftMin"]!!.jsonPrimitive.long)
-        "side_after" -> MuteLine.SideAfter(
-            side(c),
-            TreatmentKind.entries.single { it.wire == c["treatment"]!!.jsonPrimitive.content },
-            c["leftMin"]!!.jsonPrimitive.long,
-        )
-        "side_falling" -> MuteLine.SideFalling(side(c))
-        "side_less" -> MuteLine.SideLess(side(c), c["intervalMin"]!!.jsonPrimitive.int)
-        "all_timed" -> MuteLine.AllTimed(c["leftMin"]!!.jsonPrimitive.long)
-        "all_forever" -> MuteLine.AllForever
-        "notif_title" -> MuteLine.SideMuted(side(c), null)
-        "notif_text" -> MuteLine.NotifUntil(0)
-        "pill" -> MuteLine.Pill(c["leftMin"]!!.jsonPrimitive.long)
-        "pill_forever" -> MuteLine.PillForever
-        "choice" -> MuteLine.Choice(c["min"]!!.jsonPrimitive.int)
-        "choice_forever" -> MuteLine.ChoiceForever
-        else -> error("unknown state $st")
-    }
+    private fun line(c: JsonObject): MuteLine =
+        when (val st = c["state"]!!.jsonPrimitive.content) {
+            "side_muted" -> {
+                MuteLine.SideMuted(side(c), c["leftMin"]!!.jsonPrimitive.long)
+            }
+
+            "side_after" -> {
+                MuteLine.SideAfter(
+                    side(c),
+                    TreatmentKind.entries.single { it.wire == c["treatment"]!!.jsonPrimitive.content },
+                    c["leftMin"]!!.jsonPrimitive.long,
+                )
+            }
+
+            "side_falling" -> {
+                MuteLine.SideFalling(side(c))
+            }
+
+            "side_less" -> {
+                MuteLine.SideLess(side(c), c["intervalMin"]!!.jsonPrimitive.int)
+            }
+
+            "all_timed" -> {
+                MuteLine.AllTimed(c["leftMin"]!!.jsonPrimitive.long)
+            }
+
+            "all_forever" -> {
+                MuteLine.AllForever
+            }
+
+            "notif_title" -> {
+                MuteLine.SideMuted(side(c), null)
+            }
+
+            "notif_text" -> {
+                MuteLine.NotifUntil(0)
+            }
+
+            "pill" -> {
+                MuteLine.Pill(c["leftMin"]!!.jsonPrimitive.long)
+            }
+
+            "pill_forever" -> {
+                MuteLine.PillForever
+            }
+
+            "choice" -> {
+                MuteLine.Choice(c["min"]!!.jsonPrimitive.int)
+            }
+
+            "choice_forever" -> {
+                MuteLine.ChoiceForever
+            }
+
+            else -> {
+                error("unknown state $st")
+            }
+        }
 
     @Test fun everyCaseWordsInEnglish() {
         check(cases.isNotEmpty())
@@ -60,8 +99,10 @@ class MuteCopyTest {
 
     @Test fun quietSidesMapToTheirLines() {
         val now = 1_000_000L
-        assertEquals(MuteLine.SideAfter(Side.LOW, TreatmentKind.CARBS, 12),
-            MuteCopy.of(QuietSide(AlertKind.VERY_LOW, true, QuietReason.CARBS, now + 12 * 60 - 30, 0, false), now))
+        assertEquals(
+            MuteLine.SideAfter(Side.LOW, TreatmentKind.CARBS, 12),
+            MuteCopy.of(QuietSide(AlertKind.VERY_LOW, true, QuietReason.CARBS, now + 12 * 60 - 30, 0, false), now),
+        )
         assertEquals(MuteLine.SideFalling(Side.HIGH), MuteCopy.of(QuietSide(AlertKind.HIGH, true, QuietReason.FALLING, 0, 0, true), now))
         assertEquals(MuteLine.SideLess(Side.LOW, 30), MuteCopy.of(QuietSide(AlertKind.LOW, false, null, 0, 30, false), now))
         assertEquals(MuteLine.AllForever, MuteCopy.all(Rules.NEVER, now))
@@ -84,39 +125,76 @@ class MuteCopyTest {
 
     /** A minimal English wording of [MuteLine] (test only): durations as contracts/settings/durations.json. */
     private object English {
-        fun text(min: Long) = when {
-            min < 60 -> "$min min"
-            min % 60 == 0L -> "${min / 60} h"
-            else -> "${min / 60} h ${min % 60} min"
-        }
+        fun text(min: Long) =
+            when {
+                min < 60 -> "$min min"
+                min % 60 == 0L -> "${min / 60} h"
+                else -> "${min / 60} h ${min % 60} min"
+            }
 
-        fun compact(min: Long) = when {
-            min < 60 -> "${min}m"
-            min % 60 == 0L -> "${min / 60}h"
-            else -> "${min / 60}h ${min % 60}m"
-        }
+        fun compact(min: Long) =
+            when {
+                min < 60 -> "${min}m"
+                min % 60 == 0L -> "${min / 60}h"
+                else -> "${min / 60}h ${min % 60}m"
+            }
 
-        fun side(s: Side) = when (s) {
-            Side.LOW -> "Low"
-            Side.HIGH -> "High"
-            Side.FALLING_FAST -> "Falling fast"
-            Side.RISING_FAST -> "Rising fast"
-            Side.NO_DATA -> "No data"
-        }
+        fun side(s: Side) =
+            when (s) {
+                Side.LOW -> "Low"
+                Side.HIGH -> "High"
+                Side.FALLING_FAST -> "Falling fast"
+                Side.RISING_FAST -> "Rising fast"
+                Side.NO_DATA -> "No data"
+            }
 
-        fun word(l: MuteLine, clock: String?): String = when (l) {
-            is MuteLine.SideMuted -> "${side(l.side)} alerts muted" + (l.leftMin?.let { " · ${text(it)} left" } ?: "")
-            is MuteLine.SideAfter ->
-                "${side(l.side)} alerts muted after ${if (l.treatment == TreatmentKind.CARBS) "carbs" else "insulin"} · ${text(l.leftMin)} left"
-            is MuteLine.SideFalling -> "${side(l.side)} alerts muted while falling back into range"
-            is MuteLine.SideLess -> "${side(l.side)} reminders every ${text(l.intervalMin.toLong())}"
-            is MuteLine.AllTimed -> "Alerts muted · ${text(l.leftMin)} left"
-            MuteLine.AllForever -> "Alerts muted until you turn it off"
-            is MuteLine.NotifUntil -> "Until $clock"
-            is MuteLine.Pill -> "Muted · ${compact(l.leftMin)}"
-            MuteLine.PillForever -> "Muted"
-            is MuteLine.Choice -> "For ${text(l.min.toLong())}"
-            MuteLine.ChoiceForever -> "Until you turn it off"
-        }
+        fun word(l: MuteLine, clock: String?): String =
+            when (l) {
+                is MuteLine.SideMuted -> {
+                    "${side(l.side)} alerts muted" + (l.leftMin?.let { " · ${text(it)} left" } ?: "")
+                }
+
+                is MuteLine.SideAfter -> {
+                    "${side(
+                        l.side,
+                    )} alerts muted after ${if (l.treatment == TreatmentKind.CARBS) "carbs" else "insulin"} · ${text(l.leftMin)} left"
+                }
+
+                is MuteLine.SideFalling -> {
+                    "${side(l.side)} alerts muted while falling back into range"
+                }
+
+                is MuteLine.SideLess -> {
+                    "${side(l.side)} reminders every ${text(l.intervalMin.toLong())}"
+                }
+
+                is MuteLine.AllTimed -> {
+                    "Alerts muted · ${text(l.leftMin)} left"
+                }
+
+                MuteLine.AllForever -> {
+                    "Alerts muted until you turn it off"
+                }
+
+                is MuteLine.NotifUntil -> {
+                    "Until $clock"
+                }
+
+                is MuteLine.Pill -> {
+                    "Muted · ${compact(l.leftMin)}"
+                }
+
+                MuteLine.PillForever -> {
+                    "Muted"
+                }
+
+                is MuteLine.Choice -> {
+                    "For ${text(l.min.toLong())}"
+                }
+
+                MuteLine.ChoiceForever -> {
+                    "Until you turn it off"
+                }
+            }
     }
 }

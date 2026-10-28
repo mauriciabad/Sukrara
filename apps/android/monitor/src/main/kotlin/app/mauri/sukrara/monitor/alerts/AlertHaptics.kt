@@ -15,11 +15,17 @@ import app.mauri.sukrara.alerts.AlertKind
  * without the composition primitives get an on/off waveform with the same rhythm.
  */
 object AlertHaptics {
-    private val USED = intArrayOf(
-        Composition.PRIMITIVE_QUICK_FALL, Composition.PRIMITIVE_THUD, Composition.PRIMITIVE_CLICK,
-        Composition.PRIMITIVE_QUICK_RISE, Composition.PRIMITIVE_SPIN, Composition.PRIMITIVE_LOW_TICK,
-        Composition.PRIMITIVE_SLOW_RISE, Composition.PRIMITIVE_TICK,
-    )
+    private val USED =
+        intArrayOf(
+            Composition.PRIMITIVE_QUICK_FALL,
+            Composition.PRIMITIVE_THUD,
+            Composition.PRIMITIVE_CLICK,
+            Composition.PRIMITIVE_QUICK_RISE,
+            Composition.PRIMITIVE_SPIN,
+            Composition.PRIMITIVE_LOW_TICK,
+            Composition.PRIMITIVE_SLOW_RISE,
+            Composition.PRIMITIVE_TICK,
+        )
 
     fun effect(ctx: Context, kind: AlertKind): VibrationEffect {
         val v = ctx.getSystemService(VibratorManager::class.java).defaultVibrator
@@ -27,39 +33,76 @@ object AlertHaptics {
     }
 
     /** (primitive, scale, delay ms) steps of [kind]'s pattern. */
-    private fun steps(kind: AlertKind): List<Triple<Int, Float, Int>> = when (kind) {
-        AlertKind.VERY_LOW -> listOf(
-            Triple(Composition.PRIMITIVE_QUICK_FALL, 1f, 0), Triple(Composition.PRIMITIVE_QUICK_FALL, 0.7f, 180),
-            Triple(Composition.PRIMITIVE_QUICK_FALL, 0.5f, 260), Triple(Composition.PRIMITIVE_THUD, 1f, 360),
-            Triple(Composition.PRIMITIVE_THUD, 1f, 500),
-        )
-        AlertKind.LOW -> listOf(
-            Triple(Composition.PRIMITIVE_QUICK_FALL, 0.9f, 0), Triple(Composition.PRIMITIVE_QUICK_FALL, 0.8f, 200),
-            Triple(Composition.PRIMITIVE_THUD, 0.9f, 280),
-        )
-        AlertKind.HIGH -> listOf(
-            Triple(Composition.PRIMITIVE_CLICK, 0.7f, 0), Triple(Composition.PRIMITIVE_CLICK, 0.75f, 140),
-            Triple(Composition.PRIMITIVE_CLICK, 0.8f, 100), Triple(Composition.PRIMITIVE_CLICK, 0.85f, 70),
-            Triple(Composition.PRIMITIVE_CLICK, 0.9f, 50), Triple(Composition.PRIMITIVE_QUICK_RISE, 1f, 60),
-        )
-        AlertKind.VERY_HIGH -> listOf(
-            Triple(Composition.PRIMITIVE_THUD, 0.8f, 0), Triple(Composition.PRIMITIVE_CLICK, 1f, 90),
-            Triple(Composition.PRIMITIVE_THUD, 0.8f, 220), Triple(Composition.PRIMITIVE_CLICK, 1f, 90),
-            Triple(Composition.PRIMITIVE_SPIN, 1f, 220),
-        )
-        AlertKind.EXTREMELY_HIGH -> listOf(
-            Triple(Composition.PRIMITIVE_THUD, 1f, 0), Triple(Composition.PRIMITIVE_THUD, 1f, 120),
-            Triple(Composition.PRIMITIVE_CLICK, 1f, 90), Triple(Composition.PRIMITIVE_THUD, 1f, 200),
-            Triple(Composition.PRIMITIVE_THUD, 1f, 120), Triple(Composition.PRIMITIVE_CLICK, 1f, 90),
-            Triple(Composition.PRIMITIVE_SPIN, 1f, 220), Triple(Composition.PRIMITIVE_QUICK_RISE, 1f, 100),
-        )
-        AlertKind.FALLING_FAST -> listOf(Triple(Composition.PRIMITIVE_QUICK_FALL, 1f, 0), Triple(Composition.PRIMITIVE_LOW_TICK, 1f, 120))
-        AlertKind.RISING_FAST -> listOf(Triple(Composition.PRIMITIVE_SLOW_RISE, 1f, 0), Triple(Composition.PRIMITIVE_TICK, 1f, 60))
-        AlertKind.NO_DATA -> listOf(
-            Triple(Composition.PRIMITIVE_TICK, 1f, 0), Triple(Composition.PRIMITIVE_TICK, 0.6f, 160),
-            Triple(Composition.PRIMITIVE_LOW_TICK, 0.4f, 160),
-        )
-    }
+    private fun steps(kind: AlertKind): List<Triple<Int, Float, Int>> =
+        when (kind) {
+            AlertKind.VERY_LOW -> {
+                listOf(
+                    Triple(Composition.PRIMITIVE_QUICK_FALL, 1f, 0),
+                    Triple(Composition.PRIMITIVE_QUICK_FALL, 0.7f, 180),
+                    Triple(Composition.PRIMITIVE_QUICK_FALL, 0.5f, 260),
+                    Triple(Composition.PRIMITIVE_THUD, 1f, 360),
+                    Triple(Composition.PRIMITIVE_THUD, 1f, 500),
+                )
+            }
+
+            AlertKind.LOW -> {
+                listOf(
+                    Triple(Composition.PRIMITIVE_QUICK_FALL, 0.9f, 0),
+                    Triple(Composition.PRIMITIVE_QUICK_FALL, 0.8f, 200),
+                    Triple(Composition.PRIMITIVE_THUD, 0.9f, 280),
+                )
+            }
+
+            AlertKind.HIGH -> {
+                listOf(
+                    Triple(Composition.PRIMITIVE_CLICK, 0.7f, 0),
+                    Triple(Composition.PRIMITIVE_CLICK, 0.75f, 140),
+                    Triple(Composition.PRIMITIVE_CLICK, 0.8f, 100),
+                    Triple(Composition.PRIMITIVE_CLICK, 0.85f, 70),
+                    Triple(Composition.PRIMITIVE_CLICK, 0.9f, 50),
+                    Triple(Composition.PRIMITIVE_QUICK_RISE, 1f, 60),
+                )
+            }
+
+            AlertKind.VERY_HIGH -> {
+                listOf(
+                    Triple(Composition.PRIMITIVE_THUD, 0.8f, 0),
+                    Triple(Composition.PRIMITIVE_CLICK, 1f, 90),
+                    Triple(Composition.PRIMITIVE_THUD, 0.8f, 220),
+                    Triple(Composition.PRIMITIVE_CLICK, 1f, 90),
+                    Triple(Composition.PRIMITIVE_SPIN, 1f, 220),
+                )
+            }
+
+            AlertKind.EXTREMELY_HIGH -> {
+                listOf(
+                    Triple(Composition.PRIMITIVE_THUD, 1f, 0),
+                    Triple(Composition.PRIMITIVE_THUD, 1f, 120),
+                    Triple(Composition.PRIMITIVE_CLICK, 1f, 90),
+                    Triple(Composition.PRIMITIVE_THUD, 1f, 200),
+                    Triple(Composition.PRIMITIVE_THUD, 1f, 120),
+                    Triple(Composition.PRIMITIVE_CLICK, 1f, 90),
+                    Triple(Composition.PRIMITIVE_SPIN, 1f, 220),
+                    Triple(Composition.PRIMITIVE_QUICK_RISE, 1f, 100),
+                )
+            }
+
+            AlertKind.FALLING_FAST -> {
+                listOf(Triple(Composition.PRIMITIVE_QUICK_FALL, 1f, 0), Triple(Composition.PRIMITIVE_LOW_TICK, 1f, 120))
+            }
+
+            AlertKind.RISING_FAST -> {
+                listOf(Triple(Composition.PRIMITIVE_SLOW_RISE, 1f, 0), Triple(Composition.PRIMITIVE_TICK, 1f, 60))
+            }
+
+            AlertKind.NO_DATA -> {
+                listOf(
+                    Triple(Composition.PRIMITIVE_TICK, 1f, 0),
+                    Triple(Composition.PRIMITIVE_TICK, 0.6f, 160),
+                    Triple(Composition.PRIMITIVE_LOW_TICK, 0.4f, 160),
+                )
+            }
+        }
 
     private fun composed(kind: AlertKind): VibrationEffect =
         steps(kind).fold(VibrationEffect.startComposition()) { c, (p, scale, delay) -> c.addPrimitive(p, scale, delay) }.compose()
@@ -69,7 +112,8 @@ object AlertHaptics {
         val timings = mutableListOf<Long>()
         val amplitudes = mutableListOf<Int>()
         for ((p, scale, delay) in steps(kind)) {
-            timings += delay.toLong(); amplitudes += 0
+            timings += delay.toLong()
+            amplitudes += 0
             timings += if (p == Composition.PRIMITIVE_THUD || p == Composition.PRIMITIVE_SPIN) 200L else 60L
             amplitudes += (scale * 255).toInt().coerceIn(1, 255)
         }

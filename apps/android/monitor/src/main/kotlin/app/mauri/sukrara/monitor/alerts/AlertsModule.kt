@@ -17,16 +17,16 @@ import app.mauri.sukrara.core.model.storage.SettingsRepository
 import app.mauri.sukrara.core.model.storage.StateStore
 import app.mauri.sukrara.monitor.readiness.AndroidAlertReadiness
 import app.mauri.sukrara.monitor.sensorend.AndroidSensorEndPresenter
-import app.mauri.sukrara.monitor.service.AndroidAlarms
 import app.mauri.sukrara.monitor.sensorend.SensorEndMemory
 import app.mauri.sukrara.monitor.sensorend.SensorEndNotifier
+import app.mauri.sukrara.monitor.service.AndroidAlarms
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 
 /**
@@ -62,16 +62,17 @@ class AlertsModule(
     val notifier = AlertNotifier(ctx)
 
     /** THE alert runtime of this process; also every surface's [AlertControls]. */
-    val runtime = AlertRuntime(
-        store,
-        treatments,
-        notifier,
-        alarms.alertCheck(AndroidAlarms.ALERT_CHECK, clock),
-        events,
-        hub::setAlerts,
-        clock,
-        log = log,
-    )
+    val runtime =
+        AlertRuntime(
+            store,
+            treatments,
+            notifier,
+            alarms.alertCheck(AndroidAlarms.ALERT_CHECK, clock),
+            events,
+            hub::setAlerts,
+            clock,
+            log = log,
+        )
     val controls: AlertControls get() = runtime
 
     /**
@@ -80,12 +81,13 @@ class AlertsModule(
      */
     val readiness: AlertReadinessSource = AndroidAlertReadiness(ctx, scope, dispatchers, store.settings, needsBluetooth)
 
-    val sensorEnd = SensorEndNotifier(
-        sensorEndRecord,
-        AndroidSensorEndPresenter(ctx),
-        alarms.alertCheck(AndroidAlarms.SENSOR_END_CHECK, clock),
-        clock,
-    )
+    val sensorEnd =
+        SensorEndNotifier(
+            sensorEndRecord,
+            AndroidSensorEndPresenter(ctx),
+            alarms.alertCheck(AndroidAlarms.SENSOR_END_CHECK, clock),
+            clock,
+        )
 
     /**
      * Evaluates alerts and the sensor end now, from the saved state (the alert alarm, boot, app update, clock change):
@@ -117,7 +119,12 @@ class AlertsModule(
     fun attach(scope: CoroutineScope) {
         AlertChannels.ensure(ctx)
         runtime.observe(scope, hub.state, wearerSettings, remoteEvents)
-        scope.launch { hub.state.map { it.sensor }.distinctUntilChanged().collect { sensorEnd.onSensor(it) } }
+        scope.launch {
+            hub.state
+                .map { it.sensor }
+                .distinctUntilChanged()
+                .collect { sensorEnd.onSensor(it) }
+        }
     }
 }
 

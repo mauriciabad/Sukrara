@@ -66,7 +66,10 @@ object IdentityConflict {
         if (ev.createdAt <= marks.lastBackupAt) return IdentityCheck.Fine
         val plain = crypto.decrypt(marks.identity.secret, marks.identity.public, ev.content) ?: return IdentityCheck.Fine
         val backup = runCatching { BackupCodec.decode(plain) }.getOrNull() ?: return IdentityCheck.Fine
-        val ours = marks.epochsByGk.values.map { it.first }.toSet()
+        val ours =
+            marks.epochsByGk.values
+                .map { it.first }
+                .toSet()
         val theirs = backup.epochs.map { it.n }.toSet()
         val newest = ours.maxOrNull()
         return if (backup.sid != marks.sid || !ours.containsAll(theirs) || (newest != null && newest !in theirs)) {

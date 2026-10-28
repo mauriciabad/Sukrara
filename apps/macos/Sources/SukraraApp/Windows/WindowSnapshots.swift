@@ -19,7 +19,8 @@
             for (name, view) in scenes() {
                 for dark in [false, true] {
                     for large in [false, true] {
-                        let v = view
+                        let v =
+                            view
                             .environment(\.colorScheme, dark ? .dark : .light)
                             .dynamicTypeSize(large ? .xxxLarge : .large)
                             .background(Color(nsColor: .windowBackgroundColor))
@@ -47,7 +48,9 @@
                 out.append(("setup-\(step.rawValue)", AnyView(SetupView(model: m, close: {}))))
             }
             let doneModel = SetupModel(store: store, follow: follow(.notFollowing))
-            doneModel.flow = SetupFlow(states: [.welcome: .done, .follow: .skipped, .alerts: .done, .notifications: .done, .openAtLogin: .done])
+            doneModel.flow = SetupFlow(states: [
+                .welcome: .done, .follow: .skipped, .alerts: .done, .notifications: .done, .openAtLogin: .done,
+            ])
             out.append(("setup-done-skipped", AnyView(SetupView(model: doneModel, close: {}))))
             let nearbyModel = follow(.notFollowing, nearby: true)
             out.append(("follow-nearby", AnyView(FollowStep(follow: nearbyModel).padding().frame(width: 520))))
@@ -60,34 +63,88 @@
             let noQR = follow(.notFollowing)
             Task { await noQR.follow(qrText: nil) }
             out.append(("follow-error-noqr", AnyView(FollowStep(follow: noQR).padding().frame(width: 520))))
-            let following = follow(.following(wearer: "Marta", lastReading: Date().addingTimeInterval(-180), canWrite: true))
+            let following = follow(
+                .following(wearer: "Marta", lastReading: Date().addingTimeInterval(-180), canWrite: true))
             let settings = SettingsModel(store: store, follow: following, version: "0.12.0")
-            out.append(("settings-general", AnyView(SettingsView(model: settings, loginItem: LoginItem(service: SnapLogin(status: .enabled)), updateResult: nil, checkForUpdates: {}, openFollow: {}).frame(width: 560, height: 640))))
-            out.append(("settings-general-login-approval", AnyView(SettingsView(model: settings, loginItem: LoginItem(service: SnapLogin(status: .requiresApproval)), updateResult: nil, checkForUpdates: {}, openFollow: {}).frame(width: 560, height: 700))))
+            out.append(
+                (
+                    "settings-general",
+                    AnyView(
+                        SettingsView(
+                            model: settings, loginItem: LoginItem(service: SnapLogin(status: .enabled)),
+                            updateResult: nil, checkForUpdates: {}, openFollow: {}
+                        ).frame(width: 560, height: 640))
+                ))
+            out.append(
+                (
+                    "settings-general-login-approval",
+                    AnyView(
+                        SettingsView(
+                            model: settings, loginItem: LoginItem(service: SnapLogin(status: .requiresApproval)),
+                            updateResult: nil, checkForUpdates: {}, openFollow: {}
+                        ).frame(width: 560, height: 700))
+                ))
             let refused = LoginItem(service: SnapLogin(status: .notRegistered, refuses: true))
             refused.set(true)
-            out.append(("settings-general-login-failed", AnyView(SettingsView(model: settings, loginItem: refused, updateResult: nil, checkForUpdates: {}, openFollow: {}).frame(width: 560, height: 700))))
-            out.append(("settings-general-login-unavailable", AnyView(SettingsView(model: settings, loginItem: nil, updateResult: nil, checkForUpdates: {}, openFollow: {}).frame(width: 560, height: 700))))
+            out.append(
+                (
+                    "settings-general-login-failed",
+                    AnyView(
+                        SettingsView(
+                            model: settings, loginItem: refused, updateResult: nil, checkForUpdates: {}, openFollow: {}
+                        ).frame(width: 560, height: 700))
+                ))
+            out.append(
+                (
+                    "settings-general-login-unavailable",
+                    AnyView(
+                        SettingsView(
+                            model: settings, loginItem: nil, updateResult: nil, checkForUpdates: {}, openFollow: {}
+                        ).frame(width: 560, height: 700))
+                ))
             let alerts = SettingsModel(store: store, follow: following, version: "0.12.0")
             alerts.pane = .alerts
-            out.append(("settings-alerts", AnyView(SettingsView(model: alerts, loginItem: nil, updateResult: nil, checkForUpdates: {}, openFollow: {}).frame(width: 560, height: 900))))
+            out.append(
+                (
+                    "settings-alerts",
+                    AnyView(
+                        SettingsView(
+                            model: alerts, loginItem: nil, updateResult: nil, checkForUpdates: {}, openFollow: {}
+                        ).frame(width: 560, height: 900))
+                ))
             let mirrored = SettingsModel(
                 store: store, follow: following,
-                wearer: WearerSettings(json: #"{"graph":{"low":72},"alerts":{"alerts":{"low":{"on":true,"mgdl":72}}}}"#, wearer: "Marta"),
+                wearer: WearerSettings(
+                    json: #"{"graph":{"low":72},"alerts":{"alerts":{"low":{"on":true,"mgdl":72}}}}"#, wearer: "Marta"),
                 version: "0.12.0")
             mirrored.pane = .alerts
-            out.append(("settings-alerts-mirrored", AnyView(SettingsView(model: mirrored, loginItem: nil, updateResult: nil, checkForUpdates: {}, openFollow: {}).frame(width: 560, height: 900))))
+            out.append(
+                (
+                    "settings-alerts-mirrored",
+                    AnyView(
+                        SettingsView(
+                            model: mirrored, loginItem: nil, updateResult: nil, checkForUpdates: {}, openFollow: {}
+                        ).frame(width: 560, height: 900))
+                ))
             out.append(("treatment-add", AnyView(AddTreatmentView(focusCarbs: true, save: { _ in }, cancel: {}))))
             let t0 = Int64(Date().timeIntervalSince1970)
             let rows: [TreatmentsModel.Row] = [
                 .init(treatment: Treatment(id: "1", k: .rapid, a: 4.5, t: t0 - 600, u: 1, o: .mac), delivery: .sending),
                 .init(treatment: Treatment(id: "2", k: .carbs, a: 30, t: t0 - 900, u: 1, o: .mac), delivery: .failed),
                 .init(treatment: Treatment(id: "3", k: .long, a: 12, t: t0 - 7200, u: 1, o: .phone), delivery: nil),
-                .init(treatment: Treatment(id: "4", k: .note, a: 0, t: t0 - 9000, n: "Walk", u: 1, o: .mac), delivery: .accepted),
+                .init(
+                    treatment: Treatment(id: "4", k: .note, a: 0, t: t0 - 9000, n: "Walk", u: 1, o: .mac),
+                    delivery: .accepted),
             ]
             let tm = TreatmentsModel(rows: rows, canWrite: true, actions: nil)
             out.append(("treatments", AnyView(TreatmentsView(model: tm, add: {}).frame(width: 460, height: 380))))
-            out.append(("treatments-empty", AnyView(TreatmentsView(model: TreatmentsModel(rows: [], canWrite: false, actions: nil), add: {}).frame(width: 460, height: 300))))
+            out.append(
+                (
+                    "treatments-empty",
+                    AnyView(
+                        TreatmentsView(model: TreatmentsModel(rows: [], canWrite: false, actions: nil), add: {}).frame(
+                            width: 460, height: 300))
+                ))
             return out
         }
 

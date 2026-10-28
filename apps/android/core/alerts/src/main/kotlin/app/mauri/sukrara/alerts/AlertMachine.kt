@@ -21,12 +21,16 @@ sealed interface AlertInput {
 
     /** This device's actions (SPEC §2): never shared with the followers. */
     data class Mute(val kind: AlertKind, val minutes: Int) : AlertInput
+
     data class RemindLess(val kind: AlertKind) : AlertInput
+
     data class RemindAsUsual(val kind: AlertKind) : AlertInput
+
     data class Unmute(val kind: AlertKind) : AlertInput
 
     /** *Mute all* until [until] (epoch s, [Rules.NEVER] = until turned off). */
     data class MuteAll(val until: Long) : AlertInput
+
     data object UnmuteAll : AlertInput
 
     /** The wearer's `alert` event (followers mirroring the wearer; ignored otherwise). */
@@ -76,9 +80,25 @@ class AlertMachine(
 
     /** The rules [local] runs: a mirroring follower checks only `no_data` itself. */
     private val localSettings: AlertSettings
-        get() = if (role != AlertRole.FOLLOWER_MIRROR) settings else settings.copy(
-            rules = AlertKind.entries.associateWith { k -> settings.rule(k).let { if (k == AlertKind.NO_DATA) it else it.copy(on = false) } },
-        )
+        get() =
+            if (role != AlertRole.FOLLOWER_MIRROR) {
+                settings
+            } else {
+                settings.copy(
+                    rules =
+                        AlertKind.entries.associateWith { k ->
+                            settings.rule(k).let {
+                                if (k ==
+                                    AlertKind.NO_DATA
+                                ) {
+                                    it
+                                } else {
+                                    it.copy(on = false)
+                                }
+                            }
+                        },
+                )
+            }
 
     val engine: AlertEngine get() = local
     val wearerMirror: WearerMirror? get() = mirror
@@ -139,28 +159,38 @@ class AlertMachine(
                 out += mirrorReading(input.reading, now)
                 out += own(local.reading(input.reading, localSettings, doses, now))
             }
+
             AlertInput.Tick -> {
                 out += published(shared?.evaluate(settings, doses, now))
                 mirror?.let { m -> m.expire(now).forEach { out += AlertEffect.Fire(it) } }
                 out += mirrorReading(local.last, now)
                 out += own(local.evaluate(localSettings, doses, now))
             }
+
             is AlertInput.Treatments -> {
                 doses = input.doses
                 out += reevaluate(now)
             }
+
             is AlertInput.Settings -> {
                 settings = input.settings
                 if (!settings.on) mirror?.let { m -> m.hideAll().forEach { out += AlertEffect.Clear(it.kind, it.id) } }
                 out += reevaluate(now)
             }
+
             is AlertInput.Sensor -> {
                 local.sensor = input.sensor
                 shared?.sensor = input.sensor
                 out += reevaluate(now)
             }
-            is AlertInput.Remote -> out += remote(input.event, now)
-            else -> out += action(input, now)
+
+            is AlertInput.Remote -> {
+                out += remote(input.event, now)
+            }
+
+            else -> {
+                out += action(input, now)
+            }
         }
         return out + schedule(now)
     }
@@ -174,7 +204,7 @@ class AlertMachine(
         val s = localSettings
         val m = mirror
         return when (input) {
-            is AlertInput.Mute ->
+            is AlertInput.Mute -> {
                 if (input.minutes <= 0) {
                     emptyList()
                 } else if (m != null && mirrorsKind(input.kind)) {
@@ -182,21 +212,44 @@ class AlertMachine(
                 } else {
                     own(local.mute(input.kind, input.minutes, s, doses, now))
                 }
-            is AlertInput.RemindLess ->
-                if (m != null && mirrorsKind(input.kind)) emptyList<AlertEffect>().also { m.relax(input.kind, settings.actions.relaxMin) }
-                else own(local.relax(input.kind, s, doses, now))
-            is AlertInput.RemindAsUsual ->
-                if (m != null && mirrorsKind(input.kind)) listOfNotNull(m.unrelax(input.kind, now)?.let { AlertEffect.Fire(it) })
-                else own(local.unrelax(input.kind, s, doses, now))
-            is AlertInput.Unmute ->
-                if (m != null && mirrorsKind(input.kind)) listOfNotNull(m.unmute(input.kind, now)?.let { AlertEffect.Fire(it) })
-                else own(local.unmute(input.kind, s, doses, now))
-            is AlertInput.MuteAll ->
+            }
+
+            is AlertInput.RemindLess -> {
+                if (m != null && mirrorsKind(input.kind)) {
+                    emptyList<AlertEffect>().also { m.relax(input.kind, settings.actions.relaxMin) }
+                } else {
+                    own(local.relax(input.kind, s, doses, now))
+                }
+            }
+
+            is AlertInput.RemindAsUsual -> {
+                if (m != null && mirrorsKind(input.kind)) {
+                    listOfNotNull(m.unrelax(input.kind, now)?.let { AlertEffect.Fire(it) })
+                } else {
+                    own(local.unrelax(input.kind, s, doses, now))
+                }
+            }
+
+            is AlertInput.Unmute -> {
+                if (m != null && mirrorsKind(input.kind)) {
+                    listOfNotNull(m.unmute(input.kind, now)?.let { AlertEffect.Fire(it) })
+                } else {
+                    own(local.unmute(input.kind, s, doses, now))
+                }
+            }
+
+            is AlertInput.MuteAll -> {
                 m?.muteAll(input.until).orEmpty().map { AlertEffect.Clear(it.kind, it.id) } +
                     own(local.muteAll(input.until, s, doses, now))
-            AlertInput.UnmuteAll ->
+            }
+
+            AlertInput.UnmuteAll -> {
                 m?.unmuteAll(now).orEmpty().map { AlertEffect.Fire(it) } + own(local.unmuteAll(s, doses, now))
-            else -> error("not an action: $input")
+            }
+
+            else -> {
+                error("not an action: $input")
+            }
         }
     }
 
@@ -212,24 +265,27 @@ class AlertMachine(
     private fun mirrorReading(r: AlertReading?, now: Long): List<AlertEffect> =
         mirror?.reading(r, settings, now).orEmpty().map { AlertEffect.Back(it) }
 
-    private fun own(actions: List<RuleAction>): List<AlertEffect> = actions.map {
-        when (it) {
-            is RuleAction.Fire -> AlertEffect.Fire(it.firing)
-            is RuleAction.Clear -> AlertEffect.Clear(it.kind, it.id)
-            is RuleAction.Back -> AlertEffect.Back(it.side)
+    private fun own(actions: List<RuleAction>): List<AlertEffect> =
+        actions.map {
+            when (it) {
+                is RuleAction.Fire -> AlertEffect.Fire(it.firing)
+                is RuleAction.Clear -> AlertEffect.Clear(it.kind, it.id)
+                is RuleAction.Back -> AlertEffect.Back(it.side)
+            }
         }
-    }
 
     /** The shared run's decisions as `alert` events (its Back can't happen: it has no actions of this device). */
-    private fun published(actions: List<RuleAction>?): List<AlertEffect> = actions.orEmpty().mapNotNull {
-        when (it) {
-            is RuleAction.Fire -> AlertEffect.Mirror(AlertEvent.fire(it.firing))
-            is RuleAction.Clear -> AlertEffect.Mirror(AlertEvent.clear(it.kind, it.id, it.at, shared?.last))
-            is RuleAction.Back -> null
+    private fun published(actions: List<RuleAction>?): List<AlertEffect> =
+        actions.orEmpty().mapNotNull {
+            when (it) {
+                is RuleAction.Fire -> AlertEffect.Mirror(AlertEvent.fire(it.firing))
+                is RuleAction.Clear -> AlertEffect.Mirror(AlertEvent.clear(it.kind, it.id, it.at, shared?.last))
+                is RuleAction.Back -> null
+            }
         }
-    }
 
-    private fun schedule(now: Long) = AlertEffect.Schedule(
-        listOfNotNull(local.nextCheckAt(localSettings, now), shared?.nextCheckAt(settings, now), mirror?.nextCheckAt(now)).minOrNull(),
-    )
+    private fun schedule(now: Long) =
+        AlertEffect.Schedule(
+            listOfNotNull(local.nextCheckAt(localSettings, now), shared?.nextCheckAt(settings, now), mirror?.nextCheckAt(now)).minOrNull(),
+        )
 }

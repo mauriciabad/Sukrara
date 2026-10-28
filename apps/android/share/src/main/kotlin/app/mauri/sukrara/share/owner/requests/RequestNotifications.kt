@@ -61,15 +61,17 @@ class AndroidRequestNotifications(
 ) : RequestNotifications {
     override fun show(request: PendingRequest) {
         val time = time(request.at)
-        val text = when {
-            request.others > 0 -> context.getString(R.string.share_request_others)
-            request.label.isNotBlank() -> context.getString(R.string.share_request_for, request.label, time)
-            else -> context.getString(R.string.share_request_from, time)
-        }
-        val builder = base()
-            .setContentTitle(context.getString(R.string.share_request_title, request.name))
-            .setContentText(text)
-            .setStyle(Notification.BigTextStyle().bigText(text))
+        val text =
+            when {
+                request.others > 0 -> context.getString(R.string.share_request_others)
+                request.label.isNotBlank() -> context.getString(R.string.share_request_for, request.label, time)
+                else -> context.getString(R.string.share_request_from, time)
+            }
+        val builder =
+            base()
+                .setContentTitle(context.getString(R.string.share_request_title, request.name))
+                .setContentText(text)
+                .setStyle(Notification.BigTextStyle().bigText(text))
         if (request.others == 0) {
             builder.addAction(action(RequestActionReceiver.ACTION_DENY, R.string.share_request_deny, request.follower, auth = false))
             builder.addAction(action(RequestActionReceiver.ACTION_ALLOW, R.string.share_request_allow, request.follower, auth = true))
@@ -79,21 +81,24 @@ class AndroidRequestNotifications(
 
     override fun showNotAllowed() {
         val text = context.getString(R.string.share_request_failed_text)
-        val builder = base()
-            .setContentTitle(context.getString(R.string.share_request_failed_title))
-            .setContentText(text)
-            .setStyle(Notification.BigTextStyle().bigText(text))
+        val builder =
+            base()
+                .setContentTitle(context.getString(R.string.share_request_failed_title))
+                .setContentText(text)
+                .setStyle(Notification.BigTextStyle().bigText(text))
         post(builder.build())
     }
 
     override fun cancel() = remove()
 
     private fun base(): Notification.Builder {
-        val builder = Notification.Builder(context, channel)
-            .setSmallIcon(context.applicationInfo.icon)
-            .setCategory(Notification.CATEGORY_SOCIAL)
-            .setAutoCancel(true)
-            .setGroup(group)
+        val builder =
+            Notification
+                .Builder(context, channel)
+                .setSmallIcon(context.applicationInfo.icon)
+                .setCategory(Notification.CATEGORY_SOCIAL)
+                .setAutoCancel(true)
+                .setGroup(group)
         context.packageManager.getLaunchIntentForPackage(context.packageName)?.let {
             builder.setContentIntent(PendingIntent.getActivity(context, 0, it, PendingIntent.FLAG_IMMUTABLE))
         }
@@ -102,11 +107,15 @@ class AndroidRequestNotifications(
 
     private fun action(what: String, label: Int, follower: String, auth: Boolean): Notification.Action {
         // one PendingIntent per follower and action: a newer request can never retarget an Allow being unlocked
-        val intent = Intent(context, RequestActionReceiver::class.java)
-            .setAction(what)
-            .setIdentifier("$what:$follower")
-            .putExtra(RequestActionReceiver.EXTRA_FOLLOWER, follower)
+        val intent =
+            Intent(context, RequestActionReceiver::class.java)
+                .setAction(what)
+                .setIdentifier("$what:$follower")
+                .putExtra(RequestActionReceiver.EXTRA_FOLLOWER, follower)
         val pending = PendingIntent.getBroadcast(context, 0, intent, PendingIntent.FLAG_IMMUTABLE)
-        return Notification.Action.Builder(null, context.getString(label), pending).setAuthenticationRequired(auth).build()
+        return Notification.Action
+            .Builder(null, context.getString(label), pending)
+            .setAuthenticationRequired(auth)
+            .build()
     }
 }

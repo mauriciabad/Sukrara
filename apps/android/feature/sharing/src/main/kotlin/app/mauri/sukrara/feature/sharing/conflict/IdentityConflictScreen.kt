@@ -35,7 +35,11 @@ fun IdentityConflictScreen(
     modifier: Modifier = Modifier,
 ) {
     Column(
-        modifier.fillMaxSize().safeDrawingPadding().verticalScroll(rememberScrollState()).padding(24.dp),
+        modifier
+            .fillMaxSize()
+            .safeDrawingPadding()
+            .verticalScroll(rememberScrollState())
+            .padding(24.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         StepHeader(stringResource(R.string.sh_conflict_title), null)
@@ -46,12 +50,16 @@ fun IdentityConflictScreen(
 
 /** What happened, whether followers still get readings, and the ways out (shared with the setup identity step). */
 @Composable
-fun ColumnScope.ConflictContent(
+internal fun ColumnScope.ConflictContent(
     state: OwnerShareState.AnotherAppSharingAsYou,
     onRetry: () -> Unit,
 ) {
     Text(stringResource(R.string.sh_conflict_body))
-    NoteCard(stringResource(if (state.followersReceiving) R.string.sh_conflict_followers_receiving else R.string.sh_conflict_followers_not_receiving))
+    NoteCard(
+        stringResource(
+            if (state.followersReceiving) R.string.sh_conflict_followers_receiving else R.string.sh_conflict_followers_not_receiving,
+        ),
+    )
     Text(stringResource(R.string.sh_conflict_what_to_do))
     StepButtons(stringResource(R.string.sh_conflict_retry), onRetry)
 }

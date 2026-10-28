@@ -30,9 +30,15 @@ public struct AddTreatmentView: View {
             amount(L10n.t("Rapid"), "u", $fields.rapid, .rapid)
             amount(L10n.t("Long"), "u", $fields.long, .long)
             amount(L10n.t("Carbs"), "g", $fields.carbs, .carbs)
-            TextField(L10n.t("Note"), text: Binding(get: { fields.note }, set: { fields.note = TreatmentForm.filterNote($0, old: fields.note) }))
-                .focused($focus, equals: .note)
-            TextField(L10n.t("Minutes ago (empty = now)"), text: Binding(get: { minutes }, set: { minutes = TreatmentForm.filterMinutes($0) }))
+            TextField(
+                L10n.t("Note"),
+                text: Binding(
+                    get: { fields.note }, set: { fields.note = TreatmentForm.filterNote($0, old: fields.note) })
+            )
+            .focused($focus, equals: .note)
+            TextField(
+                L10n.t("Minutes ago (empty = now)"),
+                text: Binding(get: { minutes }, set: { minutes = TreatmentForm.filterMinutes($0) }))
             if fields.hasInvalidAmount || ago == .invalid {
                 Text(L10n.t("Insulin up to 100u, carbs up to 500g, at most 23 h 59 min ago."))
                     .font(.caption).foregroundStyle(.red)
@@ -54,9 +60,12 @@ public struct AddTreatmentView: View {
 
     private func amount(_ label: String, _ unit: String, _ text: Binding<String>, _ kind: Treatment.Kind) -> some View {
         HStack {
-            TextField(label, text: Binding(get: { text.wrappedValue }, set: { text.wrappedValue = TreatmentForm.filterAmount($0) }))
-                .focused($focus, equals: kind)
-                .accessibilityLabel(label)
+            TextField(
+                label,
+                text: Binding(get: { text.wrappedValue }, set: { text.wrappedValue = TreatmentForm.filterAmount($0) })
+            )
+            .focused($focus, equals: kind)
+            .accessibilityLabel(label)
             Text(unit).foregroundStyle(.secondary).accessibilityHidden(true)
         }
     }
@@ -95,11 +104,12 @@ public struct TreatmentsView: View {
                     model.isFollowing
                         ? L10n.t("The wearer hasn't allowed this Mac to add treatments")
                         : L10n.t("Follow someone to see and add their treatments"),
-                    systemImage: model.isFollowing ? "lock" : "person.badge.plus")
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(10)
+                    systemImage: model.isFollowing ? "lock" : "person.badge.plus"
+                )
+                .font(.callout)
+                .foregroundStyle(.secondary)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(10)
             }
             if model.undoAvailable, let u = model.undo {
                 HStack {
@@ -119,7 +129,9 @@ public struct TreatmentsView: View {
         .toolbar {
             Button(action: add) { Label(L10n.t("Add treatment"), systemImage: "plus") }
                 .disabled(!model.canWrite)
-                .help(model.canWrite ? L10n.t("Add treatment") : L10n.t("The wearer hasn't allowed this Mac to add treatments"))
+                .help(
+                    model.canWrite
+                        ? L10n.t("Add treatment") : L10n.t("The wearer hasn't allowed this Mac to add treatments"))
         }
         .frame(minWidth: 420, minHeight: 360)
     }
@@ -134,9 +146,13 @@ public struct TreatmentsView: View {
             Spacer()
             delivery(row)
             if model.canChange(row) {
-                Button { Task { await model.delete(row) } } label: { Image(systemName: "trash") }
-                    .buttonStyle(.borderless)
-                    .accessibilityLabel(L10n.t("Delete \(Self.title(row.treatment))"))
+                Button {
+                    Task { await model.delete(row) }
+                } label: {
+                    Image(systemName: "trash")
+                }
+                .buttonStyle(.borderless)
+                .accessibilityLabel(L10n.t("Delete \(Self.title(row.treatment))"))
             }
         }
         .frame(minHeight: 28)

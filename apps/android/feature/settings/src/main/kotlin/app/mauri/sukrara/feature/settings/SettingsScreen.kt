@@ -37,7 +37,7 @@ sealed interface SettingsRoute {
 
 /**
  * Renders [route] with its ViewModel from [deps]. [navigate] opens another settings page, [onBack] leaves this one;
- * Sensor and Sharing are other features' screens. [onReviewDone] gets the review's result (setup continues on it;
+ * Sensor and Sharing are other features' screens. [onReviewFinish] gets the review's result (setup continues on it;
  * from settings it just goes back).
  */
 @Composable
@@ -48,7 +48,7 @@ fun SettingsScreen(
     onBack: () -> Unit,
     openSensor: () -> Unit,
     openSharing: () -> Unit,
-    onReviewDone: (ThresholdReviewResult) -> Unit = { onBack() },
+    onReviewFinish: (ThresholdReviewResult) -> Unit = { onBack() },
 ) {
     val clock = deps.clock
     when (route) {
@@ -118,11 +118,18 @@ fun SettingsScreen(
             val vm = viewModel { ThresholdReviewViewModel(deps.alertSettings, deps.settings, deps.clock) }
             val draft by vm.draft.collectAsStateWithLifecycle()
             draft?.let { d: AlertSettings ->
-                AlertThresholdReviewContent(d, vm::setThreshold, { vm.confirm(onReviewDone) }, { onReviewDone(ThresholdReviewResult.Cancelled) })
+                AlertThresholdReviewContent(
+                    d,
+                    vm::setThreshold,
+                    { vm.confirm(onReviewFinish) },
+                    { onReviewFinish(ThresholdReviewResult.Cancelled) },
+                )
             }
         }
     }
 }
 
 @Composable
-private fun alertsViewModel(deps: SettingsDeps): AlertsViewModel = viewModel(factory = viewModelFactory { initializer { AlertsViewModel(deps) } })
+private fun alertsViewModel(
+    deps: SettingsDeps,
+): AlertsViewModel = viewModel(factory = viewModelFactory { initializer { AlertsViewModel(deps) } })

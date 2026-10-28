@@ -35,31 +35,35 @@ class SdkNostrCrypto : NostrCrypto {
 
     private inline fun <R> sdkSecret(s: SecretKey, block: (SdkSecretKey) -> R): R = SdkSecretKey.parse(s.revealHex()).use(block)
 
-    override fun generate(): KeyPair = Keys.generate().use { k ->
-        KeyPair(SecretKey.ofHex(k.secretKey().toHex())!!, PublicKeyHex(k.publicKey().toHex()))
-    }
+    override fun generate(): KeyPair =
+        Keys.generate().use { k ->
+            KeyPair(SecretKey.ofHex(k.secretKey().toHex())!!, PublicKeyHex(k.publicKey().toHex()))
+        }
 
     override fun keyPair(secret: SecretKey): KeyPair? =
         runCatching { keys(secret) { KeyPair(secret, PublicKeyHex(it.publicKey().toHex())) } }.getOrNull()
 
-    override fun sign(signer: KeyPair, event: UnsignedEvent): SignedEvent = keys(signer.secret) { k ->
-        EventBuilder(Kind(event.kind.toUShort()), event.content)
-            .tags(event.tags.map { Tag.parse(it) })
-            .customCreatedAt(Timestamp.fromSecs(event.createdAt.toULong()))
-            .finalize(k)
-            .use { SignedEvent.parse(it.asJson())!! }
-    }
+    override fun sign(signer: KeyPair, event: UnsignedEvent): SignedEvent =
+        keys(signer.secret) { k ->
+            EventBuilder(Kind(event.kind.toUShort()), event.content)
+                .tags(event.tags.map { Tag.parse(it) })
+                .customCreatedAt(Timestamp.fromSecs(event.createdAt.toULong()))
+                .finalize(k)
+                .use { SignedEvent.parse(it.asJson())!! }
+        }
 
     override fun verify(event: SignedEvent): Boolean =
         runCatching { Event.fromJson(event.toJson()).use { it.verify() } }.getOrDefault(false)
 
-    override fun encrypt(sender: SecretKey, recipient: PublicKeyHex, plaintext: String): String = sdkSecret(sender) { s ->
-        PublicKey.parse(recipient.hex).use { p -> nip44Encrypt(s, p, plaintext, Nip44Version.V2) }
-    }
+    override fun encrypt(sender: SecretKey, recipient: PublicKeyHex, plaintext: String): String =
+        sdkSecret(sender) { s ->
+            PublicKey.parse(recipient.hex).use { p -> nip44Encrypt(s, p, plaintext, Nip44Version.V2) }
+        }
 
-    override fun decrypt(recipient: SecretKey, sender: PublicKeyHex, payload: String): String? = runCatching {
-        sdkSecret(recipient) { s -> PublicKey.parse(sender.hex).use { p -> nip44Decrypt(s, p, payload) } }
-    }.getOrNull()
+    override fun decrypt(recipient: SecretKey, sender: PublicKeyHex, payload: String): String? =
+        runCatching {
+            sdkSecret(recipient) { s -> PublicKey.parse(sender.hex).use { p -> nip44Decrypt(s, p, payload) } }
+        }.getOrNull()
 
     override fun giftWrap(
         sender: KeyPair,
@@ -68,42 +72,48 @@ class SdkNostrCrypto : NostrCrypto {
         rumorContent: String,
         rumorCreatedAt: Long,
         expiration: Long,
-    ): SignedEvent = keys(sender.secret) { k ->
-        val rumor = EventBuilder(Kind(rumorKind.toUShort()), rumorContent)
-            .customCreatedAt(Timestamp.fromSecs(rumorCreatedAt.toULong()))
-            .finalizeUnsigned(k.publicKey())
-        val expirationTag = Tag.parse(listOf("expiration", expiration.toString()))
-        PublicKey.parse(recipient.hex).use { p ->
-            nip59MakeGiftWrap(k, p, rumor, null, listOf(expirationTag)).use { SignedEvent.parse(it.asJson())!! }
-        }
-    }
-
-    override fun unwrap(recipient: SecretKey, wrap: SignedEvent): Unwrapped? = runCatching {
-        keys(recipient) { k ->
-            Event.fromJson(wrap.toJson()).use { ev ->
-                UnwrappedGift.fromGiftWrap(k, ev).use { u ->
-                    val r = u.rumor()
-                    Unwrapped(PublicKeyHex(u.sender().toHex()), r.kind().asU16().toInt(), r.content(), r.createdAt().asSecs().toLong())
-                }
+    ): SignedEvent =
+        keys(sender.secret) { k ->
+            val rumor =
+                EventBuilder(Kind(rumorKind.toUShort()), rumorContent)
+                    .customCreatedAt(Timestamp.fromSecs(rumorCreatedAt.toULong()))
+                    .finalizeUnsigned(k.publicKey())
+            val expirationTag = Tag.parse(listOf("expiration", expiration.toString()))
+            PublicKey.parse(recipient.hex).use { p ->
+                nip59MakeGiftWrap(k, p, rumor, null, listOf(expirationTag)).use { SignedEvent.parse(it.asJson())!! }
             }
         }
-    }.getOrNull()
+
+    override fun unwrap(recipient: SecretKey, wrap: SignedEvent): Unwrapped? =
+        runCatching {
+            keys(recipient) { k ->
+                Event.fromJson(wrap.toJson()).use { ev ->
+                    UnwrappedGift.fromGiftWrap(k, ev).use { u ->
+                        val r = u.rumor()
+                        Unwrapped(PublicKeyHex(u.sender().toHex()), r.kind().asU16().toInt(), r.content(), r.createdAt().asSecs().toLong())
+                    }
+                }
+            }
+        }.getOrNull()
 
     override fun nsec(secret: SecretKey): String = sdkSecret(secret) { it.toBech32() }
 
-    override fun parseNsec(nsec: String): SecretKey? = if (!nsec.startsWith("nsec1")) {
-        null
-    } else {
-        runCatching { SdkSecretKey.parse(nsec).use { SecretKey.ofHex(it.toHex()) } }.getOrNull()
-    }
+    override fun parseNsec(nsec: String): SecretKey? =
+        if (!nsec.startsWith("nsec1")) {
+            null
+        } else {
+            runCatching { SdkSecretKey.parse(nsec).use { SecretKey.ofHex(it.toHex()) } }.getOrNull()
+        }
 
     override fun npub(key: PublicKeyHex): String = PublicKey.parse(key.hex).use { it.toBech32() }
 
-    override fun ncryptsec(secret: SecretKey, password: String, logN: Int, keySecurity: Int): String = sdkSecret(secret) { s ->
-        EncryptedSecretKey(s, password, logN.toUByte(), KeySecurity.entries[keySecurity]).use { it.toBech32() }
-    }
+    override fun ncryptsec(secret: SecretKey, password: String, logN: Int, keySecurity: Int): String =
+        sdkSecret(secret) { s ->
+            EncryptedSecretKey(s, password, logN.toUByte(), KeySecurity.entries[keySecurity]).use { it.toBech32() }
+        }
 
-    override fun parseNcryptsec(ncryptsec: String, password: String): SecretKey? = runCatching {
-        EncryptedSecretKey.fromBech32(ncryptsec).use { e -> e.decrypt(password).use { SecretKey.ofHex(it.toHex()) } }
-    }.getOrNull()
+    override fun parseNcryptsec(ncryptsec: String, password: String): SecretKey? =
+        runCatching {
+            EncryptedSecretKey.fromBech32(ncryptsec).use { e -> e.decrypt(password).use { SecretKey.ofHex(it.toHex()) } }
+        }.getOrNull()
 }

@@ -251,7 +251,9 @@ struct KeychainRetryTests {
         return secrets
     }
 
-    func runtime(_ secrets: FlakySecretStore, _ h: RuntimeHarness, sleep: @escaping @Sendable (Double) async throws -> Void)
+    func runtime(
+        _ secrets: FlakySecretStore, _ h: RuntimeHarness, sleep: @escaping @Sendable (Double) async throws -> Void
+    )
         -> FollowerRuntime
     {
         FollowerRuntime(

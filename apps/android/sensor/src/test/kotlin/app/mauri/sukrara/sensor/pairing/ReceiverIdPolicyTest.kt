@@ -110,35 +110,37 @@ class ReceiverIdPolicyTest {
     }
 
     @Test
-    fun ownIdIsMadeOnceAndSurvivesSignOutAndAForgottenSensor() = runTest {
-        val ids = InMemoryStateStore(ReceiverIdState(account = account, accountEmail = "a@b.c"))
-        val store = PairingStore(InMemorySecureStore())
-        val nfc = NfcPairing(store, ids, {}, StandardTestDispatcher(testScheduler))
-        val (acc, first) = nfc.receiverIds()
-        assertEquals(account, acc)
-        assertEquals(first, nfc.receiverIds().second)
-        ids.update { it.copy(account = null, accountEmail = null) } // sign-out
-        store.forget()
-        assertEquals(first, ids.data.first().own)
-        assertEquals(null to first, nfc.receiverIds())
-    }
+    fun ownIdIsMadeOnceAndSurvivesSignOutAndAForgottenSensor() =
+        runTest {
+            val ids = InMemoryStateStore(ReceiverIdState(account = account, accountEmail = "a@b.c"))
+            val store = PairingStore(InMemorySecureStore())
+            val nfc = NfcPairing(store, ids, {}, StandardTestDispatcher(testScheduler))
+            val (acc, first) = nfc.receiverIds()
+            assertEquals(account, acc)
+            assertEquals(first, nfc.receiverIds().second)
+            ids.update { it.copy(account = null, accountEmail = null) } // sign-out
+            store.forget()
+            assertEquals(first, ids.data.first().own)
+            assertEquals(null to first, nfc.receiverIds())
+        }
 
     /** Every tap replaces the pairing with no authorization: the sensor gave a new PIN, the old kAuth is useless. */
     @Test
-    fun aPairedTapReplacesThePairingAndRestartsTheSource() = runTest {
-        val store = PairingStore(InMemorySecureStore())
-        var restarts = 0
-        val nfc = NfcPairing(store, InMemoryStateStore(ReceiverIdState()), { restarts++ }, StandardTestDispatcher(testScheduler))
-        val p = (Libre3Nfc.run(FakeTag(running, paired)::transceive, account, own, { nowMs }, {}) as Libre3Nfc.Result.Paired)
-        store.save(p.pairing.copy(kAuth = ByteArray(149), ended = true))
-        assertEquals(PairOutcome.Paired("068ZMRF18", activated = false), nfc.handle(p))
-        val saved = (store.load() as PairingLoad.Ok).pairing
-        assertNull(saved.kAuth)
-        assertEquals(false, saved.ended)
-        assertEquals(1, restarts)
-        assertEquals(
-            PairOutcome.OwnedByAnotherApp("X"),
-            nfc.handle(Libre3Nfc.Result.OwnedByAnotherReceiver("X")),
-        )
-    }
+    fun aPairedTapReplacesThePairingAndRestartsTheSource() =
+        runTest {
+            val store = PairingStore(InMemorySecureStore())
+            var restarts = 0
+            val nfc = NfcPairing(store, InMemoryStateStore(ReceiverIdState()), { restarts++ }, StandardTestDispatcher(testScheduler))
+            val p = (Libre3Nfc.run(FakeTag(running, paired)::transceive, account, own, { nowMs }, {}) as Libre3Nfc.Result.Paired)
+            store.save(p.pairing.copy(kAuth = ByteArray(149), ended = true))
+            assertEquals(PairOutcome.Paired("068ZMRF18", activated = false), nfc.handle(p))
+            val saved = (store.load() as PairingLoad.Ok).pairing
+            assertNull(saved.kAuth)
+            assertEquals(false, saved.ended)
+            assertEquals(1, restarts)
+            assertEquals(
+                PairOutcome.OwnedByAnotherApp("X"),
+                nfc.handle(Libre3Nfc.Result.OwnedByAnotherReceiver("X")),
+            )
+        }
 }

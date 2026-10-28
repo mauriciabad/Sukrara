@@ -47,11 +47,12 @@ class InviteLink private constructor(val fingerprint: String, private val secret
         /** null for anything that isn't exactly an invite link (pasted text is trimmed). */
         fun parse(text: String): InviteLink? {
             val t = text.trim()
-            val code = when {
-                t.startsWith(INVITE_BASE) -> t.removePrefix(INVITE_BASE)
-                t.startsWith(APP_SCHEME) -> t.removePrefix(APP_SCHEME)
-                else -> return null
-            }
+            val code =
+                when {
+                    t.startsWith(INVITE_BASE) -> t.removePrefix(INVITE_BASE)
+                    t.startsWith(APP_SCHEME) -> t.removePrefix(APP_SCHEME)
+                    else -> return null
+                }
             if (!CODE.matches(code)) return null
             val raw = Base64.getUrlDecoder().decode(code)
             return InviteLink(Hex.encode(raw.copyOf(FINGERPRINT_LEN)), raw.copyOfRange(FINGERPRINT_LEN, FINGERPRINT_LEN + SECRET_LEN))
@@ -85,7 +86,15 @@ object Invites {
         val recipient = crypto.keyPair(Derive.inviteKey(secret))!!.public
         // the wrap lives until the invite expires, at least a minute
         val wrapExpiry = maxOf(now + 60, expiry)
-        val wrap = crypto.giftWrap(identity, recipient, Wire.KIND_INVITE, RumorCodec.encode(Rumor.Invite(expiry, relays, profile)), now, wrapExpiry)
+        val wrap =
+            crypto.giftWrap(
+                identity,
+                recipient,
+                Wire.KIND_INVITE,
+                RumorCodec.encode(Rumor.Invite(expiry, relays, profile)),
+                now,
+                wrapExpiry,
+            )
         return link to wrap
     }
 
@@ -103,13 +112,14 @@ object Invites {
             if (!crypto.verify(w)) continue
             val u = crypto.unwrap(key.secret, w)
             val rumor = u?.let { runCatching { RumorCodec.decode(it.kind, it.content) }.getOrNull() as? Rumor.Invite }
-            failure = when {
-                u == null -> worst(failure, InviteFailure.DoesNotOpen)
-                rumor == null -> worst(failure, InviteFailure.NotAnInvite)
-                !u.sender.hex.startsWith(link.fingerprint) -> worst(failure, InviteFailure.FingerprintMismatch)
-                rumor.expiry <= now -> worst(failure, InviteFailure.Expired)
-                else -> return Result.Opened(Invite(u.sender, link.token, rumor.expiry, rumor.relays, rumor.profile))
-            }
+            failure =
+                when {
+                    u == null -> worst(failure, InviteFailure.DoesNotOpen)
+                    rumor == null -> worst(failure, InviteFailure.NotAnInvite)
+                    !u.sender.hex.startsWith(link.fingerprint) -> worst(failure, InviteFailure.FingerprintMismatch)
+                    rumor.expiry <= now -> worst(failure, InviteFailure.Expired)
+                    else -> return Result.Opened(Invite(u.sender, link.token, rumor.expiry, rumor.relays, rumor.profile))
+                }
         }
         return Result.Failed(failure)
     }

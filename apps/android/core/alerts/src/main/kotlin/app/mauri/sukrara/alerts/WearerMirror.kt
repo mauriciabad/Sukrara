@@ -52,9 +52,10 @@ class WearerMirror(memory: MirrorMemory = MirrorMemory()) {
         newestCleared.remove(group)
         val sn = snoozes[side]
         val muted = (sn != null && sn.until > f.at) || muteAllUntil > f.at
-        val relaxed = sn != null && sn.relaxMin > 0 && lastShown[group]?.let { (t, lk) ->
-            lk.side == side && f.kind.severity <= lk.severity && f.at - t < sn.relaxMin * 60L
-        } == true
+        val relaxed =
+            sn != null && sn.relaxMin > 0 && lastShown[group]?.let { (t, lk) ->
+                lk.side == side && f.kind.severity <= lk.severity && f.at - t < sn.relaxMin * 60L
+            } == true
         if (muted || relaxed) return false
         shown[group] = f
         lastShown[group] = ShownAt(f.at, f.kind)
@@ -149,11 +150,15 @@ class WearerMirror(memory: MirrorMemory = MirrorMemory()) {
     }
 
     /** The next time a mute of this device ends (for the runtime's timer), or null. */
-    fun nextCheckAt(now: Long): Long? = (snoozes.values.map { it.until } + muteAllUntil)
-        .filter { it > now && it != Rules.NEVER }.minOrNull()
+    fun nextCheckAt(now: Long): Long? =
+        (snoozes.values.map { it.until } + muteAllUntil)
+            .filter { it > now && it != Rules.NEVER }
+            .minOrNull()
 
-    fun snoozes(now: Long): Map<Side, Snooze> = snoozes.filterValues { it.until > now || it.relaxMin > 0 }
-        .mapValues { (_, sn) -> sn.copy(until = sn.until.takeIf { it > now } ?: 0) }
+    fun snoozes(now: Long): Map<Side, Snooze> =
+        snoozes
+            .filterValues { it.until > now || it.relaxMin > 0 }
+            .mapValues { (_, sn) -> sn.copy(until = sn.until.takeIf { it > now } ?: 0) }
 
     fun relaxed(kind: AlertKind): Boolean = (snoozes[kind.side]?.relaxMin ?: 0) > 0
 

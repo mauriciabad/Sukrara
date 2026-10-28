@@ -41,7 +41,8 @@ data class SignedEvent(
 data class UnsignedEvent(val kind: Int, val content: String, val tags: List<List<String>>, val createdAt: Long)
 
 /** The JSON settings every codec uses: compact output, unknown keys ignored on input. */
-internal val WireJson = Json {
-    ignoreUnknownKeys = true
-    encodeDefaults = true
-}
+internal val WireJson =
+    Json {
+        ignoreUnknownKeys = true
+        encodeDefaults = true
+    }

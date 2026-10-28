@@ -40,9 +40,14 @@ object SettingsMirror {
     val MIRRORED_ALERT_KINDS = listOf("very_low", "low", "high", "very_high", "extremely_high", "falling_fast", "rising_fast")
 
     /** Wire paths (`graph.low`, `alerts.alerts.low.mgdl`, …) of the mirrored rows, in schema order. */
-    val paths: List<List<String>> = SettingsSpec.SETTINGS.filter { it.mirror }.mapNotNull { it.wire }.flatMap { wire ->
-        if ("{kind}" in wire) MIRRORED_ALERT_KINDS.map { wire.replace("{kind}", it) } else listOf(wire)
-    }.distinct().map { it.split('.') }
+    val paths: List<List<String>> =
+        SettingsSpec.SETTINGS
+            .filter { it.mirror }
+            .mapNotNull { it.wire }
+            .flatMap { wire ->
+                if ("{kind}" in wire) MIRRORED_ALERT_KINDS.map { wire.replace("{kind}", it) } else listOf(wire)
+            }.distinct()
+            .map { it.split('.') }
 
     fun select(s: WearerSettings): WearerSettings {
         val root = JsonObject(mapOf("graph" to s.graph, "alerts" to s.alerts))

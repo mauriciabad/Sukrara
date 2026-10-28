@@ -54,24 +54,30 @@ data class AlertSettings(
      * The treatment whose window quiets [kind] now, or null: its rule is off, or [kind] is never quieted by a
      * treatment (extremely high, no data).
      */
-    fun mutedBy(kind: AlertKind): TreatmentKind? = when {
-        kind == AlertKind.EXTREMELY_HIGH -> null
-        kind.answeredBy == TreatmentKind.CARBS -> TreatmentKind.CARBS.takeIf { afterCarbs.on }
-        kind.answeredBy == TreatmentKind.RAPID -> TreatmentKind.RAPID.takeIf { afterInsulin.on }
-        else -> null
-    }
+    fun mutedBy(kind: AlertKind): TreatmentKind? =
+        when {
+            kind == AlertKind.EXTREMELY_HIGH -> null
+            kind.answeredBy == TreatmentKind.CARBS -> TreatmentKind.CARBS.takeIf { afterCarbs.on }
+            kind.answeredBy == TreatmentKind.RAPID -> TreatmentKind.RAPID.takeIf { afterInsulin.on }
+            else -> null
+        }
 
     /** How long a [treatment] quiets the alerts it answers, in seconds (its window, whether the rule is on or not). */
     fun quietSeconds(treatment: TreatmentKind): Long =
         (if (treatment == TreatmentKind.RAPID) afterInsulin.min else afterCarbs.min) * 60L
 
     /** The longest repeat of the enabled level alerts: a *Remind less* interval must be slower (SPEC §3 `relaxMin`). */
-    fun relaxFloor(): Int = AlertKind.LEVELS_BY_SEVERITY.map(::rule).filter { it.on && it.repeatMin > 0 }
-        .maxOfOrNull { it.repeatMin } ?: 0
+    fun relaxFloor(): Int =
+        AlertKind.LEVELS_BY_SEVERITY
+            .map(::rule)
+            .filter { it.on && it.repeatMin > 0 }
+            .maxOfOrNull { it.repeatMin } ?: 0
 
     /** The *Remind less* intervals the settings offer: only ones slower than every enabled level alert's repeat. */
-    fun relaxChoices(): List<Int> = AlertLimits.ACTION_RELAX.presetMinutes.filter { it > relaxFloor() }
-        .ifEmpty { listOf(AlertLimits.ACTION_RELAX.max.toInt()) }
+    fun relaxChoices(): List<Int> =
+        AlertLimits.ACTION_RELAX.presetMinutes
+            .filter { it > relaxFloor() }
+            .ifEmpty { listOf(AlertLimits.ACTION_RELAX.max.toInt()) }
 
     /** The *Mute…* lengths a notification offers: [NotificationActions.muteMin] first, then the presets. */
     fun muteChoices(): List<Int> = (listOf(actions.muteMin) + AlertLimits.ACTION_MUTE.presetMinutes).distinct()
@@ -81,15 +87,16 @@ data class AlertSettings(
 
     companion object {
         /** The owner's own settings (2026-10-18), SPEC §3. */
-        val DEFAULT_RULES: Map<AlertKind, KindRule> = mapOf(
-            AlertKind.VERY_LOW to KindRule(on = true, threshold = 55.0, repeatMin = 5, alarm = true),
-            AlertKind.LOW to KindRule(on = true, threshold = 70.0, repeatMin = 5),
-            AlertKind.HIGH to KindRule(on = true, threshold = 180.0, repeatMin = 15),
-            AlertKind.VERY_HIGH to KindRule(on = true, threshold = 250.0, repeatMin = 10),
-            AlertKind.EXTREMELY_HIGH to KindRule(on = true, threshold = 300.0, repeatMin = 5, alarm = true),
-            AlertKind.FALLING_FAST to KindRule(on = false, threshold = 2.0, repeatMin = 30),
-            AlertKind.RISING_FAST to KindRule(on = false, threshold = 2.0, repeatMin = 30),
-            AlertKind.NO_DATA to KindRule(on = true, threshold = 20.0, repeatMin = 60),
-        )
+        val DEFAULT_RULES: Map<AlertKind, KindRule> =
+            mapOf(
+                AlertKind.VERY_LOW to KindRule(on = true, threshold = 55.0, repeatMin = 5, alarm = true),
+                AlertKind.LOW to KindRule(on = true, threshold = 70.0, repeatMin = 5),
+                AlertKind.HIGH to KindRule(on = true, threshold = 180.0, repeatMin = 15),
+                AlertKind.VERY_HIGH to KindRule(on = true, threshold = 250.0, repeatMin = 10),
+                AlertKind.EXTREMELY_HIGH to KindRule(on = true, threshold = 300.0, repeatMin = 5, alarm = true),
+                AlertKind.FALLING_FAST to KindRule(on = false, threshold = 2.0, repeatMin = 30),
+                AlertKind.RISING_FAST to KindRule(on = false, threshold = 2.0, repeatMin = 30),
+                AlertKind.NO_DATA to KindRule(on = true, threshold = 20.0, repeatMin = 60),
+            )
     }
 }

@@ -232,7 +232,15 @@ class CardLayoutTest {
             Shape("value-only-shape", GraphPlace.APP, listOf(CardPart.VALUE to 0f), listOf(220f to 72f)) {
                 full(it, GraphPlace.APP, graph = false)
             },
-            Shape("notification-shape", GraphPlace.NOTIFICATION, listOf(CardPart.HEADER to 64f, CardPart.GRAPH to 96f), listOf(291f to 0f, 240f to 0f)) {
+            Shape(
+                "notification-shape",
+                GraphPlace.NOTIFICATION,
+                listOf(CardPart.HEADER to 64f, CardPart.GRAPH to 96f),
+                listOf(
+                    291f to 0f,
+                    240f to 0f,
+                ),
+            ) {
                 full(it, GraphPlace.NOTIFICATION)
             },
         )

@@ -182,7 +182,8 @@ def lower_camel(name):
 
 def swift(schema):
     L = ["// " + l for l in HEADER.splitlines()]
-    L += ["// " + NOTE, "import Foundation", ""]
+    # generated, kept equal to this script's output by --check: swift-format would only reflow it
+    L += ["// " + NOTE, "// swift-format-ignore-file", "import Foundation", ""]
     L += [
         "/// A number setting's format (contracts/settings/settings.json \"numbers\"), in stored units: valid = a preset, a special",
         "/// value (shown by its word, e.g. 0 = \"Off\"), or, when `custom`, a value in `min`...`max` on `step`. `scale` = stored",

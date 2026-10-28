@@ -84,11 +84,11 @@ class SourceManager internal constructor(
     private val _sensor = MutableStateFlow<SensorState>(SensorState.None)
     private val _status = MutableStateFlow<SourceStatus>(SourceStatus.NotStarted)
     private val _sensorGlucose = MutableSharedFlow<Pair<SensorGlucose?, List<SensorGlucose>>>(extraBufferCapacity = 64)
-    private val _info = MutableStateFlow<SensorInfo?>(null)
+    private val infoState = MutableStateFlow<SensorInfo?>(null)
     private var info: SensorInfo?
-        get() = _info.value
+        get() = infoState.value
         set(value) {
-            _info.value = value
+            infoState.value = value
         }
     private var latestReading: Instant? = null
     private var link: GattLink? = null
@@ -105,7 +105,7 @@ class SourceManager internal constructor(
     val detail: StateFlow<SensorStatus> = _detail.asStateFlow()
 
     /** The current sensor's serial, start and end (Libre 3 pairing or Juggluco's sensor), null when none is known. */
-    val sensorInfo: StateFlow<SensorInfo?> = _info.asStateFlow()
+    val sensorInfo: StateFlow<SensorInfo?> = infoState.asStateFlow()
 
     /** Libre 3 readings by life count, for the LibreView upload. */
     val sensorGlucose: Flow<Pair<SensorGlucose?, List<SensorGlucose>>> = _sensorGlucose.asSharedFlow()
@@ -113,25 +113,26 @@ class SourceManager internal constructor(
     /** Starts following the setting; idempotent. */
     fun start() {
         if (started != null) return
-        started = scope.launch {
-            combine(kind.distinctUntilChanged(), restarts) { k, _ -> k }.collectLatest { k ->
-                resetState()
-                try {
-                    when (k) {
-                        SensorSourceKind.Libre3 -> runLibre3()
-                        SensorSourceKind.Juggluco -> runJuggluco()
+        started =
+            scope.launch {
+                combine(kind.distinctUntilChanged(), restarts) { k, _ -> k }.collectLatest { k ->
+                    resetState()
+                    try {
+                        when (k) {
+                            SensorSourceKind.Libre3 -> runLibre3()
+                            SensorSourceKind.Juggluco -> runJuggluco()
+                        }
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        // never leave the person without a source because of an unexpected failure: say so, start again
+                        log("source failed: ${e.javaClass.simpleName}")
+                        interrupted()
+                        delay(RECOVERY_MS)
+                        retry()
                     }
-                } catch (e: CancellationException) {
-                    throw e
-                } catch (e: Exception) {
-                    // never leave the person without a source because of an unexpected failure: say so, start again
-                    log("source failed: ${e.javaClass.simpleName}")
-                    interrupted()
-                    delay(RECOVERY_MS)
-                    retry()
                 }
             }
-        }
     }
 
     /** Stops reading (the phone stops being the wearer): the link is closed; [start] begins again. */
@@ -159,18 +160,25 @@ class SourceManager internal constructor(
 
     private suspend fun runLibre3() {
         val core = security ?: return publish(SensorStatus.CoreMissing)
-        val pairing = when (val load = pairings.load()) {
-            PairingLoad.None -> return publish(SensorStatus.NoSensor)
-            is PairingLoad.Corrupt -> {
-                publish(SensorStatus.PairingUnreadable(load.reason))
-                if (load.transient) {
-                    delay(RECOVERY_MS) // the Keystore was busy: try again by itself
-                    retry()
+        val pairing =
+            when (val load = pairings.load()) {
+                PairingLoad.None -> {
+                    return publish(SensorStatus.NoSensor)
                 }
-                return
+
+                is PairingLoad.Corrupt -> {
+                    publish(SensorStatus.PairingUnreadable(load.reason))
+                    if (load.transient) {
+                        delay(RECOVERY_MS) // the Keystore was busy: try again by itself
+                        retry()
+                    }
+                    return
+                }
+
+                is PairingLoad.Ok -> {
+                    load.pairing
+                }
             }
-            is PairingLoad.Ok -> load.pairing
-        }
         info = pairing.info
         if (pairing.securityVersion != 0) return publish(SensorStatus.Unsupported("security version ${pairing.securityVersion}"))
         if (pairing.ended) return publish(SensorStatus.Ended)
@@ -254,25 +262,26 @@ class SourceManager internal constructor(
         publish(SensorStatus.Juggluco(JugglucoStatus.FetchingHistory))
         _status.value = SourceStatus.Connecting
         val source = juggluco()
-        val sink = object : JugglucoSink {
-            override fun onReadings(readings: List<Reading>, live: Boolean) {
-                scope.launch { deliver(readings, live) }
-            }
+        val sink =
+            object : JugglucoSink {
+                override fun onReadings(readings: List<Reading>, live: Boolean) {
+                    scope.launch { deliver(readings, live) }
+                }
 
-            override fun onStatus(status: JugglucoStatus) {
-                scope.launch {
-                    publish(SensorStatus.Juggluco(status))
-                    if (status is JugglucoStatus.Unreachable) interrupted()
+                override fun onStatus(status: JugglucoStatus) {
+                    scope.launch {
+                        publish(SensorStatus.Juggluco(status))
+                        if (status is JugglucoStatus.Unreachable) interrupted()
+                    }
+                }
+
+                override fun onSensor(info: SensorInfo) {
+                    scope.launch {
+                        this@SourceManager.info = info
+                        refreshSensor()
+                    }
                 }
             }
-
-            override fun onSensor(info: SensorInfo) {
-                scope.launch {
-                    this@SourceManager.info = info
-                    refreshSensor()
-                }
-            }
-        }
         // The blocking SSE read only ends when its call is cancelled: run it in its own job and cancel the call as soon
         // as this source is cancelled (a switch, a restart, stop), so the next source never waits for it.
         coroutineScope {
@@ -315,15 +324,32 @@ class SourceManager internal constructor(
     }
 
     private fun refreshSensor() {
-        _sensor.value = when (val d = _detail.value) {
-            SensorStatus.NoSensor -> SensorState.None
-            SensorStatus.CoreMissing -> SensorState.CoreMissing
-            SensorStatus.Ended -> SensorState.Ended
-            is SensorStatus.Libre3 ->
-                if (d.link == LinkStatus.WaitingForBluetooth) SensorState.BluetoothOff else lifeState()
-            is SensorStatus.Juggluco -> lifeState()
-            else -> SensorState.ActionNeeded(d.action ?: SensorAction.ScanSensor)
-        }
+        _sensor.value =
+            when (val d = _detail.value) {
+                SensorStatus.NoSensor -> {
+                    SensorState.None
+                }
+
+                SensorStatus.CoreMissing -> {
+                    SensorState.CoreMissing
+                }
+
+                SensorStatus.Ended -> {
+                    SensorState.Ended
+                }
+
+                is SensorStatus.Libre3 -> {
+                    if (d.link == LinkStatus.WaitingForBluetooth) SensorState.BluetoothOff else lifeState()
+                }
+
+                is SensorStatus.Juggluco -> {
+                    lifeState()
+                }
+
+                else -> {
+                    SensorState.ActionNeeded(d.action ?: SensorAction.ScanSensor)
+                }
+            }
     }
 
     private fun lifeState(): SensorState =

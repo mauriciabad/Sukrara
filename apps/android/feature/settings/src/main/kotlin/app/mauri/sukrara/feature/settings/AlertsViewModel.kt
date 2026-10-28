@@ -40,7 +40,9 @@ object AlertEdits {
     fun threshold(
         kind: AlertKind,
         value: Double,
-    ): (AlertSettings) -> AlertSettings = { s -> s.withRule(kind, s.rule(kind).copy(threshold = SchemaPrefs.thresholdSpec(kind).coerce(value))) }
+    ): (
+        AlertSettings,
+    ) -> AlertSettings = { s -> s.withRule(kind, s.rule(kind).copy(threshold = SchemaPrefs.thresholdSpec(kind).coerce(value))) }
 
     /** The level thresholds, lowest first: each must stay between its neighbours. */
     val LevelOrder = listOf(AlertKind.VERY_LOW, AlertKind.LOW, AlertKind.HIGH, AlertKind.VERY_HIGH, AlertKind.EXTREMELY_HIGH)
@@ -58,7 +60,9 @@ object AlertEdits {
     fun repeat(
         kind: AlertKind,
         minutes: Double,
-    ): (AlertSettings) -> AlertSettings = { s -> s.withRule(kind, s.rule(kind).copy(repeatMin = SchemaPrefs.RepeatSpec.coerce(minutes).roundToInt())) }
+    ): (
+        AlertSettings,
+    ) -> AlertSettings = { s -> s.withRule(kind, s.rule(kind).copy(repeatMin = SchemaPrefs.RepeatSpec.coerce(minutes).roundToInt())) }
 
     fun alarm(
         kind: AlertKind,

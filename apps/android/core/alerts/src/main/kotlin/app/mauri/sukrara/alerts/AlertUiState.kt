@@ -33,15 +33,20 @@ data class AlertUiState(val quiet: List<QuietSide> = emptyList(), val muteAllUnt
 
     companion object {
         /** The UI state of a mirroring follower's own actions ([WearerMirror]; the wearer's rules are not here). */
-        fun ofMirror(m: WearerMirror, s: AlertSettings, now: Long): AlertUiState = AlertUiState(
-            m.snoozes(now).filterKeys { it != Side.NO_DATA }.map { (side, sn) ->
-                QuietSide(
-                    side.mainKind, m.showing(side.mainKind.group), if (sn.until > 0) QuietReason.NOTIFICATION else null,
-                    sn.until, sn.relaxMin, sn.relaxMin == 0 && s.canRelax(side.mainKind),
-                )
-            },
-            m.muteAllUntil.takeIf { it > now } ?: 0,
-        )
+        fun ofMirror(m: WearerMirror, s: AlertSettings, now: Long): AlertUiState =
+            AlertUiState(
+                m.snoozes(now).filterKeys { it != Side.NO_DATA }.map { (side, sn) ->
+                    QuietSide(
+                        side.mainKind,
+                        m.showing(side.mainKind.group),
+                        if (sn.until > 0) QuietReason.NOTIFICATION else null,
+                        sn.until,
+                        sn.relaxMin,
+                        sn.relaxMin == 0 && s.canRelax(side.mainKind),
+                    )
+                },
+                m.muteAllUntil.takeIf { it > now } ?: 0,
+            )
 
         /** The UI state of [engine] at [now] (the local rules of a wearer or an own-rules follower). */
         fun of(engine: AlertEngine, s: AlertSettings, d: Doses, now: Long): AlertUiState {
@@ -55,21 +60,48 @@ data class AlertUiState(val quiet: List<QuietSide> = emptyList(), val muteAllUnt
                 val by = s.mutedBy(e.kind)
                 val muteEnd = snoozes[e.side]?.until?.takeIf { it > 0 }
                 val relax = snoozes[e.side]?.relaxMin ?: 0
-                val (reason, until) = when {
-                    dose != null && by != null ->
-                        (if (by == TreatmentKind.RAPID) QuietReason.INSULIN else QuietReason.CARBS) to maxOf(dose + s.quietSeconds(by), muteEnd ?: 0)
-                    muteEnd != null -> QuietReason.NOTIFICATION to muteEnd
-                    // quiet only because of Mute all is Mute all's state, not a falling mute to "Alert me anyway" out of
-                    e.on && e.quiet != null && (allMuted == 0L || Rules.fallingBackIntoRange(e.kind, engine.last, s)) -> QuietReason.FALLING to 0L
-                    else -> null to 0L
-                }
+                val (reason, until) =
+                    when {
+                        dose != null && by != null -> {
+                            (if (by == TreatmentKind.RAPID) QuietReason.INSULIN else QuietReason.CARBS) to
+                                maxOf(dose + s.quietSeconds(by), muteEnd ?: 0)
+                        }
+
+                        muteEnd != null -> {
+                            QuietReason.NOTIFICATION to muteEnd
+                        }
+
+                        // quiet only because of Mute all is Mute all's state, not a falling mute to "Alert me anyway" out of
+                        e.on && e.quiet != null && (allMuted == 0L || Rules.fallingBackIntoRange(e.kind, engine.last, s)) -> {
+                            QuietReason.FALLING to
+                                0L
+                        }
+
+                        else -> {
+                            null to 0L
+                        }
+                    }
                 if (reason == null && relax == 0) continue
                 out += QuietSide(e.kind, e.on, reason, until, relax, relax == 0 && s.canRelax(e.kind))
             }
             for ((side, sn) in snoozes) {
                 if (side in seen) continue
                 val k = side.mainKind
-                out += QuietSide(k, false, if (sn.until > 0) QuietReason.NOTIFICATION else null, sn.until, sn.relaxMin, sn.relaxMin == 0 && s.canRelax(k))
+                out +=
+                    QuietSide(
+                        k,
+                        false,
+                        if (sn.until >
+                            0
+                        ) {
+                            QuietReason.NOTIFICATION
+                        } else {
+                            null
+                        },
+                        sn.until,
+                        sn.relaxMin,
+                        sn.relaxMin == 0 && s.canRelax(k),
+                    )
             }
             return AlertUiState(out, allMuted)
         }
@@ -83,9 +115,13 @@ data class AlertUiState(val quiet: List<QuietSide> = emptyList(), val muteAllUnt
  */
 sealed interface AlertStatus {
     data object None : AlertStatus
+
     data class Needed(val kind: AlertKind) : AlertStatus
+
     data class Taken(val kind: AlertKind, val treatment: TreatmentKind, val at: Long, val until: Long) : AlertStatus
+
     data class Paused(val kind: AlertKind, val until: Long) : AlertStatus
+
     data class Muted(val until: Long) : AlertStatus
 
     companion object {

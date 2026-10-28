@@ -35,10 +35,19 @@ class AlertSoundPickerTest {
 
     @Test fun everyPickableFileExists() {
         val raw = Contracts.root.resolve("alerts/sounds/android/raw")
-        val names = raw.listFiles().orEmpty().map { it.nameWithoutExtension }.toSet()
+        val names =
+            raw
+                .listFiles()
+                .orEmpty()
+                .map { it.nameWithoutExtension }
+                .toSet()
         assertTrue(AlertSoundPicker.SILENCE in names)
-        for (pack in AlertSoundPicker.PACKS) for (k in AlertKind.entries) for (n in 1..AlertSoundPicker.VARIANTS) {
-            assertTrue("${pack}_${k.wire}_$n missing", "${pack}_${k.wire}_$n" in names)
+        for (pack in AlertSoundPicker.PACKS) {
+            for (k in AlertKind.entries) {
+                for (n in 1..AlertSoundPicker.VARIANTS) {
+                    assertTrue("${pack}_${k.wire}_$n missing", "${pack}_${k.wire}_$n" in names)
+                }
+            }
         }
     }
 }

@@ -71,10 +71,20 @@ class Episode(val side: Side, var start: Long, var kind: AlertKind) {
         lifted = lifted.shiftedBack(delta)
     }
 
-    fun copy(): Episode = Episode(side, start, kind).also {
-        it.on = on; it.lastIn = lastIn; it.shown = shown; it.n = n; it.firedAt = firedAt; it.firedKind = firedKind
-        it.quiet = quiet; it.quietUntil = quietUntil; it.next = next; it.lifted = lifted; it.liftPending = liftPending
-    }
+    fun copy(): Episode =
+        Episode(side, start, kind).also {
+            it.on = on
+            it.lastIn = lastIn
+            it.shown = shown
+            it.n = n
+            it.firedAt = firedAt
+            it.firedKind = firedKind
+            it.quiet = quiet
+            it.quietUntil = quietUntil
+            it.next = next
+            it.lifted = lifted
+            it.liftPending = liftPending
+        }
 }
 
 /**
@@ -117,7 +127,11 @@ data class AlertState(
 
 /** [AlertState] ⇄ JSON. */
 object AlertStateCodec {
-    private val json = Json { ignoreUnknownKeys = true; allowSpecialFloatingPointValues = false }
+    private val json =
+        Json {
+            ignoreUnknownKeys = true
+            allowSpecialFloatingPointValues = false
+        }
 
     fun encode(state: AlertState): String = json.encodeToString(AlertState.serializer(), state)
 
@@ -125,11 +139,12 @@ object AlertStateCodec {
      * The saved state, or null when it is missing, corrupt or of another version: the caller starts empty (an
      * ongoing alert may ring again, the safe direction) and never trusts a Mute all it couldn't read.
      */
-    fun decode(text: String): AlertState? = try {
-        json.decodeFromString(AlertState.serializer(), text).takeIf { it.v == AlertState.VERSION }
-    } catch (e: SerializationException) {
-        null
-    } catch (e: IllegalArgumentException) {
-        null
-    }
+    fun decode(text: String): AlertState? =
+        try {
+            json.decodeFromString(AlertState.serializer(), text).takeIf { it.v == AlertState.VERSION }
+        } catch (e: SerializationException) {
+            null
+        } catch (e: IllegalArgumentException) {
+            null
+        }
 }

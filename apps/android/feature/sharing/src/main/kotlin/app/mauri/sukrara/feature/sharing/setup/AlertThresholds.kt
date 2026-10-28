@@ -35,14 +35,18 @@ data class AlertThresholds(val settings: AlertSettings) {
     fun with(
         field: ThresholdField,
         value: Double,
-    ): AlertThresholds = AlertThresholds(settings.withRule(field.kind, settings.rule(field.kind).copy(threshold = field.spec.coerce(value))))
+    ): AlertThresholds =
+        AlertThresholds(
+            settings.withRule(field.kind, settings.rule(field.kind).copy(threshold = field.spec.coerce(value))),
+        )
 
     /** Levels must stay in order (very low < low < high < very high < extremely high), or a low could ring as a high. */
     val ordered: Boolean
         get() = LEVELS.zipWithNext().all { (lower, higher) -> value(lower) < value(higher) }
 
     private companion object {
-        val LEVELS = listOf(ThresholdField.VeryLow, ThresholdField.Low, ThresholdField.High, ThresholdField.VeryHigh, ThresholdField.ExtremelyHigh)
+        val LEVELS =
+            listOf(ThresholdField.VeryLow, ThresholdField.Low, ThresholdField.High, ThresholdField.VeryHigh, ThresholdField.ExtremelyHigh)
     }
 }
 

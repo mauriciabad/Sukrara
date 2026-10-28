@@ -51,9 +51,9 @@ import app.mauri.sukrara.feature.sharing.share.ShareScreen
 import app.mauri.sukrara.feature.sharing.share.SharingScreen
 import app.mauri.sukrara.feature.sharing.share.SharingViewModel
 import app.mauri.sukrara.monitor.sensorend.AndroidSensorEndPresenter
-import app.mauri.sukrara.feature.settings.R as SettingsR
 import kotlinx.coroutines.flow.first
 import kotlinx.serialization.Serializable
+import app.mauri.sukrara.feature.settings.R as SettingsR
 
 /** The app's screens. Each is a key on the back stack (Navigation 3); predictive back comes with NavDisplay. */
 @Serializable
@@ -150,7 +150,12 @@ fun SukraraNavigation(
     }
     // first launch (no role yet): setup opens on top of home; Back on its first step leaves it ("setup incomplete")
     LaunchedEffect(Unit) {
-        if (graph.role.data.first().role == null && SetupRoute !in backStack) backStack.add(SetupRoute)
+        if (graph.role.data
+                .first()
+                .role == null && SetupRoute !in backStack
+        ) {
+            backStack.add(SetupRoute)
+        }
     }
     // an invite link opens setup on top of home (Back lands on home), once per link: a recreated activity keeps it
     var handledLink by rememberSaveable { mutableStateOf<String?>(null) }

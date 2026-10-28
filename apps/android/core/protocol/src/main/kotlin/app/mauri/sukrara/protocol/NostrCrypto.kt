@@ -33,7 +33,14 @@ interface NostrCrypto {
      * signed by a one-time key, `p`-tagged to [recipient], with an absolute NIP-40 [expiration]. The seal's and wrap's
      * own `created_at` are randomised into the past by the implementation, as NIP-59 says.
      */
-    fun giftWrap(sender: KeyPair, recipient: PublicKeyHex, rumorKind: Int, rumorContent: String, rumorCreatedAt: Long, expiration: Long): SignedEvent
+    fun giftWrap(
+        sender: KeyPair,
+        recipient: PublicKeyHex,
+        rumorKind: Int,
+        rumorContent: String,
+        rumorCreatedAt: Long,
+        expiration: Long,
+    ): SignedEvent
 
     /** Opens a gift wrap addressed to [recipient]; null if it isn't ours, doesn't open, or the seal is invalid. */
     fun unwrap(recipient: SecretKey, wrap: SignedEvent): Unwrapped?

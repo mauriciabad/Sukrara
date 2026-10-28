@@ -114,14 +114,15 @@ data class OwnerState(
     fun readKey(crypto: NostrCrypto, e: EpochKey = current): KeyPair = pair(crypto, e.secretHex)
 
     /** What [app.mauri.sukrara.protocol.owner.IdentityConflict] needs to tell our own roster / backup from another app's. */
-    fun marks(crypto: NostrCrypto): OwnerMarks = OwnerMarks(
-        identity = identity(crypto),
-        device = device(crypto).public.hex,
-        sid = sid,
-        epochsByGk = epochs.associate { e -> readKey(crypto, e).let { Wire.gk(it.public) to (e.n to it) } },
-        lastRosterAt = rosterPublishedAt,
-        lastBackupAt = backupPublishedAt,
-    )
+    fun marks(crypto: NostrCrypto): OwnerMarks =
+        OwnerMarks(
+            identity = identity(crypto),
+            device = device(crypto).public.hex,
+            sid = sid,
+            epochsByGk = epochs.associate { e -> readKey(crypto, e).let { Wire.gk(it.public) to (e.n to it) } },
+            lastRosterAt = rosterPublishedAt,
+            lastBackupAt = backupPublishedAt,
+        )
 
     override fun toString() =
         "OwnerState(epoch=${current.n}, followers=${activeFollowers().size}, pending=${pending.size}, conflict=${conflict?.reason})"

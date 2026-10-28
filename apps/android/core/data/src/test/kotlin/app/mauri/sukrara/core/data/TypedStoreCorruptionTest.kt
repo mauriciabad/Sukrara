@@ -38,34 +38,37 @@ class TypedStoreCorruptionTest {
         TypedStore<Pairing?>(file, Pairing.serializer().nullable, initial = null, whenCorrupt = LOST, SukraraJson, log, clock, scope)
 
     @Test
-    fun `missing file starts at initial, updates persist`() = runTest {
-        val store = store(backgroundScope)
-        assertNull(store.data.first())
-        store.update { Pairing("ABC", 1) }
-        assertEquals(Pairing("ABC", 1), store.data.first())
-        assertTrue(file.readText().contains("\"serial\":\"ABC\""))
-        assertNull(store.corruption.value)
-    }
+    fun `missing file starts at initial, updates persist`() =
+        runTest {
+            val store = store(backgroundScope)
+            assertNull(store.data.first())
+            store.update { Pairing("ABC", 1) }
+            assertEquals(Pairing("ABC", 1), store.data.first())
+            assertTrue(file.readText().contains("\"serial\":\"ABC\""))
+            assertNull(store.corruption.value)
+        }
 
     @Test
-    fun `a damaged file is kept aside and reported, then the chosen value applies`() = runTest {
-        file.parentFile!!.mkdirs()
-        file.writeText("{\"serial\": tru")
-        val store = store(backgroundScope)
+    fun `a damaged file is kept aside and reported, then the chosen value applies`() =
+        runTest {
+            file.parentFile!!.mkdirs()
+            file.writeText("{\"serial\": tru")
+            val store = store(backgroundScope)
 
-        assertEquals(LOST, store.data.first())
+            assertEquals(LOST, store.data.first())
 
-        val report = checkNotNull(store.corruption.value)
-        assertEquals("{\"serial\": tru", report.quarantinedTo!!.readText())
-        assertEquals(listOf(report), log.files.value)
-    }
+            val report = checkNotNull(store.corruption.value)
+            assertEquals("{\"serial\": tru", report.quarantinedTo!!.readText())
+            assertEquals(listOf(report), log.files.value)
+        }
 
     @Test
-    fun `unknown fields from a newer version are ignored, not corruption`() = runTest {
-        file.parentFile!!.mkdirs()
-        file.writeText("{\"serial\":\"X\",\"epoch\":3,\"future\":true}")
-        val store = store(backgroundScope)
-        assertEquals(Pairing("X", 3), store.data.first())
-        assertNull(store.corruption.value)
-    }
+    fun `unknown fields from a newer version are ignored, not corruption`() =
+        runTest {
+            file.parentFile!!.mkdirs()
+            file.writeText("{\"serial\":\"X\",\"epoch\":3,\"future\":true}")
+            val store = store(backgroundScope)
+            assertEquals(Pairing("X", 3), store.data.first())
+            assertNull(store.corruption.value)
+        }
 }

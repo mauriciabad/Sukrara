@@ -11,7 +11,8 @@ public struct CardWords: Sendable {
     let unit: (mgdl: String, mmol: String)
     let below, above, old, justNow: String
     let ago: @Sendable (String) -> String
-    let trend: (unknown: String, steady: String, rising: String, risingFast: String, falling: String, fallingFast: String)
+    let trend:
+        (unknown: String, steady: String, rising: String, risingFast: String, falling: String, fallingFast: String)
     let band: (veryLow: String, low: String, inRange: String, high: String, veryHigh: String, extremelyHigh: String)
     let noReadings: String
     let noReadingSince: @Sendable (String) -> String
@@ -131,7 +132,8 @@ enum A11y {
     /// "Last 12 hours: 82% in range, 3% below, 15% above" (or "no data"): the window the chart shows.
     static func chart(_ data: CardData, _ g: GraphStyle, words w: CardWords) -> String {
         let hours = Int(g.window / 3600)
-        let tir = GlucoseStats.timeInRange(data.readings, from: data.now - g.window, to: data.now, bands: g.bands.sane())
+        let tir = GlucoseStats.timeInRange(
+            data.readings, from: data.now - g.window, to: data.now, bands: g.bands.sane())
         if tir.empty { return w.chartEmpty(hours) }
         let (below, inRange, above) = GlucoseGraph.pct3(tir.below, tir.inRange, tir.above)
         return w.chart(hours, inRange, below, above)

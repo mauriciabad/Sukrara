@@ -36,9 +36,21 @@ class AlertThresholdReviewTest {
         runTest {
             val vm = ThresholdReviewViewModel(store, settings, clock)
             vm.setThreshold(AlertKind.LOW, 75.0)
-            assertEquals(75.0, vm.draft.value!!.rule(AlertKind.LOW).threshold, 0.0)
+            assertEquals(
+                75.0,
+                vm.draft.value!!
+                    .rule(AlertKind.LOW)
+                    .threshold,
+                0.0,
+            )
             assertEquals(0, store.writes)
-            assertEquals(70.0, store.state.value.rule(AlertKind.LOW).threshold, 0.0)
+            assertEquals(
+                70.0,
+                store.state.value
+                    .rule(AlertKind.LOW)
+                    .threshold,
+                0.0,
+            )
             assertNull(SchemaPrefs.thresholdsConfirmedAt(settings).first())
         }
 
@@ -49,7 +61,13 @@ class AlertThresholdReviewTest {
             vm.setThreshold(AlertKind.HIGH, 200.0)
             var result: ThresholdReviewResult? = null
             vm.confirm { result = it }
-            assertEquals(200.0, store.state.value.rule(AlertKind.HIGH).threshold, 0.0)
+            assertEquals(
+                200.0,
+                store.state.value
+                    .rule(AlertKind.HIGH)
+                    .threshold,
+                0.0,
+            )
             assertEquals(clock.instant, SchemaPrefs.thresholdsConfirmedAt(settings).first())
             assertEquals(ThresholdReviewResult.Confirmed(store.state.value), result)
         }
@@ -62,7 +80,13 @@ class AlertThresholdReviewTest {
             store.state.value = store.state.value.copy(on = false)
             vm.confirm { }
             assertEquals(false, store.state.value.on)
-            assertEquals(65.0, store.state.value.rule(AlertKind.LOW).threshold, 0.0)
+            assertEquals(
+                65.0,
+                store.state.value
+                    .rule(AlertKind.LOW)
+                    .threshold,
+                0.0,
+            )
         }
 
     @Test
@@ -70,7 +94,13 @@ class AlertThresholdReviewTest {
         runTest {
             val vm = ThresholdReviewViewModel(store, settings, clock)
             vm.setThreshold(AlertKind.VERY_LOW, 10.0)
-            assertEquals(40.0, vm.draft.value!!.rule(AlertKind.VERY_LOW).threshold, 0.0)
+            assertEquals(
+                40.0,
+                vm.draft.value!!
+                    .rule(AlertKind.VERY_LOW)
+                    .threshold,
+                0.0,
+            )
             assertEquals(AlertSettings().rule(AlertKind.LOW), vm.draft.value!!.rule(AlertKind.LOW))
         }
 }

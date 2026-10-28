@@ -24,10 +24,17 @@ import java.time.Instant
 
 class NewSensorMachineTest {
     private val t0: Instant = Instant.parse("2026-10-27T08:00:00Z")
-    private val ok = SensorEnv(
-        coreAvailable = true, nfcAvailable = true, nfcOn = true, signedIn = true,
-        officialAppInstalled = false, bluetoothPermission = true, bluetoothOn = true, notificationsAllowed = true,
-    )
+    private val ok =
+        SensorEnv(
+            coreAvailable = true,
+            nfcAvailable = true,
+            nfcOn = true,
+            signedIn = true,
+            officialAppInstalled = false,
+            bluetoothPermission = true,
+            bluetoothOn = true,
+            notificationsAllowed = true,
+        )
 
     private fun run(vararg events: NewSensorEvent, from: NewSensorState = NewSensorState(), now: Instant = t0) =
         events.fold(from) { s, e -> NewSensorMachine.reduce(s, e, now) }
@@ -43,16 +50,17 @@ class NewSensorMachineTest {
         assertEquals(NewSensorStep.WaitingForTap, step(Start(ok)))
 
     @Test fun `gates come in order and each blocks before the next`() {
-        val cases = listOf(
-            ok.copy(coreAvailable = false, nfcAvailable = false, signedIn = false) to NewSensorStep.CoreMissing,
-            ok.copy(nfcAvailable = false, signedIn = false) to NewSensorStep.NoNfc,
-            ok.copy(nfcOn = false, signedIn = false) to NewSensorStep.NfcOff,
-            ok.copy(signedIn = false, officialAppInstalled = true) to NewSensorStep.NeedsLibreViewSignIn,
-            ok.copy(officialAppInstalled = true, bluetoothPermission = false) to NewSensorStep.OfficialAppWarning,
-            ok.copy(bluetoothPermission = false, bluetoothOn = false) to NewSensorStep.NeedsBluetoothPermission,
-            ok.copy(bluetoothOn = false, notificationsAllowed = false) to NewSensorStep.BluetoothOff,
-            ok.copy(notificationsAllowed = false) to NewSensorStep.NeedsNotifications,
-        )
+        val cases =
+            listOf(
+                ok.copy(coreAvailable = false, nfcAvailable = false, signedIn = false) to NewSensorStep.CoreMissing,
+                ok.copy(nfcAvailable = false, signedIn = false) to NewSensorStep.NoNfc,
+                ok.copy(nfcOn = false, signedIn = false) to NewSensorStep.NfcOff,
+                ok.copy(signedIn = false, officialAppInstalled = true) to NewSensorStep.NeedsLibreViewSignIn,
+                ok.copy(officialAppInstalled = true, bluetoothPermission = false) to NewSensorStep.OfficialAppWarning,
+                ok.copy(bluetoothPermission = false, bluetoothOn = false) to NewSensorStep.NeedsBluetoothPermission,
+                ok.copy(bluetoothOn = false, notificationsAllowed = false) to NewSensorStep.BluetoothOff,
+                ok.copy(notificationsAllowed = false) to NewSensorStep.NeedsNotifications,
+            )
         cases.forEach { (env, expected) -> assertEquals(env.toString(), expected, step(Start(env))) }
     }
 
@@ -86,14 +94,15 @@ class NewSensorMachineTest {
         assertEquals(NewSensorStep.WaitingForTap, step(Start(ok.copy(notificationsAllowed = false)), Continue))
 
     @Test fun `tap outcomes map to their steps`() {
-        val cases = mapOf(
-            PairOutcome.OwnedByAnotherApp("ABC") to NewSensorStep.TakeoverFailed,
-            PairOutcome.Ended("ABC") to NewSensorStep.NfcFailed(NfcFailure.SensorEnded),
-            PairOutcome.Libre2Unsupported to NewSensorStep.NfcFailed(NfcFailure.NotLibre3),
-            PairOutcome.Unsupported("lingo") to NewSensorStep.NfcFailed(NfcFailure.NotLibre3),
-            PairOutcome.Failed("tag lost") to NewSensorStep.NfcFailed(NfcFailure.MovedTooSoon),
-            PairOutcome.Paired("ABC", activated = false) to NewSensorStep.ConnectingBle("ABC", t0, activated = false),
-        )
+        val cases =
+            mapOf(
+                PairOutcome.OwnedByAnotherApp("ABC") to NewSensorStep.TakeoverFailed,
+                PairOutcome.Ended("ABC") to NewSensorStep.NfcFailed(NfcFailure.SensorEnded),
+                PairOutcome.Libre2Unsupported to NewSensorStep.NfcFailed(NfcFailure.NotLibre3),
+                PairOutcome.Unsupported("lingo") to NewSensorStep.NfcFailed(NfcFailure.NotLibre3),
+                PairOutcome.Failed("tag lost") to NewSensorStep.NfcFailed(NfcFailure.MovedTooSoon),
+                PairOutcome.Paired("ABC", activated = false) to NewSensorStep.ConnectingBle("ABC", t0, activated = false),
+            )
         cases.forEach { (outcome, expected) -> assertEquals(expected, step(Start(ok), TagFound, Tapped(outcome))) }
     }
 
@@ -147,7 +156,13 @@ class NewSensorMachineTest {
         )
         assertEquals(
             NewSensorStep.BleFailed("ABC", BleFailure.PermissionMissing),
-            step(*paired, Source(SensorStatus.BluetoothPermissionMissing, SensorState.ActionNeeded(app.mauri.sukrara.core.model.SensorAction.GrantBluetooth))),
+            step(
+                *paired,
+                Source(
+                    SensorStatus.BluetoothPermissionMissing,
+                    SensorState.ActionNeeded(app.mauri.sukrara.core.model.SensorAction.GrantBluetooth),
+                ),
+            ),
         )
         assertEquals(
             NewSensorStep.TakeoverFailed,
@@ -200,28 +215,30 @@ class NewSensorMachineTest {
     }
 
     @Test fun `cancel before the tap aborts, during the read is ignored, after the tap leaves it running`() {
-        val beforeTap = listOf(
-            arrayOf<NewSensorEvent>(),
-            arrayOf<NewSensorEvent>(Start(ok.copy(coreAvailable = false))),
-            arrayOf<NewSensorEvent>(Start(ok.copy(nfcAvailable = false))),
-            arrayOf<NewSensorEvent>(Start(ok.copy(nfcOn = false))),
-            arrayOf<NewSensorEvent>(Start(ok.copy(signedIn = false))),
-            arrayOf<NewSensorEvent>(Start(ok.copy(officialAppInstalled = true))),
-            arrayOf<NewSensorEvent>(Start(ok.copy(bluetoothPermission = false))),
-            arrayOf<NewSensorEvent>(Start(ok.copy(bluetoothOn = false))),
-            arrayOf<NewSensorEvent>(Start(ok.copy(notificationsAllowed = false))),
-            arrayOf<NewSensorEvent>(Start(ok)),
-            arrayOf<NewSensorEvent>(Start(ok), TagFound, Tapped(PairOutcome.Failed("x"))),
-            arrayOf<NewSensorEvent>(Start(ok), TagFound, Tapped(PairOutcome.OwnedByAnotherApp("A"))),
-        )
+        val beforeTap =
+            listOf(
+                arrayOf<NewSensorEvent>(),
+                arrayOf<NewSensorEvent>(Start(ok.copy(coreAvailable = false))),
+                arrayOf<NewSensorEvent>(Start(ok.copy(nfcAvailable = false))),
+                arrayOf<NewSensorEvent>(Start(ok.copy(nfcOn = false))),
+                arrayOf<NewSensorEvent>(Start(ok.copy(signedIn = false))),
+                arrayOf<NewSensorEvent>(Start(ok.copy(officialAppInstalled = true))),
+                arrayOf<NewSensorEvent>(Start(ok.copy(bluetoothPermission = false))),
+                arrayOf<NewSensorEvent>(Start(ok.copy(bluetoothOn = false))),
+                arrayOf<NewSensorEvent>(Start(ok.copy(notificationsAllowed = false))),
+                arrayOf<NewSensorEvent>(Start(ok)),
+                arrayOf<NewSensorEvent>(Start(ok), TagFound, Tapped(PairOutcome.Failed("x"))),
+                arrayOf<NewSensorEvent>(Start(ok), TagFound, Tapped(PairOutcome.OwnedByAnotherApp("A"))),
+            )
         beforeTap.forEach { assertEquals(NewSensorStep.Cancelled, step(*it, Cancel)) }
         assertEquals(NewSensorStep.ReadingNfc, step(Start(ok), TagFound, Cancel))
         assertEquals(NewSensorStep.ReadingNfc, step(Start(ok), TagFound, UseJuggluco))
-        val afterTap = listOf(
-            arrayOf(*paired),
-            arrayOf(*paired, live("ABC", LinkStatus.WarmingUp(60))),
-            arrayOf(*paired, live("ABC", LinkStatus.WaitingForBluetooth)),
-        )
+        val afterTap =
+            listOf(
+                arrayOf(*paired),
+                arrayOf(*paired, live("ABC", LinkStatus.WarmingUp(60))),
+                arrayOf(*paired, live("ABC", LinkStatus.WaitingForBluetooth)),
+            )
         afterTap.forEach { assertEquals(NewSensorStep.LeftRunning, step(*it, Cancel)) }
     }
 

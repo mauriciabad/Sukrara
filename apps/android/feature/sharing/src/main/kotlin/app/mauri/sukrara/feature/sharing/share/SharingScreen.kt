@@ -4,13 +4,13 @@
 package app.mauri.sukrara.feature.sharing.share
 
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -39,19 +39,35 @@ fun SharingScreen(
     var reviewing by rememberSaveable { mutableStateOf<String?>(null) }
     Box(modifier.fillMaxSize()) {
         when (val s = state) {
-            OwnerShareState.Loading -> CircularProgressIndicator(Modifier.align(Alignment.Center))
-            OwnerShareState.NoIdentity, is OwnerShareState.IdentityUnreadable ->
+            OwnerShareState.Loading -> {
+                CircularProgressIndicator(Modifier.align(Alignment.Center))
+            }
+
+            OwnerShareState.NoIdentity, is OwnerShareState.IdentityUnreadable -> {
                 StateScreen(
                     kind = if (s is OwnerShareState.IdentityUnreadable) StateKind.Error else StateKind.Empty,
                     title = stringResource(R.string.sh_identity_title),
-                    reason = stringResource(if (s is OwnerShareState.IdentityUnreadable) R.string.sh_identity_unreadable else R.string.sh_identity_body),
+                    reason =
+                        stringResource(
+                            if (s is OwnerShareState.IdentityUnreadable) R.string.sh_identity_unreadable else R.string.sh_identity_body,
+                        ),
                     action = stringResource(R.string.sh_sharing_set_up),
                     onAction = onSetUpSharing,
                 )
-            is OwnerShareState.AnotherAppSharingAsYou ->
+            }
+
+            is OwnerShareState.AnotherAppSharingAsYou -> {
                 IdentityConflictScreen(s, viewModel::retryConflict, onClose)
+            }
+
             is OwnerShareState.Sharing -> {
-                FollowersPage(s.followers, s.pending, onReview = { reviewing = it.follower }, onRemove = { viewModel.remove(it.key) }, onShare = onShare)
+                FollowersPage(
+                    s.followers,
+                    s.pending,
+                    onReview = { reviewing = it.follower },
+                    onRemove = { viewModel.remove(it.key) },
+                    onShare = onShare,
+                )
                 s.pending.firstOrNull { it.follower == reviewing }?.let { request ->
                     ApproveDialog(
                         request,

@@ -51,19 +51,25 @@ class SensorEndNotifier(
 
     /** Re-evaluates the planned end now (alarm, boot, time change). */
     suspend fun check() {
-        apply(store.data.first().endsAt.takeIf { it > 0 })
+        apply(
+            store.data
+                .first()
+                .endsAt
+                .takeIf { it > 0 },
+        )
     }
 
-    private suspend fun apply(endsAt: Long?) = mutex.withLock {
-        val now = clock.now().epochSecond
-        val before = store.data.first()
-        val d = SensorEndPlan.decide(endsAt, now, before)
-        if (d.clear) presenter.clear()
-        if (d.warn && endsAt != null) presenter.warn(endsAt, now)
-        if (d.ended) presenter.ended()
-        store.update { d.memory }
-        alarm.set(d.next)
-    }
+    private suspend fun apply(endsAt: Long?) =
+        mutex.withLock {
+            val now = clock.now().epochSecond
+            val before = store.data.first()
+            val d = SensorEndPlan.decide(endsAt, now, before)
+            if (d.clear) presenter.clear()
+            if (d.warn && endsAt != null) presenter.warn(endsAt, now)
+            if (d.ended) presenter.ended()
+            store.update { d.memory }
+            alarm.set(d.next)
+        }
 }
 
 /** The sensor notifications on channel `sensor`, in the `info` group (never bundled with alerts). */
@@ -104,7 +110,8 @@ class AndroidSensorEndPresenter(private val ctx: Context) : SensorEndPresenter {
             Channels.create(ctx) // idempotent; the alarm receiver may post before the app made them
             channelsReady = true
         }
-        return Notification.Builder(ctx, CHANNEL)
+        return Notification
+            .Builder(ctx, CHANNEL)
             .setSmallIcon(ctx.applicationInfo.icon)
             .setCategory(Notification.CATEGORY_REMINDER)
             .setContentIntent(openApp(null))
@@ -113,7 +120,6 @@ class AndroidSensorEndPresenter(private val ctx: Context) : SensorEndPresenter {
     }
 
     private fun post(n: Notification) = NotificationGroups.post(ctx, ID, n, NotificationGroups.Group.INFO, CHANNEL)
-
 
     /** The app at its start screen, or with [action] (the new-sensor flow handles [ACTION_PAIR_SENSOR]). */
     private fun openApp(action: String?): PendingIntent {

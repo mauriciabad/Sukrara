@@ -107,7 +107,9 @@ object Channels {
                 setShowBadge(spec.id != GLUCOSE && spec.id != SENSOR_COUNTDOWN)
             }
 
-            Kind.ALERT, Kind.ALARM -> AlertChannels.configure(this, context, AlertKind.fromWire(spec.alertKind!!)!!, spec.kind == Kind.ALARM)
+            Kind.ALERT, Kind.ALARM -> {
+                AlertChannels.configure(this, context, AlertKind.fromWire(spec.alertKind!!)!!, spec.kind == Kind.ALARM)
+            }
         }
     }
 

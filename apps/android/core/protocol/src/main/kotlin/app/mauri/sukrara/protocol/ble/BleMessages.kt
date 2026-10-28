@@ -37,27 +37,38 @@ object BleMessages {
 
     fun event(event: SignedEvent): ByteArray = "[\"EVENT\",${event.toJson()}]".toByteArray()
 
-    fun hello(nonce: String, id: String?): ByteArray = message("HELLO", buildJsonObject {
-        put("v", Wire.V)
-        put("nonce", nonce)
-        id?.let { put("id", it) }
-    })
+    fun hello(nonce: String, id: String?): ByteArray =
+        message(
+            "HELLO",
+            buildJsonObject {
+                put("v", Wire.V)
+                put("nonce", nonce)
+                id?.let { put("id", it) }
+            },
+        )
 
     /** INFO: `nonce` + `m` always; `i`, `relays`, `pair` only for an open, unexpired [pairing]. */
-    fun info(sid: String, nonce: String, pairing: Pairing?, now: Long): ByteArray = message("INFO", buildJsonObject {
-        put("v", Wire.V)
-        put("nonce", nonce)
-        put("m", infoM(sid, nonce))
-        if (pairing != null && pairing.expiry > now) {
-            put("i", pairing.identity.hex)
-            put("relays", buildJsonArray { pairing.relays.forEach { add(JsonPrimitive(it)) } })
-            put("pair", buildJsonObject {
-                put("t", pairing.token)
-                put("x", pairing.expiry)
-                pairing.profile?.let { put("profile", it.toJson()) }
-            })
-        }
-    })
+    fun info(sid: String, nonce: String, pairing: Pairing?, now: Long): ByteArray =
+        message(
+            "INFO",
+            buildJsonObject {
+                put("v", Wire.V)
+                put("nonce", nonce)
+                put("m", infoM(sid, nonce))
+                if (pairing != null && pairing.expiry > now) {
+                    put("i", pairing.identity.hex)
+                    put("relays", buildJsonArray { pairing.relays.forEach { add(JsonPrimitive(it)) } })
+                    put(
+                        "pair",
+                        buildJsonObject {
+                            put("t", pairing.token)
+                            put("x", pairing.expiry)
+                            pairing.profile?.let { put("profile", it.toJson()) }
+                        },
+                    )
+                }
+            },
+        )
 
     private fun message(type: String, body: JsonElement): ByteArray =
         buildJsonArray {
@@ -66,10 +77,11 @@ object BleMessages {
         }.toString().toByteArray()
 
     /** null for anything that isn't `[type, body]`. */
-    fun parse(bytes: ByteArray): Message? = runCatching {
-        val arr = WireJson.parseToJsonElement(bytes.decodeToString()) as JsonArray
-        Message((arr[0] as JsonPrimitive).content, arr[1])
-    }.getOrNull()
+    fun parse(bytes: ByteArray): Message? =
+        runCatching {
+            val arr = WireJson.parseToJsonElement(bytes.decodeToString()) as JsonArray
+            Message((arr[0] as JsonPrimitive).content, arr[1])
+        }.getOrNull()
 
     /** The HELLO's nonce (1–64 hex) and identity proof (128 hex) if well-formed. */
     fun parseHello(body: JsonElement): Hello? {
@@ -113,7 +125,13 @@ object HelloProof {
         crypto.sign(follower, UnsignedEvent(KIND, content(sid, nonce, dev), emptyList(), 0)).sig
 
     /** The (follower key, device) among [followers] whose proof [sig] signs for [nonce], or null. */
-    fun identify(crypto: NostrCrypto, sig: String, sid: String, nonce: String, followers: Collection<PublicKeyHex>): Pair<PublicKeyHex, String>? {
+    fun identify(
+        crypto: NostrCrypto,
+        sig: String,
+        sid: String,
+        nonce: String,
+        followers: Collection<PublicKeyHex>,
+    ): Pair<PublicKeyHex, String>? {
         if (!Hex.isHex(sig, 128, 128)) return null
         for (f in followers) {
             for (dev in DEVICES) {

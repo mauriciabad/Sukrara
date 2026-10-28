@@ -131,5 +131,4 @@ sealed interface HomeAction {
     data object OpenBackup : HomeAction
 
     data object OpenClinicUpload : HomeAction
-
 }

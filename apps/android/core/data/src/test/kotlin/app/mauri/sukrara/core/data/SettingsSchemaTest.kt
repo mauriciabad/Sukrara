@@ -34,19 +34,21 @@ class SettingsSchemaTest {
 
     @Test
     fun `every Android store is a generated store constant`() {
-        val constants = SettingsSpec.Stores::class.java.declaredFields
-            .filter { it.type == String::class.java }
-            .map { it.get(null) as String }
-            .toSet()
+        val constants =
+            SettingsSpec.Stores::class.java.declaredFields
+                .filter { it.type == String::class.java }
+                .map { it.get(null) as String }
+                .toSet()
         assertEquals(constants, schemaStores())
     }
 
     @Test
     fun `every Android key is a generated key constant`() {
-        val constants = SettingsSpec.Keys::class.java.declaredFields
-            .filter { it.type == String::class.java }
-            .map { it.get(null) as String }
-            .toSet()
+        val constants =
+            SettingsSpec.Keys::class.java.declaredFields
+                .filter { it.type == String::class.java }
+                .map { it.get(null) as String }
+                .toSet()
         val keys = android.flatMap { it.android.substringAfter(':').split(',') }.toSet()
         assertEquals(constants, keys)
     }

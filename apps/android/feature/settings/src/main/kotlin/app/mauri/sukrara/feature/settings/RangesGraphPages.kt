@@ -64,7 +64,11 @@ class GraphPrefsViewModel(
             settings.flow(SchemaPrefs.GraphHours),
             settings.flow(SchemaPrefs.GridHours),
             settings.flow(SchemaPrefs.RingCount),
-            combine(settings.flow(SchemaPrefs.Side), settings.flow(SchemaPrefs.ColumnCrown), settings.flow(SchemaPrefs.RingMarks)) { a, b, c -> Triple(a, b, c) },
+            combine(
+                settings.flow(SchemaPrefs.Side),
+                settings.flow(SchemaPrefs.ColumnCrown),
+                settings.flow(SchemaPrefs.RingMarks),
+            ) { a, b, c -> Triple(a, b, c) },
         ) { bands, hours, grid, rings, (side, crown, marks) -> GraphPrefs(bands, hours, grid, rings, side, crown, marks) }
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
@@ -144,8 +148,15 @@ fun GraphBasicsContent(
             }
         }
         SettingsGroup {
-            SwitchRow(stringResource(R.string.st_graph_side), prefs.side, { onSetBool(SchemaPrefs.Side, it) }, summary = stringResource(R.string.st_graph_side_summary))
-            SwitchRow(stringResource(R.string.st_graph_crown), prefs.crown, { onSetBool(SchemaPrefs.ColumnCrown, it) }, enabled = prefs.side)
+            SwitchRow(stringResource(R.string.st_graph_side), prefs.side, {
+                onSetBool(SchemaPrefs.Side, it)
+            }, summary = stringResource(R.string.st_graph_side_summary))
+            SwitchRow(
+                stringResource(R.string.st_graph_crown),
+                prefs.crown,
+                { onSetBool(SchemaPrefs.ColumnCrown, it) },
+                enabled = prefs.side,
+            )
             SwitchRow(
                 stringResource(R.string.st_graph_marks),
                 prefs.ringMarks,

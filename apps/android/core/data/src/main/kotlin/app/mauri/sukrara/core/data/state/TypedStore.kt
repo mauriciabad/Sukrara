@@ -50,15 +50,17 @@ class TypedStore<T> internal constructor(
     /** Set when this store's file was found damaged in this process (the report the UI shows). */
     val corruption: StateFlow<CorruptFile?> = corrupted.asStateFlow()
 
-    private val store: DataStore<T> = DataStoreFactory.create(
-        serializer = JsonSerializer(serializer, initial, json),
-        corruptionHandler = ReplaceFileCorruptionHandler { error ->
-            quarantine(error)
-            whenCorrupt
-        },
-        scope = scope,
-        produceFile = { file },
-    )
+    private val store: DataStore<T> =
+        DataStoreFactory.create(
+            serializer = JsonSerializer(serializer, initial, json),
+            corruptionHandler =
+                ReplaceFileCorruptionHandler { error ->
+                    quarantine(error)
+                    whenCorrupt
+                },
+            scope = scope,
+            produceFile = { file },
+        )
 
     override val data: Flow<T> = store.data
 

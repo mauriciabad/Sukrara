@@ -94,7 +94,12 @@ class SharingScreenshotTest {
     )
 
     private val live = facts.copy(ownSensorLive = true)
-    private val conflict = OwnerShareState.AnotherAppSharingAsYou(IdentityCheck.Reason.entries.first(), followersReceiving = true, relays = emptyMap())
+    private val conflict =
+        OwnerShareState.AnotherAppSharingAsYou(
+            IdentityCheck.Reason.entries.first(),
+            followersReceiving = true,
+            relays = emptyMap(),
+        )
     private val followers =
         listOf(
             FollowerRecord("k1", "Anna", since = 1_761_000_000),
@@ -112,7 +117,10 @@ class SharingScreenshotTest {
             "setup-1-welcome" to { SetupContent(ui(SetupStep.Welcome, 1, facts.copy(role = null)), a) },
             "setup-2-role" to { SetupContent(ui(SetupStep.Role, 2, facts.copy(role = null)), a) },
             "setup-3-permissions" to {
-                SetupContent(ui(SetupStep.Permissions, 3, missing = setOf(AlertRequirement.FullScreenIntent, AlertRequirement.BatteryExemption)), a)
+                SetupContent(
+                    ui(SetupStep.Permissions, 3, missing = setOf(AlertRequirement.FullScreenIntent, AlertRequirement.BatteryExemption)),
+                    a,
+                )
             },
             "setup-4-sensor-waiting" to { SetupContent(ui(SetupStep.Sensor, 4), a) },
             "setup-4-sensor-live" to { SetupContent(ui(SetupStep.Sensor, 4, live), a) },
@@ -137,7 +145,11 @@ class SharingScreenshotTest {
             "conflict-screen" to { IdentityConflictScreen(conflict, {}, {}) },
             "share-new" to { ShareScreen(InviteUi.None, {}, {}) },
             "share-ready" to {
-                ShareScreen(InviteUi.Ready(Invite("https://sukrara.mauri.app/join#c3ludGhldGljLWludml0ZS1mb3ItdGVzdHM", "Anna", 1_761_600_000)), {}, {})
+                ShareScreen(
+                    InviteUi.Ready(Invite("https://sukrara.mauri.app/join#c3ludGhldGljLWludml0ZS1mb3ItdGVzdHM", "Anna", 1_761_600_000)),
+                    {},
+                    {},
+                )
             },
             "followers" to { FollowersPage(followers, listOf(request), {}, {}, {}) },
             "followers-empty" to { FollowersPage(emptyList(), emptyList(), {}, {}, {}) },

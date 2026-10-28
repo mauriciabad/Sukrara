@@ -99,7 +99,11 @@ fun DataProblemScreen(
         },
     ) { padding ->
         Column(
-            Modifier.padding(padding).fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
+            Modifier
+                .padding(padding)
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Text(stringResource(R.string.data_intro), style = MaterialTheme.typography.bodyLarge)
@@ -143,4 +147,6 @@ private fun words(kind: DamagedStore): Pair<String, String> =
     }
 
 /** The plain-text report for a bug report: no file content, only what failed. */
-internal fun report(p: DataProblem): String = "Sukrara damaged data\nstore: ${p.store}\nreason: ${p.reason}\nkept as: ${p.keptAs ?: "-"}\nat: ${p.at}"
+internal fun report(
+    p: DataProblem,
+): String = "Sukrara damaged data\nstore: ${p.store}\nreason: ${p.reason}\nkept as: ${p.keptAs ?: "-"}\nat: ${p.at}"

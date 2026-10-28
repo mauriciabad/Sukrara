@@ -30,8 +30,12 @@ class TrendFixtureTest {
                 val x = c["expect"] as JsonObject
                 val got = Triple(TrendAngle.text(rate), rate?.let { TrendAngle.deg(it).toDouble() }, rate?.let(TrendAngle::isDouble))
                 val want = Triple(x["text"].str(), x["deg"].double(), x["double"].bool())
-                val same = got.first == want.first && got.third == want.third &&
-                    (got.second == want.second || (got.second != null && want.second != null && kotlin.math.abs(got.second!! - want.second!!) < 1e-3))
+                val same =
+                    got.first == want.first && got.third == want.third &&
+                        (
+                            got.second == want.second ||
+                                (got.second != null && want.second != null && kotlin.math.abs(got.second!! - want.second!!) < 1e-3)
+                        )
                 if (same) null else "${c["name"].str()}: got $got, want $want"
             }
         assertTrue(fails.joinToString("\n"), fails.isEmpty())

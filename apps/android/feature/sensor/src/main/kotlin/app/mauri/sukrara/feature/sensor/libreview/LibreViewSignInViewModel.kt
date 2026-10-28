@@ -56,13 +56,17 @@ class LibreViewSignInViewModel(private val port: LibreViewPort) : ViewModel() {
         if (_ui.value == SignInUi.Working || !canSubmit(email, password)) return
         _ui.value = SignInUi.Working
         viewModelScope.launch {
-            _ui.value = when (port.signIn(email, password)) {
-                is SignInResult.SignedIn -> SignInUi.SignedIn(email.trim())
-                SignInResult.BadCredentials -> SignInUi.SignedOut(SignInError.WrongPassword)
-                SignInResult.AcceptTerms -> SignInUi.SignedOut(SignInError.AcceptTerms)
-                // offline, a server error, an answer it can't read: "couldn't sign in", never a guess at why
-                is SignInResult.Failed -> SignInUi.SignedOut(SignInError.Failed)
-            }
+            _ui.value =
+                when (port.signIn(email, password)) {
+                    is SignInResult.SignedIn -> SignInUi.SignedIn(email.trim())
+
+                    SignInResult.BadCredentials -> SignInUi.SignedOut(SignInError.WrongPassword)
+
+                    SignInResult.AcceptTerms -> SignInUi.SignedOut(SignInError.AcceptTerms)
+
+                    // offline, a server error, an answer it can't read: "couldn't sign in", never a guess at why
+                    is SignInResult.Failed -> SignInUi.SignedOut(SignInError.Failed)
+                }
         }
     }
 
