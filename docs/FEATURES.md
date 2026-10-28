@@ -505,8 +505,10 @@ Followers see the followed person's data and TalkBack starts with their name (*A
 TalkBack reads the renderer's value sentence plus, with a chart, its summary.
 
 - **Tap**: with a value on the widget, quick *Add treatment* (Carbs focused while a low alert fires or the value is
-  under the low band; `QuickTreatmentIntents.open`, source *Widget*); without one (no reading, 20 min+, warming up,
-  setup not done) the app opens.
+  under the low band; `QuickTreatmentIntents.open`, source *Widget*); the wearer's ended sensor opens the new-sensor
+  flow (`WidgetTap.NewSensor`); without a value otherwise (no reading, 20 min+, warming up, a follower's wearer's
+  ended sensor, setup not done) the app opens. The widgets declare `home_screen|keyguard`, so a device that hosts
+  lock-screen widgets (tablets' hub) offers them there too.
 - **Per placement** (*Widget settings*, shown when placed and from the launcher's *Reconfigure*): time shown,
   distribution beside the graph, rings and what they count, sensor time left; each *Same as the app* by default.
   Stored per appWidgetId in the typed state file `widgets` (schema `widget.overrides`), forgotten when the widget is
@@ -517,8 +519,7 @@ TalkBack reads the renderer's value sentence plus, with a chart, its summary.
   name. Nothing is drawn while the screen is off; one redraw catches up when it comes on. Pictures are sized to the
   cell and capped at 1400 px on the long side (RemoteViews memory).
 - **Picker preview**: a static synthetic layout (never the person's data).
-- Not included: the lock-screen widget (LSPosed), the generated picker previews, a tap that opens the Sensor screen
-  when the sensor has ended.
+- Not included: the lock-screen widget (LSPosed), the generated picker previews, the value widget at one cell.
 
 **States and exits**: *Placed* → touch & hold → *Reconfigure* (*Widget settings*: *Save*, *Cancel* / back leaves it as
 it was, *Reset* puts every row back to *Same as the app*) or *Remove* (its settings are forgotten). *Just placed* →

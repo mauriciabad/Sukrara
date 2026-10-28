@@ -72,6 +72,17 @@ class WidgetTapTest {
     }
 
     @Test
+    fun `the wearer's ended sensor opens the new-sensor flow, a follower's the app`() {
+        assertEquals(WidgetTap.NewSensor, widgetTap(context, frame(120, Duration.ofMinutes(25), sensor = SensorState.Ended)))
+        assertEquals(WidgetTap.NewSensor, widgetTap(context, frame(120, sensor = SensorState.Active(now.minus(Duration.ofHours(1))))))
+        assertEquals(
+            WidgetTap.OpenApp,
+            widgetTap(context, frame(120, Duration.ofMinutes(25), role = Role.Follower, sensor = SensorState.Ended)),
+        )
+        assertEquals(NavTargets.ACTION_SENSOR_SETUP, WidgetTap.intent(context, WidgetTap.NewSensor).action)
+    }
+
+    @Test
     fun `a tap with a value opens the quick Add treatment dialog, Carbs focused while low`() {
         val quick = WidgetTap.intent(context, WidgetTap.QuickTreatment(focusCarbs = true))
         assertEquals(NavTargets.ACTION_QUICK_TREATMENT, quick.action)
