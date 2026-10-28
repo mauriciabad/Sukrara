@@ -156,6 +156,15 @@ class MonitorModule(
         rootStatusBar.start()
     }
 
+    /**
+     * The language changed (the phone's or Sukrara's own): every channel and group gets its name in the new language
+     * (Android keeps the person's channel settings, only the name changes) and the glucose notification is redrawn.
+     */
+    fun onLocaleChanged() {
+        Channels.create(context)
+        repost()
+    }
+
     internal fun onFreshnessStep() {
         freshnessTicker.fired()
         ticks.tryEmit(Unit)

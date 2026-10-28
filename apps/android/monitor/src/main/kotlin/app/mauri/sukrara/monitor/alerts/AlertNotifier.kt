@@ -35,7 +35,9 @@ import app.mauri.sukrara.monitor.notify.NotificationIds
  */
 class AlertNotifier(private val ctx: Context) : AlertPresenter {
     private val nm get() = ctx.getSystemService(NotificationManager::class.java)
-    private val words = AlertWords.of(ctx)
+
+    // read on every use: a language change renames the alerts at once
+    private val words get() = AlertWords.of(ctx)
 
     override fun show(firing: Firing, settings: AlertSettings, silent: Boolean, who: String?, relaxedMin: Int) {
         val kind = firing.kind
