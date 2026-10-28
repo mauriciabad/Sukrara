@@ -38,6 +38,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.net.URI
 import java.time.LocalDate
+import app.mauri.sukrara.core.designsystem.R as DsR
 
 /** One relay as the Advanced page lists it. */
 data class RelayRow(val url: String, val connected: Boolean, val error: String? = null)
@@ -189,8 +190,18 @@ fun AdvancedContent(
     val haptics = rememberHaptics()
     SettingsPage(stringResource(R.string.st_adv_title), onBack, snackbar = snackbar) {
         SettingsGroup(title = stringResource(R.string.st_adv_file)) {
-            NavigationRow(stringResource(R.string.st_adv_export), actions.export, summary = stringResource(R.string.st_adv_export_summary))
-            NavigationRow(stringResource(R.string.st_adv_import), actions.import, summary = stringResource(R.string.st_adv_import_summary))
+            NavigationRow(
+                stringResource(R.string.st_adv_export),
+                actions.export,
+                summary = stringResource(R.string.st_adv_export_summary),
+                icon = DsR.drawable.ds_ic_file_export,
+            )
+            NavigationRow(
+                stringResource(R.string.st_adv_import),
+                actions.import,
+                summary = stringResource(R.string.st_adv_import_summary),
+                icon = DsR.drawable.ds_ic_file_upload,
+            )
             DangerRow(
                 title = stringResource(R.string.st_adv_reset),
                 confirmTitle = stringResource(R.string.st_adv_reset_title),
@@ -198,15 +209,20 @@ fun AdvancedContent(
                 confirmAction = stringResource(R.string.st_adv_reset_confirm),
                 onConfirm = actions.reset,
                 summary = stringResource(R.string.st_adv_reset_summary),
+                icon = DsR.drawable.ds_ic_restart_alt,
             )
         }
         SettingsGroup(title = stringResource(R.string.st_adv_relays)) {
             if (state.relays.isEmpty()) {
-                InfoRow(stringResource(if (state.follower) R.string.st_adv_no_relays_follower else R.string.st_adv_no_relays))
+                InfoRow(
+                    stringResource(if (state.follower) R.string.st_adv_no_relays_follower else R.string.st_adv_no_relays),
+                    icon = DsR.drawable.ds_ic_public,
+                )
             } else {
                 for (relay in state.relays) {
                     InfoRow(
                         hostOf(relay.url),
+                        icon = DsR.drawable.ds_ic_hub,
                         summary =
                             when {
                                 relay.connected -> stringResource(R.string.st_adv_relay_connected)
@@ -223,15 +239,22 @@ fun AdvancedContent(
                         haptics.confirm()
                         actions.checkNow()
                     },
+                    icon = DsR.drawable.ds_ic_update,
                 )
             }
         }
         SettingsGroup(title = stringResource(R.string.st_adv_diagnostics)) {
-            NavigationRow(stringResource(R.string.st_adv_log), actions.openLog, summary = stringResource(R.string.st_adv_log_summary))
+            NavigationRow(
+                stringResource(R.string.st_adv_log),
+                actions.openLog,
+                summary = stringResource(R.string.st_adv_log_summary),
+                icon = DsR.drawable.ds_ic_receipt_long,
+            )
             state.identity?.let { id ->
                 InfoRow(
                     stringResource(if (state.follower) R.string.st_adv_this_phone else R.string.st_adv_identity),
                     summary = state.epoch?.let { stringResource(R.string.st_adv_identity_epoch, id, it) } ?: id,
+                    icon = DsR.drawable.ds_ic_key,
                 )
             }
         }

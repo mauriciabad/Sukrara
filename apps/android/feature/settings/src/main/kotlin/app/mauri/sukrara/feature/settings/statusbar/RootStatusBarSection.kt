@@ -36,6 +36,7 @@ import app.mauri.sukrara.designsystem.rows.SettingsGroup
 import app.mauri.sukrara.designsystem.rows.SwitchRow
 import app.mauri.sukrara.designsystem.rows.ValueRow
 import app.mauri.sukrara.feature.settings.R
+import app.mauri.sukrara.core.designsystem.R as DsR
 
 /** The root status bar's settings (`statusbar.hook`, `hookPosition`, `hookColor`, `hideNotifIcon`). */
 data class RootSettings(
@@ -114,6 +115,7 @@ fun RootStatusBarSection(
                 },
             // on stays switchable without root (revoked, refused), so it can always be turned off
             enabled = root || s.on,
+            icon = DsR.drawable.ds_ic_smartphone,
         )
         SwitchRow(
             stringResource(R.string.st_root_colour),
@@ -128,8 +130,11 @@ fun RootStatusBarSection(
                     null
                 },
             enabled = hookOn && module,
+            icon = DsR.drawable.ds_ic_palette,
         )
-        ValueRow(stringResource(R.string.st_root_placement), if (hookOn) placementText else off, { onChoosing(true) }, enabled = hookOn)
+        ValueRow(stringResource(R.string.st_root_placement), if (hookOn) placementText else off, {
+            onChoosing(true)
+        }, enabled = hookOn, icon = DsR.drawable.ds_ic_align_horizontal_left)
         SwitchRow(
             stringResource(R.string.st_root_hide_icon),
             s.hideIcon,
@@ -141,6 +146,7 @@ fun RootStatusBarSection(
                     else -> stringResource(R.string.st_root_hide_icon_summary)
                 },
             enabled = hookOn && module,
+            icon = DsR.drawable.ds_ic_visibility_off,
         )
     }
     FooterText(stringResource(R.string.st_root_footer))

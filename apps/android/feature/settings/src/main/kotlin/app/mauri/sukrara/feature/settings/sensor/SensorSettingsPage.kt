@@ -51,6 +51,7 @@ import kotlinx.coroutines.delay
 import java.time.Duration
 import java.time.Instant
 import java.time.ZoneId
+import app.mauri.sukrara.core.designsystem.R as DsR
 import app.mauri.sukrara.graph.Clock as ClockText
 
 /** Where the page's buttons lead: the sensor feature's new-sensor flow and LibreView sign-in. */
@@ -223,12 +224,17 @@ private fun SensorGroup(
             InfoRow(
                 stringResource(R.string.st_sensor_family),
                 summary = if (f.untested) stringResource(R.string.st_sensor_family_untested, f.label) else f.label,
+                icon = DsR.drawable.ds_ic_dia_sensor,
             )
         }
-        InfoRow(stringResource(R.string.st_sensor_status), summary = statusText(state, zone))
+        InfoRow(stringResource(R.string.st_sensor_status), summary = statusText(state, zone), icon = DsR.drawable.ds_ic_info)
         state.sensor?.let { sensor ->
-            InfoRow(stringResource(R.string.st_sensor_serial), summary = sensor.serial)
-            InfoRow(stringResource(R.string.st_sensor_started), summary = ClockText.dateTime(sensor.startedAt.epochSecond, zone = zone))
+            InfoRow(stringResource(R.string.st_sensor_serial), summary = sensor.serial, icon = DsR.drawable.ds_ic_edit_note)
+            InfoRow(
+                stringResource(R.string.st_sensor_started),
+                summary = ClockText.dateTime(sensor.startedAt.epochSecond, zone = zone),
+                icon = DsR.drawable.ds_ic_calendar_month,
+            )
             val endsAt = ClockText.dateTime(sensor.endsAt.epochSecond, zone = zone)
             // time left only for a running sensor: an ended one (also ended early) has none
             val left = Duration.between(now, sensor.endsAt).toMinutes()
@@ -236,6 +242,7 @@ private fun SensorGroup(
             val words = CardWords.of(LocalContext.current.resources).durations
             InfoRow(
                 stringResource(R.string.st_sensor_ends),
+                icon = DsR.drawable.ds_ic_hourglass_top,
                 summary =
                     if (running &&
                         left > 0
@@ -249,6 +256,7 @@ private fun SensorGroup(
         NavigationRow(
             stringResource(R.string.st_sensor_pair_new),
             actions.pairNewSensor,
+            icon = DsR.drawable.ds_ic_add,
             summary =
                 stringResource(
                     if (state.source ==
@@ -284,6 +292,7 @@ private fun ThisPhoneGroup(
                 actions.setOpenOnScan,
                 summary =
                     stringResource(if (blocked) R.string.st_sensor_open_on_scan_blocked else R.string.st_sensor_open_on_scan_summary),
+                icon = if (blocked) DsR.drawable.ds_ic_nfc_off else DsR.drawable.ds_ic_nfc,
             )
             if (blocked) {
                 NavigationRow(
@@ -304,6 +313,7 @@ private fun ThisPhoneGroup(
                 confirmAction = stringResource(R.string.st_sensor_forget_confirm),
                 onConfirm = actions.forget,
                 summary = stringResource(R.string.st_sensor_forget_summary),
+                icon = DsR.drawable.ds_ic_link_off,
             )
         }
     }
@@ -472,14 +482,21 @@ private fun AccountGroup(
                 Button(onClick = actions.signIn, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.st_sensor_sign_in)) }
             }
         } else {
-            InfoRow(stringResource(R.string.st_sensor_signed_in_as), summary = account.email)
-            account.receiverId?.let { InfoRow(stringResource(R.string.st_sensor_receiver_id), summary = it.toString()) }
+            InfoRow(stringResource(R.string.st_sensor_signed_in_as), summary = account.email, icon = DsR.drawable.ds_ic_account_circle)
+            account.receiverId?.let {
+                InfoRow(
+                    stringResource(R.string.st_sensor_receiver_id),
+                    summary = it.toString(),
+                    icon = DsR.drawable.ds_ic_key,
+                )
+            }
             DangerRow(
                 title = stringResource(R.string.st_sensor_sign_out),
                 confirmTitle = stringResource(R.string.st_sensor_sign_out_title),
                 confirmText = stringResource(R.string.st_sensor_sign_out_text),
                 confirmAction = stringResource(R.string.st_sensor_sign_out),
                 onConfirm = actions.signOut,
+                icon = DsR.drawable.ds_ic_link_off,
             )
         }
     }
