@@ -80,6 +80,14 @@
         "size": "widget, margins included",
         "sizes": [
           [
+            48,
+            48
+          ],
+          [
+            110,
+            48
+          ],
+          [
             170,
             80
           ],

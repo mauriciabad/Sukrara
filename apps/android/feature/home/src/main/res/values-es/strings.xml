@@ -75,6 +75,7 @@
     <string name="banner_widget_title">Añade el widget de glucosa</string>
     <string name="banner_widget_text">Mira tu glucosa en la pantalla de inicio sin abrir la app.</string>
     <string name="banner_widget_action">Añadir widget</string>
+    <string name="banner_widget_manual">Mantén pulsada la pantalla de inicio y toca Widgets › Sukrara.</string>
     <string name="banner_clinic_title">Comparte tus datos con tu clínica</string>
     <string name="banner_clinic_text">Sube tus lecturas y anotaciones a LibreView para que tu equipo médico las vea.</string>
     <string name="banner_clinic_action">Configurar</string>

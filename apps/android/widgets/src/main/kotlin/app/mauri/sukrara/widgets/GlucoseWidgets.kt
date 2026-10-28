@@ -197,6 +197,17 @@ abstract class CardWidget(
         }
     }
 
+    /** The picker's and the pin dialog's picture: the same card over a sample day ([previewFrame]), at each size. */
+    override val previewSizeMode = SizeMode.Responsive(kind.previewSizes)
+
+    override suspend fun providePreview(
+        context: Context,
+        widgetCategory: Int,
+    ) {
+        val frame = previewFrame(java.time.Instant.now(), isDark(context))
+        provideContent { PreviewContent(kind, frame) }
+    }
+
     /**
      * A placement was removed: forget its settings and recheck the home banner. Glance runs this inside the
      * receiver's own `goAsync`, so the process stays up until it's done (the receiver must not call `goAsync` again).
@@ -234,6 +245,31 @@ private fun WidgetContent(
         Image(
             ImageProvider(bitmap),
             contentDescription = description,
+            modifier = GlanceModifier.fillMaxSize(),
+            contentScale = ContentScale.FillBounds,
+        )
+    }
+}
+
+/** A preview: the picture only (no tap, nothing to describe beyond the widget's own label). */
+@Composable
+private fun PreviewContent(
+    kind: WidgetKind,
+    frame: WidgetFrame,
+) {
+    val context = LocalContext.current
+    val size: DpSize = LocalSize.current
+    val bitmap = remember(size) { renderWidget(context, kind, size.width.value, size.height.value, frame, WidgetOverrides()) }
+    Box(
+        GlanceModifier
+            .fillMaxSize()
+            .appWidgetBackground()
+            .background(Color(GraphPalette.of(frame.dark).bg))
+            .cornerRadius(android.R.dimen.system_app_widget_background_radius),
+    ) {
+        Image(
+            ImageProvider(bitmap),
+            contentDescription = null,
             modifier = GlanceModifier.fillMaxSize(),
             contentScale = ContentScale.FillBounds,
         )

@@ -7,7 +7,6 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
-import android.content.res.Configuration
 import android.os.PowerManager
 import android.util.Log
 import androidx.glance.appwidget.GlanceAppWidgetManager
@@ -22,6 +21,7 @@ import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.launch
 
 /**
  * The home-screen widgets' objects (apps/android/README.md "DI"): built by `AppGraph` from what the widgets read.
@@ -42,7 +42,7 @@ class WidgetsModule(
 ) {
     val settings = WidgetSettingsStore(store)
 
-    val presence = WidgetPresence(context)
+    val presence = WidgetPresence(context, scope)
 
     val updater =
         WidgetUpdater(
@@ -55,13 +55,15 @@ class WidgetsModule(
             stored = storedHistory,
             freshnessTicks = freshnessTicks,
             screenOn = screenOn(context),
-            dark = { context.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK == Configuration.UI_MODE_NIGHT_YES },
+            dark = { isDark(context) },
             redraw = ::redrawPlaced,
         )
 
     fun start() {
         presence.refresh()
         updater.start()
+        // the picker's generated previews (Android 15+), drawn by the renderer from a sample day
+        scope.launch { publishPreviews(context) }
     }
 
     /** A placement was removed (storage is ready): forget its settings, recheck the banner. */

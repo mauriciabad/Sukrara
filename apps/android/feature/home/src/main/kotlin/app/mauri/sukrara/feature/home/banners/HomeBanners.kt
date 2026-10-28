@@ -48,6 +48,8 @@ data class HomeEnvironment(
     val nextSetupStep: String? = null,
     val backedUp: Boolean? = null,
     val widgetPlaced: Boolean? = null,
+    /** The launcher can place the widget from the app; false = the banner says how to add it by hand (no button). */
+    val widgetPinnable: Boolean = true,
     val clinicUploadSet: Boolean? = null,
     /** Pen reading is On and Android blocks the taps. */
     val penTapsBlocked: Boolean = false,

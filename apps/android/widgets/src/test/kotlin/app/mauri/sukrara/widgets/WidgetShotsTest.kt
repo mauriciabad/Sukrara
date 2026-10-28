@@ -112,6 +112,31 @@ class WidgetShotsTest {
         assertTrue(CardSurface.WIDGET_DESCRIPTION in seen)
     }
 
+    /** The value widget resized to one cell: the renderer keeps the value and its arrow (rings drop for room). */
+    @Test
+    fun oneCell() {
+        for (dark in listOf(false, true)) {
+            shoot(WidgetKind.VALUE, "1x1", 57f, 57f, frame(Duration.ofMinutes(1), dark), "fresh-${if (dark) "dark" else "light"}")
+        }
+    }
+
+    /** The picker's and the pin dialog's generated previews: the renderer over the sample day, at each preview size. */
+    @Test
+    fun previews() {
+        val sample = previewFrame(now, dark = false)
+        val latest = sample.glucose.latest!!
+        assertTrue("the sample sits in range", latest.mgdl in 70..180)
+        assertTrue("and rises", latest.mgdl > sample.glucose.recent[sample.glucose.recent.size - 4].mgdl)
+        assertTrue("never the person's readings", sample.glucose.recent.all { it.source == SourceId("widget-preview") })
+        for (kind in WidgetKind.entries) {
+            for (size in kind.previewSizes) {
+                val w = size.width.value
+                val h = size.height.value
+                shoot(kind, "preview-${w.roundToInt()}x${h.roundToInt()}", w, h, sample, "light")
+            }
+        }
+    }
+
     @Test
     fun widgets() {
         val cells = listOf("2x2" to (170f to 170f), "4x2" to (320f to 170f))

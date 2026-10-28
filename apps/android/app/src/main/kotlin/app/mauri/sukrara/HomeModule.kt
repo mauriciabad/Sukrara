@@ -60,6 +60,8 @@ class HomeModule(
     private val refreshSetup: () -> Unit,
     /** Whether a graph widget is on the home screen, checked now (null = unknown: the banner stays hidden). */
     private val widgetPlaced: () -> Boolean? = { null },
+    /** Whether the launcher can place the widget from the app, checked now (false = the banner's hand-made way). */
+    private val widgetPinnable: () -> Boolean = { true },
     /** The phone's treatment writes (writer check, versioning, sync); a function: the treatments module needs home. */
     private val treatmentLog: () -> TreatmentLog,
     /** The wearer's sharing state (profile row, "Not backed up"); a function: sharing is built on first use. */
@@ -129,7 +131,7 @@ class HomeModule(
     fun refresh() {
         readinessSource.refresh()
         refreshSetup()
-        env.update { it.copy(widgetPlaced = widgetPlaced()) }
+        env.update { it.copy(widgetPlaced = widgetPlaced(), widgetPinnable = widgetPinnable()) }
         scope.launch { runCatching { penTapsBlocked() }.getOrNull()?.let { b -> env.update { it.copy(penTapsBlocked = b) } } }
     }
 

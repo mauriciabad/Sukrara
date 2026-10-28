@@ -2,12 +2,13 @@
 <!-- Sukrara — https://github.com/mauriciabad/sukrara
      Copyright (C) 2026 Maurici Abad
      SPDX-License-Identifier: GPL-3.0-or-later -->
-<!-- No periodic update (updatePeriodMillis 0): the app redraws on change (WidgetUpdater). -->
+<!-- No periodic update (updatePeriodMillis 0): the app redraws on change (WidgetUpdater). Resizes down to one cell:
+     the renderer then draws the value and its arrow only (surfaces.json widget-value 48x48). -->
 <appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
     android:description="@string/widget_value_description"
     android:minWidth="110dp"
     android:minHeight="40dp"
-    android:minResizeWidth="110dp"
+    android:minResizeWidth="40dp"
     android:minResizeHeight="40dp"
     android:targetCellWidth="2"
     android:targetCellHeight="1"

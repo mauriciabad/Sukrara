@@ -12,6 +12,7 @@ import app.mauri.sukrara.core.model.GlucoseState
 import app.mauri.sukrara.core.model.TreatmentKind
 import app.mauri.sukrara.designsystem.theme.SukraraTheme
 import app.mauri.sukrara.feature.home.Samples.NOW
+import app.mauri.sukrara.feature.home.banners.BannerKind
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -28,7 +29,10 @@ import java.time.Duration
 class HomeTextTest {
     @get:Rule val compose = createComposeRule()
 
-    private fun show(glucose: GlucoseState) {
+    private fun show(
+        glucose: GlucoseState,
+        widgetBanner: Boolean? = null,
+    ) {
         val look = homeLook(glucose, NOW)
         val treatments =
             listOf(Samples.treatment("a", TreatmentKind.Carbs, 30.0, 25), Samples.treatment("b", TreatmentKind.RapidInsulin, 4.5, 3 * 60))
@@ -38,14 +42,27 @@ class HomeTextTest {
                 now = NOW,
                 look = look,
                 reason = NoDataReason.of(glucose, look),
-                banner = null,
+                banner = widgetBanner?.let { BannerKind.AddWidget },
                 firstProblem = AlertReadiness.Ready.firstProblem,
                 nextSetupStep = null,
                 dataProblems = emptyList(),
                 treatments = treatments,
                 undo = null,
+                widgetPinnable = widgetBanner != false,
             )
         compose.setContent { SukraraTheme(dark = false, dynamic = false) { HomeContent(state, HomeCallbacks()) } }
+    }
+
+    @Test fun widgetBannerAdds() {
+        show(Samples.wearer(), widgetBanner = true)
+        compose.onNodeWithText("Add widget").assertExists()
+    }
+
+    /** The launcher can't place it from the app: the hand-made way, and no button that would do nothing. */
+    @Test fun widgetBannerByHand() {
+        show(Samples.wearer(), widgetBanner = false)
+        compose.onNodeWithText("Touch & hold the home screen, then tap Widgets › Sukrara.").assertExists()
+        compose.onNodeWithText("Add widget").assertDoesNotExist()
     }
 
     private val muted = Samples.wearer().copy(alerts = AlertUiState(mutedUntil = NOW.plus(Duration.ofMinutes(72))))

@@ -73,7 +73,9 @@ The full catalog, with every rule and number, is [docs/FEATURES.md](docs/FEATURE
   how long, and a short countdown when opened on the lock screen (a ring on *Cancel*, also in the *When?* picker, and
   one spoken *Closes in 10 seconds* with TalkBack).
 - **Home-screen widgets** (*Glucose*, *Glucose graph*, *Glucose and graph*) drawn by the same card renderer at the
-  widget's real size; home offers *Add widget* until a graph widget is placed, and a tap opens *Add treatment*.
+  widget's real size (*Glucose* down to one cell), with the same card as their picker preview; home offers *Add
+  widget* until a graph widget is placed (or says how to add it by hand when the launcher can't), and a tap opens
+  *Add treatment*.
 - **Settings** for daily use (searchable, accents optional; an icon on every row): alerts (an on/off switch on each alert row, thresholds you confirm, repeats, sounds,
   quiet rules, *Play sound* and *Send a test alert*), an alert reliability checklist with *Fix* buttons
   (notifications, alarms, full-screen, battery, Do Not Disturb, Bluetooth), ranges and the whole graph (lines, time
