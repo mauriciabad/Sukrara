@@ -7,6 +7,7 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.provider.Settings
+import androidx.annotation.DrawableRes
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
@@ -124,6 +125,29 @@ fun StateStrip(
         }
     }
 }
+
+/** Each alert's icon: the level alerts are a reading below / above its threshold lines, the rates double arrows. */
+@DrawableRes
+fun kindIcon(kind: AlertKind): Int =
+    when (kind) {
+        AlertKind.VERY_LOW -> DsR.drawable.ds_ic_dia_very_low
+        AlertKind.LOW -> DsR.drawable.ds_ic_dia_low
+        AlertKind.HIGH -> DsR.drawable.ds_ic_dia_high
+        AlertKind.VERY_HIGH -> DsR.drawable.ds_ic_dia_very_high
+        AlertKind.EXTREMELY_HIGH -> DsR.drawable.ds_ic_dia_extremely_high
+        AlertKind.FALLING_FAST -> DsR.drawable.ds_ic_keyboard_double_arrow_down
+        AlertKind.RISING_FAST -> DsR.drawable.ds_ic_keyboard_double_arrow_up
+        AlertKind.NO_DATA -> DsR.drawable.ds_ic_no_data
+    }
+
+/** The quiet rules' icons: insulin, carbs, a falling trend. */
+@DrawableRes
+fun quietIcon(which: QuietKind): Int =
+    when (which) {
+        QuietKind.AfterInsulin -> DsR.drawable.ds_ic_dia_insulin_rapid
+        QuietKind.AfterCarbs -> DsR.drawable.ds_ic_dia_carbs
+        QuietKind.FallingHigh -> DsR.drawable.ds_ic_trending_down
+    }
 
 /** An alert kind's name ("Very low", "No data"). */
 @Composable

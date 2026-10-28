@@ -7,6 +7,7 @@ import android.app.Application
 import app.mauri.sukrara.alerts.AlertEvent
 import app.mauri.sukrara.alerts.AlertKind
 import app.mauri.sukrara.alerts.AlertSettings
+import app.mauri.sukrara.alerts.AlertSettingsCodec
 import app.mauri.sukrara.core.data.DataModule
 import app.mauri.sukrara.core.data.settings.SchemaSettings
 import app.mauri.sukrara.core.model.Clock
@@ -23,6 +24,7 @@ import app.mauri.sukrara.feature.sensor.SensorUiModule
 import app.mauri.sukrara.feature.settings.AlertPlayback
 import app.mauri.sukrara.feature.settings.AlertSettingsStore
 import app.mauri.sukrara.feature.settings.AppOutput
+import app.mauri.sukrara.feature.settings.OverviewSharing
 import app.mauri.sukrara.feature.settings.SettingsModule
 import app.mauri.sukrara.feature.sharing.EngineOwnerSharing
 import app.mauri.sukrara.feature.sharing.SetupModule
@@ -251,6 +253,22 @@ class AppGraph(
             restoreClinicBanner = { scope.launch { home.bannerMemory.update { it.restore(BannerKind.ShareWithClinic) } } },
             closedTips = home.bannerMemory.data.map { it.closed },
             restoreClosedTips = { scope.launch { home.bannerMemory.update { it.restoreAll() } } },
+            advanced = {
+                AppAdvanced(
+                    role.data.map { it.role },
+                    shareOwner.ownerEngine,
+                    follower.engine,
+                    shareOwner.crypto,
+                    data.diagLog,
+                    // an imported alert settings value passes their codec (SPEC §3) or is refused
+                    data.settingsTransfer(mapOf("alerts:alerts" to { t -> AlertSettingsCodec.decode(t)?.let(AlertSettingsCodec::encode) })),
+                )
+            },
+            overviewSharing =
+                combine(role.data, shareOwner.ownerEngine.state) { r, own ->
+                    val sharing = own as? OwnerShareState.Sharing
+                    OverviewSharing(r.role != Role.Follower, sharing?.profile?.name, sharing?.backedUp)
+                },
             alertPlayback =
                 object : AlertPlayback {
                     override fun play(
@@ -388,7 +406,11 @@ class AppGraph(
         monitor.hubImpl.resetMonitoring()
     }
 
-    val sensorSettings by lazy { SensorSettingsBridge(sensor, data.settings, SensorSource, scope) { startMonitoring(StartReason.App) } }
+    val sensorSettings by lazy {
+        SensorSettingsBridge(sensor, data.settings, SensorSource, scope, {
+            startMonitoring(StartReason.App)
+        }) { monitor.hubImpl.resetMonitoring() }
+    }
 
     /** The person's graph settings: THE [GraphConfig] every card surface draws with (home, widgets). */
     val graphConfig: Flow<GraphConfig> by lazy {
@@ -550,6 +572,16 @@ class AppGraph(
                 integrations.start(scope)
             }
             step("pens") { pens.start() }
+            // a Libre tap opens the new-sensor flow only on the wearer's phone reading the sensor itself (the row
+            // shows only then: never on and hidden)
+            step("sensor tap") {
+                scope.launch {
+                    combine(role.data, data.settings.flow(SensorSource)) { r, source ->
+                        r.role == Role.Wearer && SensorSourceKind.fromId(source) != SensorSourceKind.Juggluco
+                    }.distinctUntilChanged()
+                        .collect { allowed -> if (!allowed) sensor.tapLaunch.set(false) }
+                }
+            }
             // the alerts' source follows *Settings from* (the wearer's alerts, or rules run here)
             step("settingsFrom") { scope.launch { followerSettings.keepAlertSource() } }
             // sharing runs while this phone is the wearer (needs an identity: created / restored in Settings › Sharing)

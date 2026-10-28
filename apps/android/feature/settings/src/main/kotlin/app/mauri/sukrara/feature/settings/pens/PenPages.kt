@@ -87,6 +87,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.util.Locale
+import app.mauri.sukrara.core.designsystem.R as DsR
 
 /** `8.5u`: dot, lowercase u, no space (the pen's own way of writing doses). */
 internal fun units(a: Double) = (if (a % 1.0 == 0.0) "${a.toLong()}" else String.format(Locale.ROOT, "%.1f", a)) + "u"
@@ -357,22 +358,34 @@ fun PenPage(
             }
         }
         if (pen.untested && pen.check == PenCheck.Failed) {
-            SettingsGroup { InfoRow(stringResource(R.string.st_pen_not_usable), summary = stringResource(R.string.st_pen_not_usable_text)) }
+            SettingsGroup {
+                InfoRow(
+                    stringResource(R.string.st_pen_not_usable),
+                    summary = stringResource(R.string.st_pen_not_usable_text),
+                    icon = DsR.drawable.ds_ic_warning,
+                )
+            }
         }
         val o = offer
         if (o != null && (!pen.untested || pen.check == PenCheck.Ok)) OfferCard(o, vm.actions)
         SettingsGroup {
-            ValueRow(stringResource(R.string.st_pen_name), pen.name, { renaming = true })
-            ValueRow(stringResource(R.string.st_pen_insulin), kindLabel, { choosingKind = true })
-            NavigationRow(stringResource(R.string.st_pen_doses_read), openDoses)
+            ValueRow(stringResource(R.string.st_pen_name), pen.name, { renaming = true }, icon = DsR.drawable.ds_ic_edit_note)
+            ValueRow(
+                stringResource(R.string.st_pen_insulin),
+                kindLabel,
+                { choosingKind = true },
+                icon = DsR.drawable.ds_ic_dia_insulin_rapid,
+            )
+            NavigationRow(stringResource(R.string.st_pen_doses_read), openDoses, icon = DsR.drawable.ds_ic_history)
             if (pen.untested && pen.check != PenCheck.None) {
                 NavigationRow(
                     stringResource(R.string.st_pen_check_again),
                     vm.actions::checkAgain,
                     summary = stringResource(R.string.st_pen_check_again_summary),
+                    icon = DsR.drawable.ds_ic_science,
                 )
             }
-            NavigationRow(stringResource(R.string.st_pen_forget), { forgetting = true })
+            NavigationRow(stringResource(R.string.st_pen_forget), { forgetting = true }, icon = DsR.drawable.ds_ic_delete)
         }
         FooterText(stringResource(R.string.st_pen_footer))
     }

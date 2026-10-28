@@ -17,4 +17,4 @@
     android:previewLayout="@layout/widget_preview_combined"
     android:configure="app.mauri.sukrara.widgets.WidgetConfigActivity"
     android:widgetFeatures="reconfigurable|configuration_optional"
-    android:widgetCategory="home_screen" />
+    android:widgetCategory="home_screen|keyguard" />

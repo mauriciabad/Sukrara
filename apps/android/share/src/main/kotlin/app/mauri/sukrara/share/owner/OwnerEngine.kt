@@ -505,6 +505,9 @@ class OwnerEngine(
     /** Bluetooth turned on or Nearby devices was allowed: the server looks again. */
     fun refreshNearby() = nearby.refresh()
 
+    /** Settings › Advanced's *Reconnect now*: relays that dropped connect at once (their subscriptions follow). */
+    fun reconnectNow() = transport.reconnectNow()
+
     /** Connected follower devices named by their identity proof. */
     val nearbyLinks: StateFlow<List<NearbyServerCore.Named>> get() = nearby.links
 

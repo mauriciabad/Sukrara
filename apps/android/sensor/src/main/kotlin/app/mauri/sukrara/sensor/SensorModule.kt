@@ -66,5 +66,8 @@ class SensorModule(
 
     val libreView = LibreViewAccount(receiverIds, http, dispatchers.io)
 
+    /** *Open Sukrara when you scan a sensor* (the tap activity's enabled state). */
+    val tapLaunch = SensorTapLaunch(app)
+
     val nfc = NfcPairing(pairings, receiverIds, onPaired = source::retry, io = dispatchers.io, log = log)
 }
