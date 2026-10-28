@@ -133,12 +133,13 @@ private fun StateNotice(
         return
     }
     val skipped = state.family?.skippedOld ?: 0
-    if (state.link == SourceLink.Searching && skipped > 0) {
+    val running = state.state is SensorState.Active || state.state is SensorState.WarmingUp
+    if (running && state.link == SourceLink.Searching && skipped > 0) {
         val text = pluralStringResource(R.plurals.st_sensor_skipped_old, skipped, skipped, state.family?.label.orEmpty())
         StateStrip(text, listOf(pair))
         return
     }
-    if (state.link == SourceLink.NoValueSensorError) {
+    if (running && state.link == SourceLink.NoValueSensorError) {
         StateStrip(stringResource(R.string.st_sensor_status_no_value_error), listOf(pair))
         return
     }

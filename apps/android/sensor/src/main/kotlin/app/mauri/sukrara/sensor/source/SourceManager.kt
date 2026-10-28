@@ -113,6 +113,9 @@ class SourceManager internal constructor(
     /** The newest live reading's time per pairing ([SensorStatus.Direct.key]): an older or equal one is history. */
     private var lastLive: Pair<String, Instant>? = null
 
+    /** Old devices the scan found and skipped for this pairing since its last reading ([SensorStatus.Direct.skipped]). */
+    private var skippedNow: Pair<String, Int>? = null
+
     override val readings: Flow<List<Reading>> = readingsOut.receiveAsFlow()
     override val sensor: StateFlow<SensorState> = _sensor.asStateFlow()
     override val status: StateFlow<SourceStatus> = _status.asStateFlow()
@@ -299,9 +302,19 @@ class SourceManager internal constructor(
 
         override fun onStatus(status: LinkStatus) {
             when (status) {
-                LinkStatus.PermissionMissing -> publish(SensorStatus.BluetoothPermissionMissing)
-                LinkStatus.SensorEnded -> publish(SensorStatus.Ended)
-                else -> publish(SensorStatus.Direct(pairing.profile, label, key, status, pairing.skipAddresses.size))
+                LinkStatus.PermissionMissing -> {
+                    publish(SensorStatus.BluetoothPermissionMissing)
+                }
+
+                LinkStatus.SensorEnded -> {
+                    publish(SensorStatus.Ended)
+                }
+
+                else -> {
+                    publish(
+                        SensorStatus.Direct(pairing.profile, label, key, status, skippedNow?.takeIf { it.first == key }?.second ?: 0),
+                    )
+                }
             }
             if (status is LinkStatus.Reconnecting || status == LinkStatus.WaitingForSensor || status is LinkStatus.NoValue) interrupted()
             // kept until a new pairing (which scans again: the scan may have picked the wrong device)
@@ -310,6 +323,7 @@ class SourceManager internal constructor(
 
         override fun onWrongDevice() {
             val wrong = address
+            skippedNow = key to ((skippedNow?.takeIf { it.first == key }?.second ?: 0) + 1)
             scope.launch {
                 if (wrong.isNotEmpty()) pairings.skipDevice(pairing, wrong)
                 retry() // scan again, without it
@@ -320,6 +334,7 @@ class SourceManager internal constructor(
             val last = lastLive?.takeIf { it.first == key }?.second
             if (last != null && !reading.t.isAfter(last)) return deliver(listOf(reading), live = false)
             lastLive = key to reading.t
+            skippedNow = null
             deliver(listOf(reading), live = true)
         }
 

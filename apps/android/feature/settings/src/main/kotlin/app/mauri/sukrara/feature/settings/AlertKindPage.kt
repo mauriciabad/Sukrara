@@ -260,7 +260,8 @@ internal fun soundPreview(
     alarm: Boolean,
     playback: AlertPlayback,
 ): (@Composable () -> Unit)? =
-    if (pack == "none" || playback === AlertPlayback.None) {
+    // a silenced channel plays nothing: the page's *Play sound* row says why, a ▶ that does nothing would only confuse
+    if (pack == "none" || playback === AlertPlayback.None || playback.silenced(kind, alarm)) {
         null
     } else {
         {

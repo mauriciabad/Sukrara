@@ -90,6 +90,7 @@
     <string name="banner_systemui_text">Sukrara’s System UI module is on but not loaded yet. Restarting System UI loads it; the screen flickers for a moment.</string>
     <string name="banner_systemui_text_updated">System UI still runs the previous Sukrara module. Restarting System UI loads the new one; the screen flickers for a moment.</string>
     <string name="banner_systemui_action">Restart</string>
+    <string name="home_no_browser">No app on this phone can open the link.</string>
     <string name="home_sensor_ends">Sensor ends %1$s</string>
 
     <!-- Follower header -->

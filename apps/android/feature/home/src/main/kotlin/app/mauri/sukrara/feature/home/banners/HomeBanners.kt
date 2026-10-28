@@ -71,7 +71,11 @@ data class BannerMemory(
     fun dismissKey(
         key: String,
         now: Instant,
-    ): BannerMemory = copy(dismissedAtMs = dismissedAtMs + (key to now.toEpochMilli()))
+    ): BannerMemory {
+        // one remembered restart card at a time: older builds' keys are dropped
+        val prefix = key.substringBefore(':') + ":"
+        return copy(dismissedAtMs = dismissedAtMs.filterKeys { !it.startsWith(prefix) } + (key to now.toEpochMilli()))
+    }
 
     fun dismissed(
         kind: BannerKind,

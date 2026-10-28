@@ -72,7 +72,8 @@ sealed interface SensorStatus {
     /**
      * The paired sensor, read directly: its family, what the screens call it ([label]: the serial, the advertised
      * name or the family), which pairing this is ([key]: tells two pairings of an id-less family apart), the link and
-     * how many older sensors of this family the scan skips ([skipped]: still bonded or in range after they ended).
+     * how many older sensors of this family the scan found and skipped since the last reading ([skipped]: ended ones
+     * still bonded and advertising nearby).
      */
     data class Direct(
         val profile: SensorProfile,

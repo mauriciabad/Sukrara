@@ -7,6 +7,7 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Build
+import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -124,7 +125,7 @@ internal fun UntestedSensorCard(family: String?) {
                             context.startActivity(
                                 Intent(Intent.ACTION_VIEW, Uri.parse(url)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
                             )
-                        }
+                        }.onFailure { Toast.makeText(context, context.getString(R.string.home_no_browser), Toast.LENGTH_LONG).show() }
                     },
                     modifier = Modifier.align(Alignment.End),
                 ) {

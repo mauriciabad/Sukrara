@@ -87,8 +87,8 @@ class HomeModule(
         scope.launch { nextSetupStep.collect { step -> env.update { it.copy(nextSetupStep = step) } } }
         scope.launch {
             systemAccess.collect { a ->
-                // root refused for good: the restart can't run, Settings › Status bar says why
-                val restart = a.module.takeIf { it.needsRestart && a.root != false }
+                // as Settings › Status bar: only with root confirmed (asked while the status-bar value is on)
+                val restart = a.module.takeIf { it.needsRestart && a.root == true }
                 env.update { it.copy(systemUiRestart = restart, build = build) }
             }
         }

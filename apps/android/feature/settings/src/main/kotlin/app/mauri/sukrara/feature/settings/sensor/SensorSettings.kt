@@ -63,8 +63,8 @@ enum class SourceLink {
 
 /**
  * The paired sensor's family as the page names it ([label]: the brand name, not translated), whether Sukrara's support
- * for it was confirmed on a real sensor ([untested] = never) and how many older sensors of the family the scan skips
- * ([skippedOld]: an ended one still bonded or in range).
+ * for it was confirmed on a real sensor ([untested] = never) and how many older sensors of the family the scan found
+ * nearby and skipped since the last reading ([skippedOld]: an ended one still bonded and advertising).
  */
 data class SensorFamily(val label: String, val untested: Boolean, val skippedOld: Int = 0)
 
