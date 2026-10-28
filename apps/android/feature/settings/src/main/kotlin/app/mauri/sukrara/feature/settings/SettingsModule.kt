@@ -36,6 +36,7 @@ class SettingsModule(
     systemAccess: SystemAccessPort,
     alertPlayback: AlertPlayback,
     pensAvailable: () -> Boolean = { false },
+    pens: () -> app.mauri.sukrara.core.model.PensPort? = { null },
     clinicBanner: Flow<Boolean> = flowOf(false),
     dismissClinicBanner: () -> Unit = {},
 ) {
@@ -58,6 +59,8 @@ class SettingsModule(
             override val clinicBanner = clinicBanner
 
             override fun pensAvailable() = pensAvailable()
+
+            override val pens get() = pens()
 
             override fun dismissClinicBanner() = dismissClinicBanner()
         }

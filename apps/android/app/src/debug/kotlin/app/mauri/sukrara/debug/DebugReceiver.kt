@@ -44,6 +44,7 @@ object DebugFakes {
         mapOf<String, (Context, Intent) -> Unit>(
             PREFIX + "SYNTHETIC" to ::synthetic,
             PREFIX + "PEN_READ" to ::penRead,
+            PREFIX + "PEN_TAGS" to ::penTags,
         )
 
     /** Runs [action] when it is a known fake; false otherwise. */
@@ -121,5 +122,20 @@ object DebugFakes {
                 )
             }.onFailure { Log.w("SukraraDebug", "pen card not shown", it) }
         }
+    }
+
+    /**
+     * `PEN_TAGS --ez blocked true|false`: shows the *Pen taps are blocked* state (home banner, Settings › Insulin pens)
+     * as if Android blocked Sukrara's tag intents; real NFC is untouched. Also shows the pen surfaces on an emulator
+     * without NFC. The screens read it on resume.
+     */
+    private fun penTags(
+        context: Context,
+        intent: Intent,
+    ) {
+        val graph = context.graph
+        graph.pens.fakeNfc.value = true
+        graph.pens.fakeTagsBlocked.value = intent.getBooleanExtra("blocked", true)
+        graph.home.refresh()
     }
 }

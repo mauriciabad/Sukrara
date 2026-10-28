@@ -228,6 +228,12 @@ class PenReadActivity : ComponentActivity() {
                 finish()
             }
 
+            is PenAction.OpenPen -> {
+                runCatching { startActivity(PenNotices.penPage(this, a.serial)) }
+                finish()
+                return
+            }
+
             else -> {
                 Unit
             }
@@ -243,7 +249,7 @@ class PenReadActivity : ComponentActivity() {
                         is PenAction.Suggest -> module.pens.acceptSuggestion(a.question, a.keys)
                         is PenAction.AllPriming -> module.pens.allPriming(a.question, a.keys)
                         is PenAction.Same -> module.pens.answerMatch(a.question, a.entry, a.keys)
-                        PenAction.AddTreatment -> true
+                        PenAction.AddTreatment, is PenAction.OpenPen -> true
                     }
                 }.onFailure { Log.e(TAG, "pen action failed", it) }
                     .getOrDefault(false)

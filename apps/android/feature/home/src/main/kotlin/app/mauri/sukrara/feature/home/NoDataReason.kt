@@ -145,4 +145,10 @@ sealed interface HomeAction {
     data object Share : HomeAction
 
     data object OpenClinicUpload : HomeAction
+
+    /** Pen taps blocked by Android: its screen that allows them. */
+    data object AllowPenTaps : HomeAction
+
+    /** Pen taps blocked by Android: turn pen reading off (the honest exit for someone who doesn't want taps). */
+    data object TurnOffPens : HomeAction
 }

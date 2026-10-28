@@ -132,4 +132,5 @@ private fun label(a: PenAction): String =
         is PenAction.Suggest -> a.label
         is PenAction.AllPriming -> stringResource(R.string.pen_all_priming)
         is PenAction.Same -> stringResource(if (a.entry != null) R.string.pen_m_same else R.string.pen_m_different)
+        is PenAction.OpenPen -> stringResource(R.string.pen_check_it)
     }

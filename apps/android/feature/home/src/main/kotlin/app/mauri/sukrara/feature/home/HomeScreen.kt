@@ -622,6 +622,20 @@ private fun banner(
             )
         }
 
+        BannerKind.PenTapsBlocked -> {
+            Banner(
+                kind.name,
+                R.drawable.home_ic_warning,
+                stringResource(R.string.banner_pens_title),
+                stringResource(R.string.banner_pens_text),
+                stringResource(R.string.banner_pens_allow),
+                open(HomeAction.AllowPenTaps),
+                null,
+                severity,
+                secondary = stringResource(R.string.banner_pens_turn_off) to open(HomeAction.TurnOffPens),
+            )
+        }
+
         BannerKind.FinishSetup -> {
             Banner(
                 kind.name,
