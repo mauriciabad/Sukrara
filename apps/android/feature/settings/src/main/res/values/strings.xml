@@ -558,4 +558,5 @@
     <string name="st_note_all_muted">All alerts muted for %1$s</string>
     <string name="st_note_all_muted_off">All alerts muted until you turn it off</string>
     <string name="st_note_all_unmuted">Alerts unmuted</string>
+    <string name="st_active_now">Active now</string>
 </resources>

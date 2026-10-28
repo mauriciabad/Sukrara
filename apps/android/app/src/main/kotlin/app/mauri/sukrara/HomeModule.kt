@@ -5,6 +5,7 @@ package app.mauri.sukrara
 
 import app.mauri.sukrara.core.data.CorruptFile
 import app.mauri.sukrara.core.data.DataModule
+import app.mauri.sukrara.core.model.AlertControls
 import app.mauri.sukrara.core.model.AlertReadiness
 import app.mauri.sukrara.core.model.AlertReadinessSource
 import app.mauri.sukrara.core.model.AlertRequirement
@@ -16,6 +17,7 @@ import app.mauri.sukrara.core.model.Treatment
 import app.mauri.sukrara.core.model.storage.StateStore
 import app.mauri.sukrara.core.model.storage.TreatmentsRepository
 import app.mauri.sukrara.feature.home.DataProblem
+import app.mauri.sukrara.feature.home.HomeAlertAction
 import app.mauri.sukrara.feature.home.HomeDeps
 import app.mauri.sukrara.feature.home.HomeProfile
 import app.mauri.sukrara.feature.home.UploadMarks
@@ -50,9 +52,8 @@ class HomeModule(
     override val graphConfig: Flow<GraphConfig>,
     override val storedHistory: Flow<List<Reading>>,
     private val readinessSource: AlertReadinessSource,
-    private val unmuteAlerts: () -> Unit,
-    /** Ends one side's quiet: the alert kind's wire name ("low" / "high"). */
-    private val endQuietAlerts: (String) -> Unit,
+    /** The alert runtime's actions (Mute alerts, a side's Unmute…), run on [scope]. */
+    private val alertControls: AlertControls,
     private val resume: () -> Unit,
     /** First-run setup's first unfinished row, for the Finish-setup banner; null = done. */
     nextSetupStep: Flow<String?>,
@@ -138,9 +139,17 @@ class HomeModule(
             ?.let(data.corruption::acknowledge)
     }
 
-    override fun unmute() = unmuteAlerts()
-
-    override fun endQuiet(lowSide: Boolean) = endQuietAlerts(if (lowSide) "low" else "high")
+    override fun alert(action: HomeAlertAction) {
+        scope.launch {
+            when (action) {
+                is HomeAlertAction.MuteAll -> alertControls.muteAll(action.minutes)
+                HomeAlertAction.UnmuteAll -> alertControls.unmuteAll()
+                is HomeAlertAction.EndQuiet -> alertControls.unmute(action.kind)
+                is HomeAlertAction.RemindAsUsual -> alertControls.remindAsUsual(action.kind)
+                is HomeAlertAction.MuteSide -> alertControls.mute(action.kind, action.minutes)
+            }
+        }
+    }
 
     override fun resumeMonitoring() = resume()
 

@@ -17,7 +17,6 @@
     <string name="home_a11y_range_very_high">very high</string>
     <string name="home_a11y_just_now">just now</string>
     <string name="home_a11y_chart">Chart of the last %1$d hours: %2$d%% in range</string>
-    <string name="home_a11y_unmute">Unmute alerts</string>
 
     <!-- No-data reasons: title, why, action -->
     <string name="reason_setup_title">Sukrara isn\'t set up yet</string>
@@ -140,8 +139,9 @@
     <string name="home_chart_zoom_out">Zoom out</string>
     <string name="home_pill_replace_sensor">Pair new sensor</string>
     <string name="home_pill_alert_options">Alert options</string>
-    <string name="home_quiet_lows">Low alerts</string>
-    <string name="home_quiet_highs">High alerts</string>
+    <!-- %1$s the side's name ("Low", "Falling fast") -->
+    <string name="home_quiet_side">%1$s alerts</string>
+    <string name="home_mute_alerts">Mute alerts</string>
     <string name="home_quiet_all">All alerts</string>
     <string name="home_quiet_taken">Quiet after your treatment, so they don\'t ring while it works.</string>
     <string name="home_quiet_muted">You muted them on this phone.</string>

@@ -17,7 +17,7 @@
     <string name="st_not_muted">Sin silenciar</string>
     <string name="st_until">Hasta las %1$s</string>
     <string name="st_unmute">Reactivar</string>
-    <string name="st_change_time">Cambiar hora</string>
+    <string name="st_change_time">Cambiar duración</string>
     <string name="st_alerts_kinds">Cuándo avisar</string>
     <string name="st_off">Desactivada</string>
     <string name="st_review_title">Revisar umbrales de alerta</string>
@@ -565,4 +565,5 @@
     <string name="st_note_all_muted">Todas las alertas silenciadas durante %1$s</string>
     <string name="st_note_all_muted_off">Todas las alertas silenciadas hasta que lo desactives</string>
     <string name="st_note_all_unmuted">Alertas activadas de nuevo</string>
+    <string name="st_active_now">Activo ahora</string>
 </resources>

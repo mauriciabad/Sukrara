@@ -50,4 +50,15 @@
     <string name="mute_pill_forever">Silenciadas</string>
     <string name="mute_choice">Durante %1$s</string>
     <string name="mute_choice_forever">Hasta que lo desactives</string>
+    <!-- Las salidas de una alerta silenciada y de Silenciar alertas (QuietControls) -->
+    <string name="ds_quiet_unmute">Reactivar</string>
+    <string name="ds_quiet_anyway">Avisarme igualmente</string>
+    <string name="ds_quiet_as_usual">Recordar como siempre</string>
+    <string name="ds_quiet_change_to">Cambiar a</string>
+    <string name="ds_mute_all_unmute">Reactivar</string>
+    <string name="ds_mute_all_change">Cambiar duración</string>
+    <string name="ds_quiet_a11y_action">Alertas %1$s: %2$s</string>
+    <string name="ds_a11y_unmute_all">Reactivar alertas</string>
+    <string name="ds_a11y_change_mute">Cambiar cuánto tiempo están silenciadas las alertas</string>
+    <string name="ds_a11y_mute_all">Silenciar alertas</string>
 </resources>

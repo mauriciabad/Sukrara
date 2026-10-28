@@ -44,7 +44,8 @@ The full catalog, with every rule and number, is [docs/FEATURES.md](docs/FEATURE
   password is never stored) and *Pair new sensor*.
 - **Home screen**, glucose first: the value, trend arrow and a 6 h chart you can scroll and pinch-zoom through the
   last 31 days (7 / 14 / 30-day rings count them too), a pill that acts (*Eat carbs* opens Add treatment with Carbs
-  focused, a mute's pill its ways out), the sensor's end date with *Pair new sensor* in its last day,
+  focused, a mute's pill its ways out), a chip for each other quiet alert, a **Mute alerts** button (30 min … 8 h,
+  until you turn it off, custom) that becomes the countdown with *Unmute* / *Change time*, the sensor's end date with *Pair new sensor* in its last day,
   one banner at a time for what needs you (monitoring stopped, alerts may not ring,
   damaged saved data, finish setup), the last 24 h of treatments with delete + undo, and a **glucose report** card (1 / 7 / 14 / 30 days: time in the five ranges with their goals, average, GMI, CV, how much of the period has data). Never a bare "---": when
   there's no value it says why and what to do.
@@ -57,7 +58,8 @@ The full catalog, with every rule and number, is [docs/FEATURES.md](docs/FEATURE
   icon you choose and first in line when the status bar is crowded (Settings › Status bar › With root).
 - **Alerts**: very low, low, high, very high, rising / falling fast and no data; each on its own channel,
   "like an alarm" ones pass Do Not Disturb. *Mute…*, *Remind less*, *Unmute* and *Change time* on the notification,
-  in the app and with TalkBack; *Mute all* with a visible strip to undo it. Settings › Alerts › *Lately* shows what alerted and what you muted in the last day. The no-data check runs from an exact alarm,
+  in the app and with TalkBack; *Mute all* with a visible strip to undo it; every quiet alert with its ways out
+  (*Unmute*, *Alert me anyway*, *Remind as usual*, *Change to*) on home and in Settings › Alerts › *Active now*. Settings › Alerts › *Lately* shows what alerted and what you muted in the last day. The no-data check runs from an exact alarm,
   independent of the monitoring service.
 - **Sensor end**: reminders you set (up to six, 0–3 days before at a time; earlier at the first unlock; one the
   evening before a night-time end), a live countdown in the sensor's last hours, a warm-up countdown with *Sensor
@@ -66,7 +68,8 @@ The full catalog, with every rule and number, is [docs/FEATURES.md](docs/FEATURE
   first reading every surface says *Not monitoring: no sensor yet* and no no-data alarm is armed.
 - **Treatments**: a quick dialog for rapid / long insulin, carbs and a note (from the notification, the Quick
   Settings tile *Add treatment* or home), *now*, a time or *minutes ago*, a line saying which alerts it quiets and for
-  how long, and a short countdown when opened on the lock screen.
+  how long, and a short countdown when opened on the lock screen (a ring on *Cancel*, also in the *When?* picker, and
+  one spoken *Closes in 10 seconds* with TalkBack).
 - **Home-screen widgets** (*Glucose*, *Glucose graph*, *Glucose and graph*) drawn by the same card renderer at the
   widget's real size; home offers *Add widget* until a graph widget is placed, and a tap opens *Add treatment*.
 - **Settings** for daily use: alerts (an on/off switch on each alert row, thresholds you confirm, repeats, sounds,

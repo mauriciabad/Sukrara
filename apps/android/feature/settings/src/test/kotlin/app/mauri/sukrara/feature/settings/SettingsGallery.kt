@@ -147,6 +147,14 @@ class SettingsGallery {
                     )
                 AlertsSettingsContent(AlertsUi(AlertSettings(), AlertUiState(lately = lately)), null, clock, AlertsActions()) {}
             },
+            // Active now: a muted low side (Unmute, Change to) and slowed falling-fast reminders (Remind as usual)
+            "alerts-active-now" to {
+                val quiet =
+                    lowMuted.copy(
+                        quiet = lowMuted.quiet + AlertQuietSide("falling_fast", true, null, null, relaxMin = 30, canRemindLess = true),
+                    )
+                AlertsSettingsContent(AlertsUi(AlertSettings(), quiet), null, clock, AlertsActions()) {}
+            },
             "alerts-muted-forever" to {
                 AlertsSettingsContent(
                     AlertsUi(AlertSettings(), AlertUiState(mutedUntil = AlertUiState.UNTIL_TURNED_OFF)),

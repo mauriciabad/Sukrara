@@ -3,6 +3,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.feature.settings
 
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -12,13 +15,20 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.dp
 import app.mauri.sukrara.alerts.AlertKind
 import app.mauri.sukrara.alerts.AlertSettings
+import app.mauri.sukrara.core.model.AlertQuietSide
 import app.mauri.sukrara.core.model.AlertUiState
 import app.mauri.sukrara.core.model.Clock
 import app.mauri.sukrara.designsystem.alerts.MuteText
+import app.mauri.sukrara.designsystem.alerts.QuietExit
+import app.mauri.sukrara.designsystem.alerts.QuietExits
+import app.mauri.sukrara.designsystem.alerts.QuietRow
 import app.mauri.sukrara.designsystem.alerts.rememberAlertWords
 import app.mauri.sukrara.designsystem.alerts.rememberCountdownNow
 import app.mauri.sukrara.designsystem.dialog.Choice
@@ -42,6 +52,10 @@ class AlertsActions(
     val openKind: (AlertKind) -> Unit = {},
     val openReview: () -> Unit = {},
     val playback: AlertPlayback = AlertPlayback.None,
+    /** A quiet side's way out under Active now (Unmute, Alert me anyway, Remind as usual). */
+    val quietExit: (AlertQuietSide, QuietExit) -> Unit = { _, _ -> },
+    /** A muted side's *Change to* length: kind (wire name), minutes. */
+    val muteSide: (String, Int) -> Unit = { _, _ -> },
 )
 
 /** The alert rows' groups: lows, highs, rates, signal. */
@@ -67,6 +81,28 @@ fun kindSummary(
             stringResource(R.string.st_repeat_every, numberLabel(SchemaPrefs.RepeatSpec, rule.repeatMin.toDouble()))
         }
     return listOf(thresholdSentence(kind, rule.threshold), repeat, packName(s.sounds.soundOf(kind))).joinToString(" · ")
+}
+
+/**
+ * Active now: every quiet side on this phone (muted, quiet after a treatment or while falling back, reminding less)
+ * with its ways out, counting down; nothing while none is.
+ */
+@Composable
+private fun ActiveNow(
+    alerts: AlertUiState,
+    clock: Clock,
+    actions: AlertsActions,
+) {
+    val rows = QuietExits.active(alerts)
+    if (rows.isEmpty()) return
+    SettingsGroup(title = stringResource(R.string.st_active_now), modifier = Modifier.testTag("active-now")) {
+        Column(Modifier.padding(horizontal = 16.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(20.dp)) {
+            for (q in rows) {
+                val now = rememberCountdownNow(q.until, clock::now)
+                QuietRow(q, now, onExit = { actions.quietExit(q, it) }, onChangeTo = { actions.muteSide(q.kind, it) })
+            }
+        }
+    }
 }
 
 /** Mute all's "Alerts muted · 1 h 12 min left · Unmute · Change time" strip ([MuteText], counting down), or nothing. */
@@ -97,6 +133,7 @@ fun AlertsSettingsContent(
     var dialog by rememberSaveable { mutableStateOf<String?>(null) }
     SettingsPage(stringResource(R.string.st_alerts_title), onBack) {
         MuteAllStrip(ui.alerts, clock, actions.unmuteAll) { dialog = "muteAll" }
+        ActiveNow(ui.alerts, clock, actions)
         SettingsGroup {
             SwitchRow(
                 stringResource(R.string.st_alerts_main),
