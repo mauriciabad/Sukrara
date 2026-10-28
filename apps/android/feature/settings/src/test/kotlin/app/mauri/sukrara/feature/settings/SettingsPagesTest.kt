@@ -69,19 +69,20 @@ class SettingsPagesTest {
             "alerts.thresholdsConfirmedAt",
             // Settings › Sensor (the app joins it to the sensor module)
             "source.source",
+            // Settings › Status bar and Settings › Sensor end
+            "statusbar.chip",
+            "statusbar.icon",
+            "sensor.reminders",
+            "sensor.countdownHours",
         )
 
     /** Shown by another chunk's screen (sensor 18, sharing / setup 24, home 16, pens 19, integrations 26, widgets 20). */
     private val elsewhere =
         setOf(
-            "sensor.countdownHours",
             "sharing.nostr",
             "sharing.bleFollowers",
             "home.uploadBanner",
-            "sensor.reminders",
             "widget.overrides",
-            "statusbar.chip",
-            "statusbar.icon",
         ) + SettingsSpec.SETTINGS.map { it.id }.filter { it.startsWith("pens.") || it.startsWith("apps.") } +
             setOf("sensorCalendar.on", "sensorCalendar.calendarId", "healthConnect.on")
 
@@ -193,6 +194,7 @@ class SettingsPagesTest {
                 override val prerelease = true
                 override val releases = ReleasesSource { Result.success(emptyList()) }
                 override val clock = FakeClock()
+                override val sensor = flowOf(app.mauri.sukrara.core.model.SensorState.None)
             }
         val vm = AlertsViewModel(deps)
         vm.muteAll(0.0)

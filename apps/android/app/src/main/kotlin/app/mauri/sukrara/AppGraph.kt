@@ -127,6 +127,9 @@ class AppGraph(
                 ),
             role = role.data.map { it.role },
             source = ::readingSource,
+            settings = data.settings,
+            treatments = recentTreatments(),
+            graphConfig = graphConfig,
         )
     }
 
@@ -167,6 +170,7 @@ class AppGraph(
             http = data.http,
             dispatchers = dispatchers,
             clock = clock,
+            sensor = monitor.hub.state.map { it.sensor },
         )
     }
 

@@ -11,10 +11,16 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.ServiceInfo
+import android.content.res.Configuration
 import android.util.Log
+import app.mauri.sukrara.core.model.GlucoseState
 import app.mauri.sukrara.core.model.ServiceState
+import app.mauri.sukrara.graph.Clock
+import app.mauri.sukrara.monitor.notify.CardFrame
 import app.mauri.sukrara.monitor.notify.Channels
+import app.mauri.sukrara.monitor.notify.LiveNotificationContent
 import app.mauri.sukrara.monitor.notify.NotificationIds
+import app.mauri.sukrara.monitor.notify.NotificationPrefs
 import app.mauri.sukrara.monitor.service.bluetoothPower
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -24,6 +30,7 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.launch
 
@@ -40,6 +47,7 @@ class MonitoringService : Service() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private val monitor: MonitorModule get() = monitorHost.monitor
     private var bluetoothReceiver: BroadcastReceiver? = null
+    private var screenReceiver: BroadcastReceiver? = null
 
     override fun onBind(intent: Intent?) = null
 
@@ -65,6 +73,8 @@ class MonitoringService : Service() {
         isRunning = false
         bluetoothReceiver?.let { runCatching { unregisterReceiver(it) } }
         bluetoothReceiver = null
+        screenReceiver?.let { runCatching { unregisterReceiver(it) } }
+        screenReceiver = null
         scope.cancel()
         // a post still waiting in the gate must not bring back a notification nothing updates any more
         monitor.notification.cancelPending()
@@ -79,7 +89,9 @@ class MonitoringService : Service() {
             // only the channels this needs: alert channels get their sounds once, from MonitorModule.ready
             Channels.createCore(this)
             val now = m.clock.now()
-            val notification = m.notification.build(m.notification.content(m.hubImpl.state.value, now), now)
+            // text only: the settings and the card's inputs aren't read yet (the first real post follows at once)
+            val first = m.notification.content(m.hubImpl.state.value, now)
+            val notification = m.notification.build(first.copy(layout = LiveNotificationContent.Layout.TEXT, chip = null), now)
             startForeground(NotificationIds.GLUCOSE, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_CONNECTED_DEVICE)
             true
         } catch (e: IllegalStateException) {
@@ -104,11 +116,19 @@ class MonitoringService : Service() {
         // the alert runtime follows the hub while the service runs (its exact alarm covers the time it doesn't)
         alertsModule?.attach(scope)
         watchBluetooth(m)
+        watchScreen(m)
         scope.launch {
-            combine(m.hubImpl.state, m.freshnessTicks.onStart { emit(Unit) }) { state, _ -> state }.collect { state ->
-                val now = m.clock.now()
-                m.freshnessTicker.plan(state.latest?.t, now)
-                m.notification.post(m.notification.content(state, now), now)
+            // a freshness step redraws; a repost (screen on: the card wasn't drawn while off; swiped away) forces a post
+            val reposts = m.repostTicks.map { true }
+            val steps = m.freshnessTicks.onStart { emit(Unit) }.map { false }
+            var last: Pair<GlucoseState, NotificationInputs>? = null
+            merge(
+                combine(m.hubImpl.state, m.notificationInputs, steps) { state, inputs, _ -> Triple(state, inputs, false) },
+                reposts.map { Triple(null, null, true) },
+            ).collect { (s, i, force) ->
+                if (s != null && i != null) last = s to i
+                val (state, inputs) = last ?: return@collect
+                postGlucose(m, state, inputs, force)
             }
         }
         // the role's source, swapped when the role changes (wearer ↔ follower)
@@ -121,6 +141,47 @@ class MonitoringService : Service() {
                 m.hubImpl.attach(source)
             }
         }
+    }
+
+    private fun postGlucose(
+        m: MonitorModule,
+        state: GlucoseState,
+        inputs: NotificationInputs,
+        force: Boolean,
+    ) {
+        val now = m.clock.now()
+        m.freshnessTicker.plan(state.latest?.t, now)
+        val dark = (resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES
+        val frame = CardFrame(state, inputs.treatments, inputs.config, dark)
+        val prefs =
+            NotificationPrefs(
+                chip = inputs.chip,
+                numberIcon = inputs.numberIcon,
+                cardKey = listOf(now.epochSecond / 60, inputs.treatments, inputs.config, dark, Clock.signature()),
+            )
+        m.notification.post(m.notification.content(state, now, prefs), now, frame, force)
+    }
+
+    /**
+     * Unlock and screen on can't be declared in the manifest: registered while the service runs. An unlock may bring
+     * a sensor-end reminder forward; screen on redraws the glucose notification's card (not drawn while it's off).
+     */
+    private fun watchScreen(m: MonitorModule) {
+        val receiver =
+            object : BroadcastReceiver() {
+                override fun onReceive(
+                    context: Context,
+                    intent: Intent,
+                ) {
+                    when (intent.action) {
+                        Intent.ACTION_USER_PRESENT -> alertsModule?.let { a -> scope.launch { a.sensorEnd.unlocked() } }
+                        Intent.ACTION_SCREEN_ON -> m.repost()
+                    }
+                }
+            }
+        val filter = IntentFilter(Intent.ACTION_USER_PRESENT).apply { addAction(Intent.ACTION_SCREEN_ON) }
+        registerReceiver(receiver, filter, RECEIVER_NOT_EXPORTED)
+        screenReceiver = receiver
     }
 
     private fun watchBluetooth(m: MonitorModule) {

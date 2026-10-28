@@ -47,11 +47,23 @@
     <string name="alert_action_change">Change time</string>
 
     <!-- Sensor end. -->
-    <string name="sensor_end_soon_title">Sensor ends in %1$s</string>
-    <string name="sensor_end_soon_text">Have a new sensor ready to change it in time.</string>
+    <string name="sensor_end_today">Sensor ends today at %1$s</string>
+    <string name="sensor_end_tomorrow">Sensor ends tomorrow at %1$s</string>
+    <string name="sensor_end_on_day">Sensor ends on %1$s at %2$s</string>
+    <string name="sensor_end_reminder_text">Have a new sensor ready.</string>
+    <string name="sensor_end_spare_text">Take your spare sensor with you</string>
+    <string name="sensor_end_tonight">Sensor ends tonight at %1$s</string>
+    <string name="sensor_end_tonight_text">Change it before bed</string>
+    <string name="sensor_countdown_title">Sensor ends at %1$s</string>
+    <string name="sensor_countdown_text">Have a new sensor ready to replace it.</string>
+    <string name="sensor_warmup_title">Sensor warming up</string>
+    <string name="sensor_warmup_text">Readings at %1$s</string>
+    <string name="sensor_almost_ready">Almost ready</string>
+    <string name="sensor_waiting_first_reading">Waiting for the first reading</string>
+    <string name="sensor_ready_title">Sensor ready</string>
+    <string name="sensor_ready_text">Readings have started.</string>
     <string name="sensor_ended_title">Sensor ended</string>
     <string name="sensor_ended_text">No readings until you start a new sensor.</string>
-    <string name="sensor_action_pair">Pair new sensor</string>
 
     <!-- notification groups and channels (names the person sees in Android's notification settings) -->
     <string name="monitor_group_alerts">Glucose alerts</string>
@@ -97,6 +109,9 @@
     <string name="monitor_chip_value">%1$s</string>
     <!-- Live Update chip once the value is 5 min old: the reading's time -->
     <string name="monitor_chip_stale">%1$s</string>
+    <!-- Android 17 Live Update card (MetricStyle): the value's unit and the late reading's label -->
+    <string name="monitor_metric_unit">mg/dL</string>
+    <string name="monitor_metric_reading">Reading</string>
     <string name="monitor_action_open_app">Open Sukrara</string>
     <string name="monitor_action_set_up_sensor">Set up sensor</string>
     <string name="monitor_action_replace_sensor">Replace sensor</string>
