@@ -83,6 +83,10 @@
     <string name="home_unmute">Reactivar</string>
     <string name="home_untested_sensor">La compatibilidad con %1$s no está probada. Cuéntanos cómo funciona.</string>
     <string name="home_send_feedback">Enviar comentarios</string>
+    <string name="banner_systemui_title">Reiniciar la IU del sistema</string>
+    <string name="banner_systemui_text">El módulo de Sukrara para la IU del sistema está activado pero aún no se ha cargado. Al reiniciar la IU del sistema se carga; la pantalla parpadea un momento.</string>
+    <string name="banner_systemui_text_updated">La IU del sistema aún usa el módulo anterior de Sukrara. Al reiniciarla se carga el nuevo; la pantalla parpadea un momento.</string>
+    <string name="banner_systemui_action">Reiniciar</string>
     <string name="home_sensor_ends">El sensor termina %1$s</string>
 
     <string name="home_following">Siguiendo a %1$s</string>

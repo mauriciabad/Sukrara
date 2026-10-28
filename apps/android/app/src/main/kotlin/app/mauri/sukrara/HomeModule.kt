@@ -11,6 +11,7 @@ import app.mauri.sukrara.core.model.AlertRequirement
 import app.mauri.sukrara.core.model.Clock
 import app.mauri.sukrara.core.model.GlucoseState
 import app.mauri.sukrara.core.model.Reading
+import app.mauri.sukrara.core.model.SystemAccessState
 import app.mauri.sukrara.core.model.Treatment
 import app.mauri.sukrara.core.model.storage.StateStore
 import app.mauri.sukrara.core.model.storage.TreatmentsRepository
@@ -70,6 +71,10 @@ class HomeModule(
     private val clinicMarks: () -> Flow<UploadMarks?> = { emptyFlow() },
     /** The family of the sensor this phone reads directly while its support is untested (the feedback card). */
     override val untestedSensor: Flow<String?> = flowOf(null),
+    /** Root and the System UI module (the *Restart System UI* card). */
+    private val systemAccess: Flow<SystemAccessState> = emptyFlow(),
+    /** This build's version code: a closed restart card comes back with a new build. */
+    private val build: Long = 0,
 ) : HomeDeps {
     override val treatments: TreatmentsRepository get() = data.treatments
 
@@ -80,6 +85,13 @@ class HomeModule(
 
     init {
         scope.launch { nextSetupStep.collect { step -> env.update { it.copy(nextSetupStep = step) } } }
+        scope.launch {
+            systemAccess.collect { a ->
+                // root refused for good: the restart can't run, Settings › Status bar says why
+                val restart = a.module.takeIf { it.needsRestart && a.root != false }
+                env.update { it.copy(systemUiRestart = restart, build = build) }
+            }
+        }
         // "Not backed up" only for a wearer whose identity exists and lives on this phone alone
         scope.launch {
             sharing().collect { s -> env.update { it.copy(backedUp = (s as? OwnerShareState.Sharing)?.backedUp) } }

@@ -637,6 +637,20 @@ private fun banner(
             )
         }
 
+        BannerKind.RestartSystemUi -> {
+            val updated = state.systemUiUpdated
+            Banner(
+                kind.name,
+                DsR.drawable.ds_ic_info,
+                stringResource(R.string.banner_systemui_title),
+                stringResource(if (updated) R.string.banner_systemui_text_updated else R.string.banner_systemui_text),
+                stringResource(R.string.banner_systemui_action),
+                open(HomeAction.RestartSystemUi),
+                dismiss,
+                severity,
+            )
+        }
+
         BannerKind.FinishSetup -> {
             Banner(
                 kind.name,

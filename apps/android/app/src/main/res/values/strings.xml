@@ -4,4 +4,5 @@
      SPDX-License-Identifier: GPL-3.0-or-later -->
 <resources>
     <string name="app_name" translatable="false">Sukrara</string>
+    <string name="app_restart_systemui_failed">Couldn’t restart System UI: %1$s</string>
 </resources>

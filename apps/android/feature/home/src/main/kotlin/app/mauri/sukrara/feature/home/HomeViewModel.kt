@@ -11,6 +11,7 @@ import app.mauri.sukrara.core.model.AlertReadiness
 import app.mauri.sukrara.core.model.AlertRequirement
 import app.mauri.sukrara.core.model.Clock
 import app.mauri.sukrara.core.model.GlucoseState
+import app.mauri.sukrara.core.model.ModuleState
 import app.mauri.sukrara.core.model.Reading
 import app.mauri.sukrara.core.model.ReadingHistory
 import app.mauri.sukrara.core.model.Role
@@ -152,6 +153,8 @@ data class HomeUiState(
     val undoInClinic: Boolean = false,
     /** The wearer's sensor family whose support is untested: the feedback card under the card (wearer only). */
     val untestedSensor: String? = null,
+    /** The restart card's System UI module runs an older build (else it isn't loaded yet). */
+    val systemUiUpdated: Boolean = false,
 ) {
     val mutedUntil: Instant? get() = glucose.alerts.mutedUntil?.takeIf { it > now }
 }
@@ -215,6 +218,7 @@ class HomeViewModel(
                 banner = HomeBanners.pick(readiness, env, glucose.service is ServiceState.Stopped, problems.size, memory, now),
                 firstProblem = readiness?.firstProblem,
                 nextSetupStep = env.nextSetupStep,
+                systemUiUpdated = env.systemUiRestart == ModuleState.Update,
                 dataProblems = problems,
                 treatments = listed,
                 history = history,
@@ -249,6 +253,11 @@ class HomeViewModel(
 
     fun dismiss(kind: BannerKind) {
         if (kind.safety) return
+        if (kind == BannerKind.RestartSystemUi) {
+            val key = deps.environment.value.restartKey ?: return
+            viewModelScope.launch { deps.bannerMemory.update { it.dismissKey(key, deps.clock.now()) } }
+            return
+        }
         viewModelScope.launch { deps.bannerMemory.update { it.dismiss(kind, deps.clock.now()) } }
     }
 

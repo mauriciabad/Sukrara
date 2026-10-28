@@ -86,6 +86,10 @@
     <string name="home_unmute">Unmute</string>
     <string name="home_untested_sensor">%1$s support is untested. Tell us how it works.</string>
     <string name="home_send_feedback">Send feedback</string>
+    <string name="banner_systemui_title">Restart System UI</string>
+    <string name="banner_systemui_text">Sukrara’s System UI module is on but not loaded yet. Restarting System UI loads it; the screen flickers for a moment.</string>
+    <string name="banner_systemui_text_updated">System UI still runs the previous Sukrara module. Restarting System UI loads the new one; the screen flickers for a moment.</string>
+    <string name="banner_systemui_action">Restart</string>
     <string name="home_sensor_ends">Sensor ends %1$s</string>
 
     <!-- Follower header -->

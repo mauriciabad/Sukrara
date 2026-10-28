@@ -368,6 +368,8 @@ class AppGraph(
                 sensor.source.detail
                     .map { d -> (d as? SensorStatus.Direct)?.profile?.takeUnless { it.verified }?.label }
                     .distinctUntilChanged(),
+            systemAccess = monitor.systemAccess.state,
+            build = BuildConfig.VERSION_CODE.toLong(),
         )
     }
 

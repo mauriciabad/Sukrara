@@ -11,6 +11,7 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.provider.Settings
+import android.widget.Toast
 import androidx.compose.foundation.layout.Box
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -64,9 +65,11 @@ import app.mauri.sukrara.integrations.AppsPage
 import app.mauri.sukrara.integrations.export.ExportPage
 import app.mauri.sukrara.integrations.libreview.LibreViewPage
 import app.mauri.sukrara.integrations.nightscout.NightscoutPage
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
 import app.mauri.sukrara.feature.settings.R as SettingsR
 import app.mauri.sukrara.feature.sharing.R as SharingR
@@ -529,6 +532,17 @@ private fun route(
         HomeAction.AllowPenTaps -> {
             context.graph.pens.port
                 .openTagSettings()
+        }
+
+        // the module's state changes by itself once System UI says hello again; a failure is said in a toast
+        HomeAction.RestartSystemUi -> {
+            val graph = context.graph
+            graph.scope.launch {
+                val problem = graph.monitor.systemAccess.restartSystemUi() ?: return@launch
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(context, context.getString(R.string.app_restart_systemui_failed, problem), Toast.LENGTH_LONG).show()
+                }
+            }
         }
 
         HomeAction.TurnOffPens -> {
