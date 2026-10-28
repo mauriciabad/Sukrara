@@ -97,9 +97,12 @@ internal class G7Driver(
 
     /** One 0x4E message → the session start, then a reading, a wait (warming up), no value or the end. */
     fun onEgv(egv: G7Messages.Egv) {
+        // A sensor already past its wear before this pairing ever saw it is an old one still bonded to this phone
+        // (ended, or in its 12 h grace period): never adopted, never allowed to end the new pairing.
+        val old = knownStart == null && egv.secondsSinceStart >= profile.wearMin * 60L
         when (Dexcom.state(egv.state)) {
             Dexcom.State.Ended -> {
-                return ended("algorithm state ${egv.state}")
+                return if (old) wrongDevice("ended, ${egv.secondsSinceStart / 3600} h old") else ended("algorithm state ${egv.state}")
             }
 
             // before the Dexcom app starts the session: its clock means nothing yet
@@ -107,7 +110,9 @@ internal class G7Driver(
                 return events.onStatus(LinkStatus.NoSession)
             }
 
-            else -> {}
+            else -> {
+                if (old) return wrongDevice("${egv.secondsSinceStart / 3600} h old, past its wear")
+            }
         }
         val s = sessionStart(now() - egv.secondsSinceStart)
         start = s

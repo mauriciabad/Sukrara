@@ -76,7 +76,7 @@ class SensorUiModule(
                 id: String,
             ): String {
                 val pairing = Pairing.scanned(profile, id, clock.now().toEpochMilli())
-                sensors.pairings.save(pairing)
+                sensors.pairings.saveScanned(pairing)
                 settings.set(SOURCE, SensorSourceKind.Direct.id)
                 sensors.source.retry() // the source starts over with the new pairing (scan, then connect)
                 startMonitoring()

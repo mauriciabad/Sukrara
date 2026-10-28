@@ -91,6 +91,9 @@ internal interface SensorEvents {
     /** The sensor said it has reached its end (patch state, life count). It may still send in a grace period. */
     fun onSensorEnded(serial: String) {}
 
+    /** The device the scan picked isn't this pairing's sensor (an old one still bonded): skip it, scan again. */
+    fun onWrongDevice() {}
+
     /** The sensor has ended and will not be connected again until a new sensor is scanned: persist it. */
     fun onEndedForGood(serial: String) {}
 

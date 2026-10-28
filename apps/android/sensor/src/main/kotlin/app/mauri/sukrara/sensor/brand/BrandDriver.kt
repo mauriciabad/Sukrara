@@ -53,6 +53,9 @@ internal abstract class BrandDriver(
     /** Should the source connect to this device? */
     abstract fun matches(advert: Advert): Boolean
 
+    /** [matches], and not a device this pairing skips ([Pairing.skipAddresses]: an old sensor). */
+    fun accepts(advert: Advert): Boolean = advert.address.uppercase() !in pairing.skipAddresses && matches(advert)
+
     /** A scan result that passed [scan], before [matches]: [record] is the raw advertising data (Aidex X carries values). */
     open fun onAdvertisement(
         advert: Advert,
@@ -170,6 +173,13 @@ internal abstract class BrandDriver(
         log("sensor: $why")
         link?.close()
         events.onStatus(LinkStatus.Failed(reason))
+    }
+
+    /** This device isn't the pairing's sensor (an old one the scan found first): close, the source skips it. */
+    protected fun wrongDevice(why: String) {
+        log("sensor: not this pairing's sensor ($why): skipping it")
+        link?.close()
+        events.onWrongDevice()
     }
 
     /** A transient problem: drop the connection, the transport reconnects. */

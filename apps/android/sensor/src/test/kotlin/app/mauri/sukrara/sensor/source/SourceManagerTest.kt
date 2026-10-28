@@ -12,6 +12,7 @@ import app.mauri.sukrara.core.testing.FakeClock
 import app.mauri.sukrara.core.testing.InMemorySecureStore
 import app.mauri.sukrara.sensor.SensorProfile
 import app.mauri.sukrara.sensor.ble.BleScanner
+import app.mauri.sukrara.sensor.ble.FailReason
 import app.mauri.sukrara.sensor.ble.GattConnection
 import app.mauri.sukrara.sensor.ble.GattConnector
 import app.mauri.sukrara.sensor.ble.GattEvent
@@ -211,6 +212,70 @@ class SourceManagerTest {
             runCurrent()
         }
 
+    /**
+     * An old G7 still bonded (past its 10 days: ended or in its grace period) found first: it is never adopted, its
+     * address is kept out of every later scan, and the scan goes on to the new sensor.
+     */
+    @Test
+    fun anOldBondedG7IsSkippedAndTheScanGoesOn() =
+        runTest {
+            val r = Rig(this)
+            r.store.saveScanned(Pairing.scanned(SensorProfile.DexcomG7, "", pairedAtMs = 1L))
+            r.manager.start()
+            runCurrent()
+            r.scanner.onHit(ScanHit(Advert("aa:bb:cc:dd:ee:01", "DXCMOLD", bonded = true), null))
+            runCurrent()
+            assertEquals(listOf("aa:bb:cc:dd:ee:01"), r.connector.addresses)
+            val gen = r.connector.opened.last()
+            r.connector.onEvent(GattEvent.ConnectionChanged(gen, true, 0))
+            runCurrent()
+            r.connector.onEvent(GattEvent.ServicesDiscovered(gen, 0, setOf(Dexcom.AUTHENTICATION, Dexcom.CONTROL, Dexcom.BACKFILL)))
+            runCurrent()
+            r.connector.onEvent(GattEvent.OperationDone(gen, Dexcom.AUTHENTICATION, 0))
+            r.connector.onEvent(GattEvent.Notification(gen, Dexcom.AUTHENTICATION, byteArrayOf(5, 1, 1)))
+            runCurrent()
+            r.connector.onEvent(GattEvent.OperationDone(gen, Dexcom.CONTROL, 0))
+            r.connector.onEvent(GattEvent.OperationDone(gen, Dexcom.BACKFILL, 0))
+            r.connector.onEvent(GattEvent.Notification(gen, Dexcom.CONTROL, EGV_OLD))
+            runCurrent()
+            val saved = (r.store.load() as PairingLoad.Ok).pairing
+            assertEquals(listOf("AA:BB:CC:DD:EE:01"), saved.skipAddresses)
+            assertEquals("", saved.address)
+            assertTrue(!saved.ended)
+            assertEquals(2, r.scanner.scans) // scanning again
+            r.scanner.onHit(ScanHit(Advert("aa:bb:cc:dd:ee:01", "DXCMOLD", bonded = true), null))
+            r.scanner.onHit(ScanHit(Advert("aa:bb:cc:dd:ee:02", "DXCMNEW", bonded = true), null))
+            runCurrent()
+            assertEquals("aa:bb:cc:dd:ee:02", r.connector.addresses.last())
+            assertEquals(2, r.connector.addresses.size)
+            r.manager.stop()
+            runCurrent()
+        }
+
+    /** A failure only the person can fix survives a restart: no scan, no connection, no PIN dialog in the background. */
+    @Test
+    fun aFailedPairingIsNotRetriedAfterARestart() =
+        runTest {
+            val r = Rig(this)
+            r.store.save(Pairing.scanned(SensorProfile.SmartGuide, "", pairedAtMs = 1L).copy(failed = FailReason.BondFailed))
+            r.manager.start()
+            runCurrent()
+            assertEquals(LinkStatus.Failed(FailReason.BondFailed), (r.manager.detail.value as SensorStatus.Direct).link)
+            assertEquals(SensorState.ActionNeeded(SensorAction.ScanSensor), r.manager.sensor.value)
+            assertEquals(0, r.scanner.scans)
+            assertTrue(r.connector.opened.isEmpty())
+            r.manager.retry()
+            runCurrent()
+            assertEquals(0, r.scanner.scans)
+            // a new pairing (the new-sensor flow) clears it and scans
+            r.store.saveScanned(Pairing.scanned(SensorProfile.SmartGuide, "", pairedAtMs = 2L))
+            r.manager.retry()
+            runCurrent()
+            assertEquals(1, r.scanner.scans)
+            r.manager.stop()
+            runCurrent()
+        }
+
     @Test
     fun noSensorYetIsNotMonitoringAndNeverInventsReadings() =
         runTest {
@@ -375,5 +440,8 @@ class SourceManagerTest {
     private companion object {
         /** LoopKit G7SensorKit's test EGV: sensor time 2005 s, sequence 9, age 5 s, 97 mg/dL, state ok. */
         val EGV_97 = "4e00d507000009000001050061000601ffff0e".hexToByteArray()
+
+        /** The same message from a sensor 900 000 s (10.4 days) into its session: an old one. */
+        val EGV_OLD = "4e00a0bb0d0009000001050061000601ffff0e".hexToByteArray()
     }
 }

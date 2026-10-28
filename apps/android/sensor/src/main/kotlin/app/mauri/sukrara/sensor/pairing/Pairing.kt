@@ -6,6 +6,7 @@ package app.mauri.sukrara.sensor.pairing
 import app.mauri.sukrara.sensor.SensorInfo
 import app.mauri.sukrara.sensor.SensorLife
 import app.mauri.sukrara.sensor.SensorProfile
+import app.mauri.sukrara.sensor.ble.FailReason
 
 /**
  * The saved sensor: what the source needs to (re)connect to it. For a Libre 3 the NFC tap
@@ -38,6 +39,16 @@ data class Pairing(
     val deviceName: String = "",
     /** When a scanned family's pairing was made (epoch ms): tells two pairings of the same id-less family apart. */
     val pairedAt: Long = 0,
+    /**
+     * Why this pairing can't go on without the person (wrong id, refused, PIN not entered): kept, so a restart never
+     * retries it in the background (no PIN dialog out of nowhere); only a new pairing clears it.
+     */
+    val failed: FailReason? = null,
+    /**
+     * Devices a scan must never pick for this pairing (an old sensor still bonded to this phone), newest last, at
+     * most [MAX_SKIPPED].
+     */
+    val skipAddresses: List<String> = emptyList(),
 ) {
     /** What the screens call this sensor: its id, else its advertised name, else the family. */
     val label: String get() = serial.ifEmpty { deviceName.ifEmpty { profile.label } }
@@ -49,15 +60,23 @@ data class Pairing(
         other is Pairing && serial == other.serial && address == other.address && startEpoch == other.startEpoch &&
             securityVersion == other.securityVersion && wearMin == other.wearMin && warmupMin == other.warmupMin &&
             profile == other.profile && pin.contentEquals(other.pin) && kAuth.contentEquals(other.kAuth) &&
-            ended == other.ended && deviceName == other.deviceName && pairedAt == other.pairedAt
+            ended == other.ended && deviceName == other.deviceName && pairedAt == other.pairedAt &&
+            failed == other.failed && skipAddresses == other.skipAddresses
 
     override fun hashCode(): Int = serial.hashCode() * 31 + startEpoch.hashCode()
 
     /** Safe for logs: no secrets. */
     override fun toString() =
-        "Pairing(${profile.id}, serial=$serial, address=$address, start=$startEpoch, paired=${kAuth != null}, ended=$ended)"
+        "Pairing(${profile.id}, serial=$serial, address=$address, start=$startEpoch, paired=${kAuth != null}, ended=$ended, " +
+            "failed=$failed, skipped=${skipAddresses.size})"
+
+    /** [address] added to [skipAddresses] (kept to the newest [MAX_SKIPPED]). */
+    fun skipping(address: String): List<String> = (skipAddresses - address.uppercase() + address.uppercase()).takeLast(MAX_SKIPPED)
 
     companion object {
+        /** Old sensors remembered per pairing; older ones are long out of Bluetooth range or unbonded. */
+        const val MAX_SKIPPED = 8
+
         /** A new sensor of a family that scans ([SensorProfile.needsScan]): [id] is the typed id, or empty. */
         fun scanned(profile: SensorProfile, id: String, pairedAtMs: Long): Pairing {
             require(profile.needsScan) { "${profile.id} isn't paired by a scan" }
