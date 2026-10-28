@@ -118,6 +118,14 @@ class SetupMachineTest {
     }
 
     @Test
+    fun `Settings › Sharing's Set up reopens an identity step completed earlier (the identity is gone)`() {
+        val r = m.completeIdentity(wearer(), facts.copy(hasIdentity = true))
+        assertTrue(Identity in r.completed)
+        val reopened = m.reopen(r, Identity)
+        assertTrue(Identity !in reopened.completed && Identity !in reopened.skipped)
+    }
+
+    @Test
     fun `thresholds confirmed in Settings complete the alert step and its Finish-setup item`() {
         val confirmed = facts.copy(alertsConfirmed = true)
         val r = m.skip(m.skip(m.completePermissions(wearer()), Sensor), Alerts)

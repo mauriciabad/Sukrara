@@ -7,6 +7,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
+import app.mauri.sukrara.alerts.AlertKind
 import app.mauri.sukrara.alerts.AlertSettings
 import app.mauri.sukrara.core.model.AlertReadiness
 import app.mauri.sukrara.core.model.Role
@@ -56,11 +57,24 @@ data class SetupUi(
     val canBack: Boolean,
 )
 
-class SetupViewModel(private val m: SetupModule) : ViewModel() {
+/**
+ * [openedOn]: opened on that one step (Settings › Sharing's Set up opens [SetupStep.Identity]); it is shown until it
+ * is completed or left, then the screen goes back where it was opened.
+ */
+class SetupViewModel(
+    private val m: SetupModule,
+    private val openedOn: SetupStep? = null,
+) : ViewModel() {
     private val shown = MutableStateFlow<SetupStep?>(null)
     private val restore = MutableStateFlow<RestoreUi>(RestoreUi.Idle)
     private val busy = MutableStateFlow(false)
     private val single = MutableStateFlow(false)
+
+    /** False until [openedOn] is reopened in the record: no other step flashes and setup doesn't end before it shows. */
+    private val ready = MutableStateFlow(openedOn == null)
+
+    /** The `ui` flow has seen [openedOn] reopened in the record. */
+    private var seenOpen = false
 
     /** The thresholds being edited on the alert step (null = the stored ones). */
     private val editing = MutableStateFlow<AlertSettings?>(null)
@@ -78,7 +92,13 @@ class SetupViewModel(private val m: SetupModule) : ViewModel() {
 
     val ui: StateFlow<SetupUi?> =
         // the checklist is THE live flow (the monitor computes it asynchronously): never a copy taken on resume
-        combine(inputs, m.readiness.readiness, shown, combine(restore, busy, single, editing, ::Locals)) { i, readiness, override, l ->
+        combine(inputs, m.readiness.readiness, shown, combine(restore, busy, single, editing, ready, ::Locals)) { i, readiness, override, l ->
+            if (!l.ready) return@combine null
+            // opened on one step: nothing until this flow itself sees the reopened record (no early "setup is over")
+            if (openedOn != null && !seenOpen) {
+                if (openedOn in i.record.completed || openedOn in i.record.skipped) return@combine null
+                seenOpen = true
+            }
             val now = m.clock.now()
             val facts =
                 SetupFacts(
@@ -113,37 +133,72 @@ class SetupViewModel(private val m: SetupModule) : ViewModel() {
             )
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
+    init {
+        val step = openedOn
+        if (step != null) {
+            viewModelScope.launch {
+                single.value = true
+                shown.value = step
+                try {
+                    m.setupStore.update { SetupMachine.reopen(it, step) }
+                } finally {
+                    ready.value = true
+                }
+            }
+        }
+    }
+
     fun onResume() {
         m.refresh()
     }
 
+    /** The Finish-setup steps already shown in this visit: done or *Later* moves on to the next one, never back. */
+    private val visited = mutableSetOf<SetupStep>()
+
     /**
-     * Opened from home after setup was finished: the first Finish-setup row's step. False when there is none (or one
-     * was already shown), then the screen goes home.
+     * Opened from home after setup was finished: the next Finish-setup row's step not shown yet in this visit (alerts
+     * first). False when there is none left, or when opened on one step ([openedOn]): then the screen goes back.
      */
     suspend fun reopenFirstUnfinished(): Boolean {
-        if (single.value) return false
-        val item = m.finishItems.first().firstOrNull() ?: return false
+        if (openedOn != null || leaving) return false
+        val item = m.finishItems.first().firstOrNull { it.step !in visited } ?: return false
+        visited += item.step
         open(item.step)
         return true
     }
 
-    /** Reopened from the Finish-setup card. */
+    /** Reopened from the Finish-setup card: shown until it is completed or skipped again (Back skips it again). */
     fun open(step: SetupStep) {
         single.value = true
         shown.value = step
-        // shown again without touching the record: leaving with Back keeps its Finish-setup row
         record { SetupMachine.reopen(it, step) }
     }
 
-    /** Back: the previous step (its answers are kept); false on the first step (leave setup). */
-    fun back(): Boolean {
-        val u = ui.value ?: return false
-        if (u.single) return false
-        if (!u.canBack) return false
+    /** Set by Back on a reopened step: the screen leaves, no further Finish-setup step opens. */
+    private var leaving = false
+
+    /**
+     * Back: the previous step (its answers are kept); [onLeave] on the first step (leave setup). A reopened step is
+     * left as skipped (written first), so its Finish-setup row stays.
+     */
+    fun back(onLeave: () -> Unit) {
+        val u = ui.value ?: return onLeave()
+        if (u.single) {
+            leaving = true
+            val step = u.step
+            // the skip is written before the screen leaves (leaving clears this view model and its scope)
+            viewModelScope.launch {
+                try {
+                    if (step != null) m.setupStore.update { SetupMachine.skip(it, step) }
+                } finally {
+                    onLeave()
+                }
+            }
+            return
+        }
+        if (!u.canBack) return onLeave()
         val steps = SetupMachine.steps(u.facts)
         shown.value = steps[steps.indexOf(u.step) - 1]
-        return true
     }
 
     fun readinessFix(r: app.mauri.sukrara.core.model.AlertRequirement) = m.readiness.fix(r)
@@ -168,9 +223,10 @@ class SetupViewModel(private val m: SetupModule) : ViewModel() {
     }
 
     fun editThreshold(
-        field: ThresholdField,
+        kind: AlertKind,
         value: Double,
     ) {
+        val field = ThresholdField.entries.firstOrNull { it.kind == kind } ?: return
         val current = ui.value?.alerts ?: return
         editing.value = current.with(field, value).settings
     }
@@ -264,10 +320,14 @@ class SetupViewModel(private val m: SetupModule) : ViewModel() {
         val busy: Boolean,
         val single: Boolean,
         val editing: AlertSettings?,
+        val ready: Boolean,
     )
 
     companion object {
-        fun factory(module: SetupModule) = viewModelFactory { initializer { SetupViewModel(module) } }
+        fun factory(
+            module: SetupModule,
+            startAt: SetupStep? = null,
+        ) = viewModelFactory { initializer { SetupViewModel(module, startAt) } }
     }
 }
 

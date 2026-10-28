@@ -7,7 +7,7 @@ import app.mauri.sukrara.core.model.Role
 import kotlinx.serialization.Serializable
 
 /**
- * The first-run setup steps, in their binding order (CHANGES P2–P5, P10): the sensor runs here before the alerts are
+ * The first-run setup steps, in their binding order: the sensor runs here before the alerts are
  * confirmed and before the identity can be restored (a restore moves the followers to this phone, so it waits until
  * this phone has the sensor).
  */
@@ -52,11 +52,14 @@ data class SetupFacts(
     val alertsReady: Boolean = false,
 )
 
-/** One line of the home "Finish setup" card: a skipped step that still matters; tapping reopens [step]. */
+/**
+ * One line of the home "Finish setup" card: a skipped step that still matters; tapping reopens [step]. In the order
+ * the card names them and Continue walks them: what alerts need first.
+ */
 enum class FinishItem(val step: SetupStep) {
     AllowAlerts(SetupStep.Permissions),
-    ConnectSensor(SetupStep.Sensor),
     AlertsNotConfirmed(SetupStep.Alerts),
+    ConnectSensor(SetupStep.Sensor),
     RestoreFollowers(SetupStep.Identity),
 }
 
@@ -120,7 +123,7 @@ object SetupMachine {
         facts: SetupFacts,
     ): SetupRecord = if (facts.ownSensorLive) record.done(SetupStep.Sensor) else record
 
-    /** P4: the only way to complete the alert step is "Confirm these alerts" (the thresholds are saved first). */
+    /** P4: the only way to complete the alert step is "Use these thresholds" (the thresholds are saved first). */
     fun confirmAlerts(record: SetupRecord): SetupRecord = record.done(SetupStep.Alerts)
 
     /** The identity exists (restored, or started fresh after confirming). */
@@ -159,11 +162,14 @@ object SetupMachine {
         }
     }
 
-    /** Reopened from the Finish-setup card: shown again until it is completed or skipped again. */
+    /**
+     * Reopened from the Finish-setup card or from Settings › Sharing's Set up (the identity was completed once, but
+     * there is none now): shown again until it is completed or skipped again.
+     */
     fun reopen(
         record: SetupRecord,
         step: SetupStep,
-    ): SetupRecord = record.copy(skipped = record.skipped - step)
+    ): SetupRecord = record.copy(completed = record.completed - step, skipped = record.skipped - step)
 
     private fun SetupRecord.done(step: SetupStep) = copy(completed = completed + step, skipped = skipped - step)
 }

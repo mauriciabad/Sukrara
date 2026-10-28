@@ -96,30 +96,43 @@ fun AlertThresholdReviewContent(
     onConfirm: () -> Unit,
     onCancel: () -> Unit,
 ) {
-    var editing by rememberSaveable { mutableStateOf<AlertKind?>(null) }
     SettingsPage(stringResource(R.string.st_review_title), onCancel) {
         Text(
             stringResource(R.string.st_review_intro),
             Modifier.fillMaxWidth().padding(horizontal = 32.dp, vertical = 8.dp),
             style = MaterialTheme.typography.bodyLarge,
         )
-        SettingsGroup {
-            for (kind in ThresholdReviewViewModel.ReviewedKinds) {
-                val rule = draft.rule(kind)
-                val sentence = thresholdSentence(kind, rule.threshold)
-                ValueRow(
-                    kindName(kind),
-                    if (rule.on) sentence else stringResource(R.string.st_review_off, sentence),
-                    { editing = kind },
-                )
-            }
-        }
+        AlertThresholdRows(draft, onThreshold)
         FlowRow(
             Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 16.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp, androidx.compose.ui.Alignment.End),
         ) {
             TextButton(onClick = onCancel) { Text(stringResource(R.string.st_cancel)) }
             Button(onClick = onConfirm) { Text(stringResource(R.string.st_review_confirm)) }
+        }
+    }
+}
+
+/**
+ * The reviewed thresholds of [draft]: one row per kind ("Low — Below 70 mg/dL", "Off (…)"), each opening THE number
+ * dialog limited to the values that keep the levels in order. This review and setup's alert step (the app passes it
+ * in) show the same rows.
+ */
+@Composable
+fun AlertThresholdRows(
+    draft: AlertSettings,
+    onThreshold: (AlertKind, Double) -> Unit,
+) {
+    var editing by rememberSaveable { mutableStateOf<AlertKind?>(null) }
+    SettingsGroup {
+        for (kind in ThresholdReviewViewModel.ReviewedKinds) {
+            val rule = draft.rule(kind)
+            val sentence = thresholdSentence(kind, rule.threshold)
+            ValueRow(
+                kindName(kind),
+                if (rule.on) sentence else stringResource(R.string.st_review_off, sentence),
+                { editing = kind },
+            )
         }
     }
     editing?.let { kind ->

@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -35,6 +36,7 @@ import androidx.compose.material3.rememberTopAppBarState
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
@@ -43,22 +45,29 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import app.mauri.sukrara.alerts.AlertKind
 import app.mauri.sukrara.core.designsystem.R as DsR
+import app.mauri.sukrara.core.model.DurationWords
+import app.mauri.sukrara.core.model.Durations
+import app.mauri.sukrara.graph.CardWords
 import app.mauri.sukrara.graph.Clock
 import app.mauri.sukrara.settings.NumberSpec
 import java.time.Instant
 import java.time.ZoneId
 
-/** A settings page: large collapsing title, a back button, the groups scrolling below. */
+/**
+ * A settings page: large collapsing title, a back button, the groups scrolling below. [scroll] false: the content
+ * scrolls itself (a page from another feature, placed here by the app) and fills the space below the bar.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsPage(
     title: String,
     onBack: () -> Unit,
+    scroll: Boolean = true,
     content: @Composable ColumnScope.() -> Unit,
 ) {
-    val scroll = TopAppBarDefaults.exitUntilCollapsedScrollBehavior(rememberTopAppBarState())
+    val bar = TopAppBarDefaults.exitUntilCollapsedScrollBehavior(rememberTopAppBarState())
     Scaffold(
-        modifier = Modifier.fillMaxSize().nestedScroll(scroll.nestedScrollConnection),
+        modifier = Modifier.fillMaxSize().nestedScroll(bar.nestedScrollConnection),
         containerColor = MaterialTheme.colorScheme.surfaceContainer,
         topBar = {
             LargeTopAppBar(
@@ -68,14 +77,19 @@ fun SettingsPage(
                         Icon(painterResource(R.drawable.st_ic_arrow_back), contentDescription = stringResource(R.string.st_back))
                     }
                 },
-                scrollBehavior = scroll,
+                scrollBehavior = bar,
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
             )
         },
     ) { padding ->
-        Column(Modifier.padding(padding).verticalScroll(rememberScrollState())) {
-            content()
-            Spacer(Modifier.height(24.dp))
+        if (scroll) {
+            Column(Modifier.padding(padding).verticalScroll(rememberScrollState())) {
+                content()
+                Spacer(Modifier.height(24.dp))
+            }
+        } else {
+            // the bar and the system bars are already padded: the page's own inset padding adds nothing twice
+            Column(Modifier.padding(padding).consumeWindowInsets(padding).fillMaxSize(), content = content)
         }
     }
 }
@@ -143,10 +157,25 @@ fun numberLabeler(): (NumberSpec, Double) -> String {
             "min" to stringResource(DsR.string.ds_unit_min),
             "s" to stringResource(DsR.string.ds_unit_s),
         )
+    val durations = CardWords.of(LocalContext.current.resources).durations
     return { spec, value ->
         spec.specialOf(value)?.let { words[it] ?: it }
+            ?: minutesText(spec, value, durations)
             ?: listOf(spec.text(value), units[spec.unit] ?: spec.unit).filter { it.isNotEmpty() }.joinToString(" ")
     }
+}
+
+/**
+ * A whole number of minutes in words through THE duration formatter ("30 min", "1 h", "1 h 30 min"; FEATURES
+ * "Durations": never "60 min"); null for any other unit.
+ */
+internal fun minutesText(
+    spec: NumberSpec,
+    value: Double,
+    words: DurationWords,
+): String? {
+    if (spec.unit != "min" || spec.scale != 1.0 || value < 0 || value != Math.rint(value)) return null
+    return Durations.text(value.toLong(), words)
 }
 
 /** One number value's label (see [numberLabeler]). */
