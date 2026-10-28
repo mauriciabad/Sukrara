@@ -185,6 +185,11 @@ class AppGraph(
 
                     override fun stop() = alerts.tryOut.stop()
 
+                    override fun silenced(
+                        kind: AlertKind,
+                        alarm: Boolean,
+                    ) = alerts.tryOut.silenced(kind, alarm)
+
                     override fun sendTest(
                         kind: AlertKind,
                         settings: AlertSettings,

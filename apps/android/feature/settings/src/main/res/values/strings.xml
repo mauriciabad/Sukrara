@@ -339,4 +339,5 @@
     <string name="st_send_test_sent">Sent: check your notifications. It goes away by itself in 2 min.</string>
     <string name="st_channel_settings">Notification channel</string>
     <string name="st_channel_settings_summary">This alert\'s sound, vibration and Do Not Disturb in Android\'s settings</string>
+    <string name="st_silenced_by_android">Silenced in Android\'s settings: open Notification channel below to turn its sound on</string>
 </resources>

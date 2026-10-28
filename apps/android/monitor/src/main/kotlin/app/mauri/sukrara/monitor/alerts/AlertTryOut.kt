@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.monitor.alerts
 
+import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.Context
 import android.media.MediaPlayer
@@ -15,11 +16,11 @@ import app.mauri.sukrara.alerts.AlertSettings
 
 /**
  * Settings' ways to hear an alert before it matters, only ever from the person's tap:
- * - [play]: the kind's sound for a pack (also one not saved yet, from the Sound dialog's ▶), on the alarm or the
+ * - [play]: the kind's sound for a pack (the kind's own or its pack's), on the alarm or the
  *   notification volume as the kind will ring, with its vibration when asked. Plays the raw file directly, never the
  *   channel's `alertsound` URI, so it doesn't use the sound picker's state that real alerts read. A sound the person
- *   chose in the channel's system settings plays instead (that's what the alert will play). [stop] ends it; the page
- *   stops it when it closes.
+ *   chose in the channel's system settings plays instead (that's what the alert will play); a channel silenced there
+ *   plays nothing ([silenced]). [stop] ends it; the page stops it when it closes.
  * - [sendTest]: the real notification on the kind's channel, as a test ([AlertNotifier.showTest]); no alert state.
  */
 class AlertTryOut(
@@ -36,27 +37,49 @@ class AlertTryOut(
         vibrate: Boolean,
     ) {
         stop()
+        val channel = channel(kind, alarm)
         soundUri(kind, pack, alarm)?.let { uri ->
-            player =
-                runCatching {
-                    MediaPlayer().apply {
-                        setAudioAttributes(AlertChannels.audioAttributes(alarm))
-                        setDataSource(ctx, uri)
-                        setOnCompletionListener { it.release() }
-                        prepare()
-                        start()
-                    }
-                }.getOrNull()
+            val p = MediaPlayer()
+            player = p
+            runCatching {
+                p.setAudioAttributes(AlertChannels.audioAttributes(alarm))
+                p.setDataSource(ctx, uri)
+                p.setOnPreparedListener { it.start() }
+                p.setOnCompletionListener { done(it) }
+                p.setOnErrorListener { mp, _, _ -> done(mp).let { true } }
+                p.prepareAsync()
+            }.onFailure { done(p) }
         }
-        if (vibrate) {
+        // the channel's vibration switch decides, like it does for the alert
+        if (vibrate && (channel == null || (channel.shouldVibrate() && audible(channel)))) {
             val usage = if (alarm) VibrationAttributes.USAGE_ALARM else VibrationAttributes.USAGE_NOTIFICATION
             vibrator().vibrate(AlertHaptics.effect(ctx, kind), VibrationAttributes.createForUsage(usage))
         }
     }
 
+    /**
+     * Android's settings silence this alert: its channel's sound set to *None*, or its importance too low to make a
+     * sound. The page says so instead of playing a sound the alert won't.
+     */
+    fun silenced(
+        kind: AlertKind,
+        alarm: Boolean,
+    ): Boolean = channel(kind, alarm)?.let { it.sound == null || !audible(it) } ?: false
+
+    private fun audible(c: NotificationChannel) = c.importance >= NotificationManager.IMPORTANCE_DEFAULT
+
+    private fun channel(
+        kind: AlertKind,
+        alarm: Boolean,
+    ): NotificationChannel? = ctx.getSystemService(NotificationManager::class.java).getNotificationChannel(channelId(kind, alarm))
+
+    private fun done(p: MediaPlayer) {
+        runCatching { p.release() }
+        if (player === p) player = null
+    }
+
     fun stop() {
-        player?.let { p -> runCatching { if (p.isPlaying) p.stop() }.also { runCatching { p.release() } } }
-        player = null
+        player?.let(::done)
         vibrator().cancel()
     }
 
@@ -78,7 +101,8 @@ class AlertTryOut(
         pack: String,
         alarm: Boolean,
     ): Uri? {
-        val channel = ctx.getSystemService(NotificationManager::class.java).getNotificationChannel(channelId(kind, alarm))
+        val channel = channel(kind, alarm)
+        if (channel != null && silenced(kind, alarm)) return null
         val own = channel?.sound
         if (own != null && own != AlertChannels.soundUri(ctx, kind)) return own
         return when (pack) {

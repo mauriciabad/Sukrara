@@ -63,6 +63,12 @@ interface AlertPlayback {
 
     fun stop()
 
+    /** Android's settings silence this alert (its channel's sound off or importance too low). */
+    fun silenced(
+        kind: AlertKind,
+        alarm: Boolean,
+    ): Boolean
+
     fun sendTest(
         kind: AlertKind,
         settings: AlertSettings,
@@ -82,6 +88,11 @@ interface AlertPlayback {
         ) = Unit
 
         override fun stop() = Unit
+
+        override fun silenced(
+            kind: AlertKind,
+            alarm: Boolean,
+        ) = false
 
         override fun sendTest(
             kind: AlertKind,

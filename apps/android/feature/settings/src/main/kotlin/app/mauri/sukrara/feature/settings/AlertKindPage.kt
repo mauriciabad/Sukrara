@@ -210,9 +210,10 @@ private fun TryOutGroup(
     DisposableEffect(playback) { onDispose { playback.stop() } }
     val volume = stringResource(if (rule.alarm) R.string.st_volume_alarm else R.string.st_volume_notification)
     SettingsGroup(title = stringResource(R.string.st_try_title)) {
+        val silenced = playback.silenced(kind, rule.alarm)
         ValueRow(
             stringResource(R.string.st_play_sound),
-            listOf(packName(pack), volume).joinToString(" · "),
+            if (silenced) stringResource(R.string.st_silenced_by_android) else listOf(packName(pack), volume).joinToString(" · "),
             { playback.play(kind, pack, rule.alarm, vibrate) },
             icon = R.drawable.st_ic_play_arrow,
             enabled = pack != "none" || vibrate,

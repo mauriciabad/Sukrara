@@ -51,6 +51,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import app.mauri.sukrara.designsystem.motion.LocalReducedMotion
 import app.mauri.sukrara.feature.settings.R
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
@@ -77,6 +78,9 @@ object Reorder {
 }
 
 private enum class Phase { Idle, Dragging, Settling }
+
+private const val ROW = "row"
+private const val HANDLE = "handle"
 
 /**
  * A short list reordered by drag and drop inside a scrolling settings page. Every state has its way in and out:
@@ -109,6 +113,11 @@ fun <T : Any> ReorderList(
     var phase by remember { mutableStateOf(Phase.Idle) }
     var dy by remember { mutableFloatStateOf(0f) }
     var before by remember { mutableStateOf(items) }
+
+    // which detector holds the row (the handle or the row's long press: both see a press on the handle) and the
+    // settle animation, cancelled by the next pick-up so it never moves the newly held row
+    var owner by remember { mutableStateOf<String?>(null) }
+    val settling = remember { arrayOfNulls<Job>(1) }
     // the saved order changed elsewhere (Reset, another device): show it unless a row is held
     LaunchedEffect(items) { if (phase == Phase.Idle) order = items }
 
@@ -125,22 +134,33 @@ fun <T : Any> ReorderList(
 
     fun settle(then: () -> Unit) {
         phase = Phase.Settling
-        scope.launch {
-            if (reduced) {
-                dy = 0f
-            } else {
-                animate(dy, 0f, animationSpec = spring(Spring.DampingRatioNoBouncy, Spring.StiffnessMediumLow)) { v, _ -> dy = v }
+        owner = null
+        settling[0] =
+            scope.launch {
+                if (reduced) {
+                    dy = 0f
+                } else {
+                    animate(dy, 0f, animationSpec = spring(Spring.DampingRatioNoBouncy, Spring.StiffnessMediumLow)) { v, _ -> dy = v }
+                }
+                if (phase == Phase.Settling) {
+                    held = null
+                    phase = Phase.Idle
+                }
+                then()
             }
-            if (phase == Phase.Settling) {
-                held = null
-                phase = Phase.Idle
-            }
-            then()
-        }
     }
 
-    fun start(item: T) {
+    fun start(
+        item: T,
+        who: String,
+    ) {
         if (phase == Phase.Dragging) return
+        settling[0]?.cancel()
+        if (phase == Phase.Settling) {
+            dy = 0f
+            held = null
+        }
+        owner = who
         before = order
         held = item
         dy = 0f
@@ -148,15 +168,15 @@ fun <T : Any> ReorderList(
         view.performHapticFeedback(HapticFeedbackConstants.DRAG_START)
     }
 
-    fun drop() {
-        if (phase != Phase.Dragging) return
+    fun drop(who: String) {
+        if (phase != Phase.Dragging || owner != who) return
         view.performHapticFeedback(HapticFeedbackConstants.GESTURE_END)
         val result = order
         settle { if (result != before) save(result) }
     }
 
-    fun cancel() {
-        if (phase != Phase.Dragging) return
+    fun cancel(who: String) {
+        if (phase != Phase.Dragging || owner != who) return
         val h = held ?: return
         dy += (order.indexOf(h) - before.indexOf(h)) * rowPx
         order = before
@@ -206,10 +226,11 @@ fun <T : Any> ReorderList(
                             ).testTag("reorder-row")
                             .pointerInput(item) {
                                 detectDragGesturesAfterLongPress(
-                                    onDragStart = { start(item) },
-                                    onDragEnd = { drop() },
-                                    onDragCancel = { cancel() },
+                                    onDragStart = { start(item, ROW) },
+                                    onDragEnd = { drop(ROW) },
+                                    onDragCancel = { cancel(ROW) },
                                 ) { change, d ->
+                                    if (owner != ROW) return@detectDragGesturesAfterLongPress
                                     change.consume()
                                     dy += d.y
                                     follow()
@@ -240,14 +261,14 @@ fun <T : Any> ReorderList(
                                     awaitEachGesture {
                                         val first = awaitFirstDown(requireUnconsumed = false)
                                         first.consume()
-                                        start(item)
+                                        start(item, HANDLE)
                                         val ended =
                                             drag(first.id) { c ->
                                                 dy += c.positionChange().y
                                                 c.consume()
                                                 follow()
                                             }
-                                        if (ended) drop() else cancel()
+                                        if (ended) drop(HANDLE) else cancel(HANDLE)
                                     }
                                 }.padding(12.dp),
                     )

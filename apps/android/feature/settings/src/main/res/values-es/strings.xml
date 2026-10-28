@@ -341,4 +341,5 @@
     <string name="st_send_test_sent">Enviada: mira tus notificaciones. Se va sola en 2 min.</string>
     <string name="st_channel_settings">Canal de notificación</string>
     <string name="st_channel_settings_summary">El sonido, la vibración y No molestar de esta alerta en los ajustes de Android</string>
+    <string name="st_silenced_by_android">Silenciada en los ajustes de Android: abre Canal de notificación abajo para activar su sonido</string>
 </resources>

@@ -19,8 +19,10 @@ import androidx.compose.material3.InputChipDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -414,7 +416,7 @@ private fun GraphDialogs(
 
         is GraphDialog.SlotKindOf -> {
             val i = dialog.i
-            val slot = c.slots.getOrNull(i) ?: return close()
+            val slot = c.slots.getOrNull(i) ?: return CloseLater(close)
             ChoiceDialog(
                 stringResource(R.string.st_slot_what, slotName(i)),
                 SlotKind.entries.map { Choice(slotKindName(it), it) },
@@ -425,7 +427,7 @@ private fun GraphDialogs(
 
         is GraphDialog.SlotPeriod -> {
             val i = dialog.i
-            val slot = c.slots.getOrNull(i) ?: return close()
+            val slot = c.slots.getOrNull(i) ?: return CloseLater(close)
             NumberDialog(
                 stringResource(R.string.st_slot_period, slotName(i)),
                 NumberInput(SettingsSpec.RING_WINDOW),
@@ -454,7 +456,7 @@ private fun GraphDialogs(
         }
 
         GraphDialog.LastElsePeriod -> {
-            val other = c.lastElse ?: return close()
+            val other = c.lastElse ?: return CloseLater(close)
             NumberDialog(
                 stringResource(R.string.st_last_else_period),
                 NumberInput(SettingsSpec.RING_WINDOW),
@@ -477,6 +479,13 @@ private fun GraphDialogs(
             }
         }
     }
+}
+
+/** Closes a dialog whose subject went away (changed elsewhere), after this frame: never a state write in composition. */
+@Composable
+private fun CloseLater(close: () -> Unit) {
+    val latest by rememberUpdatedState(close)
+    LaunchedEffect(Unit) { latest() }
 }
 
 /** The extra lines as input chips; a tap removes one (its × says so to TalkBack). */
