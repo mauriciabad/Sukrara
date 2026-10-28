@@ -102,7 +102,15 @@ public actor NearbyCentral: NearbyTransport {
         continuation.finish()
     }
 
-    public func update(identity: NearbyLink.Identity) { link.identity = identity }
+    /// A new key (first one, new epoch): HELLO again so the phone answers an INFO we can check now and our proof names
+    /// this Mac (B§5), as Android does.
+    public func update(identity: NearbyLink.Identity) {
+        guard link.identity != identity else { return }
+        link.identity = identity
+        guard link.isConnected else { return }
+        lastHello = Date()
+        apply(link.hello(nonce: Self.nonce()))
+    }
 
     public func send(_ event: SignedEvent) async -> Bool {
         nextToken += 1
