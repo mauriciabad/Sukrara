@@ -139,6 +139,12 @@ class OgsVectorsTest {
         assertEquals(BleMessages.Owner.Other, BleMessages.owner(info, null, v.sid, listOf("ff")))
         assertEquals(BleMessages.Owner.Unknown, BleMessages.owner(info, null, null, listOf(nonce)))
         assertEquals(BleMessages.Owner.Other, BleMessages.owner(pair, v.key("X").public, v.sid, listOf(nonce)))
+        // B§6: before sid, the pairing `i` says ours; once sid is known only `m` does (a copied `i` never proves it)
+        val ours = v.key("I").public
+        assertEquals(BleMessages.Owner.Ours, BleMessages.owner(pair, ours, null, emptyList()))
+        assertEquals(BleMessages.Owner.Ours, BleMessages.owner(pair, ours, v.sid, listOf(nonce)))
+        assertEquals(BleMessages.Owner.Other, BleMessages.owner(pair, ours, v.sid, listOf("ff")))
+        assertEquals(BleMessages.Owner.Unknown, BleMessages.owner(info, ours, null, listOf(nonce)))
     }
 
     @Test fun treatmentPayloadRules() {

@@ -12,6 +12,7 @@ import app.mauri.sukrara.alerts.Side
 import app.mauri.sukrara.core.model.AlertDeliveryProblem
 import app.mauri.sukrara.core.model.AlertUiState
 import app.mauri.sukrara.core.model.GlucoseState
+import app.mauri.sukrara.core.model.LinkState
 import app.mauri.sukrara.core.model.Reading
 import app.mauri.sukrara.core.model.Role
 import app.mauri.sukrara.core.model.SourceId
@@ -28,11 +29,15 @@ import java.time.Instant
 class FakePresenter : AlertPresenter {
     val slots = linkedMapOf<AlertGroup, String>()
     val log = mutableListOf<String>()
+
+    /** Whose alert each [show] was (the wearer's name on a follower). */
+    val who = mutableListOf<String?>()
     var problems: Set<AlertDeliveryProblem> = emptySet()
 
     override fun show(firing: Firing, settings: AlertSettings, silent: Boolean, who: String?, relaxedMin: Int) {
         slots[firing.kind.group] = firing.kind.wire
         log += (if (silent) "resume " else "show ") + firing.kind.wire
+        this.who += who
     }
 
     override fun showMuted(group: AlertGroup, side: Side, kind: AlertKind, until: Long, settings: AlertSettings, now: Long) {
@@ -76,6 +81,15 @@ class AlertRig(val clock: FakeClock = FakeClock(Instant.ofEpochSecond(1_760_000_
             role = Role.Wearer,
             latest = latest,
             monitoringStartedAt = if (monitoring) latest?.t ?: clock.now() else null,
+        )
+
+    /** A follower's hub state: the wearer's readings over the follow stream, the link to [wearer]. */
+    fun followerState(latest: Reading?, wearer: String = "Ana") =
+        GlucoseState.Initial.copy(
+            role = Role.Follower,
+            latest = latest?.copy(source = SourceId.Relay),
+            link = LinkState(wearer, latest?.t),
+            monitoringStartedAt = latest?.t ?: clock.now(),
         )
 }
 

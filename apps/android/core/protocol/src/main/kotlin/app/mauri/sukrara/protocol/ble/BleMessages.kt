@@ -97,14 +97,15 @@ object BleMessages {
     enum class Owner { Ours, Other, Unknown }
 
     /**
-     * Is the phone that sent [info] our wearer? [nonces] = those our recent HELLOs carried. Ours: `i` is our identity,
-     * or `m` matches our `sid` for one of our nonces. Other: another identity, or a known `sid` that doesn't match.
-     * Unknown: no `sid` yet (request pending) and no `i` — receive, but don't write.
+     * Is the phone that sent [info] our wearer (B§6 "Which owner")? [nonces] = those our recent HELLOs carried. Once we
+     * know `sid`, only `m` proves it (for one of our nonces): `i` is public while any wearer pairs, so a copied `i` never
+     * does. Before `sid` (request pending), `i` = our identity says ours. Other: another identity, or a known `sid` that
+     * doesn't match. Unknown: no `sid` yet and no `i` — receive, but don't write.
      */
     fun owner(info: JsonObject, identity: PublicKeyHex?, sid: String?, nonces: Collection<String>): Owner {
         val i = (info["i"] as? JsonPrimitive)?.content?.ifEmpty { null }
-        if (identity != null && i != null) return if (i == identity.hex) Owner.Ours else Owner.Other
-        if (sid == null) return Owner.Unknown
+        if (identity != null && i != null && i != identity.hex) return Owner.Other
+        if (sid == null) return if (identity != null && i != null) Owner.Ours else Owner.Unknown
         val n = (info["nonce"] as? JsonPrimitive)?.content
         val m = (info["m"] as? JsonPrimitive)?.content
         return if (n != null && n in nonces && m == infoM(sid, n)) Owner.Ours else Owner.Other

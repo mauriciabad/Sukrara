@@ -12,8 +12,11 @@ import kotlinx.coroutines.flow.StateFlow
 sealed interface NearbyEvent {
     data class Event(val event: SignedEvent) : NearbyEvent
 
-    /** A phone's INFO: ours, another wearer's, or not known yet (no `sid` before the first key). */
-    data class Info(val owner: BleMessages.Owner) : NearbyEvent
+    /**
+     * A phone's INFO: ours, another wearer's, or not known yet (no `sid` before the first key). [phone] names the
+     * connection it came on, so leaving it never hits a phone connected since.
+     */
+    data class Info(val owner: BleMessages.Owner, val phone: String) : NearbyEvent
 }
 
 /**
@@ -37,8 +40,8 @@ interface NearbyTransport {
     /** Writes [event] to the wearer's phone: false when no phone proved it's the wearer's or the write failed. */
     suspend fun send(event: SignedEvent): Boolean
 
-    /** Leaves the current phone for [seconds] (another wearer's phone). */
-    fun leave(seconds: Long)
+    /** Avoids [phone] (an [NearbyEvent.Info.phone]) for [seconds], dropping it if it's still the one connected. */
+    fun leave(phone: String, seconds: Long)
 
     /** Bluetooth turned on / Nearby devices allowed: look again now. */
     fun refresh()
