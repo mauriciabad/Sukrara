@@ -22,16 +22,30 @@ import androidx.compose.ui.unit.Density
 import app.mauri.sukrara.core.model.Reading
 import app.mauri.sukrara.core.model.SourceId
 import app.mauri.sukrara.designsystem.theme.SukraraTheme
+import app.mauri.sukrara.integrations.broadcasts.AppProblem
+import app.mauri.sukrara.integrations.broadcasts.BcActions
+import app.mauri.sukrara.integrations.broadcasts.BcApp
+import app.mauri.sukrara.integrations.broadcasts.BcStatus
+import app.mauri.sukrara.integrations.broadcasts.BcUi
+import app.mauri.sukrara.integrations.broadcasts.BroadcastPayloads
+import app.mauri.sukrara.integrations.broadcasts.BroadcastsContent
+import app.mauri.sukrara.integrations.broadcasts.Hold
 import app.mauri.sukrara.integrations.export.ExportActions
 import app.mauri.sukrara.integrations.export.ExportContent
 import app.mauri.sukrara.integrations.export.ExportData
 import app.mauri.sukrara.integrations.export.ExportPeriod
 import app.mauri.sukrara.integrations.export.ExportUi
+import app.mauri.sukrara.integrations.healthconnect.HcActions
+import app.mauri.sukrara.integrations.healthconnect.HcStatus
+import app.mauri.sukrara.integrations.healthconnect.HcUi
+import app.mauri.sukrara.integrations.healthconnect.HealthConnectContent
+import app.mauri.sukrara.integrations.healthconnect.HealthConnectSync
 import app.mauri.sukrara.integrations.libreview.LibreViewActions
 import app.mauri.sukrara.integrations.libreview.LibreViewContent
 import app.mauri.sukrara.integrations.libreview.LvPageState
 import app.mauri.sukrara.integrations.libreview.LvSettings
 import app.mauri.sukrara.integrations.libreview.LvSignInUi
+import app.mauri.sukrara.integrations.localserver.LanState
 import app.mauri.sukrara.integrations.localserver.NightscoutApiContent
 import app.mauri.sukrara.integrations.localserver.NsApiActions
 import app.mauri.sukrara.integrations.localserver.NsApiState
@@ -85,6 +99,9 @@ class IntegrationsGallery {
                         listOf("Garmin Connect"),
                         configured.status,
                         UploadStatus.Ok(now - Duration.ofMinutes(1), 1),
+                        broadcastApps = 2,
+                        broadcasts = BcStatus(now - Duration.ofMinutes(1), null),
+                        healthConnect = HcStatus.Written(now - Duration.ofMinutes(1), 1),
                     ),
                     now,
                     AppsActions(),
@@ -99,6 +116,29 @@ class IntegrationsGallery {
             "nsapi-secret" to {
                 NightscoutApiContent(
                     NsApiUi(true, NsApiState.Listening(null), SecretView.Shown("0f1e2d3c4b5a69788796a5b4c3d2e1f0")),
+                    now,
+                    NsApiActions(),
+                )
+            },
+            "nsapi-lan-on" to {
+                NightscoutApiContent(
+                    NsApiUi(
+                        true,
+                        NsApiState.Listening(now - Duration.ofMinutes(1), "192.168.1.23"),
+                        SecretView.Shown("0f1e2d3c4b5a69788796a5b4c3d2e1f0"),
+                        lanOn = true,
+                        lan = LanState.Listening("192.168.1.23"),
+                    ),
+                    now,
+                    NsApiActions(),
+                )
+            },
+            "nsapi-lan-other" to {
+                NightscoutApiContent(NsApiUi(true, NsApiState.Listening(null), lanOn = true, lan = LanState.OtherWifi), now, NsApiActions())
+            },
+            "nsapi-lan-permission" to {
+                NightscoutApiContent(
+                    NsApiUi(true, NsApiState.Listening(null), lanOn = true, lan = LanState.NoPermission),
                     now,
                     NsApiActions(),
                 )
@@ -158,6 +198,54 @@ class IntegrationsGallery {
                     {},
                 )
             },
+            "broadcasts-none" to { BroadcastsContent(BcUi(true, emptyList(), BcStatus(null, null)), now, BcActions()) },
+            "broadcasts-on" to {
+                BroadcastsContent(
+                    BcUi(
+                        true,
+                        listOf(
+                            BcApp("app.aaps", "AAPS", setOf(BroadcastPayloads.XDRIP), allowed = true),
+                            BcApp(
+                                "de.michelinside.glucodatahandler",
+                                "GlucoDataHandler",
+                                BroadcastPayloads.ACTIONS.toSet(),
+                                allowed = true,
+                            ),
+                            BcApp("com.example.watch", "Watch app", setOf(BroadcastPayloads.GLUCODATA), allowed = false),
+                        ),
+                        BcStatus(now - Duration.ofMinutes(1), null),
+                    ),
+                    now,
+                    BcActions(),
+                )
+            },
+            "broadcasts-changed-gone" to {
+                BroadcastsContent(
+                    BcUi(
+                        true,
+                        listOf(
+                            BcApp("app.aaps", "AAPS", setOf(BroadcastPayloads.XDRIP), allowed = false, problem = AppProblem.SignerChanged),
+                            BcApp("com.example.old", "com.example.old", emptySet(), allowed = true, problem = AppProblem.NotInstalled),
+                        ),
+                        BcStatus(now - Duration.ofHours(2), Hold.NoApp),
+                    ),
+                    now,
+                    BcActions(),
+                )
+            },
+            "broadcasts-follower" to { BroadcastsContent(BcUi(false, null, BcStatus(null, null)), now, BcActions()) },
+            "health-off" to { HealthConnectContent(HcUi(false, HcStatus.Off), now, HcActions()) },
+            "health-denied" to { HealthConnectContent(HcUi(false, HcStatus.Off, denied = true), now, HcActions()) },
+            "health-on" to { HealthConnectContent(HcUi(true, HcStatus.Written(now - Duration.ofMinutes(1), 1)), now, HcActions()) },
+            "health-revoked" to { HealthConnectContent(HcUi(true, HcStatus.NeedsPermission), now, HcActions()) },
+            "health-rate-limited" to {
+                HealthConnectContent(
+                    HcUi(true, HcStatus.Failed(HealthConnectSync.ERROR_RATE_LIMIT, now - Duration.ofMinutes(3))),
+                    now,
+                    HcActions(),
+                )
+            },
+            "health-follower" to { HealthConnectContent(HcUi(false, HcStatus.Follower), now, HcActions()) },
             "export" to { ExportContent(ExportUi(ExportPeriod.Days(14), true, export), ExportActions()) },
             "export-follower-counting" to { ExportContent(ExportUi(ExportPeriod.All, false, null, follower = true), ExportActions()) },
         )

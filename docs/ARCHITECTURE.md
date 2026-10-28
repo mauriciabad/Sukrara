@@ -427,7 +427,18 @@ content the app wraps in the settings page frame (`AppsRoute`, `LibreViewRoute`,
 - `localserver/` — `LocalHttpServer` (127.0.0.1, fixed pool, bounded head and deadline), `XdripEndpoint` (Juggluco's
   JSON, pure), `XdripServer` (follows `apps.xdrip` and the sensor source; readings from the store, "last asked" in
   memory), `NightscoutApi` (the v1 read API, pure: routes, secret check, per-source `device` labels) and
-  `NightscoutApiServer` (`apps.nightscout` on 127.0.0.1:17581; the API secret only in SecureStore `nightscout-api`).
+  `NightscoutApiServer` (`apps.nightscout` on 127.0.0.1:17581; the API secret only in SecureStore `nightscout-api`;
+  `apps.nightscoutLan` adds a second `LocalHttpServer` bound to the Wi-Fi's private address with `LanPolicy`'s subnet and
+  Host rules, the Wi-Fi from `LanWatcher`'s ConnectivityManager callback while it is on, pinned network in the typed
+  store `nightscout-lan`).
+- `broadcasts/` — `BroadcastPayloads` (pure extras per action), `BroadcastPlan` (pure: who gets what for one live
+  Libre 3 reading), `Broadcaster` (allowed apps + signer pins in `apps.broadcasts`; throttle / life count / activations
+  in the typed store `broadcasts`; `PlatformApps` = PackageManager + `sendBroadcast`). Input: `SourceManager.sensorGlucose`
+  `current` (Libre 3 pairings only), mapped in `AppGraph`.
+- `healthconnect/` — `HealthConnectSync` (`healthConnect.on`; readings store → written-minute runs, backoff, in the typed
+  store `health-connect`), `PlatformHealth` (platform `android.health.connect`, glucose only), `HealthConnectPage`
+  (permission sheet via `RequestMultiplePermissions`; `MainActivity` routes `VIEW_PERMISSION_USAGE` +
+  `HEALTH_PERMISSIONS` from the `.HealthPermissionsRationale` alias to it).
 - `tidepool/` — `TidepoolClient` (session login, token refresh; https, no redirects), `TidepoolData` (cbg / food /
   insulin / notes with origin ids), `TidepoolQueue` (pure plan), `TidepoolUploader` (settings JSON `apps.tidepool`;
   token + user id only in SecureStore `tidepool`, the password never stored; state in the typed store `tidepool-upload`).

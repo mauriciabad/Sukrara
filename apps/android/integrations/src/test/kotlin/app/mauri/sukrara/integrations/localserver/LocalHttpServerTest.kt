@@ -30,7 +30,7 @@ class LocalHttpServerTest {
     private val sensor = CurrentSensor("3MH00ABCDEF", now - Duration.ofDays(3) - Duration.ofHours(5), now + Duration.ofDays(12))
     private val asked = mutableListOf<String>()
     private val server =
-        LocalHttpServer(0, { XdripEndpoint.route(it, readings, sensor, now, ZoneOffset.UTC) }) { r, _ -> asked += r.path }
+        LocalHttpServer(0, { XdripEndpoint.route(it, readings, sensor, now, ZoneOffset.UTC) }, onRequest = { r, _ -> asked += r.path })
 
     @After
     fun tearDown() = server.stop()
