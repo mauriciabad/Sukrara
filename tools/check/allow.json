@@ -1,5 +1,5 @@
 {
-  "_about": "Allowlists for tools/check/check.py. Keep them short; every entry is an exception someone has to justify. V1 paths only (the frozen poc/ is checked by java / secrets / large / images only). cleartext_ok / network_ok start empty: each V1 chunk adds its own entries with the reason.",
+  "_about": "Allowlists for tools/check/check.py. Keep them short; every entry is an exception someone has to justify. App paths only (the frozen poc/ is checked by java / secrets / large / images only). Every cleartext_ok / network_ok entry has its reason.",
   "header_exts": [
     ".kt",
     ".swift",
@@ -62,7 +62,7 @@
     },
     {
       "path": "apps/android/feature/settings/src/main/kotlin/app/mauri/sukrara/feature/settings/UpdateCheck.kt",
-      "reason": "About page update check: GET the fixed https URL api.github.com/repos/mauriciabad/Sukrara/releases once per page open (no user-entered host, nothing sent)"
+      "reason": "About page update check: GET the fixed https URL api.github.com/repos/mauriciabad/sukrara/releases once per page open (no user-entered host, nothing sent)"
     }
   ],
   "durations_ok": {},

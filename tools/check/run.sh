@@ -1,5 +1,5 @@
 #!/bin/sh
-# Sukrara — https://github.com/mauriciabad/Sukrara
+# Sukrara — https://github.com/mauriciabad/sukrara
 # Copyright (C) 2026 Maurici Abad
 # SPDX-License-Identifier: GPL-3.0-or-later
 # The repo's deterministic guards (CLAUDE.md rules → checks). Run before committing; the hooks in tools/hooks run it
@@ -7,7 +7,7 @@
 #   tools/check/run.sh                      origin/main..HEAD (the branch), strict
 #   tools/check/run.sh --range A..B         any range, strict
 #   tools/check/run.sh --staged             the index: static rules fail, coupling rules remind
-#   tools/check/run.sh --pending            also list the V1 files the registries name that don't exist yet
+#   tools/check/run.sh --pending            also list the files the registries name that don't exist
 #   tools/check/run.sh --help               what each check does
 #   tools/check/run.sh --layout             the cross-surface tests (one graph everywhere, freshness): Android
 #                                           :core:graph tests (JDK 21) and the Mac GraphTests

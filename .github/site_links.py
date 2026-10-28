@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Sukrara — https://github.com/mauriciabad/Sukrara
+# Sukrara — https://github.com/mauriciabad/sukrara
 # Copyright (C) 2026 Maurici Abad
 # SPDX-License-Identifier: GPL-3.0-or-later
 """Copy docs/ to the website source and point every link that leaves docs/ at the file on GitHub.

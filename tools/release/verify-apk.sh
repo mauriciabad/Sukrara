@@ -1,8 +1,8 @@
 #!/bin/sh
-# Sukrara — https://github.com/mauriciabad/Sukrara
+# Sukrara — https://github.com/mauriciabad/sukrara
 # Copyright (C) 2026 Maurici Abad
 # SPDX-License-Identifier: GPL-3.0-or-later
-# Checks a V1 release APK before it reaches a phone or a GitHub release:
+# Checks a release APK before it reaches a phone or a GitHub release:
 #   tools/release/verify-apk.sh <apk> <mapping.txt>
 # - signature verifies and the signer certificate is THE release key (tools/release/android-cert.sha256)
 # - package app.mauri.sukrara, versionName / versionCode = tools/release/version.sh, not debuggable

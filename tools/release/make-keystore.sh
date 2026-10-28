@@ -1,9 +1,9 @@
 #!/bin/sh
-# Sukrara — https://github.com/mauriciabad/Sukrara
+# Sukrara — https://github.com/mauriciabad/sukrara
 # Copyright (C) 2026 Maurici Abad
 # SPDX-License-Identifier: GPL-3.0-or-later
 # ONE-TIME: creates Sukrara's Android release key (RSA 4096, valid 30 years) outside the repo and stores its random
-# password in the macOS Keychain. Every V1 release APK is signed with it; Android only installs an update signed by
+# password in the macOS Keychain. Every release APK is signed with it; Android only installs an update signed by
 # the same key, so LOSING IT = NO MORE UPDATES for installed apps. Back it up right after (docs/20-publishing.md).
 #   tools/release/make-keystore.sh          create it (refuses when the keystore or the Keychain item exists)
 # Writes tools/release/android-cert.sha256 (the certificate's public SHA-256, committed; verify-apk.sh checks it).
