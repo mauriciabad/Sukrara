@@ -289,7 +289,13 @@ fun SettingsScreen(
         }
 
         SettingsRoute.Advanced -> {
-            AdvancedScreen(deps.advanced, { LocalDate.now(clock.zone) }, { navigate(SettingsRoute.Log) }, onBack)
+            AdvancedScreen(
+                deps.advanced,
+                { LocalDate.now(clock.zone) },
+                { navigate(SettingsRoute.Log) },
+                { navigate(SettingsRoute.ThresholdReview) },
+                onBack,
+            )
         }
 
         SettingsRoute.Log -> {

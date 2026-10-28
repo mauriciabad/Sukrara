@@ -22,8 +22,11 @@ import kotlinx.serialization.json.putJsonObject
 
 /** What [SettingsTransfer.import] did. */
 sealed interface ImportResult {
-    /** [count] settings were applied (the file's others were unknown or invalid and left as they were). */
-    data class Done(val count: Int) : ImportResult
+    /**
+     * [count] settings were applied (the file's others were unknown or invalid and left as they were);
+     * [alertsChanged] = the alert settings were among them (the thresholds should be reviewed).
+     */
+    data class Done(val count: Int, val alertsChanged: Boolean = false) : ImportResult
 
     /** Not a Sukrara settings file (or not JSON): nothing changed. */
     data object NotSettings : ImportResult
@@ -98,7 +101,7 @@ class SettingsTransfer(
             }
         }
         if (alertsChanged) clearConfirmation()
-        return ImportResult.Done(count)
+        return ImportResult.Done(count, alertsChanged)
     }
 
     /** Every carried setting back to its default (its key is removed, so a later default change applies). */

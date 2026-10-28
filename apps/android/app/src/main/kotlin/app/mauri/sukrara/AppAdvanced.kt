@@ -72,7 +72,7 @@ class AppAdvanced(
 
     override suspend fun importSettings(text: String): SettingsImport =
         when (val r = transfer.import(text)) {
-            is ImportResult.Done -> SettingsImport.Done(r.count)
+            is ImportResult.Done -> SettingsImport.Done(r.count, r.alertsChanged)
             ImportResult.NotSettings -> SettingsImport.NotSettings
         }
 

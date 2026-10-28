@@ -117,7 +117,7 @@ Fakes in `:core:testing`: `FakeClock` (settable time and zone), `TestDispatchers
 | `debug.DebugReceiver` (exported, `DUMP`) | `:app` `src/debug` | debug builds only |
 | `MonitoringService` (FGS `connectedDevice`), `BootReceiver`, `AlertCheckReceiver`, `AlertActionReceiver`, `HealthCheckReceiver` | `:monitor` | live |
 | `AlertSoundProvider` `${applicationId}.alertsound` (exported read-only for System UI) | `:monitor` | live |
-| `SensorTapActivity` (NFC, `DISPATCH_NFC_MESSAGE`) | `:sensor` | declared disabled (taps are read by the new-sensor screen) |
+| `SensorTapActivity` (NFC, `DISPATCH_NFC_MESSAGE`) | `:sensor` | disabled until *Open Sukrara when you scan a sensor*; opens the new-sensor flow (not while a sensor is being read) |
 | `PenTapActivity` (NFC), `PenReadActivity` | `:pen` | tap activity enabled only while pens are on |
 | `TreatmentTileService`, `QuickTreatmentActivity` | `:feature:treatments` | live |
 | `FileProvider` `${applicationId}.export` | `:integrations` | live (not exported) |

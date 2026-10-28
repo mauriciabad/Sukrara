@@ -28,6 +28,7 @@ class SensorTapActivity : Activity() {
             startActivity(
                 launch
                     .setAction(NavTargets.ACTION_SENSOR_SETUP)
+                    .putExtra(NavTargets.EXTRA_FROM_SENSOR_TAP, true)
                     .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP),
             )
         }

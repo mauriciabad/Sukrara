@@ -32,6 +32,7 @@ import app.mauri.sukrara.designsystem.rows.ValueRow
 import app.mauri.sukrara.feature.settings.R
 import app.mauri.sukrara.feature.settings.SettingsPage
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
@@ -56,7 +57,7 @@ data class AdvancedState(
 
 /** What a settings file import did. */
 sealed interface SettingsImport {
-    data class Done(val count: Int) : SettingsImport
+    data class Done(val count: Int, val alertsChanged: Boolean = false) : SettingsImport
 
     data object NotSettings : SettingsImport
 }
@@ -103,6 +104,8 @@ fun AdvancedScreen(
     port: AdvancedPort,
     today: () -> LocalDate,
     openLog: () -> Unit,
+    /** The threshold review: after new alert settings (import, reset) the person checks what alerts them now. */
+    openReview: () -> Unit,
     onBack: () -> Unit,
 ) {
     val state by port.state.collectAsStateWithLifecycle(AdvancedState())
@@ -120,7 +123,7 @@ fun AdvancedScreen(
             scope.launch {
                 val ok =
                     runCatching {
-                        val text = port.exportSettings()
+                        val text = withContext(NonCancellable) { port.exportSettings() }
                         withContext(Dispatchers.IO) {
                             checkNotNull(context.contentResolver.openOutputStream(uri)).use { it.write(text.encodeToByteArray()) }
                         }
@@ -135,16 +138,24 @@ fun AdvancedScreen(
                 val text =
                     runCatching {
                         withContext(Dispatchers.IO) {
-                            checkNotNull(context.contentResolver.openInputStream(uri)).use { it.readBytes().decodeToString() }
+                            checkNotNull(context.contentResolver.openInputStream(uri)).use { readSmall(it) }
                         }
                     }.getOrNull()
+                // applied to the end even if the page is left meanwhile (alert settings and their review flag together)
+                val result =
+                    when (text) {
+                        null -> null
+                        TOO_BIG -> SettingsImport.NotSettings
+                        else -> withContext(NonCancellable) { port.importSettings(text) }
+                    }
                 val message =
-                    when (val result = text?.let { port.importSettings(it) }) {
+                    when (result) {
                         null -> res.getString(R.string.st_adv_read_failed)
                         SettingsImport.NotSettings -> res.getString(R.string.st_adv_not_settings)
                         is SettingsImport.Done -> res.getQuantityString(R.plurals.st_adv_imported, result.count, result.count)
                     }
                 say(message)
+                if (result is SettingsImport.Done && result.alertsChanged) openReview()
             }
         }
     AdvancedContent(
@@ -154,8 +165,9 @@ fun AdvancedScreen(
             import = { importer.launch(arrayOf(MIME, "text/plain", "*/*")) },
             reset = {
                 scope.launch {
-                    port.resetSettings()
+                    withContext(NonCancellable) { port.resetSettings() }
                     say(res.getString(R.string.st_adv_reset_done))
+                    openReview()
                 }
             },
             checkNow = {
@@ -170,6 +182,16 @@ fun AdvancedScreen(
 }
 
 private const val MIME = "application/json"
+
+/** A settings file is a few KB: anything over this isn't one (and isn't read into memory). */
+private const val MAX_BYTES = 1_000_000
+
+private const val TOO_BIG = "\u0000too big"
+
+private fun readSmall(input: java.io.InputStream): String {
+    val bytes = input.readNBytes(MAX_BYTES + 1)
+    return if (bytes.size > MAX_BYTES) TOO_BIG else bytes.decodeToString()
+}
 
 class AdvancedActions(
     val export: () -> Unit = {},

@@ -555,13 +555,14 @@ class AppGraph(
                 integrations.start(scope)
             }
             step("pens") { pens.start() }
-            // a Libre tap opens the new-sensor flow only on the wearer's phone
+            // a Libre tap opens the new-sensor flow only on the wearer's phone reading the sensor itself (the row
+            // shows only then: never on and hidden)
             step("sensor tap") {
                 scope.launch {
-                    role.data
-                        .map { it.role }
-                        .distinctUntilChanged()
-                        .collect { r -> if (r != Role.Wearer) sensor.tapLaunch.set(false) }
+                    combine(role.data, data.settings.flow(SensorSource)) { r, source ->
+                        r.role == Role.Wearer && SensorSourceKind.fromId(source) != SensorSourceKind.Juggluco
+                    }.distinctUntilChanged()
+                        .collect { allowed -> if (!allowed) sensor.tapLaunch.set(false) }
                 }
             }
             // sharing runs while this phone is the wearer (needs an identity: created / restored in Settings › Sharing)

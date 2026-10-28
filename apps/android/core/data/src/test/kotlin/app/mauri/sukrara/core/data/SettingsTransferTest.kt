@@ -76,7 +76,7 @@ class SettingsTransferTest {
             val b = setup(backgroundScope, "b")
             b.repo.set(confirmed, "2026-10-01")
             val result = b.transfer.import(file)
-            assertEquals(ImportResult.Done(3), result)
+            assertEquals(ImportResult.Done(3, alertsChanged = true), result)
             assertEquals(6.0, b.repo.flow(graphHours).first(), 0.0)
             assertFalse(b.repo.flow(side).first())
             assertTrue(b.repo.flow(nostr).first())

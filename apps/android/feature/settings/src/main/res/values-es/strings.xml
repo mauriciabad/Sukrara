@@ -222,7 +222,7 @@
     <string name="st_sensor_core_missing_text">Esta versión no puede leer el Libre 3 por sí misma. Juggluco puede leerlo para Sukrara.</string>
     <string name="st_sensor_this_phone">Este teléfono</string>
     <string name="st_sensor_open_on_scan">Abrir Sukrara al escanear un sensor</string>
-    <string name="st_sensor_open_on_scan_summary">Si no está ya abierta: el emparejamiento empieza enseguida</string>
+    <string name="st_sensor_open_on_scan_summary">Tocar un sensor abre el emparejamiento si no se está leyendo ninguno</string>
     <string name="st_sensor_open_on_scan_blocked">Android bloquea los toques NFC de Sukrara</string>
     <string name="st_sensor_open_on_scan_allow">Permitir los toques NFC en los ajustes de Android</string>
     <string name="st_sensor_forget">Olvidar este sensor</string>

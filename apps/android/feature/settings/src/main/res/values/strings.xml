@@ -222,7 +222,7 @@
     <string name="st_sensor_core_missing_text">This build can’t read the Libre 3 itself. Juggluco can read it for Sukrara.</string>
     <string name="st_sensor_this_phone">This phone</string>
     <string name="st_sensor_open_on_scan">Open Sukrara when you scan a sensor</string>
-    <string name="st_sensor_open_on_scan_summary">When it isn\'t already open: pairing starts right away</string>
+    <string name="st_sensor_open_on_scan_summary">A sensor tap opens pairing when no sensor is being read</string>
     <string name="st_sensor_open_on_scan_blocked">Android blocks Sukrara\'s NFC taps</string>
     <string name="st_sensor_open_on_scan_allow">Allow NFC taps in Android\'s settings</string>
     <string name="st_sensor_forget">Forget this sensor</string>
