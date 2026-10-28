@@ -21,6 +21,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -55,6 +56,8 @@ data class Banner(
     val onAction: () -> Unit,
     val onDismiss: (() -> Unit)?,
     val severity: BannerSeverity = BannerSeverity.Info,
+    /** A second, quieter way out next to the action (*Turn off*), a text button before it. */
+    val secondary: Pair<String, () -> Unit>? = null,
 ) {
     init {
         require(action != null || onDismiss != null) { "banner $id has no way out: give it an action or a dismiss" }
@@ -124,6 +127,7 @@ private fun BannerCard(b: Banner) {
                             Text(label)
                         }
                     } else {
+                        b.secondary?.let { (text, onClick) -> TextButton(onClick = onClick) { Text(text) } }
                         FilledTonalButton(onClick = b.onAction) { Text(label) }
                     }
                 }

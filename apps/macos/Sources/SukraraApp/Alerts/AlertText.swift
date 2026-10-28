@@ -22,9 +22,15 @@ struct AlertText: Equatable {
         return AlertText(language: spoken ?? .en)
     }
 
-    /// "Low · 62 mg/dL ↓" (no reading: just the meaning).
+    /// "Low · 62 mg/dL ↓" (no reading: just the meaning); the sensor's LO / HI as such, never its stored 39 / 401.
     func title(_ f: AlertFiring) -> String {
         guard let r = f.reading, f.kind != .noData else { return headline(f) }
+        if r.isLo {
+            return "\(headline(f)) · LO · " + (language == .en ? "below 40 mg/dL" : "por debajo de 40 mg/dL")
+        }
+        if r.isHi {
+            return "\(headline(f)) · HI · " + (language == .en ? "above 400 mg/dL" : "por encima de 400 mg/dL")
+        }
         return "\(headline(f)) · \(Int(r.mgdl.rounded())) mg/dL \(TrendAngle.text(r.rate))"
     }
 

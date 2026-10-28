@@ -3,23 +3,35 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.feature.settings.pens
 
+import android.widget.Toast
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.compose.LifecycleEventEffect
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
 import app.mauri.sukrara.core.data.settings.SchemaSettings
 import app.mauri.sukrara.core.data.settings.Setting
+import app.mauri.sukrara.core.model.PenInfo
+import app.mauri.sukrara.core.model.PenTaps
+import app.mauri.sukrara.core.model.PensPort
 import app.mauri.sukrara.core.model.storage.SettingsRepository
 import app.mauri.sukrara.designsystem.dialog.Choice
 import app.mauri.sukrara.designsystem.dialog.ChoiceDialog
 import app.mauri.sukrara.designsystem.dialog.NumberDialog
 import app.mauri.sukrara.designsystem.dialog.NumberInput
 import app.mauri.sukrara.designsystem.rows.FooterText
+import app.mauri.sukrara.designsystem.rows.InfoRow
+import app.mauri.sukrara.designsystem.rows.NavigationRow
 import app.mauri.sukrara.designsystem.rows.SettingsGroup
+import app.mauri.sukrara.designsystem.rows.SplitSwitchRow
 import app.mauri.sukrara.designsystem.rows.SwitchRow
 import app.mauri.sukrara.designsystem.rows.ValueRow
 import app.mauri.sukrara.feature.settings.R
@@ -27,9 +39,11 @@ import app.mauri.sukrara.feature.settings.SettingsPage
 import app.mauri.sukrara.feature.settings.numberLabeler
 import app.mauri.sukrara.settings.NumberSpec
 import app.mauri.sukrara.settings.SettingsSpec
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -59,21 +73,61 @@ data class PensUi(
     val reading: String,
     val notify: Boolean,
     val rules: List<Double>,
+    val pens: List<PenInfo> = emptyList(),
+    val taps: PenTaps = PenTaps(blocked = false, nfcOff = false, notifyBlocked = false),
 )
 
 class PensViewModel(
     private val settings: SettingsRepository,
+    private val port: PensPort?,
 ) : ViewModel() {
+    private val taps = MutableStateFlow(port?.taps() ?: PenTaps(blocked = false, nfcOff = false, notifyBlocked = false))
+
+    /** Switched On while Android blocked the taps: Android's screen was opened (the page says how it went on return). */
+    private var askedAllow = false
+    private val _allowResult = MutableStateFlow<Boolean?>(null)
+    val allowResult: StateFlow<Boolean?> = _allowResult
+
     val ui: StateFlow<PensUi?> =
         combine(
             settings.flow(Reading),
             settings.flow(Notify),
             combine(Rules.map { settings.flow(it.setting) }) { it.toList() },
-        ) { r, n, rules -> PensUi(r, n, rules) }
+            port?.pens ?: flowOf(emptyList()),
+            taps,
+        ) { r, n, rules, pens, t -> PensUi(r, n, rules, pens, t) }
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    /** Android's NFC, tag-intent and notification state changes outside the app: read again on every resume. */
+    fun refresh() {
+        val now = port?.taps() ?: return
+        taps.value = now
+        if (askedAllow) {
+            askedAllow = false
+            _allowResult.value = !now.blocked
+        }
+    }
+
+    fun allowShown() {
+        _allowResult.value = null
+    }
 
     fun setReading(value: String) {
         viewModelScope.launch { settings.set(Reading, value) }
+        // switched on while Android blocks the taps: straight to Android's allow screen, once
+        if (value == "on" && taps.value.blocked && port?.openTagSettings() == true) askedAllow = true
+    }
+
+    fun allowTaps() {
+        port?.openTagSettings()
+    }
+
+    fun openNfc() {
+        port?.openNfcSettings()
+    }
+
+    fun openNotify() {
+        port?.openNotifySettings()
     }
 
     fun setNotify(on: Boolean) {
@@ -102,7 +156,18 @@ fun PensContent(
     ui: PensUi,
     vm: PensViewModel,
     onBack: () -> Unit,
+    openPen: (String) -> Unit = {},
 ) {
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { vm.refresh() }
+    val allowResult by vm.allowResult.collectAsStateWithLifecycle()
+    val context = LocalContext.current
+    val allowedText = stringResource(R.string.st_pens_taps_allowed)
+    val stillText = stringResource(R.string.st_pens_taps_still_blocked)
+    LaunchedEffect(allowResult) {
+        val r = allowResult ?: return@LaunchedEffect
+        Toast.makeText(context, if (r) allowedText else stillText, Toast.LENGTH_SHORT).show()
+        vm.allowShown()
+    }
     var choosing by rememberSaveable { mutableStateOf(false) }
     var editing by rememberSaveable { mutableStateOf(-1) }
     var resetting by rememberSaveable { mutableStateOf(false) }
@@ -114,16 +179,40 @@ fun PensContent(
             "off" to stringResource(R.string.st_pens_reading_off),
         )
     SettingsPage(stringResource(R.string.st_pens_title), onBack) {
+        // Android blocks the taps (reading Ask or On): every tap does nothing until allowed
+        if (ui.reading != "off" && ui.taps.blocked) TapsBlockedCard(vm::allowTaps)
         SettingsGroup {
             ValueRow(stringResource(R.string.st_pens_reading), readingLabels.getValue(ui.reading), { choosing = true })
-            SwitchRow(
-                stringResource(R.string.st_pens_notify),
-                ui.notify,
-                vm::setNotify,
-                summary = stringResource(R.string.st_pens_notify_summary),
-            )
+            if (ui.reading != "off" && ui.taps.nfcOff) {
+                NavigationRow(
+                    stringResource(R.string.st_pens_nfc_off),
+                    vm::openNfc,
+                    summary = stringResource(R.string.st_pens_nfc_off_summary),
+                )
+            }
+            if (ui.notify && ui.taps.notifyBlocked) {
+                // on but blocked in Android: the row opens the channel's settings, the switch still turns it off
+                SplitSwitchRow(
+                    stringResource(R.string.st_pens_notify),
+                    true,
+                    vm::setNotify,
+                    vm::openNotify,
+                    summary = stringResource(R.string.st_pens_notify_blocked),
+                )
+            } else {
+                SwitchRow(
+                    stringResource(R.string.st_pens_notify),
+                    ui.notify,
+                    vm::setNotify,
+                    summary = stringResource(R.string.st_pens_notify_summary),
+                )
+            }
         }
         FooterText(stringResource(R.string.st_pens_reading_footer))
+        SettingsGroup(title = stringResource(R.string.st_pens_yours)) {
+            if (ui.pens.isEmpty()) InfoRow(stringResource(R.string.st_pens_none), summary = stringResource(R.string.st_pens_none_summary))
+            for (p in ui.pens) NavigationRow(p.name, { openPen(p.serial) }, summary = penSummary(p))
+        }
         SettingsGroup(title = stringResource(R.string.st_pens_detection)) {
             Rules.forEachIndexed { i, r -> ValueRow(stringResource(r.title), label(r.spec, ui.rules[i]), { editing = i }) }
             ValueRow(

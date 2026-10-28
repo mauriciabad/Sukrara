@@ -95,6 +95,11 @@ internal object AidexX {
     const val OP_START_TIME = 0x21
     const val OP_GLUCOSE = 0x11
 
+    /** A "current" frame on the key characteristic (decrypted, CRC removed): its type byte, then 14 bytes. */
+    const val CURRENT_SIZE = 15
+    const val CURRENT_VALUE = 1
+    const val CURRENT_ENDED = 3
+
     /** 8 bytes: minutes since start u16, status, cal/temp, trend (0.1 mg/dL/min), glucose u16 (10 bits + valid), quality. */
     data class Glucose(
         val minutesSinceStart: Int,
@@ -116,6 +121,9 @@ internal object AidexX {
                 if (plain.size < 2 + SIZE || plain.u8(0) != OP_GLUCOSE) null else parse(plain, 2)
 
             const val SIZE = 8
+
+            /** Status bytes recorded with good values (0 in the 0x11 reply, 1 in the advertisement). */
+            val KNOWN_GOOD_STATUS = setOf(0, 1)
 
             fun parse(b: ByteArray, at: Int): Glucose? {
                 if (b.size < at + SIZE) return null

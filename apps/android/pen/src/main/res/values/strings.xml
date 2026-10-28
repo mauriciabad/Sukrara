@@ -83,9 +83,12 @@
     </plurals>
     <string name="pen_read_clock_held">Not logged: %1$s. Check its doses.</string>
     <string name="pen_untested_title">Untested pen</string>
-    <string name="pen_untested_text">Sukrara doesn\'t log %1$s yet: it hasn\'t been checked with a real pen. Type its doses by hand.</string>
     <string name="pen_card_close">Close</string>
     <string name="pen_card_label">Pen read</string>
     <string name="pen_undo_failed">Couldn\'t undo</string>
     <string name="pen_undo_failed_text">Something changed since that read. Check your treatments in Sukrara.</string>
+    <string name="pen_untested_check_text">Sukrara logs nothing from %1$s until you check it once against the pen\'s display.</string>
+    <string name="pen_check_it">Check it</string>
+    <string name="pen_notusable_title">Pen not usable</string>
+    <string name="pen_notusable_text">%1$s didn\'t match its display, so Sukrara logs nothing from it. Type its doses by hand.</string>
 </resources>

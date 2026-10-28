@@ -115,8 +115,8 @@ enum A11y {
             guard let r = data.latest else { return w.noReadings }
             let number =
                 switch r.sgv {
-                case ..<40: "\(w.below) \(unit.format(40)) \(w.unit(unit))"
-                case 401...: "\(w.above) \(unit.format(400)) \(w.unit(unit))"
+                case ..<GlucoseRange.floor: "\(w.below) \(unit.format(GlucoseRange.floor)) \(w.unit(unit))"
+                case GlucoseRange.hi...: "\(w.above) \(unit.format(GlucoseRange.ceiling)) \(w.unit(unit))"
                 default: "\(look.text ?? GlucoseCard.noValueText) \(w.unit(unit))"
                 }
             let parts = [

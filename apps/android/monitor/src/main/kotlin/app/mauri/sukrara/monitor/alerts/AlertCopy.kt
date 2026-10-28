@@ -4,6 +4,7 @@
 package app.mauri.sukrara.monitor.alerts
 
 import app.mauri.sukrara.alerts.AlertKind
+import app.mauri.sukrara.alerts.AlertReading
 import app.mauri.sukrara.alerts.Firing
 import app.mauri.sukrara.core.model.Durations
 import app.mauri.sukrara.designsystem.alerts.AlertWords
@@ -22,10 +23,10 @@ object AlertCopy {
         val r = f.reading
         if (f.kind == AlertKind.NO_DATA) {
             val since = Durations.text(((f.at - (r?.t ?: f.at)) / 60).coerceAtLeast(f.threshold.toLong()), w.durations)
-            return if (r == null) w.get("alert_text_no_data").format(since) else w.get("alert_text_no_data_last").format(since, r.mgdl)
+            return if (r == null) w.get("alert_text_no_data").format(since) else w.get("alert_text_no_data_last").format(since, value(r, w))
         }
         if (r == null) return w.get("alert_text_no_reading")
-        val value = w.get("alert_text_value").format(r.mgdl, TrendAngle.text(r.rate))
+        val value = w.get("alert_text_value").format(value(r, w), TrendAngle.text(r.rate))
         val rate = r.rate?.let { String.format(Locale.getDefault(), "%.1f", kotlin.math.abs(it)) } ?: return value
         return when (f.kind) {
             AlertKind.FALLING_FAST -> w.get("alert_text_falling").format(value, rate)
@@ -33,4 +34,12 @@ object AlertCopy {
             else -> value
         }
     }
+
+    /** `69 mg/dL`, or the sensor's LO / HI with what it means (never its stored 39 / 401). */
+    private fun value(r: AlertReading, w: AlertWords): String =
+        when {
+            r.isLo -> w.get("alert_text_lo")
+            r.isHi -> w.get("alert_text_hi")
+            else -> w.get("alert_text_mgdl").format(r.mgdl)
+        }
 }

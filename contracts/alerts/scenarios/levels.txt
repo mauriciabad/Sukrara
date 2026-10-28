@@ -51,3 +51,34 @@ scenario A reading older than 15 min never alerts
  1  sensor off
  4               => No glucose data   # but no data counts from it
  5
+
+# LO / HI: the sensor's "below / above my range" (39 / 401 mg/dL, SPEC §1). Its real value is beyond every threshold,
+# so it matches every low / high kind and the most severe one turned on alerts at once (no waiting for no data).
+
+scenario LO is below every low threshold: very low at once
+ 0  glucose 80
+ 1  glucose 39   => Very low glucose          # LO
+ 2
+
+scenario LO with very low turned off is low
+settings very_low=off low=50
+ 0  glucose 39   => Low glucose
+ 1
+
+scenario HI is above every high threshold: extremely high at once, whatever its threshold
+settings extremely_high=450
+ 0  glucose 200  => High glucose
+ 1  glucose 401  => clear high; Extremely high glucose   # HI: 401 < 450, still above it
+ 6               => Extremely high glucose               # its 5-min repeat
+ 7
+
+scenario HI with extremely high turned off is the most severe high still on
+settings extremely_high=off very_high=400
+ 0  glucose 401  => Very high glucose
+ 1
+
+scenario A HI is never back in range by the margin: the high's mute holds while the sensor says HI
+settings high=off very_high=off extremely_high=450
+ 0  glucose 401  => Extremely high glucose        # HI
+ 1  mute high    => clear extremely_high          # muted for 30 min
+20                                                # 401 < 450 − 10, but a HI is no "back by the margin"

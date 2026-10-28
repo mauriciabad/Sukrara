@@ -2,6 +2,7 @@
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
 import Foundation
+import SukraraCore
 
 /// A glucose reading as the rules see it: when it was taken, mg/dL, and its trend in mg/dL/min (nil = unknown).
 public struct GlucoseSample: Codable, Equatable, Sendable {
@@ -14,6 +15,12 @@ public struct GlucoseSample: Codable, Equatable, Sendable {
         self.mgdl = mgdl
         self.rate = rate
     }
+
+    /// The sensor's LO (below what it measures): below every low threshold (SPEC §1).
+    public var isLo: Bool { GlucoseRange.isLo(mgdl) }
+
+    /// The sensor's HI (above what it measures): above every high threshold.
+    public var isHi: Bool { GlucoseRange.isHi(mgdl) }
 }
 
 /// A logged treatment that can quiet alerts (deleted entries are never passed in).

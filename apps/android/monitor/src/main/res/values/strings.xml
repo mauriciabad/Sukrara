@@ -30,12 +30,15 @@
     <string name="alert_context_eat_more_again">eat more again</string>
     <string name="alert_context_after_insulin">still high after insulin</string>
     <string name="alert_context_after_more_insulin">still high after more insulin</string>
-    <string name="alert_text_value">%1$d mg/dL %2$s</string>
+    <string name="alert_text_value">%1$s %2$s</string>
+    <string name="alert_text_mgdl">%1$d mg/dL</string>
+    <string name="alert_text_lo">LO · below 40 mg/dL</string>
+    <string name="alert_text_hi">HI · above 400 mg/dL</string>
     <string name="alert_text_falling">%1$s · falling %2$s mg/dL/min</string>
     <string name="alert_text_rising">%1$s · rising %2$s mg/dL/min</string>
     <string name="alert_text_no_reading">No recent reading</string>
     <string name="alert_text_no_data">No reading for %1$s</string>
-    <string name="alert_text_no_data_last">No reading for %1$s · last %2$d mg/dL</string>
+    <string name="alert_text_no_data_last">No reading for %1$s · last %2$s</string>
     <string name="alert_relaxed_subtext">Reminders every %1$s</string>
 
     <!-- Alert notification actions (work from the lock screen; nothing opens). -->

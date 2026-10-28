@@ -67,6 +67,7 @@ class PenNotices(
             is PenAction.Suggest -> a.label
             is PenAction.AllPriming -> ctx.getString(R.string.pen_all_priming)
             is PenAction.Same -> ctx.getString(if (a.entry != null) R.string.pen_m_same else R.string.pen_m_different)
+            is PenAction.OpenPen -> ctx.getString(R.string.pen_check_it)
         }
 
     /** One read's result, only when [enabled] (Settings → Insulin pens → *Notification after each read*). */
@@ -162,6 +163,17 @@ class PenNotices(
         /** The quick Add treatment dialog over the current app. */
         fun addTreatment(ctx: Context): Intent =
             Intent(NavTargets.ACTION_QUICK_TREATMENT).setPackage(ctx.packageName).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+
+        /** Settings › Insulin pens › this pen (the app's main screen). */
+        fun penPage(
+            ctx: Context,
+            serial: String,
+        ): Intent =
+            // the app's own main activity, explicitly (no intent filter: nothing else can open it this way)
+            (ctx.packageManager.getLaunchIntentForPackage(ctx.packageName) ?: Intent().setPackage(ctx.packageName))
+                .setAction(NavTargets.ACTION_PEN_PAGE)
+                .putExtra(NavTargets.EXTRA_PEN_SERIAL, serial)
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
     }
 }
 

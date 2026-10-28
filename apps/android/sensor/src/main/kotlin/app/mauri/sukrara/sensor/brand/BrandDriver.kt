@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.sensor.brand
 
+import app.mauri.sukrara.core.model.GlucoseRange
 import app.mauri.sukrara.core.model.Reading
 import app.mauri.sukrara.sensor.SensorProfile
 import app.mauri.sukrara.sensor.ble.BleLink
@@ -33,8 +34,9 @@ internal data class ScanSpec(val service: UUID? = null, val name: String? = null
  * ever tested on a real sensor: the decoding is pinned by open-source recorded frames.
  *
  * Reading rules (the person acts on these values):
- * - a value is only ever the sensor's own number, in its [validMgdl] range; outside it the status says "below / above
- *   the sensor's range" and no number is made up;
+ * - a value is only ever the sensor's own number, in its [validMgdl] range; below it the reading is the flagged LO,
+ *   above it HI ([Reading.lo] / [Reading.hi]: the card says "LO" / "HI", the alerts treat it as beyond every
+ *   threshold), never a made-up number; 0 (no number at all) is no value;
  * - its time comes from the sensor's own clock; one in the future is dropped, one older than [LIVE_S] is history
  *   (never the current value the alerts read).
  */
@@ -52,6 +54,9 @@ internal abstract class BrandDriver(
     /** Should the source connect to this device? */
     abstract fun matches(advert: Advert): Boolean
 
+    /** [matches], and not a device this pairing skips ([Pairing.skipAddresses]: an old sensor). */
+    fun accepts(advert: Advert): Boolean = advert.address.uppercase() !in pairing.skipAddresses && matches(advert)
+
     /** A scan result that passed [scan], before [matches]: [record] is the raw advertising data (Aidex X carries values). */
     open fun onAdvertisement(
         advert: Advert,
@@ -60,6 +65,12 @@ internal abstract class BrandDriver(
 
     /** The range the family's sensor reports numbers in (mg/dL). */
     protected open val validMgdl: IntRange = 39..501
+
+    /**
+     * Numbers that are a measurement at all: outside, the field holds a code or garbage, not glucose (no value, never
+     * a LO / HI that would sound the very low alarm). Inside but outside [validMgdl]: LO / HI.
+     */
+    protected open val plausibleMgdl: IntRange = 1..Int.MAX_VALUE
 
     protected var link: BleLink? = null
 
@@ -87,17 +98,29 @@ internal abstract class BrandDriver(
         return startEpoch
     }
 
-    /** A value from the sensor measured at [epochSec]: live when recent, else history; out of range → no number. */
+    /** A value from the sensor measured at [epochSec]: live when recent, else history; out of range → LO / HI. */
     protected fun reading(
         epochSec: Long,
         mgdl: Int,
         rate: Double?,
     ) {
-        if (mgdl < validMgdl.first) return events.onStatus(LinkStatus.NoValue(NoValueReason.BelowRange))
-        if (mgdl > validMgdl.last) return events.onStatus(LinkStatus.NoValue(NoValueReason.AboveRange))
+        val r = toReading(epochSec, mgdl, rate) ?: return events.onStatus(LinkStatus.NoValue(NoValueReason.Missing))
+        deliver(r)
+    }
+
+    /** The sensor's own "below / above my range" flag at [epochSec] (no number): a LO / HI reading. */
+    protected fun outOfRange(
+        epochSec: Long,
+        high: Boolean,
+    ) {
+        val t = Instant.ofEpochSecond(epochSec)
+        deliver(if (high) Reading.hi(t, profile.source) else Reading.lo(t, profile.source))
+    }
+
+    private fun deliver(r: Reading) {
         val now = now()
+        val epochSec = r.t.epochSecond
         if (epochSec > now + FUTURE_SLACK_S) return log("dropping a reading ${epochSec - now} s in the future")
-        val r = Reading(Instant.ofEpochSecond(epochSec), mgdl, rate, profile.source)
         if (now - epochSec <= LIVE_S) {
             events.onStatus(LinkStatus.Live)
             events.onReading(r)
@@ -106,14 +129,38 @@ internal abstract class BrandDriver(
         }
     }
 
-    /** Stored values (backfill): history only, each through the same range and time rules. */
+    /**
+     * Stored values (backfill): history only, numbers in [validMgdl] (a stored record carries no LO / HI flag of its
+     * own, so an out-of-range number there is left out rather than guessed into one).
+     */
     protected fun history(values: List<Triple<Long, Int, Double?>>) {
         val now = now()
         val ok =
             values
-                .filter { (t, mgdl, _) -> mgdl in validMgdl && t <= now + FUTURE_SLACK_S }
+                .filter { (t, mgdl, _) -> shown(mgdl) && t <= now + FUTURE_SLACK_S }
                 .map { (t, mgdl, rate) -> Reading(Instant.ofEpochSecond(t), mgdl, rate, profile.source) }
         if (ok.isNotEmpty()) events.onHistory(ok)
+    }
+
+    /** A number shown as itself: in the family's range and in the shown range ([GlucoseRange]). */
+    private fun shown(mgdl: Int) = mgdl in validMgdl && !GlucoseRange.isLo(mgdl) && !GlucoseRange.isHi(mgdl)
+
+    /**
+     * The sensor's number as a reading: below [validMgdl] or the shown range the flagged LO, above them HI (always
+     * 39 / 401 without a rate, whatever the family's range); outside [plausibleMgdl] none.
+     */
+    private fun toReading(
+        epochSec: Long,
+        mgdl: Int,
+        rate: Double?,
+    ): Reading? {
+        val t = Instant.ofEpochSecond(epochSec)
+        return when {
+            mgdl !in plausibleMgdl -> null
+            mgdl < validMgdl.first || GlucoseRange.isLo(mgdl) -> Reading.lo(t, profile.source)
+            mgdl > validMgdl.last || GlucoseRange.isHi(mgdl) -> Reading.hi(t, profile.source)
+            else -> Reading(t, mgdl, rate, profile.source)
+        }
     }
 
     /** The sensor said its session is over for good: no more connections until a new sensor is paired. */
@@ -133,6 +180,13 @@ internal abstract class BrandDriver(
         log("sensor: $why")
         link?.close()
         events.onStatus(LinkStatus.Failed(reason))
+    }
+
+    /** This device isn't the pairing's sensor (an old one the scan found first): close, the source skips it. */
+    protected fun wrongDevice(why: String) {
+        log("sensor: not this pairing's sensor ($why): skipping it")
+        link?.close()
+        events.onWrongDevice()
     }
 
     /** A transient problem: drop the connection, the transport reconnects. */

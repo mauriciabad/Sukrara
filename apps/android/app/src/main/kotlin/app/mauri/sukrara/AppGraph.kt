@@ -13,11 +13,13 @@ import app.mauri.sukrara.core.data.settings.SchemaSettings
 import app.mauri.sukrara.core.model.Clock
 import app.mauri.sukrara.core.model.DefaultDispatchers
 import app.mauri.sukrara.core.model.DispatcherProvider
+import app.mauri.sukrara.core.model.PenDuplicates
 import app.mauri.sukrara.core.model.ReadingSource
 import app.mauri.sukrara.core.model.Role
 import app.mauri.sukrara.core.model.SystemClock
 import app.mauri.sukrara.core.model.Treatment
 import app.mauri.sukrara.core.model.storage.TreatmentRecord
+import app.mauri.sukrara.feature.home.banners.BannerKind
 import app.mauri.sukrara.feature.sensor.SensorUiModule
 import app.mauri.sukrara.feature.settings.AlertPlayback
 import app.mauri.sukrara.feature.settings.AlertSettingsStore
@@ -218,6 +220,12 @@ class AppGraph(
             sensor = monitor.hub.state.map { it.sensor },
             systemAccess = monitor.systemAccess,
             pensAvailable = { pens.available() },
+            pens = { pens.port.takeIf { pens.available() } },
+            clinicBanner =
+                combine(integrations.clinicUploadSet, home.bannerMemory.data) { set, memory ->
+                    set == false && !memory.dismissed(BannerKind.ShareWithClinic, clock.now())
+                },
+            dismissClinicBanner = { scope.launch { home.bannerMemory.update { it.dismiss(BannerKind.ShareWithClinic, clock.now()) } } },
             alertPlayback =
                 object : AlertPlayback {
                     override fun play(
@@ -364,6 +372,9 @@ class AppGraph(
             },
             treatmentLog = { treatments.log },
             sharing = { shareOwner.ownerEngine.state },
+            penTapsBlocked = { pens.tapsBlockedWhileOn() },
+            clinicUploadSet = { integrations.clinicUploadSet },
+            clinicMarks = { integrations.libreView.entryMarks.map { m -> m?.let(::LibreViewMarks) } },
         )
     }
 
@@ -424,6 +435,8 @@ class AppGraph(
             data.settings,
             scope,
             hints = AppAlertHints(alerts.store.settings.stateIn(scope, SharingStarted.Eagerly, null), home.glucose, clock),
+            // read when the dialog saves (the pens module is built on first use, after this one)
+            penDuplicates = PenDuplicates { kind, at -> pens.duplicates.near(kind, at) },
         )
     }
 
@@ -448,6 +461,7 @@ class AppGraph(
         PensModule(
             context = app,
             store = data.typedStore("pens", Ledger.serializer(), Ledger(), whenCorrupt = Ledger()),
+            logChanges = data.treatments.between(Instant.EPOCH, Instant.parse("2200-01-01T00:00:00Z")),
             log =
                 object : PenLog {
                     override suspend fun all() = data.treatments.changedSince(Instant.EPOCH)

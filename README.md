@@ -33,6 +33,8 @@ The full catalog, with every rule and number, is [docs/FEATURES.md](docs/FEATURE
 - **Other sensors, untested**: Dexcom G7 / ONE+ / Stelo (read along with the Dexcom app), Dexcom G6 / ONE, Accu-Chek
   SmartGuide and Aidex X / LinX / GlucoRx. They were never tested with a real sensor: the new sensor screen tags them
   *Untested* and asks you to confirm before pairing.
+- **LO / HI** from any sensor show as *LO* / *HI*, never a made-up number, and sound the very low / extremely high
+  alert at once (Android and Mac).
 - A guided **new sensor** screen: which sensor, warm-up countdown, every failure handled on the same screen
   (ended sensor, Libre 1/2, another app holding the sensor, Bluetooth off, a wrong ID or PIN).
 - **Settings › Sensor**: the current sensor (status, serial, start, end and time left), the reading source (Libre 3
@@ -71,7 +73,10 @@ The full catalog, with every rule and number, is [docs/FEATURES.md](docs/FEATURE
   per place, slots, ring order, treatments on the graph, sensor time; your card live on top), lock screen
   *Time to save*, sensor, and About with an update check against this repo's releases.
 - **Insulin pens** (NovoPen Echo Plus, NFC): hold the pen to the unlocked phone from any app and Sukrara logs the
-  insulin you injected, priming kept apart, never twice (a typed dose is replaced), with *Undo*; it asks when unsure.
+  insulin you injected, priming kept apart, never twice (a typed dose is replaced, a typed duplicate asks *Already logged
+  by your pen?*), with *Undo*; it asks when unsure. Settings › Insulin pens lists your pens: each pen's page (name,
+  insulin type, forget), its *Doses read* with per-dose *Priming* / *Injected* corrections, the untested NovoPen 6's
+  display check, and what Android blocks (tag intents, NFC off) with the way to fix it.
 - **Sharing core**: your sharing identity, restorable from its recovery code so existing followers keep following;
   readings and alerts go to approved followers over Nostr relays (protocol v2). If another device is publishing as
   the same identity, Sukrara stops and says so instead of fighting it.
@@ -94,7 +99,8 @@ The full catalog, with every rule and number, is [docs/FEATURES.md](docs/FEATURE
   Bluetooth, without internet. Add entries when they let you;
   notifications say when an invite was used, declined or your access removed; *Stop following* in Settings › Sharing.
 - **Share with apps**: upload your Libre 3 glucose and entries to **LibreView** for your clinic (password used once,
-  never saved; asks before taking over another uploading device; only from the moment you switch it on), to your own **Nightscout** site (https, access token kept encrypted; 30-day catch-up,
+  never saved; asks before taking over another uploading device; only from the moment you switch it on; a cloud on each
+  entry on home says whether LibreView has it; a home banner suggests it until set up), to your own **Nightscout** site (https, access token kept encrypted; 30-day catch-up,
   pauses when another app uploads to the same site), an **xDrip+-compatible server** on this phone for **Garmin**
   watches (off until you switch it on; loopback only), and **Export data** as a LibreView-layout CSV to save or share.
 - English and Spanish (Spain) everywhere.

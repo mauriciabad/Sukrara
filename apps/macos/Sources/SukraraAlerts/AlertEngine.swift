@@ -108,11 +108,14 @@ public struct AlertEngine: Sendable {
     /// Mute all's end in force at `t` (nil = off).
     public func muteAllEnd(at t: Date) -> Date? { muteAllUntil.flatMap { $0 > t ? $0 : nil } }
 
-    /// The level kind `reading` is in at `t`, or nil (stale, in range, alerts off). Lows `<`, highs `>=`.
+    /// The level kind `reading` is in at `t`, or nil (stale, in range, alerts off). Lows `<`, highs `>=`; a LO
+    /// matches every low kind and a HI every high kind, whatever the thresholds (its real value is beyond them all).
     public static func level(of reading: GlucoseSample?, _ s: AlertSettings, at t: Date) -> AlertKind? {
         guard let r = reading, s.on, t.timeIntervalSince(r.at) <= freshness else { return nil }
         return AlertKind.levelsByPriority.first { k in
-            s[k].on && (k.isBelowThreshold ? r.mgdl < s[k].threshold : r.mgdl >= s[k].threshold)
+            s[k].on
+                && (k.isBelowThreshold
+                    ? r.isLo || r.mgdl < s[k].threshold : r.isHi || r.mgdl >= s[k].threshold)
         }
     }
 
@@ -310,7 +313,9 @@ public struct AlertEngine: Sendable {
     /// Minutes until back below the high threshold, if the current fall gets there within the falling rule's window.
     private func fallingBackMinutes(_ k: AlertKind) -> Int? {
         let s = settings
-        guard let r = context.latest, let v = r.rate, s.muteFallingHigh.on, k == .high || k == .veryHigh, v < 0 else {
+        // a HI's real value is unknown: no prediction from it
+        guard let r = context.latest, let v = r.rate, !r.isHi, s.muteFallingHigh.on, k == .high || k == .veryHigh, v < 0
+        else {
             return nil
         }
         let high = s[.high].threshold

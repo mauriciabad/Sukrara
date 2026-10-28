@@ -66,6 +66,7 @@ import app.mauri.sukrara.integrations.libreview.LibreViewPage
 import app.mauri.sukrara.integrations.nightscout.NightscoutPage
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
 import app.mauri.sukrara.feature.settings.R as SettingsR
 import app.mauri.sukrara.feature.sharing.R as SharingR
@@ -129,9 +130,12 @@ data object LibreViewRoute : NavKey
 data class SettingsKey(
     val page: String,
     val kind: String? = null,
+    val serial: String? = null,
 ) : NavKey {
     fun route(): SettingsRoute =
         when (page) {
+            "pen" -> serial?.let(SettingsRoute::Pen) ?: SettingsRoute.Pens
+            "pendoses" -> serial?.let(SettingsRoute::PenDoses) ?: SettingsRoute.Pens
             "alerts" -> SettingsRoute.Alerts
             "kind" -> kind?.let(AlertKind::fromWire)?.let(SettingsRoute::AlertKindPage) ?: SettingsRoute.Alerts
             "ranges" -> SettingsRoute.Ranges
@@ -158,6 +162,8 @@ data class SettingsKey(
                 SettingsRoute.GraphMarks -> SettingsKey("marks")
                 SettingsRoute.LockScreen -> SettingsKey("lock")
                 SettingsRoute.Pens -> SettingsKey("pens")
+                is SettingsRoute.Pen -> SettingsKey("pen", serial = route.serial)
+                is SettingsRoute.PenDoses -> SettingsKey("pendoses", serial = route.serial)
                 SettingsRoute.Reliability -> SettingsKey("reliability")
                 SettingsRoute.StatusBar -> SettingsKey("statusbar")
                 SettingsRoute.SensorEnd -> SettingsKey("sensorend")
@@ -194,8 +200,21 @@ fun SukraraNavigation(
     openNewSensor: Boolean,
     onNewSensorShow: () -> Unit,
     modifier: Modifier = Modifier,
+    openPen: String? = null,
+    onPenShow: () -> Unit = {},
 ) {
     val backStack = rememberNavBackStack(HomeRoute)
+    // the pen read card's *Check it*: Settings › Insulin pens › that pen, on top of what is open
+    val penShown by rememberUpdatedState(onPenShow)
+    LaunchedEffect(openPen) {
+        val serial = openPen ?: return@LaunchedEffect
+        val page = SettingsKey("pen", serial = serial)
+        if (backStack.last() != page) {
+            if (SettingsKey("pens") !in backStack) backStack.add(SettingsKey("pens"))
+            backStack.add(page)
+        }
+        penShown()
+    }
     // a request (a notification tap, also while the app is open) opens the flow once, on top of home
     val newSensorShown by rememberUpdatedState(onNewSensorShow)
     LaunchedEffect(openNewSensor) {
@@ -357,6 +376,7 @@ fun SukraraNavigation(
                             // Settings › Sharing: share / QR, followers, requests (no identity yet: its Set up opens setup)
                             openSharing = { backStack.push(SharingRoute) },
                             openApps = { backStack.push(AppsRoute) },
+                            openClinicUpload = { backStack.push(LibreViewRoute) },
                             // the Ranges and Graph pages show home's own panel, redrawn as each setting changes
                             preview = { PanelPreview(viewModel(factory = HomeViewModel.factory(graph.home))) },
                         )
@@ -501,9 +521,22 @@ private fun route(
             backStack.push(ShareRoute)
         }
 
-        // its banner stays hidden until the integrations provide the input and the route
+        // LibreView is the clinic upload this app has
         HomeAction.OpenClinicUpload -> {
-            Unit
+            backStack.push(LibreViewRoute)
+        }
+
+        HomeAction.AllowPenTaps -> {
+            context.graph.pens.port
+                .openTagSettings()
+        }
+
+        HomeAction.TurnOffPens -> {
+            val graph = context.graph
+            graph.scope.launch {
+                graph.pens.turnOff()
+                home.refresh()
+            }
         }
     }
 }
