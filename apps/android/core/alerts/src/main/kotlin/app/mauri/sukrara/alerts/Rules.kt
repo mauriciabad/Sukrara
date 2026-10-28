@@ -120,18 +120,21 @@ object Rules {
     fun backBy(side: Side, r: AlertReading, s: AlertSettings): Boolean {
         val margin = s.actions.backMgdl
         return when (side) {
+            // a LO / HI is beyond every threshold: never back in range, whatever the margin's edge
             Side.LOW -> {
-                AlertKind.entries
-                    .filter { it.side == Side.LOW && s.rule(it).on }
-                    .maxOfOrNull { s.rule(it).threshold }
-                    .let { edge -> edge == null || r.mgdl >= edge + margin }
+                !r.isLo &&
+                    AlertKind.entries
+                        .filter { it.side == Side.LOW && s.rule(it).on }
+                        .maxOfOrNull { s.rule(it).threshold }
+                        .let { edge -> edge == null || r.mgdl >= edge + margin }
             }
 
             Side.HIGH -> {
-                AlertKind.entries
-                    .filter { it.side == Side.HIGH && s.rule(it).on }
-                    .minOfOrNull { s.rule(it).threshold }
-                    .let { edge -> edge == null || r.mgdl < edge - margin }
+                !r.isHi &&
+                    AlertKind.entries
+                        .filter { it.side == Side.HIGH && s.rule(it).on }
+                        .minOfOrNull { s.rule(it).threshold }
+                        .let { edge -> edge == null || r.mgdl < edge - margin }
             }
 
             Side.FALLING_FAST -> {

@@ -135,7 +135,7 @@ class PairingStore(private val secure: SecureStore) {
      */
     suspend fun saveScanned(p: Pairing) =
         writes.withLock {
-            val old = (load() as? PairingLoad.Ok)?.pairing?.takeIf { it.profile == p.profile }
+            val old = (load() as? PairingLoad.Ok)?.pairing?.takeIf { it.profile.scanGroup() == p.profile.scanGroup() }
             val skip =
                 when {
                     old == null -> p.skipAddresses
@@ -192,6 +192,9 @@ class PairingStore(private val secure: SecureStore) {
 
     /** The sensor said when its session started (a scanned family): the warm-up and the end count from it. */
     suspend fun setStart(ranWith: Pairing, startEpoch: Long) = updateIf({ it.sameScanned(ranWith) }) { it.copy(startEpoch = startEpoch) }
+
+    /** Families a scan finds the same way (G7 10 d and 15 d / Stelo are one radio family). */
+    private fun SensorProfile.scanGroup(): SensorProfile = if (this == SensorProfile.DexcomG7Long) SensorProfile.DexcomG7 else this
 
     /** The sensor has ended for good: don't connect to it again until a new scan. */
     suspend fun markEnded(ranWith: Pairing) =

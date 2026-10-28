@@ -136,13 +136,16 @@ internal object CgmService {
         }
     }
 
+    /** SFLOAT −INFINITY: with the "below range" warning, the sensor's LO. */
+    const val SFLOAT_MINUS_INFINITY = 0x0802
+
+    /** SFLOAT +INFINITY: with the "above range" warning, the sensor's HI. */
+    const val SFLOAT_PLUS_INFINITY = 0x07FE
+
     /**
      * IEEE 11073-20601 16-bit SFLOAT. The reserved patterns (NaN, ±INFINITY, NRes, reserved) come back as null: they
      * mean "no number", e.g. 0x0802 = −INFINITY = below the sensor's range.
      */
-    const val SFLOAT_MINUS_INFINITY = 0x0802
-    const val SFLOAT_PLUS_INFINITY = 0x07FE
-
     fun sfloat(raw: Int): Float? {
         if (raw in setOf(0x07FF, 0x0800, 0x0801, 0x0802, 0x07FE)) return null
         var mantissa = raw and 0x0FFF

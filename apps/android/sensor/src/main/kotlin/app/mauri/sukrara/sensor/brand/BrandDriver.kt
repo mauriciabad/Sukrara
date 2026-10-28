@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.sensor.brand
 
+import app.mauri.sukrara.core.model.GlucoseRange
 import app.mauri.sukrara.core.model.Reading
 import app.mauri.sukrara.sensor.SensorProfile
 import app.mauri.sukrara.sensor.ble.BleLink
@@ -136,12 +137,18 @@ internal abstract class BrandDriver(
         val now = now()
         val ok =
             values
-                .filter { (t, mgdl, _) -> mgdl in validMgdl && t <= now + FUTURE_SLACK_S }
+                .filter { (t, mgdl, _) -> shown(mgdl) && t <= now + FUTURE_SLACK_S }
                 .map { (t, mgdl, rate) -> Reading(Instant.ofEpochSecond(t), mgdl, rate, profile.source) }
         if (ok.isNotEmpty()) events.onHistory(ok)
     }
 
-    /** The sensor's number as a reading: below [validMgdl] the flagged LO, above it HI; outside [plausibleMgdl] none. */
+    /** A number shown as itself: in the family's range and in the shown range ([GlucoseRange]). */
+    private fun shown(mgdl: Int) = mgdl in validMgdl && !GlucoseRange.isLo(mgdl) && !GlucoseRange.isHi(mgdl)
+
+    /**
+     * The sensor's number as a reading: below [validMgdl] or the shown range the flagged LO, above them HI (always
+     * 39 / 401 without a rate, whatever the family's range); outside [plausibleMgdl] none.
+     */
     private fun toReading(
         epochSec: Long,
         mgdl: Int,
@@ -150,8 +157,8 @@ internal abstract class BrandDriver(
         val t = Instant.ofEpochSecond(epochSec)
         return when {
             mgdl !in plausibleMgdl -> null
-            mgdl < validMgdl.first -> Reading.lo(t, profile.source)
-            mgdl > validMgdl.last -> Reading.hi(t, profile.source)
+            mgdl < validMgdl.first || GlucoseRange.isLo(mgdl) -> Reading.lo(t, profile.source)
+            mgdl > validMgdl.last || GlucoseRange.isHi(mgdl) -> Reading.hi(t, profile.source)
             else -> Reading(t, mgdl, rate, profile.source)
         }
     }

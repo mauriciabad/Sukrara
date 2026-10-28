@@ -20,7 +20,8 @@ Rules: [poc/spikes/alerts/SPEC.md](../poc/spikes/alerts/SPEC.md); timelines: [po
   per scenario from `contracts/alerts/scenarios`).
 - **LO / HI** (Android and Mac, SPEC §1): a sensor's "below / above my range" reading (`sgv < 40` / `> 400`) matches
   every low / every high kind whatever the thresholds, so the most severe one turned on (very low, extremely high)
-  alerts at once instead of waiting for *No glucose data*; never a falling-high prediction from a HI. Alert texts say
+  alerts at once instead of waiting for *No glucose data*; never a falling-high prediction from a HI, and a LO / HI is
+  never "back in range by the margin" (a Mute / Remind less of that side holds). Alert texts say
   *LO · below 40 mg/dL* / *HI · above 400 mg/dL* (es *por debajo de 40* / *por encima de 400*), never 39 / 401, and
   the Nightscout upload and the xDrip+ endpoint compute no slope from or to one (scenarios `levels.txt`).
 - Kinds and defaults (the user's settings): very low < 55 every 5 min (alarm volume), low < 70 every 5 min, high ≥ 180

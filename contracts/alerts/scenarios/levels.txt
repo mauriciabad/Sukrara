@@ -76,3 +76,9 @@ scenario HI with extremely high turned off is the most severe high still on
 settings extremely_high=off very_high=400
  0  glucose 401  => Very high glucose
  1
+
+scenario A HI is never back in range by the margin: the high's mute holds while the sensor says HI
+settings high=off very_high=off extremely_high=450
+ 0  glucose 401  => Extremely high glucose        # HI
+ 1  mute high    => clear extremely_high          # muted for 30 min
+20                                                # 401 < 450 − 10, but a HI is no "back by the margin"
