@@ -1,4 +1,4 @@
-// Sukrara — https://github.com/mauriciabad/Sukrara
+// Sukrara — https://github.com/mauriciabad/sukrara
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
 import Foundation
@@ -195,7 +195,7 @@ public struct AlertPayload: Equatable, Sendable {
 }
 
 /// The wearer's mirrored settings (PROTOCOL-v2 "Settings"). The body is kept as received: mapping `graph` /
-/// `alerts` onto the Mac's settings is the settings layer's job (chunk 15, `WearerSettings`).
+/// `alerts` onto the Mac's settings is the settings layer's job (`WearerSettings`).
 public struct SettingsPayload: Equatable, Sendable {
     public let u: Int
     public let json: String

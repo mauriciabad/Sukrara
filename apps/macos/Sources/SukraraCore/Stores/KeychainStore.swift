@@ -1,4 +1,4 @@
-// Sukrara — https://github.com/mauriciabad/Sukrara
+// Sukrara — https://github.com/mauriciabad/sukrara
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
 import Foundation
@@ -16,8 +16,7 @@ public enum KeychainError: Error, Equatable, Sendable {
 /// Generic-password items under one service (default `SukraraIDs.keychainService`; tests pass a temporary one).
 ///
 /// Uses the **login (file-based) keychain** by default: the app is signed with an Apple Development identity and no
-/// provisioning profile, so the data-protection keychain refuses every call with errSecMissingEntitlement (TN3137;
-/// the same reason the PoC used the login keychain). `useDataProtectionKeychain` stays available for a profile-signed
+/// provisioning profile, so the data-protection keychain refuses every call with errSecMissingEntitlement (TN3137). `useDataProtectionKeychain` stays available for a profile-signed
 /// build and is tested to fail visibly. Items are readable only after first unlock and never sync.
 public struct KeychainStore: SecretStoring {
     /// The account holding the follower state (`FollowerState` JSON).

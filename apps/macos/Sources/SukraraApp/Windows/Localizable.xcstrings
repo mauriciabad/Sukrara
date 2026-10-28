@@ -897,22 +897,6 @@
         }
       }
     },
-    "Following the Showcase works too — you can follow the phone's Sukrara Showcase today and re-follow when the phone switches." : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Following the Showcase works too — you can follow the phone's Sukrara Showcase today and re-follow when the phone switches."
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "También puedes seguir la Showcase: sigue hoy la Sukrara Showcase del móvil y vuelve a seguir cuando el móvil cambie de app."
-          }
-        }
-      }
-    },
     "Follow…" : {
       "localizations" : {
         "en" : {

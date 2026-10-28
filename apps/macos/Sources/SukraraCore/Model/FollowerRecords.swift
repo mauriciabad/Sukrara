@@ -1,4 +1,4 @@
-// Sukrara — https://github.com/mauriciabad/Sukrara
+// Sukrara — https://github.com/mauriciabad/sukrara
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
 import Foundation
@@ -13,7 +13,7 @@ public enum TreatmentDelivery: String, Sendable, Codable, Hashable {
     case accepted
 }
 
-/// The followed wearer's treatments as this Mac stores them (`treatments.json`, V1 format `v` 1): each entry with
+/// The followed wearer's treatments as this Mac stores them (`treatments.json`, format `v` 1): each entry with
 /// the key that created it (writer scope) and, for entries written here, their delivery.
 public struct FollowedTreatments: Sendable, Codable, Hashable {
     public static let formatVersion = 1

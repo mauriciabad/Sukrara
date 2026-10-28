@@ -1,4 +1,4 @@
-// Sukrara — https://github.com/mauriciabad/Sukrara
+// Sukrara — https://github.com/mauriciabad/sukrara
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
 import Foundation
@@ -50,7 +50,7 @@ import Testing
     @Test func syncInstallsOnlyRingableSoundsAndLeavesOthersFilesAlone() throws {
         try makeBundle()
         try FileManager.default.createDirectory(at: paths.sounds, withIntermediateDirectories: true)
-        // the Showcase's copy, another app's, and a stale one of ours
+        // files without our prefix (other apps') and a stale one of ours
         for f in ["Sukrara quest low 1.caf", "Other.caf", "app.mauri.sukrara.kart_low_1.caf"] {
             try Data("x".utf8).write(to: paths.sounds.appending(path: f))
         }

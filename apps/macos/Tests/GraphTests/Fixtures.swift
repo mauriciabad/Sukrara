@@ -1,4 +1,4 @@
-// Sukrara — https://github.com/mauriciabad/Sukrara
+// Sukrara — https://github.com/mauriciabad/sukrara
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
 import Foundation
@@ -10,11 +10,8 @@ enum GraphFixtures {
     /// "Now" of every fixture: times in the files are seconds relative to it.
     static let now: TimeInterval = 1_800_000_000
 
-    /// `contracts/graph`; until the contracts land there, the frozen PoC copy they are made from.
-    static let dir: URL =
-        Contracts.exists("graph")
-        ? Contracts.url("graph")
-        : Contracts.root.deletingLastPathComponent().appending(path: "poc/spikes/graph-fixtures")
+    /// `contracts/graph`.
+    static let dir: URL = Contracts.url("graph")
 
     /// A JSON file under the fixtures folder as a dictionary (a missing or broken file fails the test that asks).
     static func object(_ path: String) -> JSON {

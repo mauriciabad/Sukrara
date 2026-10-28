@@ -1,11 +1,11 @@
-// Sukrara — https://github.com/mauriciabad/Sukrara
+// Sukrara — https://github.com/mauriciabad/sukrara
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
 import CryptoKit
 import Foundation
 
-/// Constants and tag derivations of CGM-over-Nostr protocol v2 (contracts/protocol/PROTOCOL-v2.md). Wire-compatible
-/// with Sukrara 0.11 (the showcase): changing anything here breaks following an existing wearer.
+/// Constants and tag derivations of CGM-over-Nostr protocol v2 (contracts/protocol/PROTOCOL-v2.md). Changing
+/// anything here breaks following an existing wearer (pinned by the OGS vectors).
 public enum Wire {
     // Event kinds.
     public static let kindLive: UInt16 = 21078
@@ -34,7 +34,7 @@ public enum Wire {
     /// One rekey request per unknown epoch per this many seconds.
     public static let rekeyInterval = 300
 
-    /// The only default relays (Sukrara 0.11 set, measured 2026-10-17: take new keys' events and serve gift wraps).
+    /// The only default relays (measured 2026-10-17: they take new keys' events and serve gift wraps).
     public static let defaultRelays = [
         "wss://nos.lol", "wss://relay.primal.net", "wss://nostr.mom", "wss://relay.snort.social",
     ]

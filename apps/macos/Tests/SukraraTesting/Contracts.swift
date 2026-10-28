@@ -1,4 +1,4 @@
-// Sukrara — https://github.com/mauriciabad/Sukrara
+// Sukrara — https://github.com/mauriciabad/sukrara
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
 import Foundation
@@ -28,7 +28,7 @@ public enum Contracts {
         path.isEmpty ? root : root.appending(path: path)
     }
 
-    /// Whether `contracts/<path>` exists (contracts arrive chunk by chunk).
+    /// Whether `contracts/<path>` exists.
     public static func exists(_ path: String) -> Bool {
         FileManager.default.fileExists(atPath: url(path).path)
     }

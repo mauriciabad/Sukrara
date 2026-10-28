@@ -1,4 +1,4 @@
-// Sukrara — https://github.com/mauriciabad/Sukrara
+// Sukrara — https://github.com/mauriciabad/sukrara
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
 import SukraraAlerts
@@ -12,7 +12,7 @@ public final class SetupModel {
     public let follow: FollowModel
     public let alerts: AlertSettingsStore
     @ObservationIgnored let store: any SettingsStoring
-    /// Asks for notification permission / registers the login item (chunk 21's services); true = granted.
+    /// Asks for notification permission / registers the login item; true = granted.
     @ObservationIgnored var requestNotifications: () async -> Bool = { false }
     @ObservationIgnored var setOpenAtLogin: (Bool) -> Void = { _ in }
 
@@ -68,8 +68,6 @@ public struct SetupView: View {
         VStack(alignment: .leading, spacing: 12) {
             Text(L10n.t("Welcome to Sukrara")).font(.largeTitle.bold())
             Text(L10n.t("Sukrara shows the glucose of someone you follow in the menu bar and alerts you when it's out of range."))
-            Text(L10n.t("Following the Showcase works too — you can follow the phone's Sukrara Showcase today and re-follow when the phone switches."))
-                .foregroundStyle(.secondary)
             HStack {
                 Spacer()
                 Button(L10n.t("Set up later")) { model.skip(.welcome); close() }

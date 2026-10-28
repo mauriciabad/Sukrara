@@ -1,4 +1,4 @@
-// Sukrara — https://github.com/mauriciabad/Sukrara
+// Sukrara — https://github.com/mauriciabad/sukrara
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
 import Foundation
@@ -10,8 +10,7 @@ import SukraraShare
 
 /// The app's `ServiceStarting`: the only code that creates the notification center, copies alert sounds, runs the
 /// alert engine, checks for updates or touches the login item. `ServicesPlan.start(using:)` calls it, so an offline
-/// run (dev build, snapshot) creates none of them. BLE, relays and the widget feed are started by the follower
-/// runtime's chunk (15) and the widget's (22).
+/// run (dev build, snapshot) creates none of them. BLE and relays are started by the follower runtime.
 final class AppServices: ServiceStarting {
     let plan: LaunchPlan
     private(set) var center: SystemNotificationCenter?
@@ -133,7 +132,7 @@ final class AppServices: ServiceStarting {
                 makeRelays: { relays, key in RelayPool(relays: relays, authKey: key, crypto: crypto) },
                 makeNearby: nearby)
         case .ble, .widgetFeed:
-            break  // Bluetooth runs inside the follower runtime (`relays`); the widget feed is chunk 22's
+            break  // Bluetooth runs inside the follower runtime (`relays`); the widget feed has no service of its own
         }
     }
 }
