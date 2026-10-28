@@ -4,6 +4,7 @@
 package app.mauri.sukrara
 
 import android.app.Application
+import app.mauri.sukrara.alerts.AlertKind
 import app.mauri.sukrara.alerts.AlertSettings
 import app.mauri.sukrara.core.data.DataModule
 import app.mauri.sukrara.core.data.settings.SchemaSettings
@@ -15,6 +16,7 @@ import app.mauri.sukrara.core.model.Role
 import app.mauri.sukrara.core.model.SystemClock
 import app.mauri.sukrara.core.model.Treatment
 import app.mauri.sukrara.feature.sensor.SensorUiModule
+import app.mauri.sukrara.feature.settings.AlertPlayback
 import app.mauri.sukrara.feature.settings.AlertSettingsStore
 import app.mauri.sukrara.feature.settings.SettingsModule
 import app.mauri.sukrara.feature.sharing.EngineOwnerSharing
@@ -59,6 +61,7 @@ import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.shareIn
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.time.Duration
 import app.mauri.sukrara.graph.Clock as ClockText
@@ -172,6 +175,32 @@ class AppGraph(
             clock = clock,
             sensor = monitor.hub.state.map { it.sensor },
             systemAccess = monitor.systemAccess,
+            alertPlayback =
+                object : AlertPlayback {
+                    override fun play(
+                        kind: AlertKind,
+                        pack: String,
+                        alarm: Boolean,
+                        vibrate: Boolean,
+                    ) = alerts.tryOut.play(kind, pack, alarm, vibrate)
+
+                    override fun stop() = alerts.tryOut.stop()
+
+                    override fun silenced(
+                        kind: AlertKind,
+                        alarm: Boolean,
+                    ) = alerts.tryOut.silenced(kind, alarm)
+
+                    override fun sendTest(
+                        kind: AlertKind,
+                        settings: AlertSettings,
+                    ) = alerts.tryOut.sendTest(kind, settings)
+
+                    override fun channelId(
+                        kind: AlertKind,
+                        alarm: Boolean,
+                    ) = alerts.tryOut.channelId(kind, alarm)
+                },
         )
     }
 
@@ -217,8 +246,10 @@ class AppGraph(
             scope = scope,
             glucose = monitor.hub.state,
             graphConfig = graphConfig,
+            storedHistory = monitor.storedHistory,
             readinessSource = alerts.readiness,
             unmuteAlerts = { scope.launch { alerts.controls.unmuteAll() } },
+            endQuietAlerts = { kind -> scope.launch { alerts.controls.unmute(kind) } },
             resume = { scope.launch { startMonitoring(StartReason.Resume) } },
             nextSetupStep = setup.finishItems.map { items -> items.firstOrNull()?.label(app) },
             refreshSetup = setup::refresh,
@@ -227,6 +258,7 @@ class AppGraph(
                 widgets.presence.placed.value
             },
             treatmentLog = { treatments.log },
+            sharing = { shareOwner.ownerEngine.state },
         )
     }
 
@@ -238,6 +270,7 @@ class AppGraph(
             glucose = monitor.hub.state,
             treatments = recentTreatments(),
             graphConfig = graphConfig,
+            storedHistory = monitor.storedHistory,
             freshnessTicks = monitor.freshnessTicks,
             store = data.typedStore("widgets", WidgetPlacements.serializer(), WidgetPlacements(), whenCorrupt = WidgetPlacements()),
         )
@@ -278,7 +311,15 @@ class AppGraph(
     }
 
     val treatments: TreatmentsModule by lazy {
-        TreatmentsModule(data.treatments, ShareTreatmentSync(shareOwner), clock, home.glucose, data.settings, scope)
+        TreatmentsModule(
+            data.treatments,
+            ShareTreatmentSync(shareOwner),
+            clock,
+            home.glucose,
+            data.settings,
+            scope,
+            hints = AppAlertHints(alerts.store.settings.stateIn(scope, SharingStarted.Eagerly, null), home.glucose, clock),
+        )
     }
 
     /**

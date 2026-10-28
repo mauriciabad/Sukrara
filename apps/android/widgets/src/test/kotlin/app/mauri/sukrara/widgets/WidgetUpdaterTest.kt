@@ -15,6 +15,7 @@ import app.mauri.sukrara.graph.GraphConfig
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
@@ -46,11 +47,22 @@ class WidgetUpdaterTest {
         GlucoseState.Initial.copy(role = Role.Wearer, latest = latest, recent = listOf(latest), source = SourceStatus.Live(latest.t))
 
     private fun TestScope.updater() =
-        WidgetUpdater(backgroundScope, clock, glucose, treatments, config, placements, ticks, screen, { dark }, { redraws++ })
-            .also {
-                it.start()
-                runCurrent()
-            }
+        WidgetUpdater(
+            backgroundScope,
+            clock,
+            glucose,
+            treatments,
+            config,
+            placements,
+            flowOf(emptyList()),
+            ticks,
+            screen,
+            { dark },
+            { redraws++ },
+        ).also {
+            it.start()
+            runCurrent()
+        }
 
     @Test
     fun `draws once at start and again only for a new reading`() =

@@ -19,6 +19,8 @@ public final class AppModel {
     private(set) var sensor: SensorInfo?
     /// The wearer's live treatments as the chart's marks, oldest first.
     private(set) var marks: [GraphMark] = []
+    /// The wearer's live treatments (the CSV export).
+    private(set) var treatments: [Treatment] = []
     private(set) var link: LinkState = .notFollowing
     /// The wearer's readings feed the card and the alert rules: following, or following with the Keychain retrying.
     private var monitoring = false
@@ -101,6 +103,7 @@ public final class AppModel {
                 })
         }
         marks = monitoring ? CardAlertsMapping.marks(snapshot.treatments) : []
+        treatments = monitoring ? snapshot.treatments.filter { !$0.del } : []
         sensor = snapshot.sensor.map {
             SensorInfo(start: TimeInterval($0.start), end: TimeInterval($0.end), warmupEnd: TimeInterval($0.warmupEnd))
         }
@@ -138,7 +141,10 @@ public final class AppModel {
         restartTicker()
     }
 
-    func apply(sensor info: SensorInfo?) { sensor = info }
+    func apply(sensor info: SensorInfo?) {
+        sensor = info
+        restartTicker()
+    }
 
     // MARK: what the surfaces show
 
@@ -180,8 +186,9 @@ public final class AppModel {
     var look: GlucoseLook { GlucoseCard.face(cardData, unit: unit, surface: .menubarTitle) }
 
     var menubarTitle: MenubarTitle {
-        MenubarTitle.of(
-            look: look,
+        let data = cardData
+        return MenubarTitle.of(
+            look: GlucoseCard.face(data, unit: unit, surface: .menubarTitle), data: data, config: graph,
             spoken: GlucoseCard.accessibilityLabel(cardData, unit: unit, surface: .menubarTitle, config: graph),
             alerts: alerts?.ui ?? .idle, reason: notMonitoringReason)
     }
@@ -211,20 +218,36 @@ public final class AppModel {
 
     // MARK: freshness ticker
 
-    /// Wakes at the next freshness step of the newest reading (fresh → late → stale → old), so the title and card
-    /// change exactly then. No `Timer`: one task, replaced on every new reading.
+    /// Wakes at the next freshness step of the newest reading (fresh → late → stale → old), at the sensor's end and
+    /// at each minute of its warm-up, so the title and card change exactly then. No `Timer`: one task, replaced on
+    /// every new reading.
     private func restartTicker() {
         ticker?.cancel()
-        guard let t = readings.last?.t.timeIntervalSince1970,
-            let next = Freshness.nextChangeAt(t, now: clock.now.timeIntervalSince1970)
+        let nowT = clock.now.timeIntervalSince1970
+        guard let next = Self.nextWake(latest: readings.last?.t.timeIntervalSince1970, sensor: sensor, now: nowT)
         else { return }
-        let wait = max(0.5, next - clock.now.timeIntervalSince1970)
+        let wait = max(0.5, next - nowT)
         ticker = Task { [weak self] in
             try? await Task.sleep(for: .seconds(wait), tolerance: .seconds(1))
             guard !Task.isCancelled, let self else { return }
             self.now = self.clock.now
             self.restartTicker()
         }
+    }
+
+    /// The next moment the title changes by itself: a freshness step, the sensor's end, or the warm-up's next whole
+    /// minute (its figure counts down without readings). nil = nothing more will change.
+    static func nextWake(latest: TimeInterval?, sensor: SensorInfo?, now: TimeInterval) -> TimeInterval? {
+        var times = [Freshness.nextChangeAt(latest, now: now)].compactMap { $0 }
+        if let s = sensor {
+            if s.end > now { times.append(s.end + 0.5) }
+            if s.start <= now, s.warmupEnd + 15 * 60 > now, latest.map({ $0 < s.start }) ?? true {
+                // the figure rounds the time left up to whole minutes: it changes as each minute before the end passes
+                let left = s.warmupEnd - now
+                times.append(left > 0 ? now + left.truncatingRemainder(dividingBy: 60) + 0.5 : s.warmupEnd + 15 * 60)
+            }
+        }
+        return times.min()
     }
 
     /// The Mac woke or the clock changed: re-read the time, re-check the alerts.

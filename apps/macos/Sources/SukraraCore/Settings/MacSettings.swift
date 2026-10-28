@@ -47,6 +47,8 @@ public enum MacSettings {
     public static let widgetSensorTime = SettingSpec(key: SettingsSpec.Keys.widgetSensorTime, defaultValue: true)
     /// The Settings window's last pane (a view state).
     public static let settingsPane = SettingSpec(key: SettingsSpec.Keys.settingsPane, defaultValue: "general")
+    /// The Glucose Report window's period in days (1, 7, 14, 30), remembered between openings.
+    public static let reportDays = SettingSpec(key: SettingsSpec.Keys.reportDays, defaultValue: 14)
     public static let settingsFrom = SettingSpec(key: SettingsSpec.Keys.settingsFrom, defaultValue: "wearer")
     public static let unit = SettingSpec(key: SettingsSpec.Keys.unit, defaultValue: GlucoseUnit.mgdl.rawValue)
     /// The alert settings: ONE JSON value (contracts/alerts/SPEC.md §3), owned by the alert settings store.

@@ -120,4 +120,6 @@
     <string name="monitor_stopped_title">Monitoring stopped</string>
     <string name="monitor_stopped_text">No glucose readings or alerts until it runs again. Tap to resume.</string>
     <string name="monitor_action_resume">Resume</string>
+    <string name="alert_test_title">Test · %1$s</string>
+    <string name="alert_test_text">A test from Settings, not a reading. Your real alert sounds like this.</string>
 </resources>

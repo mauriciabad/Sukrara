@@ -19,6 +19,12 @@ import androidx.lifecycle.viewmodel.viewModelFactory
 import app.mauri.sukrara.alerts.AlertKind
 import app.mauri.sukrara.alerts.AlertSettings
 import app.mauri.sukrara.core.model.AlertUiState
+import app.mauri.sukrara.feature.settings.graph.GraphActions
+import app.mauri.sukrara.feature.settings.graph.GraphContent
+import app.mauri.sukrara.feature.settings.graph.GraphMarksContent
+import app.mauri.sukrara.feature.settings.graph.GraphViewModel
+import app.mauri.sukrara.feature.settings.lock.LockScreenContent
+import app.mauri.sukrara.feature.settings.lock.LockScreenViewModel
 import app.mauri.sukrara.feature.settings.sensorend.SensorEndActions
 import app.mauri.sukrara.feature.settings.sensorend.SensorEndContent
 import app.mauri.sukrara.feature.settings.sensorend.SensorEndViewModel
@@ -39,6 +45,11 @@ sealed interface SettingsRoute {
     data object Ranges : SettingsRoute
 
     data object Graph : SettingsRoute
+
+    /** Settings › Graph › Treatments on the graph. */
+    data object GraphMarks : SettingsRoute
+
+    data object LockScreen : SettingsRoute
 
     data object Reliability : SettingsRoute
 
@@ -66,6 +77,8 @@ fun SettingsScreen(
     openSensor: () -> Unit,
     openSharing: () -> Unit,
     onReviewFinish: (ThresholdReviewResult) -> Unit = { onBack() },
+    /** The live card the Ranges and Graph pages show on top (the app's own panel; nothing in tests). */
+    preview: @Composable () -> Unit = {},
 ) {
     val clock = deps.clock
     when (route) {
@@ -104,19 +117,55 @@ fun SettingsScreen(
         is SettingsRoute.AlertKindPage -> {
             val vm = alertsViewModel(deps)
             val ui by vm.ui.collectAsStateWithLifecycle()
-            ui?.let { AlertKindContent(route.kind, it, clock, AlertKindActions(vm::edit, vm::unmute, vm::remindAsUsual), onBack) }
+            ui?.let {
+                AlertKindContent(
+                    route.kind,
+                    it,
+                    clock,
+                    AlertKindActions(vm::edit, vm::unmute, vm::remindAsUsual, deps.alertPlayback),
+                    onBack,
+                )
+            }
         }
 
         SettingsRoute.Ranges -> {
             val vm = viewModel { GraphPrefsViewModel(deps.settings) }
             val prefs by vm.prefs.collectAsStateWithLifecycle()
-            prefs?.let { RangesContent(it, { s, v -> vm.set(s, v) }, onBack) }
+            prefs?.let { RangesContent(it, vm::set, onBack, vm::reset, preview) }
         }
 
-        SettingsRoute.Graph -> {
-            val vm = viewModel { GraphPrefsViewModel(deps.settings) }
-            val prefs by vm.prefs.collectAsStateWithLifecycle()
-            prefs?.let { GraphBasicsContent(it, { s, v -> vm.set(s, v) }, { s, v -> vm.set(s, v) }, onBack) }
+        SettingsRoute.Graph, SettingsRoute.GraphMarks -> {
+            val vm = viewModel { GraphViewModel(deps.settings) }
+            val config by vm.config.collectAsStateWithLifecycle()
+            val actions =
+                GraphActions(
+                    number = vm::set,
+                    bool = vm::set,
+                    lines = vm::lines,
+                    slots = vm::slots,
+                    lastPlace = vm::lastPlace,
+                    lastElse = vm::lastElse,
+                    ringRange = vm::ringRange,
+                    ringOrder = vm::ringOrder,
+                    marks = vm::marks,
+                    placeHours = vm::placeHours,
+                    sensorTime = vm::sensorTime,
+                    reset = vm::reset,
+                    openMarks = { navigate(SettingsRoute.GraphMarks) },
+                )
+            config?.let {
+                if (route == SettingsRoute.Graph) {
+                    GraphContent(it, actions, onBack, preview)
+                } else {
+                    GraphMarksContent(it, actions, onBack, preview)
+                }
+            }
+        }
+
+        SettingsRoute.LockScreen -> {
+            val vm = viewModel { LockScreenViewModel(deps.settings) }
+            val seconds by vm.seconds.collectAsStateWithLifecycle()
+            seconds?.let { LockScreenContent(it, vm::set, onBack) }
         }
 
         SettingsRoute.Reliability -> {

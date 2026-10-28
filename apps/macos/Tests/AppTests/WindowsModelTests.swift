@@ -126,16 +126,104 @@ func scratchStore() -> DefaultsSettingsStore {
     }
 }
 
-/// The panel's Add Treatment… row: available only while following with the wearer's permission, else the reason.
+/// The panel's Add Treatment… row: available only while following with the wearer's permission, else one of four
+/// named reasons that say what would change it.
 @Suite struct AddTreatmentAvailabilityTests {
-    @Test func dimmedWithItsReasonUnlessAllowed() {
-        #expect(AddTreatmentAvailability(isFollowing: true, canWrite: true) == .available)
-        #expect(AddTreatmentAvailability(isFollowing: true, canWrite: true).reason == nil)
-        #expect(AddTreatmentAvailability(isFollowing: true, canWrite: false) == .notAllowed)
-        #expect(AddTreatmentAvailability(isFollowing: false, canWrite: true) == .notFollowing)
-        #expect(AddTreatmentAvailability(isFollowing: false, canWrite: false).reason != nil)
-        #expect(AddTreatmentAvailability(isFollowing: true, canWrite: false).reason != nil)
+    @Test func dimmedWithItsNamedReasonUnlessAllowed() {
+        #expect(AddTreatmentAvailability(link: .following(wearer: "Ana", canWrite: true)) == .available)
+        #expect(AddTreatmentAvailability(link: .following(wearer: "Ana", canWrite: true)).reason == nil)
+        let notWriter = AddTreatmentAvailability(link: .following(wearer: "Ana", canWrite: false))
+        #expect(notWriter == .notWriter(wearer: "Ana") && notWriter.reason?.hasPrefix("Ana hasn't") == true)
+        let waiting = AddTreatmentAvailability(link: .requested(code: "1234", wearer: "Ana", nearby: false))
+        #expect(waiting.reason == "Waiting for Ana to approve this Mac")
+        #expect(AddTreatmentAvailability(link: .revoked) == .revoked)
+        #expect(AddTreatmentAvailability(link: .declined) == .ended)
+        #expect(AddTreatmentAvailability(link: .inviteUsed) == .ended)
+        #expect(AddTreatmentAvailability(link: .notFollowing) == .notFollowing)
+        let reasons = [
+            AddTreatmentAvailability.waiting(wearer: nil), .notWriter(wearer: nil), .revoked, .ended, .notFollowing,
+        ].compactMap(\.reason)
+        #expect(Set(reasons).count == 5, "each state names its own reason")
     }
+
+    /// The card's pill: Eat carbs / Take insulin open Add Treatment on their field where this Mac may log; a mute
+    /// pill opens its ways out.
+    @Test func pillActions() {
+        #expect(PillAction.of(.needed(.low), canAdd: true) == .treat(.carbs))
+        #expect(PillAction.of(.needed(.high), canAdd: true) == .treat(.rapid))
+        #expect(PillAction.of(.needed(.low), canAdd: false) == .none)
+        #expect(PillAction.of(.paused(.high, until: 100), canAdd: false) == .quiet(.high))
+        let mark = GraphMark(t: 0, k: "carbs", a: 20)
+        #expect(PillAction.of(.taken(.low, treatment: mark, until: 100), canAdd: true) == .quiet(.low))
+        #expect(PillAction.of(.muted(until: AlertStatus.never), canAdd: true) == .muteAll)
+        #expect(PillAction.of(.none, canAdd: true) == .none)
+        // Mute all on while out of range: the pill's way out is Mute all's
+        #expect(PillAction.of(.paused(.low, until: 100), canAdd: true, muteAll: true) == .muteAll)
+    }
+}
+
+/// Add Treatment's *When?* chip, quiet line and the Treatments window's days.
+@Suite struct AddTreatmentFormTests {
+    let now = Date(timeIntervalSince1970: 1_800_000_000)
+
+    @Test func whenResolvesAtSave() {
+        let n = Int64(now.timeIntervalSince1970)
+        #expect(TreatmentForm.When.now.resolve(now: n) == n)
+        #expect(TreatmentForm.When.ago(15).resolve(now: n) == n - 900)
+        #expect(TreatmentForm.When.at(n - 3600).resolve(now: n) == n - 3600)
+        #expect(TreatmentForm.When.at(n + 60).resolve(now: n) == n, "never ahead of now")
+        #expect(TreatmentForm.When.fromPicker(minutesAgo: "30") == .ago(30))
+        #expect(TreatmentForm.When.fromPicker(minutesAgo: "0") == .now)
+        #expect(TreatmentForm.When.fromPicker(minutesAgo: "") == nil)
+        #expect(TreatmentForm.When.fromPicker(minutesAgo: "1440") == nil, "a day or more")
+        var cal = Calendar(identifier: .gregorian)
+        cal.timeZone = TimeZone(identifier: "UTC")!
+        let c = cal.dateComponents([.hour, .minute], from: now)
+        // the current minute is now; a later clock time is yesterday's
+        #expect(TreatmentForm.When.fromPicker(hour: c.hour!, minute: c.minute!, now: now, calendar: cal) == .now)
+        let later = TreatmentForm.When.fromPicker(hour: (c.hour! + 1) % 24, minute: c.minute!, now: now, calendar: cal)
+        #expect(later == .at(Int64(now.timeIntervalSince1970) - Int64(c.second(now, cal)) - 23 * 3600))
+        #expect(AddTreatmentView.whenLabel(.ago(15), now: now) == "15 min ago")
+        #expect(AddTreatmentView.whenLabel(.now, now: now) == "Now")
+    }
+
+    @Test func quietLineSaysWhatTheEntriesQuiet() {
+        let n = Int64(now.timeIntervalSince1970)
+        let s = AlertSettings()
+        #expect(
+            TreatmentQuietNote.of(rapid: true, carbs: true, at: n, now: n, settings: s, mirroring: false)
+                == "Highs quiet for 1 h · lows quiet for 15 min")
+        #expect(
+            TreatmentQuietNote.of(rapid: false, carbs: true, at: n - 600, now: n, settings: s, mirroring: false)
+                == "Lows quiet for 5 min")
+        #expect(TreatmentQuietNote.of(rapid: true, carbs: false, at: n, now: n, settings: s, mirroring: true) == nil)
+        #expect(
+            TreatmentQuietNote.of(rapid: false, carbs: true, at: n - 3600, now: n, settings: s, mirroring: false)
+                == nil)
+        var off = s
+        off.on = false
+        #expect(TreatmentQuietNote.of(rapid: true, carbs: true, at: n, now: n, settings: off, mirroring: false) == nil)
+    }
+
+    @Test func treatmentsWindowShowsSevenDaysByDay() {
+        var cal = Calendar(identifier: .gregorian)
+        cal.timeZone = TimeZone(identifier: "UTC")!
+        let n = Int64(now.timeIntervalSince1970)
+        let agos: [Int64] = [0, 1, 3600, 86400 + 60, 6 * 86400, 8 * 86400]
+        var rows: [TreatmentsModel.Row] = []
+        for (i, ago) in agos.enumerated() {
+            let t = Treatment(id: "\(i)", k: .carbs, a: 10, t: n - ago, u: 1, o: .phone)
+            rows.append(TreatmentsModel.Row(treatment: t, delivery: nil))
+        }
+        let days = TreatmentsModel.byDay(rows.reversed(), now: now, calendar: cal)
+        let ids: [String] = days.flatMap { $0.rows.map { $0.id } }
+        #expect(ids == ["0", "1", "2", "3", "4"], "newest first, nothing older than 7 days")
+        #expect(Set(days.map { $0.day }).count == days.count)
+    }
+}
+
+private extension DateComponents {
+    func second(_ d: Date, _ cal: Calendar) -> Int { cal.component(.second, from: d) }
 }
 
 @Suite struct SetupFlowTests {

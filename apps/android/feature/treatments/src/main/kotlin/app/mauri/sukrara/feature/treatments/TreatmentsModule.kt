@@ -27,6 +27,8 @@ class TreatmentsModule(
     val glucose: StateFlow<GlucoseState>,
     settings: SettingsRepository,
     private val scope: CoroutineScope,
+    /** This phone's alert rules as the dialog needs them (the focused field, the quiet line). */
+    val hints: AlertHints,
 ) {
     val log = TreatmentLog(repository, sync, clock)
 
@@ -50,14 +52,11 @@ class TreatmentsModule(
     /** Whether this phone offers Add treatment right now ([WriterScope]). */
     fun canAdd(): Boolean = WriterScope.canAdd(glucose.value.role, sync.writer.value)
 
-    /** Carbs first while a low alert is going on (eating is what's needed), as the glucose notification decides. */
-    fun lowNow(): Boolean =
-        glucose.value.alerts.firingKinds
-            .any { it in LOW_KINDS }
+    /** Carbs first while the latest fresh reading is low (eating is what's needed), whether or not an alert fired. */
+    fun lowNow(): Boolean = hints.lowNow()
 
     companion object {
         val LockTreatmentTime = SchemaSettings.number("lock.treatmentTime")
-        private val LOW_KINDS = setOf("low", "very_low")
     }
 }
 

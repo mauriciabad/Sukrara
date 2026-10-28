@@ -27,6 +27,11 @@ import app.mauri.sukrara.core.model.SensorState
 import app.mauri.sukrara.core.model.SystemAccessState
 import app.mauri.sukrara.core.testing.FakeClock
 import app.mauri.sukrara.designsystem.theme.SukraraTheme
+import app.mauri.sukrara.feature.settings.graph.GraphActions
+import app.mauri.sukrara.feature.settings.graph.GraphContent
+import app.mauri.sukrara.feature.settings.graph.GraphMarksContent
+import app.mauri.sukrara.feature.settings.graph.Reorder
+import app.mauri.sukrara.feature.settings.lock.LockScreenContent
 import app.mauri.sukrara.feature.settings.sensor.LibreViewSummary
 import app.mauri.sukrara.feature.settings.sensor.SensorSettingsActions
 import app.mauri.sukrara.feature.settings.sensor.SensorSettingsContent
@@ -42,6 +47,9 @@ import app.mauri.sukrara.feature.settings.statusbar.RootSettings
 import app.mauri.sukrara.feature.settings.statusbar.RootStatusBarSection
 import app.mauri.sukrara.feature.settings.statusbar.StatusBarContent
 import app.mauri.sukrara.feature.settings.statusbar.StatusBarPrefs
+import app.mauri.sukrara.graph.GraphConfig
+import app.mauri.sukrara.graph.GraphPlace
+import app.mauri.sukrara.graph.RingSpec
 import com.github.takahirom.roborazzi.captureRoboImage
 import org.junit.Rule
 import org.junit.Test
@@ -134,8 +142,25 @@ class SettingsGallery {
             "alert-kind-very-low" to
                 { AlertKindContent(AlertKind.VERY_LOW, AlertsUi(AlertSettings(), AlertUiState()), clock, AlertKindActions()) {} },
             "threshold-review" to { AlertThresholdReviewContent(AlertSettings(), { _, _ -> }, {}, {}) },
-            "ranges" to { RangesContent(GraphPrefs(), { _, _ -> }) {} },
-            "graph" to { GraphBasicsContent(GraphPrefs(), { _, _ -> }, { _, _ -> }) {} },
+            "ranges" to { RangesContent(GraphPrefs(), { _, _ -> }, {}) },
+            "ranges-changed" to { RangesContent(GraphPrefs(listOf(54.0, 70.0, 120.0, 180.0, 250.0, 300.0)), { _, _ -> }, {}) },
+            "graph" to { GraphContent(GraphConfig(), GraphActions(), {}) },
+            "graph-custom" to {
+                GraphContent(
+                    GraphConfig(
+                        lines = listOf(80, 100, 160),
+                        placeHours = mapOf(GraphPlace.NOTIFICATION to 3),
+                        ringCount = 3,
+                        lastElse = null,
+                        ringOrder = Reorder.moved(RingSpec.DEFAULT_RING_ORDER, 5, 0),
+                        sensorHidden = setOf(GraphPlace.WIDGETS),
+                    ),
+                    GraphActions(),
+                    {},
+                )
+            },
+            "graph-marks" to { GraphMarksContent(GraphConfig(), GraphActions(), {}) },
+            "lock" to { LockScreenContent(20.0, {}, {}) },
             "reliability" to
                 { ReliabilityContent(AlertReadiness(setOf(AlertRequirement.FullScreenIntent, AlertRequirement.BatteryExemption)), {}) {} },
             "about-update" to { AboutContent("0.12.0", UpdateState.Available(release), {}) {} },

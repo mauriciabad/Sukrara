@@ -12,6 +12,7 @@ import app.mauri.sukrara.alerts.AlertSettings
 import app.mauri.sukrara.core.model.AlertReadiness
 import app.mauri.sukrara.core.model.Role
 import app.mauri.sukrara.feature.sharing.SetupModule
+import app.mauri.sukrara.protocol.event.Profile
 import app.mauri.sukrara.share.owner.OwnerShareState
 import app.mauri.sukrara.share.owner.usecase.RestoreIdentity
 import kotlinx.coroutines.CancellationException
@@ -252,10 +253,10 @@ class SetupViewModel(
             m.setupStore.update(SetupMachine::confirmAlerts)
         }
 
-    /** P10: called after the person confirmed what Start fresh means. */
-    fun startFresh() =
+    /** P10: called after the person confirmed what Start fresh means, with how they appear to followers. */
+    fun startFresh(profile: Profile) =
         act {
-            val created = m.sharing.startFresh()
+            val created = m.sharing.startFresh(profile)
             val facts = ui.value?.facts ?: return@act
             m.setupStore.update { SetupMachine.completeIdentity(it, facts.copy(hasIdentity = created || facts.hasIdentity)) }
         }

@@ -32,6 +32,7 @@ class SettingsModule(
     clock: Clock,
     sensor: Flow<SensorState>,
     systemAccess: SystemAccessPort,
+    alertPlayback: AlertPlayback,
 ) {
     val deps: SettingsDeps =
         object : SettingsDeps {
@@ -46,6 +47,7 @@ class SettingsModule(
             override val clock = clock
             override val sensor = sensor
             override val systemAccess = systemAccess
+            override val alertPlayback = alertPlayback
         }
 
     /** When the alert thresholds were confirmed (null = never): home's Finish-setup card asks until they are. */

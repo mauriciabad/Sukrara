@@ -126,9 +126,23 @@ sealed interface HomeAction {
 
     data object AddTreatment : HomeAction
 
+    /** Add treatment with Carbs ([carbs]) or Rapid focused: the card's *Eat carbs* / *Take insulin* pill. */
+    data class Treat(
+        val carbs: Boolean,
+    ) : HomeAction
+
+    /** Settings › Alerts (the quiet sheet's way to the rules). */
+    data object OpenAlertSettings : HomeAction
+
     data object AddWidget : HomeAction
 
     data object OpenBackup : HomeAction
+
+    /** "How you appear" (the wearer's profile row). */
+    data object OpenProfile : HomeAction
+
+    /** Share with someone (a new invite). */
+    data object Share : HomeAction
 
     data object OpenClinicUpload : HomeAction
 }

@@ -35,7 +35,9 @@ The full catalog, with every rule and number, is [docs/FEATURES.md](docs/FEATURE
 - **Settings › Sensor**: the current sensor (status, serial, start, end and time left), the reading source (Libre 3
   directly or Juggluco, saying first what changes), the LibreView account (email and receiver ID, sign in / out; the
   password is never stored) and *Pair new sensor*.
-- **Home screen**, glucose first: the value, trend arrow and a 6 h chart you can scroll back, the sensor's end date,
+- **Home screen**, glucose first: the value, trend arrow and a 6 h chart you can scroll and pinch-zoom through the
+  last 31 days (7 / 14 / 30-day rings count them too), a pill that acts (*Eat carbs* opens Add treatment with Carbs
+  focused, a mute's pill its ways out), the sensor's end date with *Pair new sensor* in its last day,
   one banner at a time for what needs you (monitoring stopped, alerts may not ring,
   damaged saved data, finish setup), and the last 24 h of treatments with delete + undo. Never a bare "---": when
   there's no value it says why and what to do.
@@ -56,34 +58,46 @@ The full catalog, with every rule and number, is [docs/FEATURES.md](docs/FEATURE
 - **Monitoring** in one foreground service that comes back by itself (boot, update, a 15 min health check); before the
   first reading every surface says *Not monitoring: no sensor yet* and no no-data alarm is armed.
 - **Treatments**: a quick dialog for rapid / long insulin, carbs and a note (from the notification, the Quick
-  Settings tile *Add treatment* or home), with a short countdown when opened on the lock screen.
+  Settings tile *Add treatment* or home), *now*, a time or *minutes ago*, a line saying which alerts it quiets and for
+  how long, and a short countdown when opened on the lock screen.
 - **Home-screen widgets** (*Glucose*, *Glucose graph*, *Glucose and graph*) drawn by the same card renderer at the
   widget's real size; home offers *Add widget* until a graph widget is placed, and a tap opens *Add treatment*.
-- **Settings** for daily use: alerts (thresholds you confirm, repeats, sounds, quiet rules), an alert reliability
-  checklist with *Fix* buttons (notifications, alarms, full-screen, battery, Do Not Disturb, Bluetooth), ranges,
-  graph basics, sensor, and About with an update check against this repo's releases.
+- **Settings** for daily use: alerts (an on/off switch on each alert row, thresholds you confirm, repeats, sounds,
+  quiet rules, *Play sound* and *Send a test alert*), an alert reliability checklist with *Fix* buttons
+  (notifications, alarms, full-screen, battery, Do Not Disturb, Bluetooth), ranges and the whole graph (lines, time
+  per place, slots, ring order, treatments on the graph, sensor time; your card live on top), lock screen
+  *Time to save*, sensor, and About with an update check against this repo's releases.
 - **Sharing core**: your sharing identity, restorable from its recovery code so existing followers keep following;
   readings and alerts go to approved followers over Nostr relays (protocol v2). If another device is publishing as
   the same identity, Sukrara stops and says so instead of fighting it.
 - **First-run setup** in a calm, fixed order: role (confirmed) → what alerts need → sensor → confirm your alert
   thresholds → your followers (restore once this phone has your sensor, or start fresh) → home. Any
   step can wait; home's *Finish setup* banner brings it back.
-- **Sharing screens**: invite one person (QR that springs in, link to send or copy, works once for 24 h), allow or deny
-  their request after comparing a 4-digit code, see and remove followers (confirmed), and a clear screen when another
+- **Sharing screens**: *How you appear* (your name and a generated picture, on home's top bar), invite one person (QR
+  that springs in, link to send or copy, works once for 24 h), allow or deny their request after comparing a 4-digit
+  code (the dialog shows over any screen, with their picture and the invite they used), see followers with their
+  pictures, let one *add entries*, remove them (confirmed; removed ones fold away), **Backup** to your password manager
+  or a recovery code (home says *Not backed up* until then; setup restores from either), and a clear screen when another
   device is sharing as you.
 - English and Spanish (Spain) everywhere.
 
 **Mac (you follow someone, from the menu bar)**
-- The value, trend arrow and mute bell in the **menu bar**, struck through when old; click for the **panel** with the
-  card and chart (drawn by the same renderer rules as Android, tested against the same fixtures).
+- The value in its range colour, the card's trend arrow at its angle and the mute bell in the **menu bar**, struck
+  through when old, a symbol when readings stop or the sensor ends, with a tooltip; click for the **panel** with the
+  card and chart (drawn by the same renderer rules as Android, tested against the same fixtures). The card's pill is
+  pressable (Eat carbs / Take insulin open Add Treatment; a mute opens its ways out).
 - **Follow** a wearer with an invite link, a QR code image or **nearby** Bluetooth pairing; readings, alerts and
   treatments arrive end-to-end encrypted. A setup window walks Welcome → Follow → Alerts → Notifications → Open at
   login.
-- **Alerts** with sound packs and the same rules and timeline scenarios as Android; mute and unmute from the menu.
-- **Treatments**: add rapid / long / carbs / note, see the phone's entries, delete your own with undo.
+- **Alerts** with sound packs and the same rules and timeline scenarios as Android; mute, change the time, a custom
+  length, Alert Me Anyway, Remind Less and unmute from the panel; Send Test Alert.
+- **Treatments**: add rapid / long / carbs / note with *When?* (a time or minutes ago) and the quiet line, see the last
+  7 days by day with the phone's entries, delete your own with undo.
+- **Glucose Report** (1 / 7 / 14 / 30 days: time in ranges with goals, average, GMI, CV) and **Export CSV…** by period.
 - **Settings** in five panes: General (*Settings from* Wearer / Default / Custom, unit, open at login, update check,
   Quit), Graph (time shown per place, treatments on the graph, lines, ranges, sensor countdown and time left), Rings
-  (rings and numbers, ring order you drag, last treatment), Alerts (per alert, quiet times, sounds) and Following.
+  (rings and numbers, ring order you drag, last treatment), Alerts (per alert with its summary and details, quiet times, the notification's buttons, sounds with preview, what's
+  quiet now) and Following.
 - The card shows the wearer's treatments on the chart with their mute lines, the last treatment beside the value and
   a pill that counts down while a treatment quiets the alert; the widgets too.
 - **Desktop widgets** (Glucose, Glucose graph, Glucose + graph) with the same card; they age by themselves (struck
