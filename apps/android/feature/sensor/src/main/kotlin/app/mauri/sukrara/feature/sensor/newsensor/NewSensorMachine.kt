@@ -261,7 +261,7 @@ object NewSensorMachine {
             SensorStatus.BluetoothPermissionMissing -> NewSensorStep.BleFailed(serial, BleFailure.PermissionMissing)
             is SensorStatus.OwnedByAnotherApp -> NewSensorStep.TakeoverFailed
             SensorStatus.Ended -> if (step is NewSensorStep.WarmingUp) NewSensorStep.NfcFailed(NfcFailure.SensorEnded) else step
-            is SensorStatus.Libre3 -> if (detail.serial != serial) step else afterLink(step, serial, detail.link, state, now)
+            is SensorStatus.Direct -> if (detail.key != serial) step else afterLink(step, serial, detail.link, state, now)
             else -> step
         }
     }

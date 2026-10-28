@@ -389,6 +389,6 @@ class AppGraph(
 
         /** A config nobody draws with stops being read after this (a screen rotation keeps it). */
         const val SHARE_STOP_MS = 5_000L
-        val SensorSource = SchemaSettings.text("source.source", SensorSourceKind.Libre3.id, SensorSourceKind.entries.map { it.id }.toSet())
+        val SensorSource = SchemaSettings.text("source.source", SensorSourceKind.Direct.id, SensorSourceKind.entries.map { it.id }.toSet())
     }
 }

@@ -26,7 +26,7 @@ data class RestoreGate(val blocks: Set<RestoreBlock>) {
         /** A reading older than this doesn't prove the sensor runs here now. */
         val LIVE_WINDOW: Duration = Duration.ofMinutes(15)
 
-        private val OWN_SOURCES = setOf(SourceId.Libre3, SourceId.Juggluco)
+        private val OWN_SOURCES = SourceId.Wearer
 
         fun evaluate(ownSensorLive: Boolean): RestoreGate =
             RestoreGate(

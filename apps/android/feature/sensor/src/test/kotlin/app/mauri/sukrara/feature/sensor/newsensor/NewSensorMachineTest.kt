@@ -13,6 +13,7 @@ import app.mauri.sukrara.feature.sensor.newsensor.NewSensorEvent.TagFound
 import app.mauri.sukrara.feature.sensor.newsensor.NewSensorEvent.Tapped
 import app.mauri.sukrara.feature.sensor.newsensor.NewSensorEvent.Tick
 import app.mauri.sukrara.feature.sensor.newsensor.NewSensorEvent.UseJuggluco
+import app.mauri.sukrara.sensor.SensorProfile
 import app.mauri.sukrara.sensor.ble.LinkStatus
 import app.mauri.sukrara.sensor.pairing.PairOutcome
 import app.mauri.sukrara.sensor.source.SensorStatus
@@ -44,7 +45,7 @@ class NewSensorMachineTest {
     private val paired = arrayOf(Start(ok), TagFound, Tapped(PairOutcome.Paired("ABC", activated = true)))
 
     private fun live(serial: String, link: LinkStatus, state: SensorState = SensorState.Active(null)) =
-        Source(SensorStatus.Libre3(serial, link), state)
+        Source(SensorStatus.Direct(SensorProfile.Libre3, serial, serial, link), state)
 
     @Test fun `all gates open goes straight to the tap`() =
         assertEquals(NewSensorStep.WaitingForTap, step(Start(ok)))

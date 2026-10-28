@@ -6,6 +6,7 @@ package app.mauri.sukrara.feature.sensor.newsensor
 import android.nfc.Tag
 import app.mauri.sukrara.core.model.Clock
 import app.mauri.sukrara.core.model.SensorState
+import app.mauri.sukrara.sensor.SensorProfile
 import app.mauri.sukrara.sensor.ble.LinkStatus
 import app.mauri.sukrara.sensor.pairing.PairOutcome
 import app.mauri.sukrara.sensor.source.SensorStatus
@@ -89,7 +90,7 @@ class NewSensorViewModelTest {
             vm.onTagRead { PairOutcome.Paired("ABC", activated = false) }
             runCurrent()
             assertTrue(vm.state.value.step is NewSensorStep.ConnectingBle)
-            port.detail.value = SensorStatus.Libre3("ABC", LinkStatus.Live)
+            port.detail.value = SensorStatus.Direct(SensorProfile.Libre3, "ABC", "ABC", LinkStatus.Live)
             port.sensor.value = SensorState.Active(null)
             runCurrent()
             assertEquals(NewSensorStep.Ready, vm.state.value.step)

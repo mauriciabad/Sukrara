@@ -79,7 +79,7 @@ class SensorUiModule(
             }
 
             override suspend fun onPaired() {
-                settings.set(SOURCE, SensorSourceKind.Libre3.id)
+                settings.set(SOURCE, SensorSourceKind.Direct.id)
                 startMonitoring()
             }
         }
@@ -108,6 +108,6 @@ class SensorUiModule(
 
     private companion object {
         /** The glucose source setting (schema `source.source`); the source manager follows it. */
-        val SOURCE = SchemaSettings.text("source.source", SensorSourceKind.Libre3.id, SensorSourceKind.entries.map { it.id }.toSet())
+        val SOURCE = SchemaSettings.text("source.source", SensorSourceKind.Direct.id, SensorSourceKind.entries.map { it.id }.toSet())
     }
 }
