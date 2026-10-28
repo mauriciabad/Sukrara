@@ -157,6 +157,8 @@ private fun appsSummary(on: Set<AppOutput>): String {
                 AppOutput.XdripServer -> stringResource(R.string.st_apps_xdrip)
                 AppOutput.NightscoutApi -> stringResource(R.string.st_apps_nightscout_api)
                 AppOutput.Tidepool -> stringResource(R.string.st_apps_tidepool)
+                AppOutput.Broadcasts -> stringResource(R.string.st_apps_broadcasts)
+                AppOutput.HealthConnect -> stringResource(R.string.st_apps_health_connect)
             }
         }
     return names.joinToString(" · ")

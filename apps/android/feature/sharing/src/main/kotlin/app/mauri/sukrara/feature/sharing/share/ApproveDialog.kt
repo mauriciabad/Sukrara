@@ -95,6 +95,8 @@ fun ApproveDialog(
     val cs = MaterialTheme.colorScheme
     val name = shownName(request.name).ifBlank { stringResource(R.string.sh_approve_unnamed) }
     val leaked = request.others > 0
+    // a leaked link or Pair nearby: anyone could have asked, so the code is typed, never just compared (B§7.3)
+    val typeCode = request.needsTypedCode
     var armed by remember(request.follower) { mutableStateOf(false) }
     var typed by remember(request.follower) { mutableStateOf("") }
     LaunchedEffect(request.follower) {
@@ -124,11 +126,15 @@ fun ApproveDialog(
                 )
                 Spacer(Modifier.height(16.dp))
                 InviteCard(request, name, time)
-                if (leaked) {
+                if (typeCode) {
                     Spacer(Modifier.height(12.dp))
                     Surface(shape = MaterialTheme.shapes.large, color = cs.errorContainer, modifier = Modifier.fillMaxWidth()) {
                         Text(
-                            pluralStringResource(R.plurals.sh_approve_others, request.others, request.others),
+                            if (leaked) {
+                                pluralStringResource(R.plurals.sh_approve_others, request.others, request.others)
+                            } else {
+                                stringResource(R.string.sh_approve_nearby)
+                            },
                             style = MaterialTheme.typography.bodyMedium,
                             color = cs.onErrorContainer,
                             modifier = Modifier.padding(16.dp),
@@ -186,9 +192,9 @@ fun ApproveDialog(
                     Button(
                         onClick = {
                             haptics.confirm()
-                            onAllow(typed.takeIf { leaked })
+                            onAllow(typed.takeIf { typeCode })
                         },
-                        enabled = armed && !working && (!leaked || typed == request.code),
+                        enabled = armed && !working && (!typeCode || typed == request.code),
                         modifier = Modifier.heightIn(min = 48.dp),
                     ) { Text(stringResource(R.string.sh_approve_allow)) }
                 }
@@ -210,7 +216,9 @@ private fun InviteCard(
             Text(stringResource(R.string.sh_approve_your_invite), style = MaterialTheme.typography.labelMedium, color = cs.onSurfaceVariant)
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(
-                    if (request.label.isNotBlank()) {
+                    if (request.nearby) {
+                        stringResource(R.string.sh_approve_invite_nearby)
+                    } else if (request.label.isNotBlank()) {
                         stringResource(R.string.sh_approve_invite_for, request.label)
                     } else {
                         stringResource(R.string.sh_approve_no_label)
@@ -221,7 +229,7 @@ private fun InviteCard(
                     modifier = Modifier.weight(1f, fill = false),
                 )
                 // a hint only: anyone can type any name; the leaked-link case relies on the code instead
-                if (request.others == 0) {
+                if (!request.needsTypedCode) {
                     when (labelMatches(request.label, name)) {
                         true -> Pill(stringResource(R.string.sh_approve_label_matches), cs.primaryContainer, cs.onPrimaryContainer)
                         false -> Pill(stringResource(R.string.sh_approve_label_differs), cs.tertiaryContainer, cs.onTertiaryContainer)

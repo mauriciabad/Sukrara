@@ -11,11 +11,13 @@ import app.mauri.sukrara.core.model.storage.TreatmentsRepository
 import app.mauri.sukrara.protocol.PublicKeyHex
 import app.mauri.sukrara.protocol.SignedEvent
 import app.mauri.sukrara.protocol.Wire
+import app.mauri.sukrara.protocol.ble.BleMessages
 import app.mauri.sukrara.protocol.event.AlertPayload
 import app.mauri.sukrara.protocol.event.Profile
 import app.mauri.sukrara.share.ble.NearbyServerCore
 import app.mauri.sukrara.share.ble.NearbyStatus
 import app.mauri.sukrara.share.owner.usecase.ApproveRequest
+import app.mauri.sukrara.share.owner.usecase.CloseNearbyPairing
 import app.mauri.sukrara.share.owner.usecase.ControlEvents
 import app.mauri.sukrara.share.owner.usecase.CreateIdentity
 import app.mauri.sukrara.share.owner.usecase.CreateInvite
@@ -25,6 +27,7 @@ import app.mauri.sukrara.share.owner.usecase.HandleInbox
 import app.mauri.sukrara.share.owner.usecase.IdentityConflictDetector
 import app.mauri.sukrara.share.owner.usecase.InboxSignal
 import app.mauri.sukrara.share.owner.usecase.MirroredSettingsSource
+import app.mauri.sukrara.share.owner.usecase.OpenNearbyPairing
 import app.mauri.sukrara.share.owner.usecase.OwnerContext
 import app.mauri.sukrara.share.owner.usecase.PublishReadings
 import app.mauri.sukrara.share.owner.usecase.PublishSettingsMirror
@@ -112,13 +115,23 @@ class OwnerEngine(
             }
         }
 
-    suspend fun stop() = locked { halt() }
+    suspend fun stop() =
+        locked {
+            // a closed Pair nearby can't be claimed later over the relays
+            pairingNow.value?.let { p ->
+                owner?.let { s -> CloseNearbyPairing(ctx)(s, p.token, now())?.let { apply(it, overBluetooth = false) } }
+            }
+            halt()
+        }
 
     private fun halt() {
         jobs.forEach { it.cancel() }
         jobs = emptyList()
         transport.stop()
         nearby.stop()
+        pairingTimer?.cancel()
+        pairingTimer = null
+        pairingNow.value = null
         runScope = null
     }
 
@@ -135,10 +148,65 @@ class OwnerEngine(
             override fun followers(): Collection<PublicKeyHex> =
                 owner?.activeFollowers()?.mapNotNull { PublicKeyHex.parse(it.key) }.orEmpty()
 
+            override fun pairing(): BleMessages.Pairing? {
+                val p = pairingNow.value ?: return null
+                val s = owner?.takeIf { it.conflict == null } ?: return null
+                val invite = s.invites.firstOrNull { it.token == p.token } ?: return null
+                if (invite.claimedBy != null || invite.done || invite.expiry <= now()) return null
+                return BleMessages.Pairing(s.identity(ctx.crypto).public, s.relays, p.token, p.expiry, ControlEvents.profile(s))
+            }
+
             override fun onEvent(event: SignedEvent, peer: String) {
                 runScope?.launch(serial) { locked { onNearby(event, peer) } }
             }
         }
+
+    /** *Pair nearby* while open: its token and when it ends (epoch s). */
+    data class NearbyPairing(val token: String, val expiry: Long)
+
+    private val pairingNow = MutableStateFlow<NearbyPairing?>(null)
+
+    /** Settings › Sharing shows the countdown and *Stop*; null when closed (first request, expiry, Stop, sharing stopped). */
+    val nearbyPairing: StateFlow<NearbyPairing?> = pairingNow.asStateFlow()
+
+    @Volatile private var pairingTimer: Job? = null
+
+    /**
+     * *Pair nearby*: a 10-minute single-use invite offered in the Bluetooth INFO (B§7.3); the phone advertises while
+     * it's open even with no follower. False without an identity, during a conflict or when sharing isn't running.
+     */
+    suspend fun openNearbyPairing(): Boolean =
+        locked {
+            val scope = runScope ?: return@locked false
+            val s = owner?.takeIf { it.conflict == null } ?: return@locked false
+            val opened = OpenNearbyPairing(ctx)(s, now())
+            apply(opened.step, overBluetooth = false)
+            pairingTimer?.cancel()
+            pairingNow.value = NearbyPairing(opened.token, opened.expiry)
+            pairingTimer =
+                scope.launch {
+                    delay((opened.expiry - now()).coerceAtLeast(0) * 1000)
+                    locked { endPairing(opened.token) }
+                }
+            nearby.refresh()
+            true
+        }
+
+    /** *Stop*: the offer leaves INFO and its unclaimed invite goes. */
+    suspend fun closeNearbyPairing() =
+        locked {
+            val p = pairingNow.value ?: return@locked
+            pairingTimer?.cancel()
+            pairingTimer = null
+            owner?.let { s -> CloseNearbyPairing(ctx)(s, p.token, now())?.let { apply(it, overBluetooth = false) } }
+            endPairing(p.token)
+        }
+
+    private fun endPairing(token: String) {
+        if (pairingNow.value?.token != token) return
+        pairingNow.value = null
+        nearby.refresh()
+    }
 
     /**
      * An event a follower device wrote over Bluetooth, trusted only by its signatures like a relay event: gift wraps to
@@ -163,7 +231,9 @@ class OwnerEngine(
         }
     }
 
-    private suspend fun run(scope: CoroutineScope, s: OwnerState) {
+    private suspend fun run(scope: CoroutineScope, s0: OwnerState) {
+        // Pair nearby never survives a restart: its unclaimed invite can't be claimed (persisted with the next change)
+        val s = s0.copy(invites = s0.invites.filterNot { it.nearby && it.claimedBy == null })
         owner = s
         runScope = scope
         val identity = s.identity(ctx.crypto).public.hex
@@ -238,6 +308,12 @@ class OwnerEngine(
         apply(handled.step)
         when (val signal = handled.signal) {
             is InboxSignal.NewRequest -> {
+                // single use: the first request closes *Pair nearby* (the next INFO no longer offers it)
+                if (signal.request.token == pairingNow.value?.token) {
+                    pairingTimer?.cancel()
+                    pairingTimer = null
+                    endPairing(signal.request.token)
+                }
                 onRequest(signal.request)
             }
 
@@ -379,7 +455,7 @@ class OwnerEngine(
     suspend fun approve(follower: String, typedCode: String? = null): ApproveResult {
         if (owner?.conflict != null) return ApproveResult.Paused
         val request = pendingRequest(follower) ?: return ApproveResult.Gone
-        if (request.others > 0 && typedCode != request.code) return ApproveResult.NeedsCode
+        if (request.needsTypedCode && typedCode != request.code) return ApproveResult.NeedsCode
         var refused = ApproveResult.Gone
         val s =
             locked {
@@ -389,7 +465,7 @@ class OwnerEngine(
                 when {
                     st.conflict != null -> null.also { refused = ApproveResult.Paused }
                     p == null -> null
-                    p.others > 0 && typedCode != p.code -> null.also { refused = ApproveResult.NeedsCode }
+                    p.needsTypedCode && typedCode != p.code -> null.also { refused = ApproveResult.NeedsCode }
                     else -> ApproveRequest(ctx)(st, follower, now())?.also { apply(it) }?.state
                 }
             } ?: return refused

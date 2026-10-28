@@ -221,6 +221,7 @@ fun HomeContent(
                 haptics.confirm()
                 callbacks.onDelete(it)
             }
+            if (state.history.isNotEmpty()) ReportCard(state.history, state.now, state.config.bands)
             // room for the floating button over the last row
             Spacer(Modifier.height(88.dp))
         }

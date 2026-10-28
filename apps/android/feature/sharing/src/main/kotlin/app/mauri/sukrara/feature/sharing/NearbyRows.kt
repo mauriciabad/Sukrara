@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -20,7 +21,9 @@ import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import app.mauri.sukrara.designsystem.rows.NavigationRow
+import app.mauri.sukrara.designsystem.rows.SwitchRow
 import app.mauri.sukrara.share.ble.NearbyStatus
+import kotlinx.coroutines.delay
 
 /**
  * The way out of a blocked Bluetooth state, under the row that shows it: Bluetooth off → its settings page; Nearby
@@ -91,3 +94,38 @@ fun nearbySummary(status: NearbyStatus, on: Boolean, wearer: Boolean): String =
         wearer -> stringResource(R.string.sh_nearby_no_followers)
         else -> stringResource(R.string.sh_nearby_idle)
     }
+
+/** Bluetooth states the page already explains with a fix row: nothing to pair over. */
+val BLOCKED = setOf(NearbyStatus.BluetoothOff, NearbyStatus.NeedsPermission, NearbyStatus.Unsupported)
+
+/**
+ * *Pair nearby*: on for 10 minutes, phones in range can ask to follow without a link (the wearer still types the
+ * code their phone shows). Its summary counts down while open; the switch turns it off (*Stop*). It closes by itself
+ * at the first request or after 10 minutes.
+ */
+@Composable
+fun PairNearbyRow(
+    until: Long?,
+    onChange: (Boolean) -> Unit,
+    now: () -> Long = { System.currentTimeMillis() / 1000 },
+) {
+    val clock by rememberUpdatedState(now)
+    val left by produceState(until?.let { it - clock() }, until) {
+        while (until != null) {
+            value = (until - clock()).coerceAtLeast(0)
+            delay(1_000)
+        }
+    }
+    SwitchRow(
+        title = stringResource(R.string.sh_pair_nearby),
+        checked = until != null,
+        onCheckedChange = onChange,
+        summary =
+            if (until == null) {
+                stringResource(R.string.sh_pair_nearby_off)
+            } else {
+                val s = left ?: 0
+                stringResource(R.string.sh_pair_nearby_on, "%d:%02d".format(s / 60, s % 60))
+            },
+    )
+}

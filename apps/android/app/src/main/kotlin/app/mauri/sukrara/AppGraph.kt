@@ -36,9 +36,13 @@ import app.mauri.sukrara.graph.GraphConfig
 import app.mauri.sukrara.graph.GraphSettings
 import app.mauri.sukrara.integrations.CurrentSensor
 import app.mauri.sukrara.integrations.IntegrationsModule
+import app.mauri.sukrara.integrations.broadcasts.BcState
+import app.mauri.sukrara.integrations.broadcasts.LiveReading
+import app.mauri.sukrara.integrations.healthconnect.HcState
 import app.mauri.sukrara.integrations.libreview.LvGlucose
 import app.mauri.sukrara.integrations.libreview.LvReadings
 import app.mauri.sukrara.integrations.libreview.LvState
+import app.mauri.sukrara.integrations.localserver.LanPin
 import app.mauri.sukrara.integrations.nightscout.NsState
 import app.mauri.sukrara.integrations.tidepool.TpState
 import app.mauri.sukrara.monitor.MonitorModule
@@ -265,6 +269,8 @@ class AppGraph(
                         AppOutput.XdripServer.takeIf { s.xdripServer },
                         AppOutput.NightscoutApi.takeIf { s.nightscoutApi },
                         AppOutput.Tidepool.takeIf { s.tidepool },
+                        AppOutput.Broadcasts.takeIf { s.broadcastApps > 0 },
+                        AppOutput.HealthConnect.takeIf { s.healthConnect },
                     )
                 },
         )
@@ -282,6 +288,12 @@ class AppGraph(
             libreViewState = data.typedStore("libreview-upload", LvState.serializer(), LvState(), whenCorrupt = LvState()),
             // a lost state re-sends what the phone keeps; Tidepool replaces each datum by its origin id (no duplicates)
             tidepoolState = data.typedStore("tidepool-upload", TpState.serializer(), TpState(), whenCorrupt = TpState()),
+            // a lost state may send the current reading once more (the throttle and life count start again)
+            broadcastState = data.typedStore("broadcasts", BcState.serializer(), BcState(), whenCorrupt = BcState()),
+            // a lost state writes the stored history again (idempotent: one record per minute)
+            healthState = data.typedStore("health-connect", HcState.serializer(), HcState(), whenCorrupt = HcState()),
+            // a lost pin pauses the home-network option ("another Wi-Fi") until Allow on this Wi-Fi: never a silent move
+            nightscoutLan = data.typedStore("nightscout-lan", LanPin.serializer(), LanPin(), whenCorrupt = LanPin()),
             appVersion = appVersion,
             readings = data.readings,
             treatments = data.treatments,
@@ -293,6 +305,10 @@ class AppGraph(
                 sensor.source.sensorGlucose.map { b ->
                     fun g(x: SensorGlucose) = LvGlucose(x.lifeCount, x.mgdl, x.epochSec, x.rate)
                     LvReadings(b.serial, b.current?.let(::g), b.history.map(::g))
+                },
+            libreLive =
+                sensor.source.sensorGlucose.mapNotNull { b ->
+                    b.current?.let { LiveReading(it.mgdl, it.rate, Instant.ofEpochSecond(it.epochSec), b.serial, it.lifeCount) }
                 },
             libreViewEmail = sensor.libreView.email,
             role = role.data.map { it.role },

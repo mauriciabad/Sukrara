@@ -31,7 +31,8 @@ Rules: [poc/spikes/alerts/SPEC.md](../poc/spikes/alerts/SPEC.md); timelines: [po
 - "Very low" (id `very_low`) replaced "urgent low" everywhere (settings JSON, channels, sounds, events); no migration.
 - Level alerts: one at a time, the most severe wins; a worse kind of the same side alerts at once; getting better
   (very low → low) doesn't alert.
-- Rate alerts (falling/rising fast) run next to level alerts; no data runs on a timer and clears on the next reading. The Android timer is an elapsed-time alarm, so a clock change (`TIME_SET`) re-checks at once and plans it again (round 22: with the clock moved forward the old high stayed up and no "no data" came; a real gap alerts on time, scenario *A high with no more readings…*).
+- Rate alerts (falling/rising fast) run next to level alerts; a reading without a rate (a LO / HI has none) keeps an
+  open falling / rising fast as it is (alert up, repeat due, a Mute not back by it): a LO isn't a sign the fall stopped; no data runs on a timer and clears on the next reading. The Android timer is an elapsed-time alarm, so a clock change (`TIME_SET`) re-checks at once and plans it again (round 22: with the clock moved forward the old high stayed up and no "no data" came; a real gap alerts on time, scenario *A high with no more readings…*).
 - Readings older than 15 min never alert; the alert clears when the reading gets that old.
 - Episodes: one per group and side; a brief exit (back in range for less than the repeat interval, at least 5 min)
   clears the notification but keeps the episode, its repeat count and its treatments; no new "first" alert.
@@ -63,7 +64,7 @@ Rules: [poc/spikes/alerts/SPEC.md](../poc/spikes/alerts/SPEC.md); timelines: [po
   - *Side relaxed*: Android chip under the card *Low reminders every 30 min* (es *Avisos de glucosa baja cada 30 min*), the notification's **Remind as usual**, sheet / Active now; Mac panel row, pill menu, Active now. Out: Remind as usual (an overdue repeat at once), back by the margin.
   - *Muted + relaxed*: both lines and both exits; the margin ends both.
   - *All alerts muted (time / Never)*: Android under the card *Alerts muted · 1 h 12 min left* (counting down) / *Alerts muted until you turn it off* (es *Alertas silenciadas · quedan 1 h 12 min* / *… hasta que lo desactives*) with **Unmute** (es *Reactivar*) and **Change**, the muted pill everywhere, Active now, TalkBack actions on the card (*Alerts: Unmute*, *Alerts: Change time*); Mac dropdown row with **Unmute** and **Change Time**, the menu bar's bell.slash (tooltip and VoiceOver *Alerts muted …*), the pill's menu, Settings › Alerts › Active now. Out: Unmute (what matches alerts at once), its end (never with Never), Change.
-  - History lines (Android; the Mac logs them): *Low alerts muted for 1 h*, *Low reminders every 30 min*, *Low alerts unmuted*, *Low reminders as usual (every 5 min)*, *Low back in range: alerts as usual*, *All alerts muted for 2 h* / *… until you turn it off*, *Alerts unmuted*.
+  - History lines (Android; the Mac logs them): Settings › Alerts › **Lately** lists the newest 5 of the last 24 h with their time (es *Últimamente*): *Low · 66 mg/dL* (an alert's first ring; repeats and silent re-posts after a restart aren't lines; *(from the wearer)* when mirrored), *High cleared* (the rules ended it, not a mute), *Low alerts muted for 30 min*, *Low alerts unmuted*, *Low alerts: remind less* / *remind as usual*, *Low back in range: alerts as usual*, *All alerts muted for 2 h* / *… until you turn it off*, *Alerts unmuted*. The runtime keeps the last 20 lines in the alert record (`AlertNotes`, saved with the rules' state, so a restart keeps them; *Start fresh* clears them). The group shows only while it has lines; it is read-only (the strips and pages above are the ways out).
 
 - Falling-high mute (default 20 min): no high/very high alert while `sgv + rate × min < high`; it only postpones (a
   repeat that came due fires when it ends).
@@ -77,7 +78,7 @@ Rules: [poc/spikes/alerts/SPEC.md](../poc/spikes/alerts/SPEC.md); timelines: [po
 - Android timer: exact alarm (`USE_EXACT_ALARM`) at the engine's next check, so a mute end alerts on time between
   readings; Mac: one-shot timer at the next check plus the 60 s tick.
 - Badge status (`AlertStatus`): None / Needed / Taken / Paused use the same thresholds and treatment windows as the engine.
-- Notification channels: two per kind. Android ids `alert.<kind>` (notification volume, `USAGE_NOTIFICATION_EVENT`, group *Glucose alerts*) and `alert_alarm.<kind>` (alarm volume, `USAGE_ALARM` + `CATEGORY_ALARM`, passes "Alarms" in Do Not Disturb and bypasses Priority mode once DND access is granted; group *Glucose alarms (alarm volume)*); the person sees them as *Very low*, *Low*, … under those two groups in System settings › Notifications. Ids never change (renaming resets the person's choices). (PoC: `alert_n_<kind>`, `alert_a_<kind>`.)
+- Notification channels: two per kind. Android ids `alert.<kind>` (notification volume, `USAGE_NOTIFICATION_EVENT`, group *Glucose alerts*) and `alert_alarm.<kind>` (alarm volume, `USAGE_ALARM`, passes "Alarms" in Do Not Disturb and bypasses Priority mode once DND access is granted; group *Glucose alarms (alarm volume)*); the person sees them as *Very low*, *Low*, … under those two groups in System settings › Notifications. Ids never change (renaming resets the person's choices). (PoC: `alert_n_<kind>`, `alert_a_<kind>`.) Every alert that can ring posts as `CATEGORY_ALARM` so Android 15+ *notification cooldown* (per app: a second sounding notification within 60 s at 30 % volume, a third within 10 s muted; only alarms are exempt) never quietens one — Low and Falling fast fire in the same reading. A notification-volume alert keeps `CATEGORY_REMINDER` only while Do Not Disturb would treat the two differently (Alarms only, Priority without both alarms and reminders), so DND lets it through exactly as before (`AlertCategory`, `AlertCategoryTest`, `AlertNotificationAttributesTest`). Android also makes only one sound per app per second, so when one reading fires several alerts the one to hear is posted first (alarm level, then the most severe; the others show without sound; `AlertRingOrderTest`). Debug builds: `ALERTS --es kinds low,falling_fast --el gapMs 2000` posts made-up alerts through the notifier (docs/15 has the check).
 - Android runtime (`:monitor` `AlertRuntime`): one alert runtime per process owns the engine; the monitoring service feeds it (hub state, settings, treatments) and the exact alarm (`AlertCheckReceiver`; boot, app update, clock and time-zone change through `BootReceiver`) ticks it **with the service dead**, from the saved record (episodes, mutes, Mute all, the last reading, the sensor's life, whether monitoring started): *no data* still alerts on time when Android killed the service, then the service is asked to restart. Both paths share the one runtime, so an alert never posts twice. Effects are applied before the state is saved (a crash in between rings again rather than resuming silently); each effect step (the alarm first, then notifications, followers, saving, publishing) is tried on its own, so a refused notification never leaves the exact alarm unarmed or the state unsaved; a failed step is written to the diagnostic log (no values) and listed in the hub's alert state as `AlertStepFailed` until it works again (no screen shows it yet: OPS issue); an alert Android refused to post is posted again, with its sound, on the next input. Boot, app update and clock changes check alerts and start the service once (`BootReceiver`). The alert check uses `setExactAndAllowWhileIdle`, not `setAlarmClock` (that would show an alarm icon and replace the person's wake-up alarm as the phone's "next alarm"); with exact alarms refused it falls back to an inexact while-idle alarm. **No phantom alarm**: before the first reading (or with no sensor / monitoring stopped) *no data* is off and nothing is scheduled; without a role nothing runs. Alerts are never bundled with other notifications: every alert and muted card is in Sukrara's own *Glucose alerts* notification group with its summary (Android 16 force-groups ungrouped and sparse groups; 0.11.53), the summary never rings and goes with its last alert. Alarm-volume kinds (very low and extremely high by default) also open over the lock screen with a full-screen intent when Android allows it; when notifications are off, an alert channel is blocked or full-screen isn't allowed, the hub's alert state lists the problem (`deliveryProblems`) for home and the reliability row. A swipe only removes that notification: the episode keeps its repeats.
 - Android alert delivery (`:monitor`): every alert channel's sound is `content://app.mauri.sukrara.alertsound/<kind>` (`AlertSoundProvider`, exported read-only because System UI's player opens it): the file is picked at play time (the pack chosen in the app, a random variant), and a file that can't be opened falls back to the system sound, never silence; a sound picked in the channel's system settings wins. One vibration per kind (`AlertHaptics`, so the alert is recognisable in a pocket: lows fall and thud, highs rise, no data ticks away), composed from primitives, with an on/off waveform of the same rhythm where primitives aren't supported. The notification's actions follow the side's state: an alert whose repeat isn't faster than *Remind less* shows only *Mute…*; a relaxed side shows *Remind as usual* (with its "reminders every …" subtext). No per-side notification light colour (most phones have no LED).
 - One sound per alert: each channel rings only its Sukrara sound; the app restores its episodes after a restart (an
@@ -437,6 +438,18 @@ Role kept safe (Android): the role is stored twice (`role.json`, `role-backup.js
 *Some saved data was damaged* banner and the other copy keeps the phone monitoring (never back to setup with the service
 silently stopped); the copies are brought back in line at start.
 
+**Glucose report** card (Android, `ReportCard`, at the bottom of home for wearer and follower once any reading is
+stored; tests `ReportCardTest`, `HistoryGallery.reportCard`): the clinic report's numbers over home's stored 31 days
+(`GlucoseMetrics`, time-weighted like the rings, re-counted every 5 minutes): a 1 d / 7 d / 14 d / 30 d segmented
+picker (opens on 14 days; a view control, not a setting — schema `report.days` is the Mac's remembered window; a tick
+haptic on change), the stacked bar of the six bands beside time very high / high / above range, in range / very good,
+low / very low / below range, each with its share (`ShareText`) and, where the international consensus sets one, its
+goal as a chip (green with a check when met, orange when not); average glucose (< 154 mg/dL), GMI in % and mmol/mol
+(< 7 % / < 53 mmol/mol) and CV (≤ 36 %); a note when readings cover less than 70 % of the period, and the coverage in
+the footer. No readings in the period → *No readings in the last day. Choose a longer period.* TalkBack reads each
+row as one line with its goal and *goal met* / *goal not met*; the bar animates to new shares (snaps with reduced
+motion). Ranges are in mg/dL like the chart axis.
+
 **Damaged data** screen (from the banner's Review; back arrow in the top bar): each damaged file as what it means for
 the person: settings → *Your settings were reset to the defaults. Check your alert levels and mutes.* with *Open alert
 settings* (opens Settings › Alerts); readings / treatments may be
@@ -449,7 +462,7 @@ pill) → *Alert me anyway* / *Unmute*, *Alert settings*, or back / swipe down /
 last day* → *Pair new sensor* (or keep the sensor; it leaves when the new one runs); *no data* → the reason's action (or wait: warming up,
 core missing explains why); *banner* → its action, or close (non-safety), safety banners leave when fixed; *muted* →
 Unmute (button and TalkBack action); *treatment deleted* → Undo (5 s) or let it go; *damaged data* → Review → Got it /
-Back; *not set up* → the reason panel's Set up; invite links open setup over home (Back returns home).
+Back; *not set up* → the reason panel's Set up; invite links open setup over home (Back returns home). *Glucose report* → another period (the picker), or scroll past it; nothing to undo (it changes nothing).
 
 ## Untested sensor banner
 
@@ -922,7 +935,23 @@ past the other app's event; blocks again if it's still running) or *Help*.
   256 KiB a minute → error and disconnect;
   more than 30 messages a minute → dropped), sends one backlog per device per 5 s (a sooner `HELLO` is answered when due),
   and never re-sends an expired event from its backlog.
-- Not included yet: *Pair nearby* / *Find phones nearby* (joining over Bluetooth without a link).
+- **Pair nearby** (Android wearer, Settings › Sharing › Bluetooth, shown while Bluetooth can serve): a switch that opens
+  a single-use invite for 10 minutes (`OwnerEngine.openNearbyPairing`; no link and no invite wrap on the relays, the
+  backup records the token). While open the phone advertises even with no follower and its `INFO` carries `i`, `relays`
+  and `pair` (token, expiry, the wearer's profile; B§7.3); the summary counts down (*Open · closes in 9:41*). It closes
+  at the first request with it, after 10 minutes, with the switch (*Stop*), when *Share over Bluetooth* is turned off
+  or when sharing stops or the app restarts; each drops the unclaimed invite (a restore keeps an invite nearby). A request made
+  with it is marked nearby: the approve dialog says anyone in Bluetooth range could have asked and Allow needs the code
+  typed from the follower's phone (never compare-only), and its notification has no Allow (*Open Sukrara and type the
+  code*).
+- **Find phones nearby** (Android follower, setup's join step, under the link field): looks over Bluetooth while the list
+  shows (`FollowerEngine.findNearby`): each phone found is connected in turn, sent a `HELLO` without a proof, its `INFO`
+  read and the phone left for 15 s (nothing else is written: with no identity every phone is "unknown", B§6); phones with
+  an open, unexpired `pair` are listed with the wearer's picture and name (by invite; a phone not seen for 30 s leaves
+  the list). A follow that ended never asks again over Bluetooth. A tap joins with that offer (no relay lookup)
+  as the name typed above; the follow's own Bluetooth link then sends the request to the phone whose `INFO` names that
+  identity, and to the relays. The join step shows the match code as for a link. The Mac follower does the same from its
+  follow window.
 - Mac follower: gift wraps (access request, rekey, history request) carry an absolute expiration (7 d; history 1 d); a key
   delivery naming another stream id is rejected; a chunk whose `c`/`d` tags don't match its hour is rejected; a rekey
   request goes out only for an unknown key on an event from the wearer's identity or device.
@@ -932,7 +961,10 @@ back returns and the page looks again); permission missing → *Allow Nearby dev
 stays, and its next tap opens the app's Android settings page); no follower yet → serves once someone follows; unsupported → nothing to do, sharing goes on over the internet. A
 device in *Nearby devices* → its follower dialog (*Close*, *Remove* → confirm → removed and disconnected). Follower:
 the Bluetooth line follows the link by itself; Bluetooth off → *Turn on Bluetooth*; permission missing → *Allow Nearby
-devices*; *Stop following* ends Bluetooth with the relays. Every state works with TalkBack (rows are buttons with text).
+devices*; *Stop following* ends Bluetooth with the relays. *Pair nearby* open → its switch (*Stop*), or it closes by
+itself (first request, 10 minutes); the request it brings → the approve dialog (*Later*, *Deny*, *Allow* with the typed
+code). *Find phones nearby* → *Stop looking*, a phone (asks to follow → waiting with the code), Bluetooth off / permission
+missing → the same fix rows; leaving the join step stops looking. Every state works with TalkBack (rows are buttons with text).
 
 ## Share with apps on this phone (investigation 22)
 
@@ -979,13 +1011,76 @@ devices*; *Stop following* ends Bluetooth with the relays. Every state works wit
   copy, marked sensitive for the clipboard preview; the xDrip+ address `http://<secret>@127.0.0.1:17581` and the
   token address), *Hide API secret*, *New secret* (confirmed: apps using the old one stop reading), and a footer that
   says only apps on this phone can reach it and that it isn't a source for a closed loop. Requests are never logged.
-  The home-network option (`apps.nightscoutLan`) is not built yet (see *Not included*).
+- *On your home Wi-Fi* (inside the API page while it is on; `LanPolicy`, `LanWatcher`; tests `LanPolicyTest`,
+  `NightscoutApiTest`): *Also on this Wi-Fi*, **off by default** (schema `apps.nightscoutLan`). Turning it on asks first
+  with the plain warning (any device on this Wi-Fi can read glucose, doses and notes with the secret; not encrypted, so
+  someone on the same Wi-Fi can see the secret), then Android 17's local network access (Nearby devices). On, a second
+  listener binds only the phone's private IPv4 Wi-Fi address (RFC 1918, prefix 8–30; never 0.0.0.0, a public, VPN or
+  hotspot address) on port 17581, drops callers outside that subnet without an answer, and answers only a Host header
+  that is exactly that address; same secret, routes and bounds, plus a write deadline (a caller that stops reading is
+  cut off). It is pinned to the Wi-Fi the phone is on when it is turned on (or *Allow on this Wi-Fi* is tapped); away
+  from a qualifying Wi-Fi turning it on is refused ("Not turned on: it works only while the phone is on a home Wi-Fi with
+  a password") and nothing is pinned, so it never opens on a network joined later. A lost pin pauses it until *Allow on this Wi-Fi*. Android hides the Wi-Fi's name without location permission
+  (never asked), so "the same Wi-Fi" is a fingerprint of subnet, gateway, DHCP server and DNS domain, which tells most
+  networks apart but not two look-alike routers. Open, WEP, OWE or unknown-security Wi-Fi is refused (a café's WPA2
+  password still passes: the warning says it works wherever you turn it on). The Wi-Fi is watched (one ConnectivityManager
+  callback) only while the option is on; a new address on the same Wi-Fi rebinds. Turning the API off turns this off
+  too. Status: "On · http://192.168.1.23:17581 for devices on this Wi-Fi", "Paused · the phone isn't on Wi-Fi", "…
+  doesn't look like a home network", "… has no password", "… isn't the Wi-Fi you turned it on in" (+ *Allow on this
+  Wi-Fi*), "… Android doesn't allow local network access" (+ *Open Android settings*, which says to keep Nearby devices
+  allowed: the sensor needs it). The API's status line and the Share with apps row add "also on Wi-Fi 192.168.1.23";
+  with the secret shown the page lists the Wi-Fi address too.
+- *Send glucose to apps* (wearer; `broadcasts/` `Broadcaster`, `BroadcastPlan`, `BroadcastPayloads`, `BroadcastsPage`;
+  tests `BroadcastPlanTest`): every app on the phone that declares a receiver for the xDrip+ `BgEstimate`, LibreLink
+  `GLUCOSE_READING` / `SENSOR_ACTIVATE` or Juggluco `glucodata.Minute` broadcast (manifest `<queries>`), with its
+  package name and format and a switch each, **none on by default** (schema `apps.broadcasts`). Allowing an app pins the
+  SHA-256 of its signing certificate; before every send `hasSigningCertificate` checks it, so a reinstall with another
+  key gets nothing ("this app changed since you allowed it": tap → a confirmation that it may be another app and that
+  AndroidAPS may dose from these readings → *Allow again*; or *Remove*). A follower's page still lists apps allowed
+  earlier with *Remove*. An allowed app that was
+  uninstalled stays listed as "Not installed · Tap to remove". What goes out (a closed loop may dose from it): only the
+  Libre 3 driver's live reading on the wearer's phone (never history, Juggluco, an untested family, a follower feed or
+  debug data), at most 5 min old and never in the future, never LO / HI, at most one per 55 s and never the same reading
+  twice (persisted sensor serial + life count, so a restart or a clock change can't repeat one; a last-sent time ahead
+  of the clock is ignored). One format per app (xDrip+, else LibreLink, else Juggluco), so an app that listens for all
+  three gets a reading once; xDrip+'s `SourceInfo` is `Libre3`, as Juggluco sends it (AAPS decides its filtering from
+  it). `SENSOR_ACTIVATE` goes with the LibreLink format only, with the sensor's real start, once per app and sensor.
+  Each copy is sent to its package only (`setPackage`). Status: "Last sent 2 min ago", "Waiting for a reading from this
+  phone's Libre 3", or why the newest wasn't sent (too old, future time, LO / HI, no allowed app listens); "Off · no app
+  is allowed". When AndroidAPS and xDrip+ or GlucoDataHandler are both on, a note says AndroidAPS may get each reading
+  twice if the other forwards it. A follower's page says nothing is sent from a follower's phone.
+- *Health Connect* (wearer; `healthconnect/` `HealthConnectSync`, `PlatformHealth`, `HealthConnectPage`; tests
+  `HealthConnectSyncTest`): *Write glucose to Health Connect*, **off by default** (schema `healthConnect.on`), through the
+  platform `android.health.connect` API. Turning it on asks Health Connect's own permission sheet (blood glucose, write
+  only); denied → the switch stays off with "Health Connect didn't allow it" and *Open Health Connect*. On, the last 30
+  days go in first, then each new reading: only this phone's own sensor readings (by the stored source, so a followed
+  person's readings never go in), never LO / HI (no number: a gap at severe lows and highs), as blood glucose
+  (interstitial fluid) with the sensor as device (Abbott · FreeStyle Libre 3; Juggluco; the untested families say
+  "(untested)"). One record per minute (clientRecordId `sukrara-glucose-<minute>`): writing a minute again updates it.
+  The written minutes are remembered, so each pass writes only new minutes (a new reading, or a gap a reconnect filled
+  in the last day); a rate limit backs off from 15 min. Status: "On · last written 1 min ago", "waiting for a reading",
+  "Health Connect asked to slow down", "refused the last write (error N)", "Health Connect doesn't allow writing now"
+  (permission removed in Health Connect: nothing is written until it's allowed again). *Open Health Connect* opens this
+  app's Health Connect permissions (allow again, see or delete what was written). Health Connect's "why this app needs
+  it" link opens this page. Turning it off stops writing; records stay in Health Connect. A follower's page says nothing
+  is written on a follower's phone; a phone without Health Connect says so (both still show the switch to turn it off
+  when it was left on). A history copy cut short (rate limit, process stop) is finished on the next passes; a new
+  reading never cancels a running pass.
 
 **States and exits**: *xDrip+ server off* (default) → switch on. *On / listening* → switch off stops it at once.
 *Port in use* → turn the other app's server off, then the switch off and on. *Left to Juggluco* → change the source in
 Settings › Sensor, or switch the server off. *Nightscout API off* (default) → its switch. *On* → switch off (the secret
 stays). *Port in use* → as for the xDrip+ server. *Secret can't be read* → *New secret* (the API starts with it).
-*Secret shown* → *Hide API secret* or Back. *New secret* dialog → *Cancel* keeps the old one. *Nightscout upload*,
+*Secret shown* → *Hide API secret* or Back. *New secret* dialog → *Cancel* keeps the old one. *Home Wi-Fi off* (default)
+→ its switch → the warning dialog (*Cancel* keeps it off) → Android's permission. *On / listening* → switch off (or the
+API's switch). *Paused: another Wi-Fi* → *Allow on this Wi-Fi* or switch off. *Paused: no permission* → *Open Android
+settings* or switch off. *Paused: no Wi-Fi / not a home network / no password* → join the home Wi-Fi or switch off.
+*Home Wi-Fi refused* (not on a qualifying Wi-Fi) → join it and switch on again. *Paused: API not running* → see the API's
+own state above. *Broadcasts: no app allowed* (default) → an app's switch. *Allowed* → its switch off. *App changed* →
+tap → confirm *Allow again* (*Cancel* keeps it blocked), or *Remove*. *Not installed* → tap to remove. *No app listens* → install one, come back (the list refreshes on return).
+*Health Connect off* (default) → switch → Health Connect's sheet. *Denied* → *Open Health Connect*, then the switch.
+*On* → switch off (records stay; *Open Health Connect* to delete them). *Permission removed* → *Open Health Connect* or
+switch off. *Slowed down / refused* → retries by itself, or switch off. *Nightscout upload*,
 *LibreView* and *Tidepool* states are on their pages. Back leaves the page.
 
 ## Insulin pens (docs/29)
@@ -1149,6 +1244,6 @@ page.
 - Android settings pages: settings export / import / reset, settings search, the follower's *Settings from* page, relay / epoch / statistics / log pages, battery-lab knobs, mmol/L in the settings pages (thresholds and ranges are shown and typed in mg/dL; schema `general.unit` is set elsewhere), and icons on every row. Reason: only what daily use needs; the defaults are the owner's own values.
 - Mac: Juggluco over Wi-Fi (LAN source and subnet discovery) and the Nostr v1 `cgmnostr:` follow link (v1 links carried plaintext secrets and had no UI). Follow the wearer with a protocol v2 invite instead.
 - Sensors: the Libre 3 experiment preferences (minimal subscription set, connection priority, screen-off skip). Reason: no hardware to test them, the owner uses a Libre 3.
-- Planned (issues filed): scanning an invite's QR code on Android and the follower's *Settings from* page, the glucose report card, the Nightscout API on the home network (`apps.nightscoutLan`), Health Connect and broadcasts, the rest of insulin pens (see its section), the calendar event, nearby pairing over Bluetooth. The sections above that describe them are the behaviour to build. Reason: what daily use needs comes first.
+- Planned (issues filed): scanning an invite's QR code on Android and the follower's *Settings from* page, the rest of insulin pens (see its section), the calendar event. The sections above that describe them are the behaviour to build. Reason: what daily use needs comes first.
 
 **States and exits**: none (these features aren't in the app).

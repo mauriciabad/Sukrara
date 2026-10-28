@@ -14,9 +14,9 @@ sealed interface NearbyEvent {
 
     /**
      * A phone's INFO: ours, another wearer's, or not known yet (no `sid` before the first key). [phone] names the
-     * connection it came on, so leaving it never hits a phone connected since.
+     * connection it came on, so leaving it never hits a phone connected since. [pairing] = its *Pair nearby* offer.
      */
-    data class Info(val owner: BleMessages.Owner, val phone: String) : NearbyEvent
+    data class Info(val owner: BleMessages.Owner, val phone: String, val pairing: BleMessages.Pairing? = null) : NearbyEvent
 }
 
 /**

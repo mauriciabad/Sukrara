@@ -31,6 +31,9 @@ class MainActivity : ComponentActivity() {
     /** The pen whose page a pen read card asked for, until the navigation has opened it. */
     private var openPen by mutableStateOf<String?>(null)
 
+    /** Health Connect asked for the privacy rationale, until the navigation has opened the Health Connect page. */
+    private var openHealth by mutableStateOf(false)
+
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
@@ -38,6 +41,7 @@ class MainActivity : ComponentActivity() {
             deepLink = intent?.data
             openNewSensor = opensNewSensor(intent?.action)
             openPen = penPage(intent)
+            openHealth = healthRationale(intent)
         }
         val graph = graph
         setContent {
@@ -50,6 +54,8 @@ class MainActivity : ComponentActivity() {
                     Modifier.fillMaxSize(),
                     openPen = openPen,
                     onPenShow = { openPen = null },
+                    openHealthConnect = openHealth,
+                    onHealthConnectShow = { openHealth = false },
                 )
             }
         }
@@ -60,6 +66,7 @@ class MainActivity : ComponentActivity() {
         deepLink = intent.data
         if (opensNewSensor(intent.action)) openNewSensor = true
         penPage(intent)?.let { openPen = it }
+        if (healthRationale(intent)) openHealth = true
     }
 
     override fun onResume() {
@@ -78,3 +85,9 @@ class MainActivity : ComponentActivity() {
 /** The pen page a pen read card's *Check it* asks for (only the wearer's phone has pens; Settings checks again). */
 private fun penPage(i: Intent?): String? =
     i?.takeIf { it.action == NavTargets.ACTION_PEN_PAGE }?.getStringExtra(NavTargets.EXTRA_PEN_SERIAL)?.takeIf { it.isNotBlank() }
+
+/** Health Connect's link to this app's privacy rationale (the manifest's `.HealthPermissionsRationale` alias). */
+private fun healthRationale(i: Intent?): Boolean =
+    i?.action == Intent.ACTION_VIEW_PERMISSION_USAGE && i.hasCategory(HEALTH_PERMISSIONS_CATEGORY)
+
+private const val HEALTH_PERMISSIONS_CATEGORY = "android.intent.category.HEALTH_PERMISSIONS"

@@ -22,8 +22,10 @@ import app.mauri.sukrara.share.FakeRelayTransport
 import app.mauri.sukrara.share.OwnerFixtures
 import app.mauri.sukrara.share.OwnerFixtures.NOW
 import app.mauri.sukrara.share.OwnerFixtures.crypto
+import app.mauri.sukrara.share.owner.ApproveResult
 import app.mauri.sukrara.share.owner.OwnerEngine
 import app.mauri.sukrara.share.owner.OwnerIdentityStore
+import app.mauri.sukrara.share.owner.usecase.ControlEvents
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
@@ -43,7 +45,7 @@ class OwnerNearbyTest {
     private val nearby = FakeNearbyServer()
     private val store = OwnerIdentityStore(InMemorySecureStore())
 
-    private fun TestScope.engine() =
+    private fun TestScope.engine(clock: FakeClock = FakeClock(Instant.ofEpochSecond(NOW))) =
         OwnerEngine(
             ctx,
             store,
@@ -51,7 +53,7 @@ class OwnerNearbyTest {
             NoHub,
             { _, _ -> true },
             InMemoryTreatmentsRepository(),
-            FakeClock(Instant.ofEpochSecond(NOW)),
+            clock,
             StandardTestDispatcher(testScheduler),
             nearby = nearby,
         )
@@ -122,6 +124,75 @@ class OwnerNearbyTest {
             runCurrent()
             assertTrue(host.followers().isEmpty())
             assertEquals(listOf(mom.public.hex), nearby.forgotten)
+        }
+
+    @Test fun pairNearbyOffersAnInviteInInfoUntilTheFirstRequestAndAllowNeedsTheTypedCode() =
+        runTest {
+            val clock = FakeClock(Instant.ofEpochSecond(NOW))
+            val e = engine(clock)
+            assertTrue(e.createIdentity(backgroundScope, null))
+            runCurrent()
+            val host = nearby.host!!
+            assertNull("closed: INFO offers nothing", host.pairing())
+            relay.published.clear()
+
+            assertTrue(e.openNearbyPairing())
+            runCurrent()
+            val pairing = host.pairing()!!
+            assertEquals(state().identity(crypto).public, pairing.identity)
+            assertEquals(NOW + 600, pairing.expiry)
+            assertEquals(e.nearbyPairing.value!!.token, pairing.token)
+            assertTrue("no invite wrap on the relays", relay.published.none { it.kind == Wire.KIND_WRAP })
+            assertTrue(state().invites.single { it.token == pairing.token }.nearby)
+            // a restore keeps it a nearby invite (its request still needs the typed code)
+            val st = state()
+            val restored = ControlEvents.fromBackup(crypto, st.identityHex, st.deviceHex, ControlEvents.backupPayload(crypto, st))!!
+            assertTrue(restored.invites.single { it.token == pairing.token }.nearby)
+
+            val mom = crypto.generate()
+            host.onEvent(OwnerFixtures.request(mom, state(), pairing.token, "Mom"), "aa:bb")
+            runCurrent()
+            val request = e.pendingRequest(mom.public.hex)!!
+            assertTrue(request.nearby && request.needsTypedCode)
+            assertNull("single use: the first request closes it", host.pairing())
+            assertNull(e.nearbyPairing.value)
+
+            assertEquals(ApproveResult.NeedsCode, e.approve(mom.public.hex))
+            assertEquals(ApproveResult.NeedsCode, e.approve(mom.public.hex, "0000".takeIf { it != request.code } ?: "0001"))
+            assertEquals(ApproveResult.Allowed, e.approve(mom.public.hex, request.code))
+            runCurrent()
+            assertEquals(listOf(mom.public), host.followers().toList())
+        }
+
+    @Test fun stopAndExpiryClosePairNearby() =
+        runTest {
+            val clock = FakeClock(Instant.ofEpochSecond(NOW))
+            val e = engine(clock)
+            assertTrue(e.createIdentity(backgroundScope, null))
+            runCurrent()
+            val host = nearby.host!!
+
+            assertTrue(e.openNearbyPairing())
+            runCurrent()
+            val token = host.pairing()!!.token
+            e.closeNearbyPairing()
+            runCurrent()
+            assertNull(host.pairing())
+            assertTrue("Stop drops the unclaimed invite", state().invites.none { it.token == token })
+            // a request with it afterwards opens nothing
+            val late = crypto.generate()
+            host.onEvent(OwnerFixtures.request(late, state(), token, "Late"), "aa:bb")
+            runCurrent()
+            assertNull(e.pendingRequest(late.public.hex))
+
+            assertTrue(e.openNearbyPairing())
+            runCurrent()
+            assertNotNull(host.pairing())
+            clock.advance(java.time.Duration.ofSeconds(601))
+            testScheduler.advanceTimeBy(601_000)
+            runCurrent()
+            assertNull(host.pairing())
+            assertNull(e.nearbyPairing.value)
         }
 
     private object NoHub : GlucoseHub {

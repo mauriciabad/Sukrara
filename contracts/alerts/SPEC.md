@@ -25,7 +25,10 @@ extremely high) alerts at once. The card shows "LO" / "HI" (scenarios `levels.tx
 
 - **Level alerts** (`very_low`, `low`, `high`, `very_high`, `extremely_high`): at most one is active, the most severe
   that matches. **Rate alerts** are independent of level alerts; `rate` is the reading's trend in mg/dL/min. No rate →
-  no rate alert. `no_data` is checked by a timer, cleared by the next reading.
+  no rate alert, but a fresh reading without a rate (a LO / HI is sent without one) is no sign the fast change stopped:
+  an open rate episode stays as it is (its alert stays up, its repeat stays due, its hold doesn't run down) and a rate
+  side's Mute / Remind less isn't back by it (scenarios `other.txt`). `no_data` is checked by a timer, cleared by the
+  next reading.
 - **Episodes.** Each group (level, rate, no data) has at most one episode: a stretch of time on one *side* (lows,
   highs, falling fast, rising fast, no data). It starts when a kind of that side matches and ends once nothing of that
   side has matched for the **hold time** = the kind's `repeatMin`, at least 5 min. A reading back in range for a
@@ -182,7 +185,7 @@ treatment rules for the badge under the value.
 ```
 
 - `alarm` (per kind, local like the sound, also on a follower that mirrors the wearer): ring **like an alarm** instead
-  of as a notification. Android: alarm volume + `CATEGORY_ALARM` (through "Alarms" in Do Not Disturb, no cooldown);
+  of as a notification. Android: alarm volume (`USAGE_ALARM`, through "Alarms" in Do Not Disturb);
   Mac: Time Sensitive (breaks through Focus) when the build is entitled to it, else a normal notification.
 - `sounds.pack`: the pack every kind uses; `sounds.kinds[k]` overrides one kind (mix and match); `"system"` = the
   platform's default notification sound, `"none"` = silent. `shuffle`: pick a random variant of the pack each time
@@ -247,7 +250,7 @@ because Notification Center didn't find the bundled file and played the default 
 |---|---|---|
 | Per-kind sound | two notification channels per kind (`alert_n_<kind>` notification volume, `alert_a_<kind>` alarm volume; `alarm` picks one); its sound is `content://<pkg>.alertsound/<kind>`, an exported provider that picks the pack + variant **each time SystemUI opens it** | `UNNotificationSound(named:)` per notification |
 | User override | channel settings (sound, vibration, DND) win over the app | none (macOS only has "Play sound for notification" on/off) |
-| Category | `alarm`: `CATEGORY_ALARM` + `USAGE_ALARM` (alarm volume, "Alarms only" DND, no cooldown); otherwise `CATEGORY_REMINDER` + `USAGE_NOTIFICATION_EVENT` (no post-unlock cooldown, DND "Reminders") | `alarm`: `.timeSensitive` only with the entitlement, else `.active` |
+| Category | `alarm`: `USAGE_ALARM` (alarm volume, "Alarms only" DND); otherwise `USAGE_NOTIFICATION_EVENT` (DND "Reminders"). Every alert posts `CATEGORY_ALARM` (exempt from the per-app and post-unlock notification cooldowns, so two alerts in one reading both ring in full) except a notification-volume alert while DND would filter an alarm and a reminder differently: then `CATEGORY_REMINDER` | `alarm`: `.timeSensitive` only with the entitlement, else `.active` |
 | Haptics | a primitives-only `VibrationEffect` per channel (falls for lows, speeding-up clicks for high…); an on/off waveform where primitives aren't supported. Haptic channels inside the sound file are muted for notifications | — |
 
 ## 7. Scenarios (the regression guard)
@@ -274,7 +277,7 @@ settings low.repeat=5 carbs.mute=5          # on top of the defaults (§3)
 ```
 
 - A line is `<minute>[:<ss>] [events, …] [=> expectations; …]`. Events: `glucose <mg/dL> [rate <mg/dL/min>]
-  [age <min>]` (what the sensor reads from now on), `readings every <n>` (default 1 min), `sensor off|on`,
+  [age <min>]` (what the sensor reads from now on; without `rate` the readings have no rate), `readings every <n>` (default 1 min), `sensor off|on`,
   `sensor ended` (the sensor reaches its end now; readings stop), `sensor started` (a new sensor starts now, 60 min
   warm-up; readings stay off until `sensor on`),
   `carbs <g>`, `insulin <u>` (rapid, logged now), `delete carbs|insulin` (the newest one), `set <key>=<value> …`,

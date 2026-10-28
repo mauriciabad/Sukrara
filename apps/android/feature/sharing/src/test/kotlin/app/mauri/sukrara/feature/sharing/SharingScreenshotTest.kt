@@ -41,9 +41,14 @@ import app.mauri.sukrara.feature.sharing.share.ApproveDialog
 import app.mauri.sukrara.feature.sharing.share.ApproveRefusedDialog
 import app.mauri.sukrara.feature.sharing.share.InviteUi
 import app.mauri.sukrara.feature.sharing.share.ShareScreen
+import app.mauri.sukrara.protocol.PublicKeyHex
+import app.mauri.sukrara.protocol.ble.BleMessages
 import app.mauri.sukrara.protocol.event.Avatar
 import app.mauri.sukrara.protocol.event.Profile
 import app.mauri.sukrara.protocol.owner.IdentityCheck
+import app.mauri.sukrara.share.ble.NearbyStatus
+import app.mauri.sukrara.share.follower.NearbyOffer
+import app.mauri.sukrara.share.follower.NearbySearch
 import app.mauri.sukrara.share.owner.ApproveResult
 import app.mauri.sukrara.share.owner.FollowerRecord
 import app.mauri.sukrara.share.owner.OwnerShareState
@@ -186,6 +191,42 @@ class SharingScreenshotTest {
                 )
             },
             "followers" to { FollowersPage(sharing, FollowersActions()) },
+            "followers-pair-nearby" to {
+                FollowersPage(
+                    sharing,
+                    FollowersActions(),
+                    nearby = NearbyUi(status = NearbyStatus.Searching, pairingUntil = 1_761_600_000 + 581),
+                    now = { 1_761_600_000 },
+                )
+            },
+            "setup-join-find-nearby" to {
+                val offer =
+                    NearbyOffer(
+                        "phone",
+                        BleMessages.Pairing(PublicKeyHex("ab".repeat(32)), emptyList(), "t".repeat(22), 1_761_600_600, me),
+                    )
+                SetupContent(
+                    ui(
+                        SetupStep.Join,
+                        2,
+                        facts.copy(role = Role.Follower),
+                    ).copy(nearby = NearbySearch(NearbyStatus.Searching, listOf(offer))),
+                    a,
+                )
+            },
+            "setup-join-find-nearby-off" to {
+                SetupContent(
+                    ui(
+                        SetupStep.Join,
+                        2,
+                        facts.copy(role = Role.Follower),
+                    ).copy(nearby = NearbySearch(NearbyStatus.BluetoothOff, emptyList())),
+                    a,
+                )
+            },
+            "approve-nearby" to {
+                ApproveDialog(request.copy(nearby = true), working = false, onAllow = {}, onDeny = {}, onLater = {}, time = ::utcTime)
+            },
             "followers-empty" to {
                 FollowersPage(OwnerShareState.Sharing(1, emptyList(), emptyList(), emptyMap(), 0, 0), FollowersActions())
             },

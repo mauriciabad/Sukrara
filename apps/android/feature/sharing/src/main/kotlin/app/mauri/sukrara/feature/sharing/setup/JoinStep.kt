@@ -140,6 +140,7 @@ internal fun ColumnScope.JoinStep(
         onPrimary = { actions.join(link, name) },
         enabled = link.isNotBlank() && !busy,
     )
+    FindNearby(u.nearby, name, enabled = !busy, actions = actions)
 }
 
 private val WAITING = setOf(FollowStatus.New, FollowStatus.Requested, FollowStatus.Active)

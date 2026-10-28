@@ -9,6 +9,9 @@ import app.mauri.sukrara.share.ble.NearbyStatus
 import app.mauri.sukrara.share.follower.FollowState
 import app.mauri.sukrara.share.follower.FollowerEngine
 import app.mauri.sukrara.share.follower.JoinResult
+import app.mauri.sukrara.share.follower.NearbyOffer
+import app.mauri.sukrara.share.follower.NearbySearch
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
 
 /**
@@ -32,8 +35,16 @@ class AppFollowerSharing(
     override suspend fun join(
         link: String,
         me: Profile?,
-    ): JoinResult {
-        val result = engine.join(link, me)
+    ): JoinResult = started(engine.join(link, me))
+
+    override fun findNearby(): Flow<NearbySearch> = engine.findNearby()
+
+    override suspend fun joinNearby(
+        offer: NearbyOffer,
+        me: Profile?,
+    ): JoinResult = started(engine.joinNearby(offer, me))
+
+    private suspend fun started(result: JoinResult): JoinResult {
         if (result == JoinResult.Joined) {
             resetMonitoring()
             startMonitoring()

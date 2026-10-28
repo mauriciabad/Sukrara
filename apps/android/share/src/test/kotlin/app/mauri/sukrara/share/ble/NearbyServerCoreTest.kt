@@ -26,6 +26,7 @@ class NearbyServerCoreTest {
     private val identity = crypto.generate().public
     private val mom = crypto.generate()
     private var followers = listOf(mom.public)
+    private var pairing: BleMessages.Pairing? = null
     private val core =
         NearbyServerCore(
             crypto,
@@ -33,6 +34,8 @@ class NearbyServerCoreTest {
                 override fun sid() = sid
 
                 override fun followers(): Collection<PublicKeyHex> = followers
+
+                override fun pairing() = pairing
             },
         ) { nowMs }
     private val nowS get() = nowMs / 1000
@@ -179,6 +182,19 @@ class NearbyServerCoreTest {
         }
         assertEquals("INFO", order.first())
         assertTrue(order.indexOf(Wire.KIND_LIVE.toString()) < order.lastIndexOf(Wire.KIND_DATA.toString()))
+    }
+
+    @Test fun pairNearbyIsOfferedInInfoOnlyWhileOpen() {
+        val finder = Device("finder", follower = false)
+        finder.connect()
+        val closed = finder.received.first { it.type == "INFO" }.body as kotlinx.serialization.json.JsonObject
+        assertEquals(null, BleMessages.pairing(closed, nowS))
+
+        pairing = BleMessages.Pairing(identity, listOf("wss://relay.example"), "AAAAAAAAAAAAAAAAAAAAAA", nowS + 600, null)
+        val other = Device("other", follower = false)
+        other.connect()
+        val open = other.received.first { it.type == "INFO" }.body as kotlinx.serialization.json.JsonObject
+        assertEquals(pairing, BleMessages.pairing(open, nowS))
     }
 
     @Test fun aSecondHelloWithinFiveSecondsIsAnsweredWhenDue() {

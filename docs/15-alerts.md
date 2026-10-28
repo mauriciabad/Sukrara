@@ -291,10 +291,37 @@ build signed with that entitlement; today's builds show it as a normal notificat
   - **Lows** (by default; any alert set to *Alarm* volume since 0.11.4): `CATEGORY_ALARM` + `USAGE_ALARM`. They follow the alarm volume, ring in "Alarms only" Do Not Disturb
     (`ZenModeFiltering.isAlarm`), and are exempt from every cooldown.
   - **Everything else** (*Notification* volume): `CATEGORY_REMINDER`. Exempt from the avalanche, and let through Do Not Disturb only if you
-    allow reminders, so highs don't wake you through DND unless you want them to.
+    allow reminders, so highs don't wake you through DND unless you want them to (since 2026-10-28 they post `CATEGORY_ALARM` whenever that changes nothing in DND: see the per-app cooldown below).
   - After that, high, very high and no data played.
-- Per-app cooldown (only when the user applies cooldown to all apps) can still soften a second alert that comes within
-  seconds of another one. Real alerts are minutes apart.
+- **Per-app cooldown softened the second alert of a reading** (2026-10-28, from the AOSP source, main). Android 15+
+  *Notification cooldown* (one switch since the March 2025 Pixel drop; `notification_cooldown_enabled` /
+  `notification_cooldown_all` default 1 in the source) runs `StrategyPerApp` keyed on the package (per channel only
+  if the person changed that channel's sound): any notification of the app that sounded in the last 60 s makes the
+  next one play at 30 % volume and vibration, a third within 10 s is muted (`MUTE_REASON_COOLDOWN`); a tap on one of
+  them resets it. Only `CATEGORY_ALARM`, `CATEGORY_CAR_EMERGENCY` / `CATEGORY_CAR_WARNING` are exempt; the channel's
+  usage doesn't count, and exempt posts still start the window. Low (alarm) and Falling fast (notification) fire in
+  the same reading, so Falling fast played at 30 %. The fix (`AlertCategory`): every alert posts `CATEGORY_ALARM`,
+  except a notification-volume alert while Do Not Disturb would treat an alarm and a reminder differently
+  (`ZenModeFiltering`: Alarms only lets every alarm through; Priority checks `allowAlarms` / `allowReminders`), where
+  it stays `CATEGORY_REMINDER` and DND decides as before. The channels keep their usage, sound and the person's
+  overrides; full screen stays alarm-only.
+  Checked on an Android 17 emulator (cooldown on, `logcat -b events -s notification_alert`, fields buzz, beep, blink,
+  politeness, mute reason; debug `ALERTS --es kinds … --el gapMs … [--ez reminder true]`): three alerts 2 s apart as
+  `CATEGORY_REMINDER` went politeness 1, then 2 + mute 32768 (`MUTE_REASON_COOLDOWN`) twice; the same three as
+  `CATEGORY_ALARM` right after all rang at politeness 0. In Priority DND (Android's default policy) Falling fast
+  posted as `reminder` and stayed intercepted (mute 512), the alarm-level very low rang.
+  Limits: the exemption is behind the `polite_notifications_attn_update` flag (on in that build; a build without it
+  quietens every category); Android 17's policy also has hidden per-category sound / vibration allowances, so a Priority
+  mode that lets reminders through silently but alarms with sound would ring a notification-volume alert (louder, not
+  quieter); "Vibrate only when unlocked" (`notification_cooldown_vibrate_unlocked`) drops every notification sound
+  while the phone is unlocked, alarms included.
+- **One sound per app per second** (`NotificationUsageStats` / `AlertRateLimiter`, years old, any category): a second
+  sounding notification within 1 s is muted (`MUTE_REASON_RATE_LIMIT`, 4096 on the emulator) and still shows; a newer
+  sound would cut the first one off anyway. When one reading fires several alerts, the runtime posts the one that
+  must be heard first (`ringOrder`: alarm level, most severe, then level → rate → no data; `AlertRingOrderTest`); the
+  others show quietly. Only ringing alerts of different groups that follow each other move: a restart's silent re-post,
+  a Clear or a second alert of the same group keeps the engine's order, so nothing replaces or outlives what the engine
+  decided.
 - **Two sounds at once after an app update (2026-10-18, user report).** Measured on the Pixel (`dumpsys audio`,
   `notification_alert` events): every Sukrara update made SystemUI start two players within 0.5 s, the system
   default sound (`USAGE_NOTIFICATION`, LSPosed's "Module update complete" notification, channel

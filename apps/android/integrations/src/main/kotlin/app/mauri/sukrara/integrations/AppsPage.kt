@@ -17,6 +17,10 @@ import app.mauri.sukrara.designsystem.rows.FooterText
 import app.mauri.sukrara.designsystem.rows.NavigationRow
 import app.mauri.sukrara.designsystem.rows.SettingsGroup
 import app.mauri.sukrara.designsystem.rows.SwitchRow
+import app.mauri.sukrara.integrations.broadcasts.BcStatus
+import app.mauri.sukrara.integrations.broadcasts.broadcastStatusText
+import app.mauri.sukrara.integrations.healthconnect.HcStatus
+import app.mauri.sukrara.integrations.healthconnect.healthStatusText
 import app.mauri.sukrara.integrations.libreview.libreViewStatusText
 import app.mauri.sukrara.integrations.localserver.NsApiState
 import app.mauri.sukrara.integrations.localserver.XdripState
@@ -51,6 +55,11 @@ data class AppsUi(
     val nightscoutApi: NsApiState = NsApiState.Off,
     /** The Tidepool upload's state (both roles). */
     val tidepool: UploadStatus = UploadStatus.Off,
+    /** Glucose broadcasts: how many apps are allowed and what was last sent (wearer only). */
+    val broadcastApps: Int = 0,
+    val broadcasts: BcStatus = BcStatus(null, null),
+    /** Health Connect (wearer only). */
+    val healthConnect: HcStatus = HcStatus.Off,
 )
 
 class AppsActions(
@@ -60,6 +69,8 @@ class AppsActions(
     val openLibreView: () -> Unit = {},
     val openNightscoutApi: () -> Unit = {},
     val openTidepool: () -> Unit = {},
+    val openBroadcasts: () -> Unit = {},
+    val openHealthConnect: () -> Unit = {},
 )
 
 /**
@@ -88,6 +99,14 @@ object ServerReaders {
     }
 }
 
+private data class Others(
+    val api: NsApiState,
+    val tidepool: UploadStatus,
+    val broadcastApps: Int,
+    val broadcasts: BcStatus,
+    val health: HcStatus,
+)
+
 class AppsViewModel(
     private val module: IntegrationsModule,
     context: Context,
@@ -100,18 +119,15 @@ class AppsViewModel(
             readers,
             module.nightscout.page,
             module.libreView.page,
-            combine(module.nightscoutApi.state, module.tidepool.status) { api, tp -> api to tp },
-        ) { (w, on, x), r, ns, lv, (api, tp) ->
-            AppsUi(
-                w,
-                on,
-                x,
-                r,
-                ns.status,
-                lv.status,
-                api,
-                tp,
-            )
+            combine(
+                module.nightscoutApi.state,
+                module.tidepool.status,
+                module.broadcasts.settingsFlow,
+                module.broadcasts.status,
+                module.healthConnect.status,
+            ) { api, tp, bc, bs, hc -> Others(api, tp, bc.apps.size, bs, hc) },
+        ) { (w, on, x), r, ns, lv, o ->
+            AppsUi(w, on, x, r, ns.status, lv.status, o.api, o.tidepool, o.broadcastApps, o.broadcasts, o.health)
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
     init {
@@ -133,6 +149,8 @@ fun AppsPage(
     openLibreView: () -> Unit,
     openNightscoutApi: () -> Unit,
     openTidepool: () -> Unit,
+    openBroadcasts: () -> Unit,
+    openHealthConnect: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val ui by viewModel.ui.collectAsStateWithLifecycle()
@@ -140,7 +158,16 @@ fun AppsPage(
         AppsContent(
             it,
             now(),
-            AppsActions(viewModel::setXdrip, openNightscout, openExport, openLibreView, openNightscoutApi, openTidepool),
+            AppsActions(
+                viewModel::setXdrip,
+                openNightscout,
+                openExport,
+                openLibreView,
+                openNightscoutApi,
+                openTidepool,
+                openBroadcasts,
+                openHealthConnect,
+            ),
             modifier,
         )
     }
@@ -173,6 +200,18 @@ fun AppsContent(
         SwitchRow(stringResource(R.string.in_apps_xdrip), ui.xdripOn, actions.setXdrip, summary = xdripSummary(ui, now))
     }
     SettingsGroup(title = stringResource(R.string.in_apps_phone_group)) {
+        if (ui.wearer) {
+            NavigationRow(
+                stringResource(R.string.in_bc_title),
+                actions.openBroadcasts,
+                summary = broadcastStatusText(ui.broadcasts, ui.broadcastApps > 0, now),
+            )
+            NavigationRow(
+                stringResource(R.string.in_hc_title),
+                actions.openHealthConnect,
+                summary = healthStatusText(ui.healthConnect, now),
+            )
+        }
         NavigationRow(stringResource(R.string.in_nsapi_title), actions.openNightscoutApi, summary = nsApiStatusText(ui.nightscoutApi, now))
     }
     SettingsGroup(title = stringResource(R.string.in_apps_files_group)) {
