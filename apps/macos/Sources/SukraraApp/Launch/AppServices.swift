@@ -9,9 +9,8 @@ import SukraraShare
 @preconcurrency import UserNotifications
 
 /// The app's `ServiceStarting`: the only code that creates the notification center, copies alert sounds, runs the
-/// alert engine, checks for updates or touches the login item. `ServicesPlan.start(using:)` calls it, so an offline
-/// run (dev build, snapshot) creates none of them. BLE, relays and the widget feed are started by the follower
-/// runtime's chunk (15) and the widget's (22).
+/// alert engine, writes the widget's data, checks for updates or touches the login item. `ServicesPlan.start(using:)`
+/// calls it, so an offline run (dev build, snapshot) creates none of them. Bluetooth runs inside the follower runtime.
 final class AppServices: ServiceStarting {
     let plan: LaunchPlan
     private(set) var center: SystemNotificationCenter?
@@ -21,6 +20,9 @@ final class AppServices: ServiceStarting {
     private(set) var sounds: SoundLibrary?
     /// The follower runtime (relays, and Bluetooth when the plan allows it). Created here, started by `AppModel`.
     private(set) var follower: FollowerRuntime?
+    /// Hands the card to the widgets (App Group file + timeline reloads). Fed by `AppModel` on every change.
+    private(set) var widget: WidgetFeed?
+    private let makeWidget: () -> WidgetFeed
     let responder = NotificationResponder()
     /// Re-read what notifications may do (after the authorization prompt).
     var permissionChanged: (() -> Void)?
@@ -28,8 +30,10 @@ final class AppServices: ServiceStarting {
     var openPanel: (() -> Void)?
     let defaults: UserDefaults
 
-    init(plan: LaunchPlan) {
+    /// `widget`: creates the widget feed when the plan allows it (tests write to a scratch file).
+    init(plan: LaunchPlan, widget: @escaping () -> WidgetFeed = { WidgetFeed() }) {
         self.plan = plan
+        makeWidget = widget
         defaults = plan.data.defaultsSuite.flatMap(UserDefaults.init(suiteName:)) ?? .standard
     }
 
@@ -132,9 +136,23 @@ final class AppServices: ServiceStarting {
                 me: Profile(name: Host.current().localizedName ?? "Mac", avatar: nil),
                 makeRelays: { relays, key in RelayPool(relays: relays, authKey: key, crypto: crypto) },
                 makeNearby: nearby)
-        case .ble, .widgetFeed:
-            break  // Bluetooth runs inside the follower runtime (`relays`); the widget feed is chunk 22's
+        case .widgetFeed:
+            widget = makeWidget()
+        case .ble:
+            break  // Bluetooth runs inside the follower runtime (`relays`)
         }
+    }
+
+    /// The app's model over what this run started: the follower runtime (the fixture follower in a fixture run), the
+    /// alert engine, the update check, the login item and the widget feed.
+    func model(clock: any TimeSource = SystemClock()) -> AppModel {
+        var follower: (any FollowerService)? = follower
+        #if DEBUG
+            if plan.mode == .fixture { follower = FixtureFollower() }
+        #endif
+        return AppModel(
+            plan: plan, clock: clock, alerts: alerts, updates: updates, loginItem: loginItem, follower: follower,
+            widget: widget)
     }
 }
 

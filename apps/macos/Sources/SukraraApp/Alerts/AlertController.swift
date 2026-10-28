@@ -32,6 +32,8 @@ final class AlertController {
     /// When the engine wants its next check (nil = no timer).
     private(set) var nextWake: Date?
     private(set) var mirroring = false
+    /// `ui` changed (an alert came up or ended, a mute started or ran out): the widgets redraw the card's badge.
+    @ObservationIgnored var onUIChange: (() -> Void)?
 
     @ObservationIgnored private var engine: AlertEngine
     @ObservationIgnored private var mirror = AlertMirror()
@@ -194,7 +196,9 @@ final class AlertController {
     func refreshUI() {
         var state = engine.uiState(at: clock.now)
         if mirroring, state.muteAllUntil == nil { state.muteAllUntil = mirror.muteAllEnd(at: clock.now) }
-        if state != ui { ui = state }
+        guard state != ui else { return }
+        ui = state
+        onUIChange?()
     }
 
     private func category(_ kind: AlertKind) -> String {

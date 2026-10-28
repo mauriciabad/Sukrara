@@ -33,6 +33,10 @@ public final class AppModel {
     @ObservationIgnored let updates: UpdateCheck?
     @ObservationIgnored let loginItem: LoginItem?
     @ObservationIgnored let follower: (any FollowerService)?
+    /// The widgets' data (nil when the plan doesn't allow the widget feed: dev and snapshot runs).
+    @ObservationIgnored let widget: WidgetFeed?
+    /// Counts settings changes, so each one reloads the widgets (`feedWidget`).
+    @ObservationIgnored private var widgetSettings = 0
     @ObservationIgnored private let clock: any TimeSource
     @ObservationIgnored private var ticker: Task<Void, Never>?
     @ObservationIgnored private var feeds: [Task<Void, Never>] = []
@@ -41,7 +45,8 @@ public final class AppModel {
 
     init(
         plan: LaunchPlan, clock: any TimeSource = SystemClock(), alerts: AlertController? = nil,
-        updates: UpdateCheck? = nil, loginItem: LoginItem? = nil, follower: (any FollowerService)? = nil
+        updates: UpdateCheck? = nil, loginItem: LoginItem? = nil, follower: (any FollowerService)? = nil,
+        widget: WidgetFeed? = nil
     ) {
         self.plan = plan
         self.clock = clock
@@ -49,7 +54,9 @@ public final class AppModel {
         self.updates = updates
         self.loginItem = loginItem
         self.follower = follower
+        self.widget = widget
         now = clock.now
+        alerts?.onUIChange = { [weak self] in self?.feedWidget() }
     }
 
     /// Starts the follower runtime and feeds its snapshots and the wearer's alerts into the model and the alert rules.
@@ -94,7 +101,23 @@ public final class AppModel {
         }
         // only a followed wearer's readings are shown or alerted on
         apply(readings: monitoring ? snapshot.readings : [])
-        onSnapshot?(snapshot)
+        onSnapshot?(snapshot)  // first: it loads the wearer's mirrored card settings the widget draws with
+        feedWidget()
+    }
+
+    /// Hands the card's current input to the widgets: every follower snapshot, every alert badge change, and the unit
+    /// or card settings changing (`settingsChanged`: the widget redraws at once, a settings change is rare and
+    /// deliberate). The widget ages the value by itself, so the freshness ticker doesn't feed it.
+    func feedWidget(settingsChanged: Bool = false) {
+        guard let widget else { return }
+        if settingsChanged { widgetSettings += 1 }
+        let data = cardData
+        let look = self.look  // the menu bar's face: the same value text and state the widget shows
+        let state =
+            "\(monitoring ? "monitoring" : "idle") \(look.state.rawValue) \(data.alerts.status) settings \(widgetSettings)"
+        widget.update(
+            WidgetSnapshot(writtenAt: clock.now.timeIntervalSince1970, data: data, config: graph, unit: unit),
+            shown: .init(value: look.text ?? "—", state: state))
     }
 
     public convenience init(plan: LaunchPlan) { self.init(plan: plan, clock: SystemClock()) }
