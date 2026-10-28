@@ -1286,7 +1286,7 @@ not copied.
 | Mac Juggluco-over-Wi-Fi source and subnet discovery | unused in the owner's setup, no Settings UI, the secret was stored in plain defaults |
 | Mac Nostr v1 `cgmnostr:` follow link | superseded by protocol v2; the links carried plaintext secrets |
 | Importing the showcase's data or settings | owner decision: no backwards compatibility, fresh setup |
-| Garmin via the local xDrip+ server (`:17580`), the local Nightscout API, Nightscout / Tidepool / LibreView uploads, Health Connect and broadcasts ([08](08-garmin.md), [22](22-ecosystem-outputs.md), [25](25-nightscout-upload.md), [27](27-tidepool.md)) | not daily-use P0; deferred to 0.90.x. Only one app can serve `:17580`, so Garmin stays on the showcase until then |
+| Garmin via the local xDrip+ server (`:17580`), the local Nightscout API, Nightscout / Tidepool / LibreView uploads, Health Connect and broadcasts ([08](08-garmin.md), [22](22-ecosystem-outputs.md), [25](25-nightscout-upload.md), [27](27-tidepool.md)) | not daily-use P0; deferred to 0.90.x. Only one app can serve `:17580`, and the showcase's server only has data while the showcase or Juggluco reads the sensor: the watch keeps working only while Juggluco stays the source (V1 on its Juggluco source); after a direct Libre 3 takeover by V1 the watch goes blank |
 | Insulin pens ([29](29-novopen.md)) | deferred (P1); the dose engine's scenarios are in `contracts/pens` |
 | Sensor reminders page, calendar event, the "Sensor ready" notification | V1 ships the minimal *Sensor ends in 6 h* warning; the rest is P1 |
 | Glucose report card and Mac report window, CSV export UI ([18](18-metrics.md)) | deferred (P1); the export cases are in `contracts/export` |

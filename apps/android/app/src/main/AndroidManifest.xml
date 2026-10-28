@@ -54,8 +54,6 @@
     <uses-permission android:name="android.permission.health.WRITE_BLOOD_GLUCOSE" />
 
     <queries>
-        <!-- the Sukrara showcase (PoC): setup and home ask to turn it off, so the two never both alarm or own the sensor -->
-        <package android:name="app.mauri.sukrara.poc" />
         <package android:name="com.google.android.calendar" />
         <package android:name="tk.glucodata" />
         <package android:name="com.eveningoutpost.dexdrip" />

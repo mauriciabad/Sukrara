@@ -18,7 +18,7 @@ import java.time.Duration
 
 class BannerSlotTest {
     private val everything =
-        HomeEnvironment(showcaseInstalled = true, nextSetupStep = "Alerts", backedUp = false, widgetPlaced = false, clinicUploadSet = false)
+        HomeEnvironment(nextSetupStep = "Alerts", backedUp = false, widgetPlaced = false, clinicUploadSet = false)
     private val broken = AlertReadiness(setOf(AlertRequirement.ExactAlarm, AlertRequirement.Notifications))
 
     private fun pick(
@@ -42,11 +42,8 @@ class BannerSlotTest {
     @Test fun `monitoring stopped outranks everything, even with a value on screen`() =
         assertEquals(BannerKind.MonitoringStopped, pick(broken, everything, problems = 1, stopped = true))
 
-    @Test fun `the showcase banner outranks setup, data and the nudges`() =
-        assertEquals(BannerKind.TurnOffShowcase, pick(env = everything, problems = 1))
-
     @Test fun `damaged data comes before finish setup`() =
-        assertEquals(BannerKind.DataProblem, pick(env = everything.copy(showcaseInstalled = false), problems = 1))
+        assertEquals(BannerKind.DataProblem, pick(env = everything, problems = 1))
 
     @Test fun `safety banners can't be dismissed`() {
         BannerKind.entries.filter { it.safety }.forEach { kind ->

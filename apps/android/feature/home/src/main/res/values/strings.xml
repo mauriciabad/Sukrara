@@ -63,9 +63,6 @@
     <string name="req_battery">Battery optimisation may stop Sukrara in the background.</string>
     <string name="req_channel">The alert sound can\'t break through Do Not Disturb.</string>
     <string name="req_bluetooth">Bluetooth or the nearby devices permission is off.</string>
-    <string name="banner_showcase_title">Turn off Sukrara Showcase</string>
-    <string name="banner_showcase_text">The showcase app is still installed. Two apps watching the same sensor ring every alarm twice.</string>
-    <string name="banner_showcase_action">Open its app info</string>
     <string name="banner_data_title">Some saved data was damaged</string>
     <plurals name="banner_data_text">
         <item quantity="one">%d file couldn\'t be read and was set aside. Review it to see what was lost.</item>

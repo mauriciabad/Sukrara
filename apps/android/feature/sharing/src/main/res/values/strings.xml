@@ -3,6 +3,253 @@
      Copyright (C) 2026 Maurici Abad
      SPDX-License-Identifier: GPL-3.0-or-later -->
 <resources>
-    <string name="setup_placeholder_title">Setup isn\'t here yet</string>
-    <string name="setup_back_home">Back to home</string>
+    <!-- Setup: progress, announced by TalkBack; %1$d = step, %2$d = steps -->
+    <string name="sh_setup_step_of">Step %1$d of %2$d</string>
+    <!-- Setup: back button label -->
+    <string name="sh_setup_back">Back</string>
+    <!-- Dialog: cancel -->
+    <string name="sh_setup_cancel">Cancel</string>
+    <!-- Setup: continue to the next step -->
+    <string name="sh_setup_continue">Continue</string>
+    <!-- Setup: leave this step for later (goes to the Finish setup card) -->
+    <string name="sh_setup_later">Later</string>
+    <!-- Setup: skip this step (goes to the Finish setup card) -->
+    <string name="sh_setup_skip">Skip</string>
+    <!-- Setup: first button on the welcome screen -->
+    <string name="sh_setup_start">Start</string>
+    <!-- Setup checklist: button that fixes one item -->
+    <string name="sh_setup_allow">Allow</string>
+    <!-- Setup checklist: TalkBack label of an item that is fine -->
+    <string name="sh_setup_check_ok">Done</string>
+    <!-- Setup checklist: TalkBack label of an item still missing -->
+    <string name="sh_setup_check_missing">Missing</string>
+    <!-- Setup welcome: title -->
+    <string name="sh_setup_welcome_title">Welcome to Sukrara</string>
+    <!-- Setup welcome: what the app does -->
+    <string name="sh_setup_welcome_body">Sukrara reads your glucose sensor, alerts you when you need it and shares your glucose with the people you choose.</string>
+    <!-- Setup welcome: what setup will do -->
+    <string name="sh_setup_welcome_steps">A few short steps: choose how you use this phone, allow what alerts need, connect your sensor, check your alerts and bring your followers. You can leave any step for later.</string>
+    <!-- Setup role step: title -->
+    <string name="sh_setup_role_title">How will you use this phone?</string>
+    <!-- Setup role step: explanation -->
+    <string name="sh_setup_role_body">Choose one. It decides what this phone does.</string>
+    <!-- Setup role: the wearer option -->
+    <string name="sh_setup_role_wearer">I wear the sensor</string>
+    <!-- Setup role: what the wearer option means -->
+    <string name="sh_setup_role_wearer_means">This phone reads your sensor and shares it.</string>
+    <!-- Setup role: the follower option -->
+    <string name="sh_setup_role_follower">I follow someone</string>
+    <!-- Setup role: what the follower option means -->
+    <string name="sh_setup_role_follower_means">This phone shows someone else\'s glucose.</string>
+    <!-- Setup role: following is not in this build yet -->
+    <string name="sh_setup_role_follower_later">Following on Android comes in a later version. Use Sukrara for Mac to follow.</string>
+    <!-- Setup role confirmation title; %1$s = the chosen option -->
+    <string name="sh_setup_role_confirm_title">%1$s?</string>
+    <!-- Setup role confirmation: what it means -->
+    <string name="sh_setup_role_confirm_text">One role per install. Changing it later means reinstalling Sukrara.</string>
+    <!-- Setup role confirmation button -->
+    <string name="sh_setup_role_confirm">Confirm</string>
+    <!-- Setup checklist: title -->
+    <string name="sh_setup_permissions_title">Let alerts reach you</string>
+    <!-- Setup checklist: explanation -->
+    <string name="sh_setup_permissions_body">Your alerts need these. The same list stays on the home screen until everything is allowed.</string>
+    <!-- Setup checklist: continue with items still missing -->
+    <string name="sh_setup_permissions_continue_anyway">Continue anyway</string>
+    <!-- Setup sensor step: title -->
+    <string name="sh_setup_sensor_title">Connect your sensor</string>
+    <!-- Setup sensor step: explanation -->
+    <string name="sh_setup_sensor_body">Start a new Libre 3, take over the one you wear with your LibreView account, or read it from Juggluco.</string>
+    <!-- Setup sensor step: no reading yet -->
+    <string name="sh_setup_sensor_not_monitoring">Not monitoring: no sensor yet. No alert can ring until a reading arrives.</string>
+    <!-- Setup sensor step: a reading arrived -->
+    <string name="sh_setup_sensor_live">Reading received. Sukrara is monitoring.</string>
+    <!-- Setup sensor step: open the sensor flow -->
+    <string name="sh_setup_sensor_open">Set up sensor</string>
+    <!-- Setup alerts step: title -->
+    <string name="sh_setup_alerts_title">Check your alerts</string>
+    <!-- Setup alerts step: explanation -->
+    <string name="sh_setup_alerts_body">Sukrara alerts you at these values. Tap one to change it. Nothing changes until you confirm.</string>
+    <!-- Alert threshold name -->
+    <string name="sh_setup_alerts_very_low">Very low</string>
+    <!-- Alert threshold name -->
+    <string name="sh_setup_alerts_low">Low</string>
+    <!-- Alert threshold name -->
+    <string name="sh_setup_alerts_high">High</string>
+    <!-- Alert threshold name -->
+    <string name="sh_setup_alerts_very_high">Very high</string>
+    <!-- Alert threshold name -->
+    <string name="sh_setup_alerts_no_data">No data</string>
+    <!-- Threshold value; %1$s = number, %2$s = unit -->
+    <string name="sh_setup_alerts_value">%1$s %2$s</string>
+    <string name="sh_setup_alerts_off">Off (%1$s)</string>
+    <string name="sh_setup_alerts_no_reading_for">No reading for %1$s</string>
+    <string name="sh_setup_alerts_at_or_above">At or above %1$s</string>
+    <string name="sh_setup_alerts_below">Below %1$s</string>
+    <string name="sh_setup_alerts_extremely_high">Extremely high</string>
+    <!-- Error: thresholds out of order -->
+    <string name="sh_setup_alerts_order">Keep the order: very low below low, low below high, high below very high, very high below extremely high.</string>
+    <!-- Button: confirm the alert thresholds -->
+    <string name="sh_setup_alerts_confirm">Confirm these alerts</string>
+    <!-- Setup identity step: title -->
+    <string name="sh_identity_title">Your followers</string>
+    <!-- Setup identity step: explanation -->
+    <string name="sh_identity_body">Restore your followers with your recovery code, or start fresh with new invites.</string>
+    <!-- Setup identity step: already sharing; %1$d = followers -->
+    <string name="sh_identity_sharing">Sharing is set up. Followers: %1$d.</string>
+    <!-- Setup identity: stored identity unreadable -->
+    <string name="sh_identity_unreadable">Your sharing identity on this phone can\'t be read. Restore it from your recovery code; nothing was replaced.</string>
+    <!-- Restore section title -->
+    <string name="sh_restore_title">Restore from your recovery code</string>
+    <!-- Restore warning (always shown) -->
+    <string name="sh_restore_warning">Your followers move to this phone: the phone that shared until now stops reaching them. Do this once this phone has your sensor.</string>
+    <!-- Where the recovery code is -->
+    <string name="sh_restore_where">An ncryptsec… code with its password, or an nsec… code</string>
+    <!-- Restore blocked: no reading yet -->
+    <string name="sh_restore_block_no_reading">Connect your sensor first: restore becomes available once this app receives a reading.</string>
+    <string name="sh_restore_step_sensor">Sensor running in Sukrara</string>
+    <string name="sh_restore_step_code">Paste your recovery code</string>
+    <!-- Field: recovery code -->
+    <string name="sh_restore_code">Recovery code</string>
+    <!-- Field: password of the recovery code -->
+    <string name="sh_restore_password">Password</string>
+    <!-- Button: restore -->
+    <string name="sh_restore_action">Restore</string>
+    <!-- Progress while restoring -->
+    <string name="sh_restore_busy">Looking for your backup on the relays…</string>
+    <!-- Restore done; %1$d = followers -->
+    <string name="sh_restore_done">Restored. %1$d followers keep following you.</string>
+    <!-- Restore error -->
+    <string name="sh_restore_err_needs_password">This code needs its password.</string>
+    <!-- Restore error -->
+    <string name="sh_restore_err_wrong_password">Wrong password. Check it and try again.</string>
+    <!-- Restore error -->
+    <string name="sh_restore_err_not_a_key">That isn\'t a recovery code. Copy it again and paste it here.</string>
+    <!-- Restore error -->
+    <string name="sh_restore_err_offline">Couldn\'t reach the relays. Check the internet and try again; nothing changed.</string>
+    <!-- Restore error -->
+    <string name="sh_restore_err_no_backup">No backup found for this code. Check that it\'s your recovery code.</string>
+    <!-- Restore error -->
+    <string name="sh_restore_err_unreadable">The backup was found but can\'t be read. Nothing changed.</string>
+    <!-- Restore error -->
+    <string name="sh_restore_err_outdated">Another phone is still sharing with this identity. Turn its sharing off, wait a minute and try again.</string>
+    <!-- Restore error -->
+    <string name="sh_restore_err_already">This phone already shares with an identity.</string>
+    <!-- Start fresh section title -->
+    <string name="sh_fresh_title">Start fresh</string>
+    <!-- Start fresh explanation -->
+    <string name="sh_fresh_body">A new identity for this phone. You invite your followers again.</string>
+    <!-- Button: start fresh -->
+    <string name="sh_fresh_action">Start fresh</string>
+    <!-- Start fresh confirmation title -->
+    <string name="sh_fresh_confirm_title">Start fresh?</string>
+    <!-- Start fresh confirmation text -->
+    <string name="sh_fresh_confirm_text">Your followers (and your Mac) will need a new invite. Your old identity can\'t be brought to this phone later without reinstalling.</string>
+    <!-- Start fresh confirmation button -->
+    <string name="sh_fresh_confirm">Start fresh</string>
+    <!-- Identity conflict: title -->
+    <string name="sh_conflict_title">Another app is sharing as you</string>
+    <!-- Identity conflict: what happened -->
+    <string name="sh_conflict_body">Another phone is still sharing with your identity. Sukrara paused changes to your followers so the two don\'t undo each other. Your readings and alerts keep working here.</string>
+    <!-- Identity conflict: followers still get readings -->
+    <string name="sh_conflict_followers_receiving">Your followers still receive your readings.</string>
+    <!-- Identity conflict: followers do not get readings -->
+    <string name="sh_conflict_followers_not_receiving">Your followers aren\'t receiving readings from this phone right now.</string>
+    <!-- Identity conflict: what to do -->
+    <string name="sh_conflict_what_to_do">Stop sharing on the other phone, then retry.</string>
+    <!-- Identity conflict: retry button -->
+    <string name="sh_conflict_retry">I turned it off. Retry</string>
+    <!-- Identity conflict: close -->
+    <string name="sh_conflict_close">Close</string>
+    <!-- Finish setup item -->
+    <string name="sh_finish_allow">Allow what alerts need</string>
+    <!-- Finish setup item -->
+    <string name="sh_finish_sensor">Connect your sensor</string>
+    <!-- Finish setup item -->
+    <string name="sh_finish_alerts">Alerts not confirmed</string>
+    <!-- Finish setup item -->
+    <string name="sh_finish_identity">Restore your followers</string>
+    <!-- Share screen title -->
+    <string name="sh_share_title">Share with someone</string>
+    <!-- Share screen explanation -->
+    <string name="sh_share_body">Make an invite for one person. They ask to follow; you allow them.</string>
+    <!-- Field: who the invite is for -->
+    <string name="sh_share_label">Who is it for?</string>
+    <!-- Field help -->
+    <string name="sh_share_label_support">Only you see this. When they ask, Sukrara shows it next to their name.</string>
+    <!-- Button: create invite -->
+    <string name="sh_share_create">Create invite</string>
+    <!-- Button: try creating again -->
+    <string name="sh_share_try_again">Try again</string>
+    <!-- Error creating invite -->
+    <string name="sh_share_failed">Couldn\'t create the invite. Check the internet and that sharing is set up.</string>
+    <!-- TalkBack label of the invite QR -->
+    <string name="sh_share_qr_label">Invite QR code. The link is below.</string>
+    <!-- Share: instructions -->
+    <string name="sh_share_scan">Ask them to install Sukrara, choose \"I follow someone\" and scan this code, or send them the link.</string>
+    <!-- Invite note; %1$s = expiry, %2$s = label -->
+    <string name="sh_share_note">This link works once, until %1$s. Send it only to %2$s: whoever opens it first can ask to follow you, and you still allow them. It holds no key to your glucose.</string>
+    <!-- Invite note; %1$s = expiry -->
+    <string name="sh_share_note_unnamed">This link works once, until %1$s. Send it only to the person you invite: whoever opens it first can ask to follow you, and you still allow them. It holds no key to your glucose.</string>
+    <!-- Button: send the link -->
+    <string name="sh_share_send">Send link</string>
+    <!-- Button: copy the link -->
+    <string name="sh_share_copy">Copy</string>
+    <!-- Share sheet title -->
+    <string name="sh_share_send_chooser">Send invite</string>
+    <!-- Share sheet text; %1$s = link -->
+    <string name="sh_share_send_message">Follow my glucose with Sukrara: %1$s</string>
+    <!-- Button: another invite -->
+    <string name="sh_share_another">Invite someone else</string>
+    <!-- Share: heading -->
+    <string name="sh_share_they_see">They\'ll see</string>
+    <!-- Share: what followers see -->
+    <string name="sh_share_they_see_body">Your glucose and trend, your alerts, your treatments and your sensor\'s time left, end-to-end encrypted. You can remove them at any time.</string>
+    <!-- Approve dialog title; %1$s = name -->
+    <string name="sh_approve_title">%1$s wants to follow you</string>
+    <!-- A follower without a name -->
+    <string name="sh_approve_unnamed">Someone</string>
+    <!-- Approve: the invite label; %1$s = label -->
+    <string name="sh_approve_invite_for">Invite for: %1$s</string>
+    <!-- Approve: compare the code -->
+    <string name="sh_approve_code_intro">Check that their phone shows this code:</string>
+    <!-- Approve: what allowing means -->
+    <string name="sh_approve_they_see">If you allow, they see your glucose until you remove them.</string>
+    <!-- Approve: allow -->
+    <string name="sh_approve_allow">Allow</string>
+    <!-- Approve: deny -->
+    <string name="sh_approve_deny">Deny</string>
+    <!-- Sharing page: open setup's followers step -->
+    <string name="sh_sharing_set_up">Set up sharing</string>
+    <!-- Followers: none yet -->
+    <string name="sh_followers_empty_title">Nobody follows you yet</string>
+    <!-- Followers: none yet, explanation -->
+    <string name="sh_followers_empty_body">Invite someone and they can see your glucose on their phone or Mac.</string>
+    <!-- Button: share with someone -->
+    <string name="sh_followers_share">Share with someone</string>
+    <!-- Followers: requests waiting -->
+    <string name="sh_followers_waiting">Waiting for you</string>
+    <!-- Followers: review a request -->
+    <string name="sh_followers_review">Tap to review</string>
+    <!-- Followers: since; %1$s = date -->
+    <string name="sh_followers_since">Following since %1$s</string>
+    <!-- Followers: footer -->
+    <string name="sh_followers_footer">Each follower sees your glucose, alerts and treatments. Remove a device you no longer use here.</string>
+    <!-- Follower dialog: close -->
+    <string name="sh_followers_close">Close</string>
+    <!-- Follower dialog: remove -->
+    <string name="sh_followers_remove">Remove</string>
+    <!-- Remove confirmation title; %1$s = name -->
+    <string name="sh_followers_remove_title">Remove %1$s?</string>
+    <!-- Remove confirmation text -->
+    <string name="sh_followers_remove_text">They stop seeing your data. To follow again they need a new invite.</string>
+    <!-- Approve: other phones tried the same link -->
+    <plurals name="sh_approve_others">
+        <item quantity="one">%1$d other phone also tried this link. Only allow if you know who it is.</item>
+        <item quantity="other">%1$d other phones also tried this link. Only allow if you know who it is.</item>
+    </plurals>
+    <!-- Followers group title -->
+    <plurals name="sh_followers_count">
+        <item quantity="one">%1$d follower</item>
+        <item quantity="other">%1$d followers</item>
+    </plurals>
 </resources>

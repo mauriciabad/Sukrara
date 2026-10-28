@@ -229,7 +229,7 @@ class OwnerEngine(
     }
 
     /**
-     * Restore from a recovery code. The UI gates it with [RestoreIdentity.restoreAllowed]. Replaces an unreadable
+     * Restore from a recovery code. The UI gates it (setup's `RestoreGate`: this phone's sensor runs). Replaces an unreadable
      * identity only on success, and a working one only with [replaceExisting] (the UI confirms first); nothing
      * changes on any error.
      */

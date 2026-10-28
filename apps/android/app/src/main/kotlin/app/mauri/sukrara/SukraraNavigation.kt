@@ -35,15 +35,19 @@ import app.mauri.sukrara.feature.home.DataProblemScreen
 import app.mauri.sukrara.feature.home.HomeAction
 import app.mauri.sukrara.feature.home.HomeScreen
 import app.mauri.sukrara.feature.home.HomeViewModel
-import app.mauri.sukrara.feature.home.banners.Showcase
 import app.mauri.sukrara.feature.sensor.libreview.LibreViewSignInRoute
 import app.mauri.sukrara.feature.sensor.newsensor.NewSensorRoute
 import app.mauri.sukrara.feature.settings.SettingsRoute
 import app.mauri.sukrara.feature.settings.SettingsScreen
 import app.mauri.sukrara.feature.settings.sensor.SensorSettingsScreen
 import app.mauri.sukrara.feature.settings.sensor.SensorSettingsViewModel
-import app.mauri.sukrara.feature.sharing.SetupScreen
+import app.mauri.sukrara.feature.sharing.setup.SetupScreen
+import app.mauri.sukrara.feature.sharing.setup.SetupViewModel
+import app.mauri.sukrara.feature.sharing.share.ShareScreen
+import app.mauri.sukrara.feature.sharing.share.SharingScreen
+import app.mauri.sukrara.feature.sharing.share.SharingViewModel
 import app.mauri.sukrara.monitor.sensorend.AndroidSensorEndPresenter
+import kotlinx.coroutines.flow.first
 import kotlinx.serialization.Serializable
 
 /** The app's screens. Each is a key on the back stack (Navigation 3); predictive back comes with NavDisplay. */
@@ -52,6 +56,13 @@ data object HomeRoute : NavKey
 
 @Serializable
 data object SetupRoute : NavKey
+
+/** Settings › Sharing: followers, requests, the identity conflict (chunk 24). */
+@Serializable
+data object SharingRoute : NavKey
+
+@Serializable
+data object ShareRoute : NavKey
 
 @Serializable
 data object DataProblemsRoute : NavKey
@@ -126,6 +137,10 @@ fun SukraraNavigation(
             newSensorShown()
         }
     }
+    // first launch (no role yet): setup opens on top of home; Back on its first step leaves it ("setup incomplete")
+    LaunchedEffect(Unit) {
+        if (graph.role.data.first().role == null && SetupRoute !in backStack) backStack.add(SetupRoute)
+    }
     // an invite link opens setup on top of home (Back lands on home), once per link: a recreated activity keeps it
     var handledLink by rememberSaveable { mutableStateOf<String?>(null) }
     LaunchedEffect(deepLink) {
@@ -150,8 +165,26 @@ fun SukraraNavigation(
                         onOpenDataProblems = { backStack.add(DataProblemsRoute) },
                     )
                 }
+                entry<SharingRoute> {
+                    SharingScreen(
+                        viewModel = viewModel(factory = SharingViewModel.factory(graph.setup.sharing)),
+                        onSetUpSharing = { backStack.add(SetupRoute) },
+                        onShare = { backStack.add(ShareRoute) },
+                        onClose = { backStack.removeLastOrNull() },
+                    )
+                }
+                entry<ShareRoute> {
+                    val vm: SharingViewModel = viewModel(factory = SharingViewModel.factory(graph.setup.sharing))
+                    val invite by vm.invite.collectAsStateWithLifecycle()
+                    ShareScreen(invite, onCreate = vm::createInvite, onAnother = vm::newInvite)
+                }
                 entry<SetupRoute> {
-                    SetupScreen(onDone = { backStack.removeLastOrNull() })
+                    SetupScreen(
+                        viewModel = viewModel(factory = SetupViewModel.factory(graph.setup)),
+                        // the sensor step embeds chunk 18's new-sensor flow; its Done / Cancel lands back on setup
+                        onOpenSensorSetup = { backStack.add(NewSensorKey) },
+                        onDone = { backStack.remove(SetupRoute) },
+                    )
                 }
                 entry<NewSensorKey> {
                     NewSensorRoute(
@@ -173,8 +206,8 @@ fun SukraraNavigation(
                         navigate = { backStack.push(SettingsKey.of(it)) },
                         onBack = { backStack.pop(key) },
                         openSensor = { backStack.push(SensorSettingsKey) },
-                        // the sharing pages come with chunk 24; until then setup is where sharing starts
-                        openSharing = { backStack.add(SetupRoute) },
+                        // Settings › Sharing: share / QR, followers, requests (no identity yet: its Set up opens setup)
+                        openSharing = { backStack.push(SharingRoute) },
                     )
                 }
                 entry<SensorSettingsKey> {
@@ -244,10 +277,6 @@ private fun route(
 
         HomeAction.EnableBluetooth -> {
             open(context, Intent(Settings.ACTION_BLUETOOTH_SETTINGS)) {}
-        }
-
-        HomeAction.OpenShowcaseInfo -> {
-            open(context, Showcase.appInfo()) {}
         }
 
         HomeAction.ResumeMonitoring -> {

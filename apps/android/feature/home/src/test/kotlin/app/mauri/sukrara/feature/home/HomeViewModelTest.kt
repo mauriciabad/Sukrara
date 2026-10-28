@@ -174,11 +174,11 @@ class HomeViewModelTest {
     @Test fun `safety banners ignore dismiss`() =
         runTest(dispatcher) {
             val deps = Deps()
-            deps.environment.value = HomeEnvironment(showcaseInstalled = true)
+            deps.dataProblems.value = listOf(DataProblem("settings", "SerializationException", "settings.corrupt-1.json", Samples.NOW))
             val vm = HomeViewModel(deps)
             backgroundScope.launch { vm.state.collect {} }
-            vm.dismiss(BannerKind.TurnOffShowcase)
+            vm.dismiss(BannerKind.DataProblem)
             runCurrent()
-            assertEquals(BannerKind.TurnOffShowcase, vm.state.value.banner)
+            assertEquals(BannerKind.DataProblem, vm.state.value.banner)
         }
 }
