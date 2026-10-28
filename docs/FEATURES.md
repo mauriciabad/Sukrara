@@ -608,6 +608,9 @@ Android (`:monitor`, `LiveNotification` = registered surface `notification-text`
 - States: *Waiting for glucose…*; *Not monitoring: no sensor yet* with *Set up sensor* (followers: *Open Sukrara*) before
   the first reading or while setup isn't done; *Sensor ended* (wearer: tap / *Replace sensor* → sensor setup); *Sensor
   warming up · ready at 14:05*; *Bluetooth is off: turn it on to get readings* under the value on a wearer.
+- Sub text on a wearer that shares (has a sharing identity), in every state: *2 followers* (active ones), then
+  *· 1 nearby* while follower devices are connected over Bluetooth (`SharingLine`, from the owner engine's followers
+  and named Bluetooth links). A follower phone shows none.
 - **Tap → quick Add treatment** (`NavTargets.ACTION_QUICK_TREATMENT`, Carbs focused while a low / very-low alert fires);
   action *Open Sukrara*. Until the quick-treatment dialog is in the build the tap opens the app.
 - Swiped away (Android 14+ lets the person dismiss a foreground notification): it is posted again (delete intent).
@@ -888,8 +891,7 @@ past the other app's event; blocks again if it's still running) or *Help*.
   256 KiB a minute → error and disconnect;
   more than 30 messages a minute → dropped), sends one backlog per device per 5 s (a sooner `HELLO` is answered when due),
   and never re-sends an expired event from its backlog.
-- Not included yet: *Pair nearby* / *Find phones nearby* (joining over Bluetooth without a link), the "· 1 nearby" sub
-  text in the live notification.
+- Not included yet: *Pair nearby* / *Find phones nearby* (joining over Bluetooth without a link).
 - Mac follower: gift wraps (access request, rekey, history request) carry an absolute expiration (7 d; history 1 d); a key
   delivery naming another stream id is rejected; a chunk whose `c`/`d` tags don't match its hour is rejected; a rekey
   request goes out only for an unknown key on an event from the wearer's identity or device.

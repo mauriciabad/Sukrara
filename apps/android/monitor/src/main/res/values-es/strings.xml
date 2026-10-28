@@ -91,6 +91,16 @@
     <string name="monitor_notif_reading_at">Lectura de las %1$s</string>
     <string name="monitor_notif_no_readings_since">Sin lecturas desde las %1$s</string>
     <string name="monitor_notif_waiting">Esperando la glucosa…</string>
+    <plurals name="monitor_sub_followers">
+        <item quantity="one">%d seguidor</item>
+        <item quantity="many">%d seguidores</item>
+        <item quantity="other">%d seguidores</item>
+    </plurals>
+    <plurals name="monitor_sub_nearby">
+        <item quantity="one">%d cerca</item>
+        <item quantity="many">%d cerca</item>
+        <item quantity="other">%d cerca</item>
+    </plurals>
     <string name="monitor_notif_not_monitoring">Sin monitorizar: aún no hay sensor</string>
     <string name="monitor_notif_sensor_ended">Sensor terminado</string>
     <string name="monitor_notif_warming_up">Sensor calentando · listo a las %1$s</string>

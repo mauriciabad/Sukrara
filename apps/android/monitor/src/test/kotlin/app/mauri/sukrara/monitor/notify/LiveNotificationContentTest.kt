@@ -221,4 +221,16 @@ class LiveNotificationContentTest {
             assertEquals(name, rate, content.trendRate)
         }
     }
+
+    @Test
+    fun `a sharing wearer gets the followers and nearby sub text in every state, a follower never`() {
+        val line = SharingLine(followers = 2, nearby = 1)
+        val prefs = NotificationPrefs(chip = true, promotionAllowed = true, sharing = line)
+        assertEquals(line, content(state(), prefs).sharing)
+        assertEquals(line, content(state(mgdl = null), prefs).sharing)
+        assertEquals(line, content(state(sensor = SensorState.Ended), prefs).sharing)
+        assertNull(content(state(role = Role.Follower), prefs).sharing)
+        assertNull(content(state(), NotificationPrefs()).sharing)
+        assertNull(content(state(role = null), prefs).sharing)
+    }
 }
