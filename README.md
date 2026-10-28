@@ -32,7 +32,9 @@ The full catalog, with every rule and number, is [docs/FEATURES.md](docs/FEATURE
   Sukrara and Abbott's app. Or read from **Juggluco's local web server** if Juggluco keeps the sensor.
 - **Other sensors, untested**: Dexcom G7 / ONE+ / Stelo (read along with the Dexcom app), Dexcom G6 / ONE, Accu-Chek
   SmartGuide and Aidex X / LinX / GlucoRx. They were never tested with a real sensor: the new sensor screen tags them
-  *Untested* and asks you to confirm before pairing.
+  *Untested* and asks you to confirm before pairing; while you wear one, home asks for feedback (*Send feedback*
+  opens a pre-filled GitHub issue with nothing personal) and Settings › Sensor names the family and why a connected
+  sensor sends no value.
 - **LO / HI** from any sensor show as *LO* / *HI*, never a made-up number, and sound the very low / extremely high
   alert at once (Android and Mac).
 - A guided **new sensor** screen: which sensor, warm-up countdown, every failure handled on the same screen
@@ -44,7 +46,7 @@ The full catalog, with every rule and number, is [docs/FEATURES.md](docs/FEATURE
   last 31 days (7 / 14 / 30-day rings count them too), a pill that acts (*Eat carbs* opens Add treatment with Carbs
   focused, a mute's pill its ways out), the sensor's end date with *Pair new sensor* in its last day,
   one banner at a time for what needs you (monitoring stopped, alerts may not ring,
-  damaged saved data, finish setup), and the last 24 h of treatments with delete + undo. Never a bare "---": when
+  damaged saved data, finish setup), the last 24 h of treatments with delete + undo, and a **glucose report** card (1 / 7 / 14 / 30 days: time in the five ranges with their goals, average, GMI, CV, how much of the period has data). Never a bare "---": when
   there's no value it says why and what to do.
 - A **live notification** that is also a **Live Update chip** next to the clock (Android 16 QPR2+), with the same
   freshness steps as the card: from 5 min the number is struck through, from 20 min it's gone. Tap → *Add treatment*.
@@ -55,7 +57,7 @@ The full catalog, with every rule and number, is [docs/FEATURES.md](docs/FEATURE
   icon you choose and first in line when the status bar is crowded (Settings › Status bar › With root).
 - **Alerts**: very low, low, high, very high, rising / falling fast and no data; each on its own channel,
   "like an alarm" ones pass Do Not Disturb. *Mute…*, *Remind less*, *Unmute* and *Change time* on the notification,
-  in the app and with TalkBack; *Mute all* with a visible strip to undo it. The no-data check runs from an exact alarm,
+  in the app and with TalkBack; *Mute all* with a visible strip to undo it. Settings › Alerts › *Lately* shows what alerted and what you muted in the last day. The no-data check runs from an exact alarm,
   independent of the monitoring service.
 - **Sensor end**: reminders you set (up to six, 0–3 days before at a time; earlier at the first unlock; one the
   evening before a night-time end), a live countdown in the sensor's last hours, a warm-up countdown with *Sensor
@@ -93,7 +95,8 @@ The full catalog, with every rule and number, is [docs/FEATURES.md](docs/FEATURE
   internet (on by default, *Share over Bluetooth*); Settings › Sharing lists the devices connected now, says when
   Bluetooth is off or the Nearby devices permission is missing, and offers the fix; the live notification says
   *2 followers · 1 nearby*.
-- **Follow someone from an Android phone**: paste (or open) the wearer's invite link, wait for them to allow you (with
+- **Follow someone from an Android phone**: paste (or open) the wearer's invite link, or find their phone nearby over
+  Bluetooth while they have *Pair nearby* on (Settings › Sharing; they type the code your phone shows), wait for them to allow you (with
   the 4-digit code they may ask for), then their readings, sensor, entries and alerts arrive over the relays and drive
   home, widgets, the live notification and your own alerts (including *no data*); near their phone they also arrive over
   Bluetooth, without internet. Add entries when they let you;
@@ -134,7 +137,7 @@ The full catalog, with every rule and number, is [docs/FEATURES.md](docs/FEATURE
 - VoiceOver reads the value as one sentence with the range in words.
 
 **Not included**: the LSPosed lock-screen widget, Dexcom / Aidex / SmartGuide (untested) sensors, the pen list and dose review, the sensor-end
-calendar event, the glucose report, settings export / import, scanning an invite's QR code on Android and the Android
+calendar event, settings export / import, scanning an invite's QR code on Android and the Android
 follower's *Settings from* page, *Pair nearby* (joining over Bluetooth without a link), and the Mac's Juggluco-over-Wi-Fi source.
 
 **Garmin watch:** switch on *Settings › Share with apps › xDrip+ server*; watch faces and data fields made for xDrip+

@@ -160,6 +160,17 @@
     <string name="st_sensor_current">Current sensor</string>
     <string name="st_sensor_status">Status</string>
     <string name="st_sensor_serial">Serial number</string>
+    <string name="st_sensor_family">Sensor</string>
+    <string name="st_sensor_family_untested">%1$s · untested</string>
+    <string name="st_sensor_status_searching">Looking for the sensor: keep the phone near it</string>
+    <string name="st_sensor_status_no_value_calibration">Connected, no value: the sensor asks for a calibration. Do it in the Dexcom app or receiver.</string>
+    <string name="st_sensor_status_no_value_temporary">Connected, no value for now: a temporary sensor issue. Values come back by themselves.</string>
+    <string name="st_sensor_status_no_value_error">Connected, no value: the sensor reports an error. If it lasts, replace the sensor.</string>
+    <string name="st_sensor_status_no_value_missing">Connected: the sensor sent no value. Waiting for the next one.</string>
+    <plurals name="st_sensor_skipped_old">
+        <item quantity="one">An older %2$s nearby has ended: Sukrara skips it and looks for your new one.</item>
+        <item quantity="other">%1$d older %2$s sensors nearby have ended: Sukrara skips them and looks for your new one.</item>
+    </plurals>
     <string name="st_sensor_started">Started</string>
     <string name="st_sensor_ends">Ends</string>
     <string name="st_sensor_ends_in">%1$s · in %2$s</string>
@@ -389,6 +400,7 @@
     <string name="st_try_title">Try it</string>
     <string name="st_play_sound">Play sound</string>
     <string name="st_play_vibrate">Play with vibration</string>
+    <string name="st_play_option">Play %1$s</string>
     <string name="st_send_test">Send a test alert</string>
     <string name="st_send_test_summary">The real notification, marked as a test · not sent to followers</string>
     <string name="st_send_test_sent">Sent: check your notifications. It goes away by itself in 2 min.</string>
@@ -534,4 +546,18 @@
     <string name="st_clinic_title">Share your data with your clinic</string>
     <string name="st_clinic_text">Upload your readings and entries to LibreView so your care team sees them.</string>
     <string name="st_clinic_action">Set up</string>
+    <!-- Settings › Alerts › Lately: the alerts' recent history -->
+    <string name="st_lately_title">Lately</string>
+    <string name="st_note_fired">%1$s · %2$d mg/dL</string>
+    <string name="st_note_remote">%1$s (from the wearer)</string>
+    <string name="st_note_cleared">%1$s cleared</string>
+    <string name="st_note_cleared_remote">%1$s cleared (by the wearer)</string>
+    <string name="st_note_muted">%1$s alerts muted for %2$s</string>
+    <string name="st_note_unmuted">%1$s alerts unmuted</string>
+    <string name="st_note_remind_less">%1$s alerts: remind less</string>
+    <string name="st_note_remind_as_usual">%1$s alerts: remind as usual</string>
+    <string name="st_note_back">%1$s back in range: alerts as usual</string>
+    <string name="st_note_all_muted">All alerts muted for %1$s</string>
+    <string name="st_note_all_muted_off">All alerts muted until you turn it off</string>
+    <string name="st_note_all_unmuted">Alerts unmuted</string>
 </resources>

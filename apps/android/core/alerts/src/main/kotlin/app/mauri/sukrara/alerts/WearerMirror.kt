@@ -83,7 +83,8 @@ class WearerMirror(memory: MirrorMemory = MirrorMemory()) {
             if (sn.until in 1..now) putSnooze(side, sn.copy(until = 0))
             val cur = snoozes[side] ?: continue
             if (r == null || !Rules.fresh(r, now)) continue
-            if (!Rules.backBy(side, r, s)) {
+            val back = Rules.backBy(side, r, s) ?: continue // can't tell (no rate): the count stays as it is
+            if (!back) {
                 snoozes[side] = cur.copy(backSince = 0)
                 continue
             }

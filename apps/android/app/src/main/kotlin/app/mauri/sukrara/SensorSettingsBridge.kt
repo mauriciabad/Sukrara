@@ -6,6 +6,7 @@ package app.mauri.sukrara
 import app.mauri.sukrara.core.model.storage.SettingSpec
 import app.mauri.sukrara.core.model.storage.SettingsRepository
 import app.mauri.sukrara.feature.settings.sensor.LibreViewSummary
+import app.mauri.sukrara.feature.settings.sensor.SensorFamily
 import app.mauri.sukrara.feature.settings.sensor.SensorSettingsPort
 import app.mauri.sukrara.feature.settings.sensor.SensorSettingsState
 import app.mauri.sukrara.feature.settings.sensor.SensorSummary
@@ -13,6 +14,7 @@ import app.mauri.sukrara.feature.settings.sensor.SourceChoice
 import app.mauri.sukrara.feature.settings.sensor.SourceLink
 import app.mauri.sukrara.sensor.SensorModule
 import app.mauri.sukrara.sensor.ble.LinkStatus
+import app.mauri.sukrara.sensor.ble.NoValueReason
 import app.mauri.sukrara.sensor.juggluco.JugglucoStatus
 import app.mauri.sukrara.sensor.source.SensorSourceKind
 import app.mauri.sukrara.sensor.source.SensorStatus
@@ -54,6 +56,7 @@ class SensorSettingsBridge(
                 sensor = info?.let { SensorSummary(it.serial, Instant.ofEpochSecond(it.startEpoch), Instant.ofEpochSecond(it.endEpoch)) },
                 account = email?.let { LibreViewSummary(it, receiverId) },
                 link = linkOf(detail),
+                family = (detail as? SensorStatus.Direct)?.let { SensorFamily(it.profile.label, !it.profile.verified, it.skipped) },
             )
         }
 
@@ -69,12 +72,29 @@ class SensorSettingsBridge(
             }
 
             is SensorStatus.Direct -> {
-                when (detail.link) {
+                when (val link = detail.link) {
                     LinkStatus.Live, is LinkStatus.WarmingUp, LinkStatus.SensorEnded, LinkStatus.WaitingForBluetooth,
                     LinkStatus.PermissionMissing,
-                    -> SourceLink.Receiving
+                    -> {
+                        SourceLink.Receiving
+                    }
 
-                    else -> SourceLink.Connecting
+                    LinkStatus.Scanning, LinkStatus.SensorNotFound -> {
+                        SourceLink.Searching
+                    }
+
+                    is LinkStatus.NoValue -> {
+                        when (link.why) {
+                            NoValueReason.Calibration -> SourceLink.NoValueCalibration
+                            NoValueReason.Temporary -> SourceLink.NoValueTemporary
+                            NoValueReason.SensorError -> SourceLink.NoValueSensorError
+                            NoValueReason.Missing -> SourceLink.NoValueMissing
+                        }
+                    }
+
+                    else -> {
+                        SourceLink.Connecting
+                    }
                 }
             }
 

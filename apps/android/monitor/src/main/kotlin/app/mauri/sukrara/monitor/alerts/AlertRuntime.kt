@@ -84,6 +84,9 @@ class AlertRuntime(
     private var who: String? = null
     private var fedReadingAt: Long? = null
 
+    /** The recent history (Settings › Alerts › Lately), oldest first, saved with the record. */
+    private var notes: List<SavedNote> = emptyList()
+
     /** Which alert each group's notification shows (from the effects), and the muted cards up. */
     private val firing = HashMap<AlertGroup, Firing>()
     private val mutedCards = HashMap<AlertGroup, Pair<Side, Long>>()
@@ -145,6 +148,7 @@ class AlertRuntime(
             sensor = null
             fedReadingAt = null
             failed.clear()
+            notes = emptyList()
             unposted.clear()
             attempt(Step.Alarm) { alarm.set(null) }
             attempt(Step.Save) { store.save { AlertRecord() } }
@@ -276,6 +280,7 @@ class AlertRuntime(
         started = true
         monitoring = record.monitoring
         who = record.who
+        notes = record.notes
         sensor = record.sensor?.window
         val saved = record.machine ?: return emptyList()
         role = if (saved.role == AlertRole.WEARER) Role.Wearer else Role.Follower
@@ -316,7 +321,7 @@ class AlertRuntime(
     private suspend fun run(input: AlertInput, now: Long): List<AlertEffect> {
         val m = machine ?: return emptyList()
         val effective = if (input is AlertInput.Settings) AlertInput.Settings(effectiveSettings()) else input
-        return applyAndSave(m, m.handle(effective, now), now)
+        return applyAndSave(m, m.handle(effective, now), now, input)
     }
 
     /**
@@ -326,7 +331,13 @@ class AlertRuntime(
      * state ([AlertDeliveryProblem.AlertStepFailed]) until it works again; a refused alert is posted again, with its
      * sound, on the next input.
      */
-    private suspend fun applyAndSave(m: AlertMachine, effects: List<AlertEffect>, now: Long): List<AlertEffect> {
+    private suspend fun applyAndSave(
+        m: AlertMachine,
+        effects: List<AlertEffect>,
+        now: Long,
+        input: AlertInput? = null,
+    ): List<AlertEffect> {
+        notes = AlertNotes.append(notes, AlertNotes.of(input, effects, now))
         effects.filterIsInstance<AlertEffect.Schedule>().forEach { e -> attempt(Step.Alarm) { alarm.set(e.at) } }
         val firedNow = effects.filterIsInstance<AlertEffect.Fire>().map { it.firing.kind.group }.toSet()
         retryUnposted(m, now, skip = firedNow)
@@ -462,7 +473,7 @@ class AlertRuntime(
 
     private suspend fun save() {
         val snapshot = machine?.snapshot()
-        store.save { it.copy(machine = snapshot, monitoring = monitoring, who = who, sensor = sensor?.let(::SavedSensor)) }
+        store.save { it.copy(machine = snapshot, monitoring = monitoring, who = who, sensor = sensor?.let(::SavedSensor), notes = notes) }
     }
 
     private fun publishUi(now: Long) {
@@ -499,6 +510,7 @@ class AlertRuntime(
                         failed.isEmpty() -> presenter.deliveryProblems(alarmKinds)
                         else -> presenter.deliveryProblems(alarmKinds) + AlertDeliveryProblem.AlertStepFailed
                     },
+                lately = notes.asReversed().mapNotNull { it.note() },
             ),
         )
     }

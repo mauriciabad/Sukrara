@@ -71,9 +71,17 @@ sealed interface SensorStatus {
 
     /**
      * The paired sensor, read directly: its family, what the screens call it ([label]: the serial, the advertised
-     * name or the family), which pairing this is ([key]: tells two pairings of an id-less family apart) and the link.
+     * name or the family), which pairing this is ([key]: tells two pairings of an id-less family apart), the link and
+     * how many older sensors of this family the scan found and skipped since the last reading ([skipped]: ended ones
+     * still bonded and advertising nearby).
      */
-    data class Direct(val profile: SensorProfile, val label: String, val key: String, val link: LinkStatus) : SensorStatus {
+    data class Direct(
+        val profile: SensorProfile,
+        val label: String,
+        val key: String,
+        val link: LinkStatus,
+        val skipped: Int = 0,
+    ) : SensorStatus {
         override val action: SensorAction?
             get() =
                 when (link) {

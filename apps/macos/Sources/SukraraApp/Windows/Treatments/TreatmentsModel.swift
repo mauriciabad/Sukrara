@@ -50,6 +50,21 @@ public final class TreatmentsModel {
         self.now = now
     }
 
+    /// How close in time a typed insulin entry and a pen entry of the same kind are taken for the same injection.
+    public static let penWindow: Int64 = 45 * 60
+
+    /// The newest pen entry of an insulin kind in `entries` within `penWindow` of it (Add Treatment asks first).
+    public func penDuplicate(of entries: [Treatment]) -> Treatment? {
+        let insulin = entries.filter { $0.k == .rapid || $0.k == .long }
+        return
+            rows
+            .map(\.treatment)
+            .filter { pen in
+                pen.fromPen && !pen.del && insulin.contains { $0.k == pen.k && abs($0.t - pen.t) <= Self.penWindow }
+            }
+            .max { $0.t < $1.t }
+    }
+
     /// Only entries this Mac (or the wearer allowed it to) wrote can be changed: never the phone's or a pen's.
     public func canChange(_ row: Row) -> Bool { canWrite && row.treatment.o == .mac }
 

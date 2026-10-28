@@ -151,4 +151,7 @@ sealed interface HomeAction {
 
     /** Pen taps blocked by Android: turn pen reading off (the honest exit for someone who doesn't want taps). */
     data object TurnOffPens : HomeAction
+
+    /** Sukrara's System UI module waits for a restart: restart System UI with root. */
+    data object RestartSystemUi : HomeAction
 }

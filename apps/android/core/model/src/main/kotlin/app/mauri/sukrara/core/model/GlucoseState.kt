@@ -134,6 +134,8 @@ data class AlertUiState(
     val quiet: List<AlertQuietSide> = emptyList(),
     /** What stops alerts from ringing as set up right now (home shows a banner with the fix). */
     val deliveryProblems: Set<AlertDeliveryProblem> = emptySet(),
+    /** What alerted and what the person did lately on this phone, newest first (Settings › Alerts › Lately). */
+    val lately: List<AlertNote> = emptyList(),
 ) {
     val mutedUntilTurnedOff: Boolean get() = mutedUntil == UNTIL_TURNED_OFF
 
@@ -142,6 +144,21 @@ data class AlertUiState(
         val UNTIL_TURNED_OFF: Instant = Instant.ofEpochSecond(Long.MAX_VALUE / 1000)
     }
 }
+
+/**
+ * One line of the alerts' recent history: [kind] (an alert kind's wire name, null for Mute all) alerted at [mgdl],
+ * cleared, or the person muted it for [minutes] (null = until turned off)… [remote]: the wearer's alert, mirrored.
+ */
+data class AlertNote(
+    val at: Instant,
+    val type: AlertNoteType,
+    val kind: String? = null,
+    val mgdl: Int? = null,
+    val minutes: Int? = null,
+    val remote: Boolean = false,
+)
+
+enum class AlertNoteType { Fired, Cleared, Muted, Unmuted, RemindLess, RemindAsUsual, Back, AllMuted, AllUnmuted }
 
 /** A reason an alert would not reach the person as set up; each has a fix in the reliability row. */
 enum class AlertDeliveryProblem {

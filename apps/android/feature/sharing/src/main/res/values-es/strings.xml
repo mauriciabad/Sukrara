@@ -358,4 +358,15 @@
     <string name="sh_nearby_device_name">%1$s · %2$s</string>
     <string name="sh_nearby_device_connected">Conectado por Bluetooth</string>
     <string name="sh_following_nearby">Bluetooth: %1$s</string>
+    <string name="sh_pair_nearby">Emparejar cerca</string>
+    <string name="sh_pair_nearby_off">Durante 10 minutos, un teléfono cercano puede pedir seguirte sin enlace. Escribes el código que se ve en su teléfono.</string>
+    <string name="sh_pair_nearby_on">Abierto · se cierra en %1$s. En su teléfono: Buscar teléfonos cerca, al unirse.</string>
+    <string name="sh_approve_nearby">Pedido con Emparejar cerca: cualquier teléfono al alcance del Bluetooth podría pedirlo. Escribe el código que se ve en su teléfono.</string>
+    <string name="sh_approve_invite_nearby">Emparejar cerca</string>
+    <string name="sh_find_nearby">Buscar teléfonos cerca</string>
+    <string name="sh_find_nearby_hint">¿Sin enlace? Si está a tu lado, pídele que active Emparejar cerca (Ajustes › Compartir) y busca su teléfono por Bluetooth.</string>
+    <string name="sh_find_nearby_looking">Buscando teléfonos con Emparejar cerca activado…</string>
+    <string name="sh_find_nearby_found">Toca a la persona que quieres seguir. Sigue buscando más…</string>
+    <string name="sh_find_nearby_ask">Pedir seguirle</string>
+    <string name="sh_find_nearby_stop">Dejar de buscar</string>
 </resources>

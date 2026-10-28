@@ -32,6 +32,7 @@ import app.mauri.sukrara.protocol.follow.FollowStatus
 import app.mauri.sukrara.protocol.follow.FollowerState
 import app.mauri.sukrara.protocol.follow.Item
 import app.mauri.sukrara.protocol.follow.StreamFollower
+import app.mauri.sukrara.protocol.invite.Invite
 import app.mauri.sukrara.protocol.invite.InviteFailure
 import app.mauri.sukrara.protocol.invite.InviteLink
 import app.mauri.sukrara.protocol.invite.Invites
@@ -61,6 +62,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.channelFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.receiveAsFlow
@@ -97,6 +99,12 @@ enum class JoinResult { Joined, InvalidLink, NotFound, Offline, Expired, WrongWe
 
 /** What the wearer told this follower (a notification on the info channel). */
 enum class FollowerNotice { InviteUsed, Declined, Revoked }
+
+/** A wearer's phone in Bluetooth range with *Pair nearby* open ([phone] = its current address). */
+data class NearbyOffer(val phone: String, val pairing: BleMessages.Pairing)
+
+/** *Find phones nearby*: what limits the search ([status]) and the phones offering pairing now. */
+data class NearbySearch(val status: NearbyStatus, val offers: List<NearbyOffer>)
 
 /** A relay pool for [relays] that answers NIP-42 AUTH as [authKey] (F, or the invite key while joining). */
 fun interface RelayTransportFactory {
@@ -281,7 +289,69 @@ class FollowerEngine(
                     }
                 }
             }
-        return locked {
+        return joinWith(invite, me)
+    }
+
+    /**
+     * *Find phones nearby* (setup's join step): while collected, scans for wearers' phones, reads each one's INFO
+     * without writing anything else (no identity yet: every phone is "unknown", B§6) and lists those offering *Pair
+     * nearby*; each phone is looked at again every [NEARBY_RECHECK_S]. Nothing is trusted: joining sends a request the
+     * wearer still allows with the typed code.
+     */
+    fun findNearby(): Flow<NearbySearch> =
+        channelFlow {
+            val nb = nearbyTransports?.create(NearbyLink.Identity())
+            if (nb == null) {
+                send(NearbySearch(NearbyStatus.Unsupported, emptyList()))
+                return@channelFlow
+            }
+            // by token (a phone's address rotates), with when it was last seen: a phone that stopped offering or went
+            // out of range leaves the list after two checks
+            val offers = MutableStateFlow<Map<String, Pair<NearbyOffer, Long>>>(emptyMap())
+            val ticks =
+                flow {
+                    while (true) {
+                        emit(Unit)
+                        delay(1_000)
+                    }
+                }
+            nb.start()
+            try {
+                launch {
+                    nb.events.collect { e ->
+                        if (e !is NearbyEvent.Info) return@collect
+                        val p = e.pairing
+                        val others = offers.value.filterValues { it.first.phone != e.phone }
+                        offers.value = if (p != null) others + (p.token to (NearbyOffer(e.phone, p) to now())) else others
+                        // on to the next phone; this one is looked at again later
+                        nb.leave(e.phone, NEARBY_RECHECK_S)
+                    }
+                }
+                combine(nb.status, offers, ticks) { status, o, _ ->
+                    val t = now()
+                    NearbySearch(
+                        status,
+                        o.values
+                            .filter { (offer, seen) ->
+                                offer.pairing.expiry > t && t - seen <= 2 * NEARBY_RECHECK_S
+                            }.map { it.first },
+                    )
+                }.collect { send(it) }
+            } finally {
+                nb.stop()
+            }
+        }
+
+    /** Joins the wearer whose phone offered *Pair nearby* (no relay lookup: the offer is the invite). */
+    suspend fun joinNearby(offer: NearbyOffer, me: Profile?): JoinResult {
+        val p = offer.pairing
+        if (p.expiry <= now()) return JoinResult.Expired
+        if (!canJoin()) return JoinResult.AlreadyFollowing
+        return joinWith(Invite(p.identity, p.token, p.expiry, p.relays, p.profile), me)
+    }
+
+    private suspend fun joinWith(invite: Invite, me: Profile?): JoinResult =
+        locked {
             if (!canJoinLocked()) return@locked JoinResult.AlreadyFollowing
             val f = crypto.generate()
             val stream = FollowerState(follower = f, identity = invite.identity, relays = invite.relays.ifEmpty { Wire.DEFAULT_RELAYS })
@@ -308,7 +378,6 @@ class FollowerEngine(
             }
             JoinResult.Joined
         }
-    }
 
     private suspend fun canJoin() = locked { canJoinLocked() }
 
@@ -441,12 +510,21 @@ class FollowerEngine(
             // another wearer's phone: leave it and keep looking (B§6 "Which owner")
             is NearbyEvent.Info -> {
                 when (e.owner) {
-                    BleMessages.Owner.Other -> nearby?.leave(e.phone, LEAVE_OTHER_PHONE_S)
+                    BleMessages.Owner.Other -> {
+                        nearby?.leave(e.phone, LEAVE_OTHER_PHONE_S)
+                    }
 
-                    // the phone proved it's the wearer's: entries still pending go to it now (no internet needed)
-                    BleMessages.Owner.Ours -> resendPending()
+                    // the phone proved it's the wearer's: entries still pending go to it now (no internet needed); a
+                    // request still waiting (no key yet: the phone offers *Pair nearby*) goes over Bluetooth too
+                    BleMessages.Owner.Ours -> {
+                        val status = follower?.state?.status
+                        if (record?.stream?.sid == null && (status == FollowStatus.New || status == FollowStatus.Requested)) sendRequest()
+                        resendPending()
+                    }
 
-                    BleMessages.Owner.Unknown -> Unit
+                    BleMessages.Owner.Unknown -> {
+                        Unit
+                    }
                 }
             }
         }
@@ -848,6 +926,9 @@ class FollowerEngine(
 
         /** B§6: another wearer's phone is avoided for 10 minutes. */
         const val LEAVE_OTHER_PHONE_S = 600L
+
+        /** *Find phones nearby*: each phone's INFO is read again after this long. */
+        const val NEARBY_RECHECK_S = 15L
 
         const val INBOX = "inbox"
         const val ROSTER = "roster"

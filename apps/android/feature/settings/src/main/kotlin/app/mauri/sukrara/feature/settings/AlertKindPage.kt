@@ -3,6 +3,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.feature.settings
 
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
@@ -10,6 +12,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import app.mauri.sukrara.alerts.AlertKind
 import app.mauri.sukrara.core.model.AlertQuietReason
@@ -22,6 +25,7 @@ import app.mauri.sukrara.designsystem.dialog.Choice
 import app.mauri.sukrara.designsystem.dialog.ChoiceDialog
 import app.mauri.sukrara.designsystem.dialog.NumberDialog
 import app.mauri.sukrara.designsystem.dialog.NumberInput
+import app.mauri.sukrara.designsystem.haptics.rememberHaptics
 import app.mauri.sukrara.designsystem.rows.FooterText
 import app.mauri.sukrara.designsystem.rows.NavigationRow
 import app.mauri.sukrara.designsystem.rows.SettingsGroup
@@ -182,8 +186,14 @@ fun AlertKindContent(
 
         "sound" -> {
             val same = stringResource(R.string.st_sound_same, packName(ui.settings.sounds.pack))
+            val alarm = ui.settings.rule(kind).alarm
+            val playback = actions.playback
+            DisposableEffect(playback) { onDispose { playback.stop() } }
             val options =
-                listOf(Choice<String?>(same, null)) + SettingsSpec.OPTIONS.getValue("soundPack").map { Choice<String?>(packName(it), it) }
+                listOf(Choice<String?>(same, null, trailing = soundPreview(kind, ui.settings.sounds.pack, alarm, playback))) +
+                    SettingsSpec.OPTIONS.getValue("soundPack").map {
+                        Choice<String?>(packName(it), it, trailing = soundPreview(kind, it, alarm, playback))
+                    }
             ChoiceDialog(stringResource(R.string.st_sound), options, ui.settings.sounds.perKind[kind], { dialog = null }) {
                 actions.edit(AlertEdits.sound(kind, it))
             }
@@ -239,6 +249,31 @@ private fun TryOutGroup(
         }
     }
 }
+
+/**
+ * The ▶ beside a sound option in a sound dialog: plays [pack] as [kind] rings (its volume, no vibration), so the
+ * person hears each option before choosing; the dialog stops it when it closes. *None* has nothing to play.
+ */
+internal fun soundPreview(
+    kind: AlertKind,
+    pack: String,
+    alarm: Boolean,
+    playback: AlertPlayback,
+): (@Composable () -> Unit)? =
+    // a silenced channel plays nothing: the page's *Play sound* row says why, a ▶ that does nothing would only confuse
+    if (pack == "none" || playback === AlertPlayback.None || playback.silenced(kind, alarm)) {
+        null
+    } else {
+        {
+            val haptics = rememberHaptics()
+            IconButton(onClick = {
+                haptics.tick()
+                playback.play(kind, pack, alarm, vibrate = false)
+            }) {
+                Icon(painterResource(R.drawable.st_ic_play_arrow), stringResource(R.string.st_play_option, packName(pack)))
+            }
+        }
+    }
 
 /** Opens Android's settings of one notification channel of this app. */
 fun android.content.Context.openChannelSettings(channel: String) {

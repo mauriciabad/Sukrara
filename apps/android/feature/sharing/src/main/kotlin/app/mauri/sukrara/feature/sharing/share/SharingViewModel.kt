@@ -120,6 +120,10 @@ class SharingViewModel(private val sharing: OwnerSharing) : ViewModel() {
 
     fun refreshNearby() = sharing.refreshNearby()
 
+    fun pairNearby(on: Boolean) {
+        viewModelScope.launch { sharing.pairNearby(on) }
+    }
+
     fun retryConflict() {
         viewModelScope.launch { sharing.retryConflict() }
     }

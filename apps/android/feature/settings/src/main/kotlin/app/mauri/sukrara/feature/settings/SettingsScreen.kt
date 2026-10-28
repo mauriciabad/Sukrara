@@ -143,7 +143,7 @@ fun SettingsScreen(
                     clock,
                     AlertsActions(vm::edit, vm::muteAll, vm::unmuteAll, { k -> navigate(SettingsRoute.AlertKindPage(k)) }, {
                         navigate(SettingsRoute.ThresholdReview)
-                    }),
+                    }, deps.alertPlayback),
                     onBack,
                 )
             }

@@ -159,6 +159,18 @@
     <string name="st_sensor_current">Sensor actual</string>
     <string name="st_sensor_status">Estado</string>
     <string name="st_sensor_serial">Número de serie</string>
+    <string name="st_sensor_family">Sensor</string>
+    <string name="st_sensor_family_untested">%1$s · sin probar</string>
+    <string name="st_sensor_status_searching">Buscando el sensor: mantén el móvil cerca</string>
+    <string name="st_sensor_status_no_value_calibration">Conectado, sin valor: el sensor pide una calibración. Hazla en la app o el receptor de Dexcom.</string>
+    <string name="st_sensor_status_no_value_temporary">Conectado, sin valor por ahora: un problema pasajero del sensor. Los valores vuelven solos.</string>
+    <string name="st_sensor_status_no_value_error">Conectado, sin valor: el sensor indica un error. Si continúa, cambia el sensor.</string>
+    <string name="st_sensor_status_no_value_missing">Conectado: el sensor no ha enviado ningún valor. Esperando el siguiente.</string>
+    <plurals name="st_sensor_skipped_old">
+        <item quantity="one">Un %2$s anterior cercano ya ha terminado: Sukrara lo ignora y busca el nuevo.</item>
+        <item quantity="many">%1$d sensores %2$s anteriores cercanos ya han terminado: Sukrara los ignora y busca el nuevo.</item>
+        <item quantity="other">%1$d sensores %2$s anteriores cercanos ya han terminado: Sukrara los ignora y busca el nuevo.</item>
+    </plurals>
     <string name="st_sensor_started">Inicio</string>
     <string name="st_sensor_ends">Termina</string>
     <string name="st_sensor_ends_in">%1$s · en %2$s</string>
@@ -390,6 +402,7 @@
     <string name="st_try_title">Pruébala</string>
     <string name="st_play_sound">Reproducir el sonido</string>
     <string name="st_play_vibrate">Con vibración</string>
+    <string name="st_play_option">Reproducir %1$s</string>
     <string name="st_send_test">Enviar una alerta de prueba</string>
     <string name="st_send_test_summary">La notificación real, marcada como prueba · no se envía a quien te sigue</string>
     <string name="st_send_test_sent">Enviada: mira tus notificaciones. Se va sola en 2 min.</string>
@@ -539,4 +552,18 @@
     <string name="st_clinic_title">Comparte tus datos con tu clínica</string>
     <string name="st_clinic_text">Sube tus lecturas y anotaciones a LibreView para que tu equipo médico las vea.</string>
     <string name="st_clinic_action">Configurar</string>
+    <!-- Settings › Alerts › Lately: the alerts' recent history -->
+    <string name="st_lately_title">Últimamente</string>
+    <string name="st_note_fired">%1$s · %2$d mg/dL</string>
+    <string name="st_note_remote">%1$s (de quien lleva el sensor)</string>
+    <string name="st_note_cleared">Terminó: %1$s</string>
+    <string name="st_note_cleared_remote">Terminó: %1$s (por quien lleva el sensor)</string>
+    <string name="st_note_muted">Alertas %1$s silenciadas durante %2$s</string>
+    <string name="st_note_unmuted">Alertas %1$s activadas de nuevo</string>
+    <string name="st_note_remind_less">Alertas %1$s: recordar menos</string>
+    <string name="st_note_remind_as_usual">Alertas %1$s: recordar como siempre</string>
+    <string name="st_note_back">Alertas %1$s: de vuelta en rango, como siempre</string>
+    <string name="st_note_all_muted">Todas las alertas silenciadas durante %1$s</string>
+    <string name="st_note_all_muted_off">Todas las alertas silenciadas hasta que lo desactives</string>
+    <string name="st_note_all_unmuted">Alertas activadas de nuevo</string>
 </resources>

@@ -7,6 +7,7 @@
     <string name="share_request_title">%1$s wants to see your glucose</string>
     <string name="share_request_for">Asked with your invite for %1$s · %2$s</string>
     <string name="share_request_from">Asked with your invite · %1$s</string>
+    <string name="share_request_nearby">Asked with Pair nearby. Open Sukrara and type the code shown on their phone.</string>
     <string name="share_request_others">Another phone also tried this invite. Open Sukrara and check before allowing.</string>
     <string name="share_request_allow">Allow</string>
     <string name="share_request_deny">Deny</string>

@@ -75,6 +75,7 @@ fun SharingScreen(
                         closeFollower = viewModel::writerSeen,
                         setNearby = viewModel::setNearby,
                         refreshNearby = viewModel::refreshNearby,
+                        pairNearby = viewModel::pairNearby,
                     ),
                     writerRefused = writerRefused,
                     nearby = nearby,
