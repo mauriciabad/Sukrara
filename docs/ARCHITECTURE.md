@@ -96,11 +96,12 @@ the `api` names in `contracts/graph/surfaces/surfaces.json`).
   renderer only draws them (badge, last-treatment slot, mute lines).
 - **Words.** `CardWords.of(resources)` once per `Resources` (en + es strings of the module); durations through the one
   formatter `core.model.Durations` with the `duration_*` strings.
-- **Tests** (`./gradlew :core:graph:testDebugUnitTest :core:graph:verifyRoborazziDebug`): `GraphFixtureTest`
+- **Tests** (`./gradlew :core:graph:testDebugUnitTest`): `GraphFixtureTest`
   (contracts/graph share, mark, sensor, place, labels, status), `FreshnessFixtureTest`, `ClockTest`, `DurationsTest`
   (contracts/settings/durations.json, en + es), `A11ySentenceTest`, `CardLayoutTest` (contracts/graph/layout rules
   and `expect.json` over stand-ins for the registered card surfaces until their code lands) and the Roborazzi
-  goldens in `core/graph/src/test/snapshots` (synthetic data, UTC, en-US).
+  goldens in `core/graph/src/test/snapshots` (synthetic data, UTC, en-US; recorded on CI by
+  `.github/workflows/goldens.yml`, since macOS renders text a little differently: locally `compareRoborazziDebug`).
 
 ## Mac (`apps/macos`)
 

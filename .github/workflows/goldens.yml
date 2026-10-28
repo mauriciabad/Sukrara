@@ -1,0 +1,49 @@
+# Sukrara — https://github.com/mauriciabad/sukrara
+# Copyright (C) 2026 Maurici Abad
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Records the Android Roborazzi goldens (:core:graph, :widgets → src/test/snapshots) on the same runner image that
+# verifies them in checks.yml, commits them to the branch it was dispatched on and re-runs Checks there.
+# Robolectric's native graphics draw text and alpha blends a little differently on macOS and Linux, so goldens
+# recorded on a Mac fail CI (Roborazzi's FAQ: record and verify in the same environment). A Mac recording is never
+# committed: run `gh workflow run goldens.yml --ref <branch>` after a change that moves pixels, review the commit's
+# images, merge. Locally, `compareRoborazziDebug` shows what changed without failing.
+name: Goldens
+on:
+  workflow_dispatch:
+permissions:
+  contents: write
+  actions: write
+concurrency:
+  group: goldens-${{ github.ref }}
+jobs:
+  record:
+    if: github.ref != 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: gradle
+      - name: Record the goldens
+        working-directory: apps/android
+        run: ./gradlew --no-daemon :core:graph:recordRoborazziDebug :widgets:recordRoborazziDebug
+      - name: Commit them to the branch
+        id: commit
+        run: |
+          git add -A apps/android/core/graph/src/test/snapshots apps/android/widgets/src/test/snapshots
+          if git diff --cached --quiet; then echo "goldens unchanged"; echo "pushed=false" >> "$GITHUB_OUTPUT"; exit 0; fi
+          git status --short
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -q -m "Roborazzi goldens recorded on CI (ubuntu-latest)" \
+            -m "Recorded by the Goldens workflow, run $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID."
+          git push origin "HEAD:$GITHUB_REF_NAME"
+          echo "pushed=true" >> "$GITHUB_OUTPUT"
+      # A push made with GITHUB_TOKEN starts no workflow; a dispatch does, so Checks runs on the new commit.
+      - name: Run Checks on the new commit
+        if: steps.commit.outputs.pushed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run checks.yml --ref "$GITHUB_REF_NAME"

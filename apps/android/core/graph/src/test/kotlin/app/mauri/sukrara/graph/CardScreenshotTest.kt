@@ -23,7 +23,8 @@ import java.util.TimeZone
 /**
  * Roborazzi goldens of the card (synthetic readings only): one phone-width card per scene, light + dark, default +
  * largest font (the card scales its text with the box, so "largest font" is the taller box a surface gives it).
- * `recordRoborazziDebug` writes src/test/snapshots; `verifyRoborazziDebug` compares.
+ * The Goldens workflow (CI, Linux) records src/test/snapshots; `verifyRoborazziDebug` compares, `compareRoborazziDebug`
+ * shows a local diff.
  */
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)

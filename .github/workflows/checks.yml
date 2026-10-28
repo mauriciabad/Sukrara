@@ -86,7 +86,8 @@ jobs:
         working-directory: apps/android
         # verifyReleaseSigning guards real release outputs and needs the owner's key; CI has none and ships no
         # release artifact, so it is excluded here (release builds are checked by tools/release/verify-apk.sh).
-        # Roborazzi verify only where goldens are committed (src/test/snapshots): :core:graph and :widgets.
+        # Roborazzi verify only where goldens are committed (src/test/snapshots): :core:graph and :widgets. They are
+        # recorded on this same runner image by goldens.yml (Mac renders differ in text antialiasing and blending).
         # Spotless isn't enforced yet (QualityConventionPlugin isEnforceCheck = false) until the one-shot format.
         run: >-
           ./gradlew --no-daemon check -x verifyReleaseSigning
