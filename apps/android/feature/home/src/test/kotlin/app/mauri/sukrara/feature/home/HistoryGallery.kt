@@ -6,6 +6,8 @@ package app.mauri.sukrara.feature.home
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
@@ -24,6 +26,8 @@ import app.mauri.sukrara.core.model.SourceId
 import app.mauri.sukrara.designsystem.theme.SukraraTheme
 import app.mauri.sukrara.feature.home.Samples.NOW
 import app.mauri.sukrara.graph.GraphConfig
+import app.mauri.sukrara.graph.stats.Bands
+import app.mauri.sukrara.graph.stats.toPoint
 import com.github.takahirom.roborazzi.captureRoboImage
 import org.junit.Rule
 import org.junit.Test
@@ -97,6 +101,46 @@ class HistoryGallery {
                     compose.waitForIdle()
                     val suffix = (if (isDark) "-dark" else "-light") + if (fontScale > 1f) "-font2x" else "-font1x"
                     compose.onRoot().captureRoboImage("build/outputs/roborazzi/home-history-$name$suffix.png")
+                }
+            }
+        }
+    }
+
+    /** The report card over the synthetic month: 14 days, 1 day, a period with too little data (the note), none. */
+    @Test fun reportCard() {
+        val points = month.map { it.toPoint() }
+        val bands = Bands()
+        val sparse = points.filterIndexed { i, _ -> i % 288 < 120 }
+        val cases =
+            listOf(
+                Triple("14d", 14, reportMetrics(points, NOW.epochSecond, 14, bands)),
+                Triple("1d", 1, reportMetrics(points, NOW.epochSecond, 1, bands)),
+                Triple("low-coverage", 7, reportMetrics(sparse, NOW.epochSecond, 7, bands)),
+                Triple("empty", 1, reportMetrics(emptyList(), NOW.epochSecond, 1, bands)),
+            )
+        var case by mutableStateOf(cases.first())
+        var dark by mutableStateOf(false)
+        var scale by mutableFloatStateOf(1f)
+        compose.setContent {
+            val density = LocalDensity.current
+            CompositionLocalProvider(LocalDensity provides Density(density.density, scale)) {
+                SukraraTheme(dark = dark, dynamic = false) {
+                    Box(Modifier.background(MaterialTheme.colorScheme.background).verticalScroll(rememberScrollState())) {
+                        ReportCardContent(case.third, case.second, {}, bands)
+                    }
+                }
+            }
+        }
+        for (c in cases) {
+            for (isDark in listOf(false, true)) {
+                for (fontScale in listOf(1f, 2f)) {
+                    case = c
+                    dark = isDark
+                    scale = fontScale
+                    compose.mainClock.advanceTimeBy(2_000)
+                    compose.waitForIdle()
+                    val suffix = (if (isDark) "-dark" else "-light") + if (fontScale > 1f) "-font2x" else "-font1x"
+                    compose.onRoot().captureRoboImage("build/outputs/roborazzi/home-report-${c.first}$suffix.png")
                 }
             }
         }

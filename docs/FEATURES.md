@@ -437,6 +437,18 @@ Role kept safe (Android): the role is stored twice (`role.json`, `role-backup.js
 *Some saved data was damaged* banner and the other copy keeps the phone monitoring (never back to setup with the service
 silently stopped); the copies are brought back in line at start.
 
+**Glucose report** card (Android, `ReportCard`, at the bottom of home for wearer and follower once any reading is
+stored; tests `ReportCardTest`, `HistoryGallery.reportCard`): the clinic report's numbers over home's stored 31 days
+(`GlucoseMetrics`, time-weighted like the rings, re-counted every 5 minutes): a 1 d / 7 d / 14 d / 30 d segmented
+picker (opens on 14 days; a view control, not a setting — schema `report.days` is the Mac's remembered window; a tick
+haptic on change), the stacked bar of the six bands beside time very high / high / above range, in range / very good,
+low / very low / below range, each with its share (`ShareText`) and, where the international consensus sets one, its
+goal as a chip (green with a check when met, orange when not); average glucose (< 154 mg/dL), GMI in % and mmol/mol
+(< 7 % / < 53 mmol/mol) and CV (≤ 36 %); a note when readings cover less than 70 % of the period, and the coverage in
+the footer. No readings in the period → *No readings in the last day. Choose a longer period.* TalkBack reads each
+row as one line with its goal and *goal met* / *goal not met*; the bar animates to new shares (snaps with reduced
+motion). Ranges are in mg/dL like the chart axis.
+
 **Damaged data** screen (from the banner's Review; back arrow in the top bar): each damaged file as what it means for
 the person: settings → *Your settings were reset to the defaults. Check your alert levels and mutes.* with *Open alert
 settings* (opens Settings › Alerts); readings / treatments may be
@@ -449,7 +461,7 @@ pill) → *Alert me anyway* / *Unmute*, *Alert settings*, or back / swipe down /
 last day* → *Pair new sensor* (or keep the sensor; it leaves when the new one runs); *no data* → the reason's action (or wait: warming up,
 core missing explains why); *banner* → its action, or close (non-safety), safety banners leave when fixed; *muted* →
 Unmute (button and TalkBack action); *treatment deleted* → Undo (5 s) or let it go; *damaged data* → Review → Got it /
-Back; *not set up* → the reason panel's Set up; invite links open setup over home (Back returns home).
+Back; *not set up* → the reason panel's Set up; invite links open setup over home (Back returns home). *Glucose report* → another period (the picker), or scroll past it; nothing to undo (it changes nothing).
 
 ## Untested sensor banner
 
@@ -1096,6 +1108,6 @@ page.
 - Android settings pages: settings export / import / reset, settings search, the follower's *Settings from* page, relay / epoch / statistics / log pages, battery-lab knobs, mmol/L in the settings pages (thresholds and ranges are shown and typed in mg/dL; schema `general.unit` is set elsewhere),, the ▶ beside each sound in the Sound dialog (the alert's page has *Play sound*) and icons on every row. Reason: only what daily use needs; the defaults are the owner's own values.
 - Mac: Juggluco over Wi-Fi (LAN source and subnet discovery) and the Nostr v1 `cgmnostr:` follow link (v1 links carried plaintext secrets and had no UI). Follow the wearer with a protocol v2 invite instead.
 - Sensors: the untested-sensor banner and its *Send feedback* (the families themselves are read, see *Sensor life*); the Libre 3 experiment preferences (minimal subscription set, connection priority, screen-off skip). Reason: no hardware to test them, the owner uses a Libre 3.
-- Planned (issues filed): scanning an invite's QR code on Android and the follower's *Settings from* page, the glucose report card, the Tidepool upload, the phone's Nightscout read API, Health Connect and broadcasts, the rest of insulin pens (see its section), the calendar event, nearby pairing over Bluetooth. The sections above that describe them are the behaviour to build. Reason: what daily use needs comes first.
+- Planned (issues filed): scanning an invite's QR code on Android and the follower's *Settings from* page, the Tidepool upload, the phone's Nightscout read API, Health Connect and broadcasts, the rest of insulin pens (see its section), the calendar event, nearby pairing over Bluetooth. The sections above that describe them are the behaviour to build. Reason: what daily use needs comes first.
 
 **States and exits**: none (these features aren't in the app).
