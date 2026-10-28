@@ -65,6 +65,10 @@ class FollowerSettingsBridge(
     val alertMirror: Flow<AlertSettings?> =
         combine(from, wearerInUse) { f, p -> mirroredAlerts(f, p) }.distinctUntilChanged()
 
+    /** What the alert pages show: the settings the alert runtime runs ([alertMirror] over this phone's own). */
+    override val alertsInUse: Flow<AlertSettings?> =
+        combine(alerts.settings, alertMirror) { own, mirror -> mirror?.let { AlertMirror.effective(own, it) } }.distinctUntilChanged()
+
     override val state: Flow<SettingsFromState?> =
         combine(role, stored, wearerOnFollower(role), wearerName) { r, f, p, name ->
             if (r != Role.Follower) null else SettingsFromState(f, name, p?.let { Instant.ofEpochSecond(it.u) })

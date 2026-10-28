@@ -132,7 +132,11 @@ private fun RowFrame(
 
 private const val DisabledAlpha = 0.38f
 
-/** A switch; the whole row toggles (TalkBack: "switch, on"). A disabled row explains why in [summary]. */
+/**
+ * A switch; the whole row toggles (TalkBack: "switch, on"). A disabled row explains why in [summary]. [readOnly]: a
+ * value this phone doesn't decide (a follower's mirrored setting): the switch shows it but can't be flipped, the text
+ * stays at full contrast (the page says why and how to change it).
+ */
 @Composable
 fun SwitchRow(
     title: String,
@@ -142,20 +146,22 @@ fun SwitchRow(
     summary: String? = null,
     @DrawableRes icon: Int? = null,
     enabled: Boolean = true,
+    readOnly: Boolean = false,
 ) {
     val haptics = rememberHaptics()
+    val active = enabled && !readOnly
     RowFrame(
         title,
         summary,
         icon,
         enabled,
-        modifier.toggleable(checked, enabled, Role.Switch) {
+        modifier.toggleable(checked, active, Role.Switch) {
             haptics.toggle(it)
             onCheckedChange(it)
         },
     ) {
         Spacer(Modifier.width(16.dp))
-        Switch(checked = checked, onCheckedChange = null, enabled = enabled)
+        Switch(checked = checked, onCheckedChange = null, enabled = active)
     }
 }
 
@@ -216,7 +222,10 @@ fun NavigationRow(
     }
 }
 
-/** A value that opens a choice or number dialog: the current [value] below the title. */
+/**
+ * A value that opens a choice or number dialog: the current [value] below the title. [readOnly]: shown at full
+ * contrast but not opened (a follower's mirrored setting; TalkBack: "disabled").
+ */
 @Composable
 fun ValueRow(
     title: String,
@@ -225,8 +234,9 @@ fun ValueRow(
     modifier: Modifier = Modifier,
     @DrawableRes icon: Int? = null,
     enabled: Boolean = true,
+    readOnly: Boolean = false,
 ) {
-    RowFrame(title, value, icon, enabled, modifier.clickable(enabled, role = Role.Button, onClick = onClick))
+    RowFrame(title, value, icon, enabled, modifier.clickable(enabled && !readOnly, role = Role.Button, onClick = onClick))
 }
 
 /** Not tappable: a fact (version, an address). */

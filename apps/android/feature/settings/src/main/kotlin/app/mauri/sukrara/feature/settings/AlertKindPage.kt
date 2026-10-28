@@ -74,6 +74,8 @@ fun AlertKindContent(
     ui: AlertsUi,
     clock: Clock,
     actions: AlertKindActions,
+    /** Above the page's groups (a follower's *Settings from* note while [AlertsUi.mirrors] this kind). */
+    header: @Composable () -> Unit = {},
     onBack: () -> Unit,
 ) {
     val rule = ui.settings.rule(kind)
@@ -84,6 +86,7 @@ fun AlertKindContent(
     val label = numberLabeler()
     SettingsPage(kindName(kind), onBack) {
         ui.quietOf(kind)?.let { QuietStrip(kind, it, clock, actions) }
+        header()
         SettingsGroup {
             SwitchRow(
                 stringResource(R.string.st_kind_use, kindName(kind)),
@@ -91,6 +94,7 @@ fun AlertKindContent(
                 { on -> if (!on && kind in ConfirmOff) dialog = "off" else actions.edit(AlertEdits.kindOn(kind, on)) },
                 enabled = ui.settings.on,
                 summary = if (ui.settings.on) null else stringResource(R.string.st_alerts_main_off),
+                readOnly = ui.mirrors(kind),
             )
         }
         SettingsGroup(title = stringResource(R.string.st_alert_when)) {
@@ -99,14 +103,17 @@ fun AlertKindContent(
                 thresholdSentence(kind, rule.threshold),
                 { dialog = "threshold" },
                 enabled = rule.on,
+                readOnly = ui.mirrors(kind),
             )
             ValueRow(
                 stringResource(R.string.st_repeat),
                 numberLabel(repeatSpec, rule.repeatMin.toDouble()),
                 { dialog = "repeat" },
                 enabled = rule.on,
+                readOnly = ui.mirrors(kind),
             )
         }
+
         SettingsGroup(title = stringResource(R.string.st_sound_title)) {
             SwitchRow(
                 stringResource(R.string.st_alarm),

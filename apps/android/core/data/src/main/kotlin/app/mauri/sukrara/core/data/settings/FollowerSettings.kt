@@ -9,6 +9,7 @@ import app.mauri.sukrara.settings.SettingsSpec
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
@@ -78,6 +79,29 @@ object MirroredGraph {
 
     /** Every mirrored graph setting's schema id. */
     val ids: Set<String> get() = wireKeys.keys
+
+    /**
+     * The wearer's side: [own]'s values of [specs] as the settings event's `graph` object (wire key → value), updated on
+     * every change. Whole numbers go out without a fraction (`54`, as the Mac and the contracts write them).
+     */
+    fun graphObject(
+        own: SettingsRepository,
+        specs: List<Setting<*>>,
+    ): Flow<JsonObject> {
+        val rows: List<Flow<Pair<String, JsonPrimitive?>>> =
+            specs.mapNotNull { spec -> wireKey(spec.id)?.let { wire -> own.flow(spec).map { wire to encode(it) } } }
+        return combine(rows) { pairs -> JsonObject(pairs.mapNotNull { (k, v) -> v?.let { k to it } }.toMap()) }
+            .distinctUntilChanged()
+    }
+
+    /** A stored value as it goes out (null: a type the wire doesn't carry). */
+    fun encode(value: Any?): JsonPrimitive? =
+        when (value) {
+            is Double -> if (value % 1.0 == 0.0 && kotlin.math.abs(value) < 1e15) JsonPrimitive(value.toLong()) else JsonPrimitive(value)
+            is Boolean -> JsonPrimitive(value)
+            is String -> JsonPrimitive(value)
+            else -> null
+        }
 
     /** The value [spec] has for [from]: [mine] (Custom), its default (Default) or the wearer's at [wire] (Wearer). */
     fun <T> value(

@@ -29,6 +29,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import app.mauri.sukrara.alerts.AlertSettings
 import app.mauri.sukrara.core.data.settings.SettingsFrom
 import app.mauri.sukrara.core.model.Clock
 import app.mauri.sukrara.designsystem.haptics.rememberHaptics
@@ -51,10 +52,14 @@ import app.mauri.sukrara.graph.Clock as ClockText
 /**
  * A follower's *Settings from* (null [state] = this phone isn't a follower: nothing is offered). [choose] stores the
  * choice; [copyWearer] writes the wearer's mirrored values into this phone's own (false: none received yet);
- * [resetToDefault] writes the defaults into them. The alert runtime and every card follow at once.
+ * [resetToDefault] writes the defaults into them. The alert runtime and every card follow at once. [alertsInUse] = the
+ * alert settings the alert runtime runs (the mirrored rows per the choice over this phone's own), null while this
+ * phone's own are used (Custom, or not a follower).
  */
 interface SettingsFromPort {
     val state: Flow<SettingsFromState?>
+
+    val alertsInUse: Flow<AlertSettings?> get() = flowOf(null)
 
     suspend fun choose(from: SettingsFrom)
 
@@ -79,6 +84,12 @@ data class SettingsFromState(
     val wearerName: String?,
     val wearerChangedAt: Instant?,
 )
+
+/**
+ * A follower not in Custom: the mirrored rows (Alerts, Ranges, Graph, the sensor countdown) show the values in use and
+ * can't be changed here. Null (not a follower) never is.
+ */
+val SettingsFromState?.readOnly: Boolean get() = this != null && from != SettingsFrom.Custom
 
 class SettingsFromViewModel(
     private val port: SettingsFromPort,

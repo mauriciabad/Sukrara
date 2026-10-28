@@ -25,6 +25,7 @@ import app.mauri.sukrara.feature.settings.follower.SettingsFromActions
 import app.mauri.sukrara.feature.settings.follower.SettingsFromContent
 import app.mauri.sukrara.feature.settings.follower.SettingsFromNote
 import app.mauri.sukrara.feature.settings.follower.SettingsFromViewModel
+import app.mauri.sukrara.feature.settings.follower.readOnly
 import app.mauri.sukrara.feature.settings.graph.GraphActions
 import app.mauri.sukrara.feature.settings.graph.GraphContent
 import app.mauri.sukrara.feature.settings.graph.GraphMarksContent
@@ -163,13 +164,15 @@ fun SettingsScreen(
         is SettingsRoute.AlertKindPage -> {
             val vm = alertsViewModel(deps)
             val ui by vm.ui.collectAsStateWithLifecycle()
+            val from by deps.settingsFrom.state.collectAsStateWithLifecycle(null)
             ui?.let {
                 AlertKindContent(
                     route.kind,
                     it,
                     clock,
                     AlertKindActions(vm::edit, vm::unmute, vm::remindAsUsual, deps.alertPlayback),
-                    onBack,
+                    header = { if (it.mirrors(route.kind)) SettingsFromNote(from, { navigate(SettingsRoute.SettingsFrom) }) },
+                    onBack = onBack,
                 )
             }
         }
@@ -179,7 +182,7 @@ fun SettingsScreen(
             val prefs by vm.prefs.collectAsStateWithLifecycle()
             val from by deps.settingsFrom.state.collectAsStateWithLifecycle(null)
             prefs?.let {
-                RangesContent(it, vm::set, onBack, vm::reset) {
+                RangesContent(it, vm::set, onBack, vm::reset, readOnly = from.readOnly) {
                     SettingsFromNote(from, { navigate(SettingsRoute.SettingsFrom) }, preview = preview)
                 }
             }
@@ -210,9 +213,9 @@ fun SettingsScreen(
                 )
             config?.let {
                 if (route == SettingsRoute.Graph) {
-                    GraphContent(it, actions, onBack, withNote)
+                    GraphContent(it, actions, onBack, from.readOnly, withNote)
                 } else {
-                    GraphMarksContent(it, actions, onBack, withNote)
+                    GraphMarksContent(it, actions, onBack, from.readOnly, withNote)
                 }
             }
         }
@@ -282,7 +285,17 @@ fun SettingsScreen(
         SettingsRoute.SensorEnd -> {
             val vm = viewModel { SensorEndViewModel(deps.settings, deps.sensor) }
             val prefs by vm.prefs.collectAsStateWithLifecycle()
-            prefs?.let { SensorEndContent(it, clock.now(), SensorEndActions(vm::change, vm::setCountdownHours), onBack) }
+            val from by deps.settingsFrom.state.collectAsStateWithLifecycle(null)
+            prefs?.let {
+                SensorEndContent(
+                    it,
+                    clock.now(),
+                    SensorEndActions(vm::change, vm::setCountdownHours),
+                    onBack,
+                    countdownReadOnly = from.readOnly,
+                    countdownNote = { SettingsFromNote(from, { navigate(SettingsRoute.SettingsFrom) }) },
+                )
+            }
         }
 
         SettingsRoute.About -> {

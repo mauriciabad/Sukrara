@@ -71,13 +71,17 @@ class GraphPrefsViewModel(
     }
 }
 
-/** Ranges: the live card, the six bands the graph colours and time in range use (mg/dL), Reset ranges. */
+/**
+ * Ranges: the live card, the six bands the graph colours and time in range use (mg/dL), Reset ranges. [readOnly] = a
+ * follower not in Custom: the bands in use, nothing to change ([preview] says why and opens *Settings from*).
+ */
 @Composable
 fun RangesContent(
     prefs: GraphPrefs,
     onSet: (Setting<Double>, Double) -> Unit,
     onBack: () -> Unit,
     onReset: () -> Unit = {},
+    readOnly: Boolean = false,
     preview: @Composable () -> Unit = {},
 ) {
     var editing by rememberSaveable { mutableStateOf<Int?>(null) }
@@ -94,10 +98,16 @@ fun RangesContent(
         PreviewCard(preview)
         SettingsGroup {
             SchemaPrefs.Bands.forEachIndexed { i, setting ->
-                ValueRow(stringResource(titles[i]), numberLabel(SchemaPrefs.bandSpec(setting), prefs.bands[i]), { editing = i })
+                ValueRow(
+                    stringResource(titles[i]),
+                    numberLabel(SchemaPrefs.bandSpec(setting), prefs.bands[i]),
+                    { editing = i },
+                    readOnly = readOnly,
+                )
             }
         }
-        if (!prefs.isDefault) {
+
+        if (!prefs.isDefault && !readOnly) {
             SettingsGroup {
                 ValueRow(
                     stringResource(R.string.st_ranges_reset),

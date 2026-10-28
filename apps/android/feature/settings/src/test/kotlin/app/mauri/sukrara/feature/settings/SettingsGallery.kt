@@ -167,9 +167,10 @@ class SettingsGallery {
                     onBack = {},
                 )
             },
+            // a follower on the wearer's settings: the mirrored rows read-only under the note, no threshold review
             "alerts-follower" to {
                 AlertsSettingsContent(
-                    AlertsUi(AlertSettings(), AlertUiState()),
+                    AlertsUi(AlertSettings(), AlertUiState(), mirrored = true),
                     null,
                     clock,
                     AlertsActions(),
@@ -212,12 +213,29 @@ class SettingsGallery {
                     AlertKindActions(),
                 ) {}
             },
+            "alert-kind-follower" to {
+                AlertKindContent(
+                    AlertKind.LOW,
+                    AlertsUi(AlertSettings(), AlertUiState(), mirrored = true),
+                    clock,
+                    AlertKindActions(),
+                    header = { SettingsFromNote(fromWearer, {}) },
+                ) {}
+            },
             "alert-kind-very-low" to
                 { AlertKindContent(AlertKind.VERY_LOW, AlertsUi(AlertSettings(), AlertUiState()), clock, AlertKindActions()) {} },
             "threshold-review" to { AlertThresholdReviewContent(AlertSettings(), { _, _ -> }, {}, {}) },
             "ranges" to { RangesContent(GraphPrefs(), { _, _ -> }, {}) },
             "ranges-changed" to { RangesContent(GraphPrefs(listOf(54.0, 70.0, 120.0, 180.0, 250.0, 300.0)), { _, _ -> }, {}) },
+            "ranges-follower" to {
+                RangesContent(GraphPrefs(listOf(54.0, 70.0, 120.0, 180.0, 250.0, 300.0)), { _, _ -> }, {}, readOnly = true) {
+                    SettingsFromNote(fromWearer, {})
+                }
+            },
             "graph" to { GraphContent(GraphConfig(), GraphActions(), {}) },
+            "graph-follower" to {
+                GraphContent(GraphConfig(lines = listOf(80, 160)), GraphActions(), {}, readOnly = true) { SettingsFromNote(fromWearer, {}) }
+            },
             "graph-custom" to {
                 GraphContent(
                     GraphConfig(

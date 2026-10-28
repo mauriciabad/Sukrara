@@ -179,17 +179,22 @@ fun AlertsSettingsContent(
                         { actions.openKind(kind) },
                         summary = if (rule.on) kindSummary(s, kind) else stringResource(R.string.st_off),
                         enabled = s.on,
+                        switchEnabled = s.on && !ui.mirrors(kind),
                     )
                 }
             }
         }
-        SettingsGroup {
-            NavigationRow(
-                stringResource(R.string.st_review_title),
-                actions.openReview,
-                summary =
-                    confirmedAt?.let { stringResource(R.string.st_review_confirmed) } ?: stringResource(R.string.st_review_not_confirmed),
-            )
+        // the review edits the thresholds: only where this phone's own are in use
+        if (!ui.mirrored) {
+            SettingsGroup {
+                NavigationRow(
+                    stringResource(R.string.st_review_title),
+                    actions.openReview,
+                    summary =
+                        confirmedAt?.let { stringResource(R.string.st_review_confirmed) }
+                            ?: stringResource(R.string.st_review_not_confirmed),
+                )
+            }
         }
         SettingsGroup(title = stringResource(R.string.st_quiet_title)) {
             for (which in QuietKind.entries) {
@@ -206,15 +211,17 @@ fun AlertsSettingsContent(
                     rule.on,
                     { on -> actions.edit(AlertEdits.quiet(which) { it.copy(on = on) }) },
                     summary = stringResource(R.string.st_quiet_for, numberLabel(spec, rule.min.toDouble())),
+                    readOnly = ui.mirrored,
                 )
                 if (rule.on) {
                     ValueRow(stringResource(R.string.st_quiet_length), numberLabel(spec, rule.min.toDouble()), {
                         dialog =
                             "quiet:${which.name}"
-                    })
+                    }, readOnly = ui.mirrored)
                 }
             }
         }
+
         SettingsGroup(title = stringResource(R.string.st_actions_title)) {
             ValueRow(
                 stringResource(

@@ -188,6 +188,21 @@ class FollowerSettingsBridgeTest {
         }
 
     @Test
+    fun `the alert pages show the settings in use, this phone's own in Custom`() =
+        runTest {
+            val own = InMemorySettingsRepository()
+            val b = bridge(own, Alerts(mine))
+            val shown = b.alertsInUse.first()!!
+            assertEquals(80.0, shown.rule(AlertKind.LOW).threshold, 0.0)
+            // this phone's own where nothing is mirrored
+            assertTrue(shown.rule(AlertKind.LOW).alarm)
+            assertEquals("soft", shown.sounds.pack)
+            b.choose(SettingsFrom.Custom)
+            assertNull(b.alertsInUse.first())
+            assertNull(bridge(own, Alerts(mine), role = Role.Wearer).alertsInUse.first())
+        }
+
+    @Test
     fun `copy and reset cover every mirrored graph setting of the schema`() {
         assertEquals(MirroredGraph.ids, FollowerSettingsBridge.MIRRORED_GRAPH.map { it.id }.toSet())
     }
