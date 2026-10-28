@@ -127,6 +127,9 @@ class AppGraph(
                 ),
             role = role.data.map { it.role },
             source = ::readingSource,
+            settings = data.settings,
+            treatments = recentTreatments(),
+            graphConfig = graphConfig,
         )
     }
 

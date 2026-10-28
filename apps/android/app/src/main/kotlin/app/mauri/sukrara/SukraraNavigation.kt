@@ -50,7 +50,6 @@ import app.mauri.sukrara.feature.sharing.setup.SetupViewModel
 import app.mauri.sukrara.feature.sharing.share.ShareScreen
 import app.mauri.sukrara.feature.sharing.share.SharingScreen
 import app.mauri.sukrara.feature.sharing.share.SharingViewModel
-import app.mauri.sukrara.monitor.sensorend.AndroidSensorEndPresenter
 import kotlinx.coroutines.flow.first
 import kotlinx.serialization.Serializable
 import app.mauri.sukrara.feature.settings.R as SettingsR
@@ -124,7 +123,7 @@ data object SensorSettingsKey : NavKey
 
 /** Intent actions that open the new-sensor flow: the sensor-end notification's Pair new sensor, other modules' links. */
 fun opensNewSensor(action: String?): Boolean =
-    action == NavTargets.ACTION_SENSOR_SETUP || action == AndroidSensorEndPresenter.ACTION_PAIR_SENSOR
+    action == NavTargets.ACTION_SENSOR_SETUP
 
 /** Invite links (`sukrara:` / `https://sukrara.mauri.app/join…`) open setup's join step. */
 fun isInviteLink(uri: Uri?): Boolean =

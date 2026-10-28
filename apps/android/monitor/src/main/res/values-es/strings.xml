@@ -42,11 +42,23 @@
     <string name="alert_action_unmute">Reactivar</string>
     <string name="alert_action_change">Cambiar tiempo</string>
 
-    <string name="sensor_end_soon_title">El sensor termina en %1$s</string>
-    <string name="sensor_end_soon_text">Ten un sensor nuevo a mano para cambiarlo a tiempo.</string>
+    <string name="sensor_end_today">El sensor termina hoy a las %1$s</string>
+    <string name="sensor_end_tomorrow">El sensor termina mañana a las %1$s</string>
+    <string name="sensor_end_on_day">El sensor termina el %1$s a las %2$s</string>
+    <string name="sensor_end_reminder_text">Ten listo un sensor nuevo.</string>
+    <string name="sensor_end_spare_text">Llévate el sensor de repuesto</string>
+    <string name="sensor_end_tonight">El sensor termina esta noche a las %1$s</string>
+    <string name="sensor_end_tonight_text">Cámbialo antes de dormir</string>
+    <string name="sensor_countdown_title">El sensor termina a las %1$s</string>
+    <string name="sensor_countdown_text">Ten listo un sensor nuevo para cambiarlo.</string>
+    <string name="sensor_warmup_title">Sensor calentándose</string>
+    <string name="sensor_warmup_text">Lecturas a las %1$s</string>
+    <string name="sensor_almost_ready">Casi listo</string>
+    <string name="sensor_waiting_first_reading">Esperando la primera lectura</string>
+    <string name="sensor_ready_title">Sensor listo</string>
+    <string name="sensor_ready_text">Ya llegan las lecturas.</string>
     <string name="sensor_ended_title">Sensor terminado</string>
     <string name="sensor_ended_text">No hay lecturas hasta que pongas un sensor nuevo.</string>
-    <string name="sensor_action_pair">Emparejar sensor nuevo</string>
 
     <string name="monitor_group_alerts">Avisos de glucosa</string>
     <string name="monitor_group_alerts_alarm">Alarmas de glucosa</string>
@@ -86,6 +98,8 @@
     <string name="monitor_notif_core_missing">Esta versión no puede leer un sensor Libre 3</string>
     <string name="monitor_chip_value">%1$s</string>
     <string name="monitor_chip_stale">%1$s</string>
+    <string name="monitor_metric_unit">mg/dL</string>
+    <string name="monitor_metric_reading">Lectura</string>
     <string name="monitor_action_open_app">Abrir Sukrara</string>
     <string name="monitor_action_set_up_sensor">Configurar sensor</string>
     <string name="monitor_action_replace_sensor">Cambiar sensor</string>

@@ -18,6 +18,7 @@ enum class CardSurface(
     WIDGET_GRAPH("widget-graph", Kind.CARD),
     WIDGET_COMBINED("widget-combined", Kind.CARD),
     APP_PANEL("app-panel", Kind.CARD),
+    NOTIFICATION("notification", Kind.CARD),
     NOTIFICATION_TEXT("notification-text", Kind.GLYPH),
     WIDGET_DESCRIPTION("widget-description", Kind.GLYPH),
 

@@ -13,6 +13,9 @@ enum class Wakeup {
 
     /** Redraw the glucose surfaces at a freshness step (nobody needs it while the screen is off). */
     FreshnessStep,
+
+    /** A sensor countdown's progress bar refresh (only matters while the screen is on; never spends Doze quota). */
+    SensorTick,
 }
 
 /** The AlarmManager call a [Wakeup] uses. */
@@ -53,5 +56,6 @@ object AlarmPolicy {
         when (wakeup) {
             Wakeup.AlertCheck, Wakeup.HealthCheck -> if (canScheduleExact) AlarmCall.ExactWhileIdle else AlarmCall.InexactWhileIdle
             Wakeup.FreshnessStep -> if (canScheduleExact) AlarmCall.ExactRtc else AlarmCall.WindowRtc
+            Wakeup.SensorTick -> AlarmCall.WindowRtc
         }
 }

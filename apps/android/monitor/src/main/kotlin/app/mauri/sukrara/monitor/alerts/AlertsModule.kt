@@ -7,11 +7,14 @@ import android.content.Context
 import android.util.Log
 import app.mauri.sukrara.alerts.AlertEvent
 import app.mauri.sukrara.alerts.AlertSettings
+import app.mauri.sukrara.core.data.settings.SurfaceSettings
 import app.mauri.sukrara.core.model.AlertControls
 import app.mauri.sukrara.core.model.AlertReadinessSource
 import app.mauri.sukrara.core.model.Clock
 import app.mauri.sukrara.core.model.DispatcherProvider
 import app.mauri.sukrara.core.model.GlucoseHub
+import app.mauri.sukrara.core.model.Role
+import app.mauri.sukrara.core.model.SensorState
 import app.mauri.sukrara.core.model.Treatment
 import app.mauri.sukrara.core.model.storage.SettingsRepository
 import app.mauri.sukrara.core.model.storage.StateStore
@@ -19,12 +22,15 @@ import app.mauri.sukrara.monitor.readiness.AndroidAlertReadiness
 import app.mauri.sukrara.monitor.sensorend.AndroidSensorEndPresenter
 import app.mauri.sukrara.monitor.sensorend.SensorEndMemory
 import app.mauri.sukrara.monitor.sensorend.SensorEndNotifier
+import app.mauri.sukrara.monitor.sensorend.SensorEndSettings
 import app.mauri.sukrara.monitor.service.AndroidAlarms
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.emptyFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
@@ -81,13 +87,20 @@ class AlertsModule(
      */
     val readiness: AlertReadinessSource = AndroidAlertReadiness(ctx, scope, dispatchers, store.settings, needsBluetooth)
 
+    private val sensorEndSettings: Flow<SensorEndSettings> =
+        combine(
+            SurfaceSettings.sensorEnd(alertSettings),
+            alertSettings.flow(SurfaceSettings.CountdownHours),
+            alertSettings.flow(SurfaceSettings.StatusChip),
+        ) { config, hours, chip -> SensorEndSettings(config, hours.toInt(), chip) }.distinctUntilChanged()
+
     val sensorEnd =
         SensorEndNotifier(
             sensorEndRecord,
             AndroidSensorEndPresenter(ctx),
-            alarms.alertCheck(AndroidAlarms.SENSOR_END_CHECK, clock),
+            alarms.sensorEnd(clock),
             clock,
-        )
+        ) { sensorEndSettings.first() }
 
     /**
      * Evaluates alerts and the sensor end now, from the saved state (the alert alarm, boot, app update, clock change):
@@ -112,7 +125,7 @@ class AlertsModule(
     /** "Start fresh" / leaving a role: alerts and their saved state go, the sensor-end notices too. */
     suspend fun reset() {
         runtime.reset()
-        sensorEnd.onSensor(app.mauri.sukrara.core.model.SensorState.None)
+        sensorEnd.update(wearer = false, SensorState.None, null, sensorEndSettings.first())
     }
 
     /** Called by the monitoring service once it runs (cancelled with its [scope]). */
@@ -120,12 +133,16 @@ class AlertsModule(
         AlertChannels.ensure(ctx)
         runtime.observe(scope, hub.state, wearerSettings, remoteEvents)
         scope.launch {
-            hub.state
-                .map { it.sensor }
-                .distinctUntilChanged()
-                .collect { sensorEnd.onSensor(it) }
+            // the sensor, its first reading and the settings re-plan; the newest reading only matters as "since the start"
+            combine(
+                hub.state.map { Triple(it.role == Role.Wearer, it.sensor, it.latest?.t?.epochSecond) }.distinctUntilChanged(),
+                sensorEndSettings,
+            ) { (wearer, sensor, latest), s -> SensorEndInputs(wearer, sensor, latest, s) }
+                .collect { sensorEnd.update(it.wearer, it.sensor, it.latestS, it.settings) }
         }
     }
 }
+
+private data class SensorEndInputs(val wearer: Boolean, val sensor: SensorState, val latestS: Long?, val settings: SensorEndSettings)
 
 private const val TAG = "Sukrara.alerts"

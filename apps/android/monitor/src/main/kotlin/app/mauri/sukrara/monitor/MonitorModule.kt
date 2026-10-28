@@ -4,13 +4,17 @@
 package app.mauri.sukrara.monitor
 
 import android.content.Context
+import app.mauri.sukrara.core.data.settings.SurfaceSettings
 import app.mauri.sukrara.core.model.Clock
 import app.mauri.sukrara.core.model.DispatcherProvider
 import app.mauri.sukrara.core.model.GlucoseHub
 import app.mauri.sukrara.core.model.ReadingSource
 import app.mauri.sukrara.core.model.Role
+import app.mauri.sukrara.core.model.Treatment
 import app.mauri.sukrara.core.model.storage.ReadingsRepository
+import app.mauri.sukrara.core.model.storage.SettingsRepository
 import app.mauri.sukrara.core.model.storage.StateStore
+import app.mauri.sukrara.graph.GraphConfig
 import app.mauri.sukrara.monitor.hub.GlucoseHubImpl
 import app.mauri.sukrara.monitor.hub.MonitorRecord
 import app.mauri.sukrara.monitor.notify.Channels
@@ -25,6 +29,8 @@ import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 
 /**
  * The monitor's objects (DI module): the hub, the service's starter, the health check, the freshness ticker and
@@ -42,6 +48,9 @@ class MonitorModule(
     record: StateStore<MonitorRecord>,
     role: Flow<Role?>,
     val source: suspend (Role) -> ReadingSource?,
+    settings: SettingsRepository,
+    treatments: Flow<List<Treatment>>,
+    graphConfig: Flow<GraphConfig>,
 ) {
     val hubImpl = GlucoseHubImpl(scope, dispatchers, clock, readings, record, role)
 
@@ -72,6 +81,30 @@ class MonitorModule(
     /** A freshness step passed without a new reading: surfaces that show the value redraw (notification, widgets). */
     val freshnessTicks: SharedFlow<Unit> = ticks
 
+    private val screenOn = MutableSharedFlow<Unit>(extraBufferCapacity = 1, onBufferOverflow = BufferOverflow.DROP_OLDEST)
+
+    /**
+     * What the glucose notification draws besides the hub state: the status-bar settings, the treatments and the graph
+     * settings (the custom card), as one value that changes when any of them does.
+     */
+    val notificationInputs: Flow<NotificationInputs> =
+        combine(
+            settings.flow(SurfaceSettings.StatusChip),
+            settings.flow(SurfaceSettings.NumberIcon),
+            treatments,
+            graphConfig,
+        ) { chip, icon, list, config -> NotificationInputs(chip, icon, list, config) }.distinctUntilChanged()
+
+    /**
+     * Post the glucose notification again even if unchanged: the screen came on (its card isn't drawn while it's off),
+     * or the person swiped it away.
+     */
+    val repostTicks: SharedFlow<Unit> = screenOn
+
+    internal fun repost() {
+        screenOn.tryEmit(Unit)
+    }
+
     /** Channels and the hub's inputs; call from `AppGraph.ready()` (after storage is ready, off the main thread). */
     suspend fun ready() {
         Channels.create(context)
@@ -85,6 +118,14 @@ class MonitorModule(
         ticks.tryEmit(Unit)
     }
 }
+
+/** The glucose notification's inputs besides the hub state. */
+data class NotificationInputs(
+    val chip: Boolean,
+    val numberIcon: Boolean,
+    val treatments: List<Treatment>,
+    val config: GraphConfig,
+)
 
 /** The `Application` gives the monitor's Android components (service, receivers) their module. */
 interface MonitorHost {

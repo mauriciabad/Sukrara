@@ -8,26 +8,38 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import android.graphics.Bitmap
 import android.os.Build
+import android.os.PowerManager
 import android.os.SystemClock
 import android.text.SpannableString
 import android.text.style.StrikethroughSpan
 import android.util.Log
+import android.widget.RemoteViews
 import app.mauri.sukrara.core.model.GlucoseState
 import app.mauri.sukrara.core.model.NavTargets
 import app.mauri.sukrara.core.model.SensorState
 import app.mauri.sukrara.graph.CardSurface
+import app.mauri.sukrara.graph.CardWords
 import app.mauri.sukrara.graph.Freshness
 import app.mauri.sukrara.graph.GlucoseCard
 import app.mauri.sukrara.graph.GlucoseLook
+import app.mauri.sukrara.graph.GraphConfig
 import app.mauri.sukrara.graph.SensorBadge
 import app.mauri.sukrara.graph.ValueGlyphs
+import app.mauri.sukrara.graph.cardModelOf
+import app.mauri.sukrara.graph.stats.Bands
 import app.mauri.sukrara.graph.stats.toPoint
+import app.mauri.sukrara.monitor.notify.CardFrame
 import app.mauri.sukrara.monitor.notify.Channels
 import app.mauri.sukrara.monitor.notify.LiveNotificationContent
 import app.mauri.sukrara.monitor.notify.LiveNotificationContent.Icon
+import app.mauri.sukrara.monitor.notify.LiveNotificationContent.Layout
 import app.mauri.sukrara.monitor.notify.LiveNotificationContent.Target
+import app.mauri.sukrara.monitor.notify.NotificationArt
+import app.mauri.sukrara.monitor.notify.NotificationCard
 import app.mauri.sukrara.monitor.notify.NotificationIds
+import app.mauri.sukrara.monitor.notify.NotificationPrefs
 import app.mauri.sukrara.monitor.notify.PostGate
 import app.mauri.sukrara.monitor.notify.UiText
 import java.time.Instant
@@ -35,14 +47,16 @@ import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 
 /**
- * The glucose notification (surface `notification-text`: title, Live Update chip and small icon), which is also the
- * monitoring service's foreground notification, so the status bar costs one post per reading.
- *
- * Promoted ongoing **Live Update** when Android allows it (`canPostPromotedNotifications`): the status-bar chip is the
- * small icon (the trend arrow) + `setShortCriticalText` ("138", no text arrow). A Live Update can't be colorized or use custom
- * views, so the card stays a standard BigText notification. When the person turned Live Updates off (or demoted it)
- * the same notification posts unpromoted: title, text and arrow icon in the shade, no chip. The renderer's card image
- * (surface `notification`) joins once `GlucoseCard` lands (OPS issue c10).
+ * The glucose notification (surface `notification-text`: title, Live Update chip, MetricStyle value and small icon;
+ * its custom card is surface `notification`, [NotificationCard]), which is also the monitoring service's foreground
+ * notification, so the status bar costs one post per reading. Android decides what it can look like:
+ * - **chip on** and Live Updates allowed → a promoted ongoing Live Update: the chip is the small icon (the trend
+ *   arrow) + `setShortCriticalText` ("138"). Promotion forbids custom views and colorizing; on Android 17 the expanded
+ *   card is a `MetricStyle` (the value styled by range, the late reading's time), below it BigText.
+ * - **chip off** (or Live Updates refused) → a colorized foreground-service card in the range colour (grey once
+ *   struck through) with the renderer's header row collapsed and header + chart expanded; the small icon is the
+ *   number itself (*Number icon*) or the arrow. Without its pictures (the first post, the screen off with an
+ *   out-of-date card, a drawing failure) it posts the same colorized notification as text, never an old picture.
  */
 class LiveNotification(
     private val context: Context,
@@ -58,27 +72,34 @@ class LiveNotification(
             )
         }
 
-    /** The content for [state] now. */
+    /** The content for [state] now with the status-bar [prefs] (the chip's permission is read here). */
     fun content(
         state: GlucoseState,
         now: Instant,
-    ) = LiveNotificationContent.from(state, now, ::face)
+        prefs: NotificationPrefs = NotificationPrefs(),
+    ) = LiveNotificationContent.from(state, now, ::face, prefs.copy(promotionAllowed = promotionAllowed()))
 
-    /** Posts [content] unless it's what is showing; at most one post per second. [force] = re-post (dismissed). */
+    /**
+     * Posts [content] unless it's what is showing; at most one post per second. [force] = re-post (dismissed, screen
+     * on). [frame] = what the custom card draws (null: the card posts as text).
+     */
     fun post(
         content: LiveNotificationContent,
         now: Instant,
+        frame: CardFrame? = null,
         force: Boolean = false,
     ) {
         gate.submit(content, force) {
-            runCatching { nm.notify(NotificationIds.GLUCOSE, build(content, now)) }
+            runCatching { nm.notify(NotificationIds.GLUCOSE, build(content, now, frame)) }
                 .onFailure { Log.w(TAG, "notify failed: ${it.javaClass.simpleName}") }
         }
     }
 
+    /** The notification for [content]; never throws for the card: a picture that fails falls back to text. */
     fun build(
         content: LiveNotificationContent,
         now: Instant,
+        frame: CardFrame? = null,
     ): Notification {
         val title = resolve(content.title, now)
         val text = content.text?.let { resolve(it, now) }
@@ -99,24 +120,171 @@ class LiveNotification(
                 .setStyle(Notification.BigTextStyle().bigText(text))
         content.readingAt?.let { builder.setWhen(it.toEpochMilli()) }
         content.actions.forEach { builder.addAction(Notification.Action.Builder(null, resolve(it.label, now), pending(it.target)).build()) }
-        val chip = content.chip
-        if (chip != null && Build.VERSION.SDK_INT_FULL >= Build.VERSION_CODES_FULL.BAKLAVA_1 && promotionAllowed()) {
-            builder.setRequestPromotedOngoing(true).setShortCriticalText(resolve(chip, now))
+        when (content.layout) {
+            Layout.LIVE_UPDATE -> liveUpdate(builder, content, now, frame?.config?.bands ?: Bands())
+            Layout.CARD -> card(builder, content, now, frame)
+            Layout.TEXT -> Unit
         }
         return builder.build()
+    }
+
+    /** The chip; on Android 17 the expanded card is a MetricStyle (the value by range, the late reading's time). */
+    private fun liveUpdate(
+        b: Notification.Builder,
+        content: LiveNotificationContent,
+        now: Instant,
+        bands: Bands,
+    ) {
+        val chip = content.chip ?: return
+        if (Build.VERSION.SDK_INT_FULL < Build.VERSION_CODES_FULL.BAKLAVA_1) return
+        // promoted ongoing is missing on some 36 images (NoSuchMethodError): then it stays a plain notification
+        runCatching { b.setRequestPromotedOngoing(true).setShortCriticalText(resolve(chip, now)) }.onFailure { return }
+        val look = content.look ?: return
+        if (Build.VERSION.SDK_INT >= METRIC_STYLE_SDK) {
+            runCatching { b.setStyle(metricStyle(content, look, now, bands)) }
+                .onFailure { Log.w(TAG, "metric style: ${it.javaClass.simpleName}") }
+        }
+    }
+
+    /**
+     * MetricStyle: the value as the face writes it (LO / HI included; never a number of its own), styled by its range
+     * while fresh and plain once struck through; the reading's time as a second metric once it's late.
+     */
+    private fun metricStyle(
+        content: LiveNotificationContent,
+        look: GlucoseLook,
+        now: Instant,
+        bands: Bands,
+    ): Notification.MetricStyle {
+        val unit = context.getString(R.string.monitor_metric_unit)
+        val value =
+            if (look.strike || content.mgdl == null) {
+                Notification.Metric(Notification.Metric.FixedText(look.text!!), unit)
+            } else {
+                Notification.Metric(Notification.Metric.FixedText(look.text!!), unit, semantic(content.mgdl, bands))
+            }
+        val style = Notification.MetricStyle().addMetric(value)
+        content.readingAt?.let {
+            style.addMetric(
+                Notification.Metric(
+                    Notification.Metric.FixedText(Freshness.timeText(it.epochSecond, now.epochSecond)),
+                    context.getString(R.string.monitor_metric_reading),
+                ),
+            )
+        }
+        return style.setCriticalMetric(0)
+    }
+
+    /** The value's style by the person's ranges: danger below the low band, caution above the high one. */
+    private fun semantic(
+        mgdl: Int,
+        bands: Bands,
+    ): Int =
+        when {
+            mgdl < bands.low -> Notification.SEMANTIC_STYLE_DANGER
+            mgdl > bands.high -> Notification.SEMANTIC_STYLE_CAUTION
+            else -> Notification.SEMANTIC_STYLE_SAFE
+        }
+
+    /**
+     * The colorized card: the range colour (keeps the icon first and shown although the channel is LOW) and, when
+     * [frame] is drawn, the renderer's header row and chart as custom views.
+     */
+    private fun card(
+        b: Notification.Builder,
+        content: LiveNotificationContent,
+        now: Instant,
+        frame: CardFrame?,
+    ) {
+        val look = content.look ?: return
+        val mgdl = content.mgdl ?: return
+        val config = frame?.config ?: GraphConfig()
+        val bg = NotificationCard.background(look, mgdl, config)
+        b.setColorized(true).setColor(bg)
+        val art = frame?.let { art(it, content, bg, now) } ?: return
+        val description = resolve(content.title, now)
+        b
+            .setShowWhen(false) // the late time is in the card
+            .setStyle(Notification.DecoratedCustomViewStyle())
+            .setCustomContentView(views(R.layout.monitor_notif_card_collapsed, art.collapsed, null, description))
+            .setCustomBigContentView(views(R.layout.monitor_notif_card_expanded, art.header, art.graph, description))
+    }
+
+    private fun views(
+        layout: Int,
+        header: Bitmap,
+        graph: Bitmap?,
+        description: String,
+    ) = RemoteViews(context.packageName, layout).apply {
+        setImageViewBitmap(R.id.monitor_notif_header, header)
+        setContentDescription(R.id.monitor_notif_header, description)
+        if (graph != null) setImageViewBitmap(R.id.monitor_notif_graph, graph)
+    }
+
+    private var artCache: NotificationArt? = null
+    private var artKey: Any? = null
+    private var graphKey: Any? = null
+
+    /**
+     * The card's pictures, redrawn only when what they show changed (the content's card key: reading, minute,
+     * treatments, settings, theme), the chart at most every 5 minutes besides a new reading. While the screen is off
+     * nothing is drawn: an up-to-date picture is reused, an out-of-date one is dropped (the text shows instead) and the
+     * screen-on re-post draws it. A failure is logged and posts text.
+     */
+    @Synchronized
+    private fun art(
+        frame: CardFrame,
+        content: LiveNotificationContent,
+        bg: Int,
+        now: Instant,
+    ): NotificationArt? {
+        val key = listOf(content.cardKey, content.look, bg, frame.config, frame.dark, frame.state.latest, frame.state.sensor)
+        val gKey = listOf(frame.config, frame.dark, frame.state.latest, frame.treatments, now.epochSecond / GRAPH_EVERY_S)
+        val cached = artCache
+        if (cached != null && key == artKey && gKey == graphKey) return cached
+        if (!context.getSystemService(PowerManager::class.java).isInteractive) return null
+        return runCatching {
+            val model = cardModelOf(frame.state, frame.treatments, now, CardWords.of(context.resources))
+            val redrawGraph = cached?.graph == null || gKey != graphKey
+            val drawn =
+                NotificationCard.renderNotificationArt(
+                    context,
+                    model,
+                    frame.config,
+                    bg,
+                    frame.dark,
+                    NotificationCard.columnDp(context),
+                    redrawGraph,
+                )
+            NotificationArt(drawn.header, drawn.collapsed, if (redrawGraph) drawn.graph else cached?.graph)
+        }.onSuccess {
+            artCache = it
+            artKey = key
+            graphKey = gKey
+        }.onFailure { Log.w(TAG, "card: ${it.javaClass.simpleName}") }
+            .getOrNull()
     }
 
     /** Drops a post still waiting in the gate (the service is going away). */
     fun cancelPending() = gate.cancelPending()
 
-    /** The trend arrow as the renderer draws it (its continuous angle), or the state's icon. */
+    /** The trend arrow as the renderer draws it (its continuous angle), the number itself, or the state's icon. */
     private fun smallIcon(content: LiveNotificationContent): android.graphics.drawable.Icon =
-        if (content.icon == Icon.TREND) {
-            android.graphics.drawable.Icon
-                .createWithBitmap(ValueGlyphs.trendIcon(content.trendRate))
-        } else {
-            android.graphics.drawable.Icon
-                .createWithResource(context, iconRes(content.icon))
+        when {
+            content.icon == Icon.TREND -> {
+                android.graphics.drawable.Icon
+                    .createWithBitmap(ValueGlyphs.trendIcon(content.trendRate))
+            }
+
+            content.icon == Icon.NUMBER && content.look != null -> {
+                android.graphics.drawable.Icon
+                    .createWithBitmap(ValueGlyphs.icon(content.look))
+            }
+
+            else -> {
+                android.graphics.drawable.Icon
+                    .createWithResource(context, iconRes(content.icon))
+            }
         }
 
     /** Whether Android lets the app post Live Updates now (the person can turn them off per app). */
@@ -185,6 +353,12 @@ class LiveNotification(
         private const val REQUEST_SENSOR = 30
         private const val REQUEST_DISMISSED = 40
 
+        /** Android 17: `Notification.MetricStyle`. */
+        private const val METRIC_STYLE_SDK = 37
+
+        /** The chart is redrawn at most this often without a new reading. */
+        private const val GRAPH_EVERY_S = 300L
+
         /** The card's face for a hub state: value, trend mark and freshness. */
         fun face(
             state: GlucoseState,
@@ -228,7 +402,7 @@ class LiveNotification(
         /** A state's icon resource ([Icon.TREND] is drawn by the renderer instead). */
         fun iconRes(icon: Icon): Int =
             when (icon) {
-                Icon.TREND, Icon.NO_TREND -> R.drawable.monitor_ic_no_trend
+                Icon.TREND, Icon.NO_TREND, Icon.NUMBER -> R.drawable.monitor_ic_no_trend
                 Icon.NO_READINGS -> R.drawable.monitor_ic_no_readings
                 Icon.SENSOR_ENDED -> R.drawable.monitor_ic_sensor_ended
                 Icon.APP -> R.drawable.monitor_ic_app
