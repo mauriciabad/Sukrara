@@ -946,9 +946,10 @@ past the other app's event; blocks again if it's still running) or *Help*.
   code*).
 - **Find phones nearby** (Android follower, setup's join step, under the link field): looks over Bluetooth while the list
   shows (`FollowerEngine.findNearby`): each phone found is connected in turn, sent a `HELLO` without a proof, its `INFO`
-  read and the phone left for 15 s (nothing else is written: with no identity every phone is "unknown", B§6); phones with
-  an open, unexpired `pair` are listed with the wearer's picture and name (by invite; a phone not seen for 30 s leaves
-  the list). A follow that ended never asks again over Bluetooth. A tap joins with that offer (no relay lookup)
+  read and the phone left (nothing else is written: with no identity every phone is "unknown", B§6): a phone offering
+  nothing for a minute, one offering for 5 s. Phones with an open, unexpired `pair` are listed with the wearer's
+  picture and name (by invite); one that stops offering leaves the list at its next read, one that stops answering
+  after 12 s. Scans share the app's scan-start budget with the follow link (Android allows 5 starts per 30 s). A follow that ended never asks again over Bluetooth. A tap joins with that offer (no relay lookup)
   as the name typed above; the follow's own Bluetooth link then sends the request to the phone whose `INFO` names that
   identity, and to the relays. The join step shows the match code as for a link. The Mac follower does the same from its
   follow window.

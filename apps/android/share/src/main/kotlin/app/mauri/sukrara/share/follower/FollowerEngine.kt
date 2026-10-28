@@ -295,8 +295,10 @@ class FollowerEngine(
     /**
      * *Find phones nearby* (setup's join step): while collected, scans for wearers' phones, reads each one's INFO
      * without writing anything else (no identity yet: every phone is "unknown", B§6) and lists those offering *Pair
-     * nearby*; each phone is looked at again every [NEARBY_RECHECK_S]. Nothing is trusted: joining sends a request the
-     * wearer still allows with the typed code.
+     * nearby*. A phone offering is looked at again every [NEARBY_OFFER_RECHECK_S] and leaves the list once it stops
+     * (its next INFO without an offer, or [NEARBY_OFFER_DROP_S] without an answer); a phone offering nothing is left
+     * for [NEARBY_IDLE_S] (it may open pairing in a moment). Nothing is trusted: joining sends a request the wearer
+     * still allows with the typed code.
      */
     fun findNearby(): Flow<NearbySearch> =
         channelFlow {
@@ -306,7 +308,7 @@ class FollowerEngine(
                 return@channelFlow
             }
             // by token (a phone's address rotates), with when it was last seen: a phone that stopped offering or went
-            // out of range leaves the list after two checks
+            // out of range leaves the list after a missed check
             val offers = MutableStateFlow<Map<String, Pair<NearbyOffer, Long>>>(emptyMap())
             val ticks =
                 flow {
@@ -323,8 +325,8 @@ class FollowerEngine(
                         val p = e.pairing
                         val others = offers.value.filterValues { it.first.phone != e.phone }
                         offers.value = if (p != null) others + (p.token to (NearbyOffer(e.phone, p) to now())) else others
-                        // on to the next phone; this one is looked at again later
-                        nb.leave(e.phone, NEARBY_RECHECK_S)
+                        // on to the next phone; this one is looked at again soon if it offers, else in a minute
+                        nb.leave(e.phone, if (p != null) NEARBY_OFFER_RECHECK_S else NEARBY_IDLE_S)
                     }
                 }
                 combine(nb.status, offers, ticks) { status, o, _ ->
@@ -333,7 +335,7 @@ class FollowerEngine(
                         status,
                         o.values
                             .filter { (offer, seen) ->
-                                offer.pairing.expiry > t && t - seen <= 2 * NEARBY_RECHECK_S
+                                offer.pairing.expiry > t && t - seen <= NEARBY_OFFER_DROP_S
                             }.map { it.first },
                     )
                 }.collect { send(it) }
@@ -927,8 +929,14 @@ class FollowerEngine(
         /** B§6: another wearer's phone is avoided for 10 minutes. */
         const val LEAVE_OTHER_PHONE_S = 600L
 
-        /** *Find phones nearby*: each phone's INFO is read again after this long. */
-        const val NEARBY_RECHECK_S = 15L
+        /** *Find phones nearby*: a phone offering *Pair nearby* is read again after this long. */
+        const val NEARBY_OFFER_RECHECK_S = 5L
+
+        /** An offer not confirmed for this long (the phone stopped advertising or went away) leaves the list. */
+        const val NEARBY_OFFER_DROP_S = 12L
+
+        /** A phone offering nothing (it may open pairing in a moment) is read again after a minute. */
+        const val NEARBY_IDLE_S = 60L
 
         const val INBOX = "inbox"
         const val ROSTER = "roster"
