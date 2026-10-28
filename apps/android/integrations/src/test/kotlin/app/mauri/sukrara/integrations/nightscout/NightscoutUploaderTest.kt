@@ -254,6 +254,17 @@ class NightscoutUploaderTest {
     }
 
     @Test
+    fun `a saved token is never sent to a new address`() =
+        runBlocking {
+            setUpSite()
+            requests.clear()
+            val other = server.url("/other").toString()
+            assertTrue(uploader.test(other, NsCredentialKind.Token, null, NsApi.V1) is NsTestResult.Failed)
+            assertTrue(requests.isEmpty())
+            assertTrue(runCatching { uploader.configure(other, NsCredentialKind.Token, null, NsApi.V1) }.isFailure)
+        }
+
+    @Test
     fun `remove forgets the site, the credential and the state`() =
         runBlocking {
             setUpSite()
@@ -267,6 +278,7 @@ class NightscoutUploaderTest {
     fun `site rules accept https anywhere and http only to this phone`() {
         assertNull(NsSite.parse("https://ns.example.org/").problem)
         assertNull(NsSite.parse("http://127.0.0.1:1337").problem)
+        assertEquals(NsSiteProblem.Https, NsSite.parse("http://127.0.0.2:1337").problem)
         assertEquals(NsSiteProblem.Https, NsSite.parse("http://192.168.1.10:1337").problem)
         assertEquals(NsSiteProblem.Https, NsSite.parse("http://ns.example.org").problem)
         assertEquals(NsSiteProblem.Url, NsSite.parse("https://user:pw@ns.example.org").problem)

@@ -173,7 +173,8 @@ object NightscoutQueue {
         random: Random = Random.Default,
     ): NsState {
         val f = state.failures + 1
-        val wait = maxOf(UploadBackoff.ms(f, BASE_BACKOFF_MS, MAX_BACKOFF_MS, random), retryAfterMs ?: 0)
+        // the site's Retry-After counts, but never stops uploads for longer than the backoff's cap
+        val wait = maxOf(UploadBackoff.ms(f, BASE_BACKOFF_MS, MAX_BACKOFF_MS, random), minOf(retryAfterMs ?: 0, MAX_BACKOFF_MS))
         return state.copy(
             failures = f,
             nextAttemptMs = nowMs + wait,

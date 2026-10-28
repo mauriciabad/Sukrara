@@ -120,8 +120,19 @@ class LocalHttpServer(
                 val head = readHead(BufferedInputStream(it.getInputStream()), deadline)
                 val answer =
                     when {
-                        head == null -> HttpAnswer("431 Request Header Fields Too Large", "", "text/plain")
-                        else -> parse(head)?.let { req -> if (req.method == "GET" || req.method == "HEAD") route(req) else METHOD } ?: BAD
+                        head == null -> {
+                            HttpAnswer("431 Request Header Fields Too Large", "", "text/plain")
+                        }
+
+                        else -> {
+                            parse(head)?.let { req ->
+                                when {
+                                    !localHost(req.headers["host"]) -> FORBIDDEN
+                                    req.method == "GET" || req.method == "HEAD" -> route(req)
+                                    else -> METHOD
+                                }
+                            } ?: BAD
+                        }
                     }
                 write(it, answer, head?.startsWith("HEAD ") == true)
             }
@@ -162,7 +173,7 @@ class LocalHttpServer(
         out.write(
             (
                 "HTTP/1.1 ${a.status}\r\nContent-Type: ${a.contentType}\r\nContent-Length: ${bytes.size}\r\n" +
-                    "Access-Control-Allow-Origin: *\r\nConnection: close\r\n\r\n"
+                    "Connection: close\r\n\r\n"
             ).toByteArray(),
         )
         if (!head) out.write(bytes)
@@ -178,6 +189,17 @@ class LocalHttpServer(
         const val DEADLINE_MS = 5_000L
         private val METHOD = HttpAnswer("405 Method Not Allowed", "", "text/plain")
         private val BAD = HttpAnswer("400 Bad Request", "", "text/plain")
+        private val FORBIDDEN = HttpAnswer("403 Forbidden", "", "text/plain")
+
+        /**
+         * A request names this phone (or no host at all, HTTP/1.0): a web page in the phone's browser that reaches the
+         * port through a rebound DNS name sends its own host and is refused. No CORS header either.
+         */
+        fun localHost(host: String?): Boolean {
+            val h = host?.trim()?.lowercase() ?: return true
+            val name = if (h.startsWith("[")) h.substringBefore(']') + "]" else h.substringBefore(':')
+            return name == "127.0.0.1" || name == "localhost" || name == "[::1]"
+        }
 
         fun parse(head: String): HttpRequest? {
             val lines = head.split("\r\n", "\n")

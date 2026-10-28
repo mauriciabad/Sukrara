@@ -106,6 +106,9 @@ class LocalHttpServerTest {
         val answer = runCatching { get(huge) }.getOrDefault("reset")
         assertTrue(answer, answer.startsWith("HTTP/1.1 431") || answer == "reset" || answer.isEmpty())
         assertTrue(asked.none { it == "sgv.json" })
+        // a page in the browser reaching the port through another host name is refused
+        assertTrue(get("GET /sgv.json HTTP/1.1\r\nHost: evil.example:17580\r\n\r\n").startsWith("HTTP/1.1 403"))
+        assertFalse(get("GET /sgv.json HTTP/1.1\r\nHost: 127.0.0.1:17580\r\n\r\n").contains("Access-Control-Allow-Origin"))
         // HEAD answers without a body
         assertEquals("", body(get("HEAD /status.json HTTP/1.1\r\n\r\n")))
     }

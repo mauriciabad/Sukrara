@@ -27,6 +27,8 @@ import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
@@ -98,6 +100,12 @@ class NightscoutUploader(
     private val loop = UploadLoop(INTERVAL_MS, io, { e -> log("nightscout cycle: ${e.javaClass.simpleName}") }) { cycle() }
     private var client: Pair<NsConfig, NsClient>? = null
 
+    /** One writer of [store] at a time: a cycle's network calls never overwrite a newer *Upload anyway*, token or removal. */
+    private val mutex = Mutex()
+
+    /** When the last cycle planned over the whole 30-day window (in between, only the last hours are read). */
+    private var fullScanMs = 0L
+
     val settingsFlow: Flow<NsSettings> = settings.flow(SETTING).map(::decode)
 
     val page: Flow<NsPageState> =
@@ -134,9 +142,11 @@ class NightscoutUploader(
         kind: NsCredentialKind,
         credential: String?,
         api: NsApi,
-    ) {
+    ) = mutex.withLock {
         val site = NsSite.parse(url)
         require(site.problem == null) { "unusable address" }
+        // a saved token is only ever sent to the site it was saved for
+        require(credential != null || site.root == settingsFlow.first().url) { "a new site needs its token" }
         if (credential != null) {
             secure.write(NAME, Json.encodeToString(StoredCredential.serializer(), StoredCredential(kind, credential.trim())).toByteArray())
         }
@@ -145,30 +155,48 @@ class NightscoutUploader(
         // API v3 needs an access token: a secret keeps v1
         val chosenApi = if (savedKind == NsCredentialKind.Token) api else NsApi.V1
         settings.update(SETTING) { encode(decode(it).copy(url = site.root, api = chosenApi)) }
-        store.update { st -> if (st.site == site.root) st.copy(authFailed = false) else NsState(site = site.root, device = newDevice()) }
+        store.update { st ->
+            if (st.site ==
+                site.root
+            ) {
+                st.copy(authFailed = false, failures = 0, nextAttemptMs = 0)
+            } else {
+                NsState(site = site.root, device = newDevice())
+            }
+        }
         client = null
+        fullScanMs = 0
         loop.kick()
     }
 
     suspend fun change(transform: (NsSettings) -> NsSettings) {
-        settings.update(SETTING) { encode(transform(decode(it))) }
+        var turnedOn = false
+        settings.update(SETTING) {
+            val old = decode(it)
+            val new = transform(old)
+            turnedOn = new.on && !old.on
+            encode(new)
+        }
+        // switching on tries at once, whatever an earlier backoff said
+        if (turnedOn) mutex.withLock { store.update { it.copy(failures = 0, nextAttemptMs = 0) } }
         loop.kick()
     }
 
     /** *Upload anyway*: the person confirmed this phone uploads next to the other device. */
     suspend fun acceptConflict() {
-        store.update { it.copy(conflictAccepted = true) }
+        mutex.withLock { store.update { it.copy(conflictAccepted = true) } }
         loop.kick()
     }
 
     /** *Remove this site*: forgets the site, the credential and what was sent (what's on the site stays there). */
-    suspend fun remove() {
-        secure.delete(NAME)
-        credential.value = null
-        settings.set(SETTING, encode(NsSettings()))
-        store.update { NsState() }
-        client = null
-    }
+    suspend fun remove() =
+        mutex.withLock {
+            secure.delete(NAME)
+            credential.value = null
+            settings.set(SETTING, encode(NsSettings()))
+            store.update { NsState() }
+            client = null
+        }
 
     /** *Test connection*: the site's status with this credential (read-only, nothing is written). */
     suspend fun test(
@@ -180,7 +208,9 @@ class NightscoutUploader(
         withContext(io) {
             val site = NsSite.parse(url)
             if (site.problem != null) return@withContext NsTestResult.Failed("address")
-            val auth = credential?.trim()?.takeIf { it.isNotEmpty() }?.let { authOf(kind, it) } ?: readAuth()
+            // the saved token only for the site it was saved for
+            val saved = if (site.root == settingsFlow.first().url) readAuth() else null
+            val auth = credential?.trim()?.takeIf { it.isNotEmpty() }?.let { authOf(kind, it) } ?: saved
             if (auth == null) return@withContext NsTestResult.Failed("no token")
             val chosenApi = if (auth is NsAuth.AccessToken) api else NsApi.V1
             val (version, o) = NsClient(NsConfig(site, auth, chosenApi, "test"), http) { clock.now().toEpochMilli() }.status()
@@ -197,7 +227,9 @@ class NightscoutUploader(
     // MARK: the cycle
 
     /** One cycle (internal for tests). */
-    internal suspend fun cycle() {
+    internal suspend fun cycle() = mutex.withLock { cycleLocked() }
+
+    private suspend fun cycleLocked() {
         val s = settingsFlow.first()
         if (!s.on || role.first() != Role.Wearer) return
         val auth = readAuth() ?: return
@@ -216,13 +248,14 @@ class NightscoutUploader(
         val cfg = NsConfig(site, auth, if (auth is NsAuth.AccessToken) s.api else NsApi.V1, state.device)
         val c = client?.takeIf { it.first == cfg }?.second ?: NsClient(cfg, http) { clock.now().toEpochMilli() }.also { client = cfg to it }
         try {
+            val before = state.reconciledMs
             state = withContext(io) { reconcile(c, state, nowMs) }.also { save(it) }
             val since = clock.now() - Duration.ofSeconds(NightscoutQueue.WINDOW_S)
-            val rs =
-                readings.range(
-                    maxOf(Instant.ofEpochSecond(state.from), since) - Duration.ofMinutes(15),
-                    clock.now() + Duration.ofMinutes(1),
-                )
+            // the whole window after a comparison with the site and every 30 min; in between only the last hours
+            val full = state.reconciledMs != before || nowMs - fullScanMs >= FULL_SCAN_EVERY_MS
+            val start = if (full) maxOf(Instant.ofEpochSecond(state.from), since) else clock.now() - RECENT
+            val rs = readings.range(start - Duration.ofMinutes(15), clock.now() + Duration.ofMinutes(1))
+            if (full) fullScanMs = nowMs
             val ts = treatments.changedSince(since - Duration.ofDays(1))
             state = NightscoutQueue.prune(state, ts.map { it.treatment.id }.toSet())
             val plan = NightscoutQueue.plan(rs, ts, sensor.first(), state, s.options, nowS)
@@ -305,6 +338,8 @@ class NightscoutUploader(
 
     companion object {
         const val INTERVAL_MS = 5 * 60_000L
+        const val FULL_SCAN_EVERY_MS = 30 * 60_000L
+        private val RECENT: Duration = Duration.ofHours(3)
         const val NAME = "nightscout"
         val SETTING = SchemaSettings.text("apps.nightscoutUpload", default = "")
         private val json = Json { ignoreUnknownKeys = true }

@@ -824,7 +824,8 @@ past the other app's event; blocks again if it's still running) or *Help*.
 - *Nightscout* group (wearer only): *Nightscout upload* with its status line ([Nightscout upload](#nightscout-upload-docs25)).
 - *Watches* group: *xDrip+ server* switch, **off by default** (schema `apps.xdrip`). On, it listens on
   `127.0.0.1:17580` only (`LocalHttpServer`: loopback, 4 workers + 8 queued, 8 KiB request head, 5 s per connection,
-  GET / HEAD only; anything more is closed, never a new thread; a failing request can't stop the app). Summary: "On ·
+  GET / HEAD only, only for the host 127.0.0.1 / localhost and without CORS headers so a web page can't read it;
+  anything more is closed, never a new thread; a failing request can't stop the app). Summary: "On ·
   127.0.0.1:17580 · last asked 2 min ago" ("not asked yet"), plus "read by Garmin Connect" when Garmin Connect or
   Connect IQ is installed (manifest `<queries>`). Port taken by another app → "Another app uses port 17580 · turn its
   server off, then this one off and on" (no retry loop). While Juggluco is the sensor source the port is Juggluco's:
@@ -877,11 +878,11 @@ Settings › Sensor, or switch the server off. *Nightscout upload* states are on
   default**; the Share with apps row shows the status line and the overview summary includes `Nightscout upload` while
   it is on.
 - *Site* opens a dialog: address, *Access token* or *API secret*, the token / secret field (empty keeps the saved one of
-  the same kind), *Test* (read-only: the site's status with that credential; "Connected · Nightscout <version>", "The
+  the same kind for the same address: a saved token is never sent to a new address), *Test* (read-only: the site's status with that credential; "Connected · Nightscout <version>", "The
   site refused this token or secret", "Couldn't reach the site (…)") and *Save*. The token or secret lives only in the
   Keystore-encrypted secure store (`nightscout`), never in settings, logs or backups, and is never shown again.
 - Addresses: `https://` with a certificate from a public authority (user-installed / private CAs aren't trusted, so a
-  self-signed home server fails *Test* with a TLS error); `http://` only to this phone (`localhost`, `127.x`, `::1`),
+  self-signed home server fails *Test* with a TLS error); `http://` only to this phone (`localhost`, `127.0.0.1`),
   the only cleartext the network security config allows. Any other `http://`, home network included, shows "Use
   https://: Sukrara sends your data only encrypted" (issue filed: a home-network `http://` site needs a network-config
   and local-network-permission decision). A redirect is never followed (it could carry the secret elsewhere): it shows as

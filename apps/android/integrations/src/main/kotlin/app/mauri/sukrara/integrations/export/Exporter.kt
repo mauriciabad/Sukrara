@@ -36,8 +36,9 @@ data class ExportData(
     val treatments: List<TreatmentRecord>,
     val sensor: CurrentSensor?,
 ) {
-    val readingRows: Int get() = GlucoseCsv.thin(readings, from, to).size
-    val treatmentRows: Int get() = treatments.count { !it.treatment.deleted && it.treatment.at >= from && it.treatment.at < to }
+    /** Counted once (on the loading dispatcher), not on every recomposition. */
+    val readingRows: Int = GlucoseCsv.thin(readings, from, to).size
+    val treatmentRows: Int = treatments.count { !it.treatment.deleted && it.treatment.at >= from && it.treatment.at < to }
 }
 
 /**

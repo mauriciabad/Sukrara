@@ -41,7 +41,7 @@ data class NsSite(
 ) {
     companion object {
         /**
-         * `https://` anywhere; plain `http://` only to this phone (`localhost`, `127.x`, `::1`), which is all the network
+         * `https://` anywhere; plain `http://` only to this phone (`localhost`, `127.0.0.1`), which is all the network
          * security config lets through. Decided on the literal host, never by resolving it.
          */
         fun parse(input: String): NsSite {
@@ -60,13 +60,8 @@ data class NsSite(
             }
         }
 
-        fun isLoopback(h: String) = h == "localhost" || h == "::1" || ipv4(h)?.let { it[0] == 127 } == true
-
-        private fun ipv4(h: String): List<Int>? =
-            h
-                .split('.')
-                .takeIf { it.size == 4 }
-                ?.map { p -> p.toIntOrNull()?.takeIf { it in 0..255 && p == it.toString() } ?: return null }
+        /** Exactly the hosts network_security_config lets through in cleartext. */
+        fun isLoopback(h: String) = h == "localhost" || h == "127.0.0.1"
     }
 }
 

@@ -79,7 +79,13 @@ fun SettingsScreen(
                 ui?.alerts ?: AlertUiState(),
                 readiness,
                 clock,
-                OverviewActions(navigate, openSensor, openSharing, vm::unmuteAll, openApps),
+                OverviewActions(
+                    open = navigate,
+                    openSensor = openSensor,
+                    openSharing = openSharing,
+                    openApps = openApps,
+                    unmuteAll = vm::unmuteAll,
+                ),
                 apps,
                 onBack,
             )

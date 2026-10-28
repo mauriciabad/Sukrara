@@ -75,16 +75,18 @@ class NightscoutViewModel(
 
     fun actions(close: () -> Unit = {}) =
         NightscoutActions(
-            change = { t -> viewModelScope.launch { uploader.change(t) } },
-            acceptConflict = { viewModelScope.launch { uploader.acceptConflict() } },
-            remove = { viewModelScope.launch { uploader.remove() } },
+            change = { t -> viewModelScope.launch { runCatching { uploader.change(t) } } },
+            acceptConflict = { viewModelScope.launch { runCatching { uploader.acceptConflict() } } },
+            // a busy Keystore must never crash the app (and its alerts): the page keeps showing what is stored
+            remove = { viewModelScope.launch { runCatching { uploader.remove() } } },
             test = { url, kind, cred, api ->
                 _test.value = NsTestUi.Testing
                 viewModelScope.launch { _test.value = NsTestUi.Done(uploader.test(url, kind, cred, api)) }
             },
             save = { url, kind, cred, api ->
                 viewModelScope.launch {
-                    uploader.configure(url, kind, cred, api)
+                    runCatching { uploader.configure(url, kind, cred, api) }
+                        .onFailure { _test.value = NsTestUi.Done(NsTestResult.Failed(it.message ?: "not saved")) }
                     close()
                 }
             },
@@ -242,7 +244,8 @@ private fun SiteDialog(
             site.problem == NsSiteProblem.Url -> stringResource(R.string.in_ns_problem_url)
             else -> null
         }
-    val canKeep = state.credential == kind
+    // the saved token is kept only for the same kind and the same site (never sent to a new address)
+    val canKeep = state.credential == kind && site.problem == null && site.root == state.settings.url
     val ready = url.isNotBlank() && site.problem == null && (credential.isNotBlank() || canKeep)
     val api = state.settings.api
     AlertDialog(

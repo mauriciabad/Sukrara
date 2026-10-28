@@ -81,7 +81,7 @@ class ExportViewModel(
         viewModelScope.launch {
             val sensorKnown = exporter.currentSensor() != null
             val chosen = if (period == ExportPeriod.Sensor && !sensorKnown) ExportPeriod.DEFAULT else period
-            val data = exporter.load(chosen)
+            val data = withContext(io) { exporter.load(chosen) }
             _ui.update { if (it.period == period) it.copy(period = chosen, sensorKnown = sensorKnown, data = data) else it }
         }
     }

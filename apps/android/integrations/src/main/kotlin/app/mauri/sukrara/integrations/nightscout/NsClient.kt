@@ -184,7 +184,11 @@ class NsClient(
             val (old, o) = treatmentsById(id)
             if (old == null) return o
             for (e in old) {
-                if (e["created_at"]?.jsonPrimitive?.contentOrNull != doc["created_at"]?.jsonPrimitive?.contentOrNull) {
+                // a moved entry, or one whose kind changed (14.x upserts on created_at + eventType: an old insulin
+                // document would stay and count in IOB)
+                val moved = e["created_at"]?.jsonPrimitive?.contentOrNull != doc["created_at"]?.jsonPrimitive?.contentOrNull
+                val retyped = e["eventType"]?.jsonPrimitive?.contentOrNull != doc["eventType"]?.jsonPrimitive?.contentOrNull
+                if (moved || retyped) {
                     val d = call("DELETE", "/api/v1/treatments/${enc(e["_id"]!!.jsonPrimitive.content)}").second
                     if (d !is Outcome.Ok) return d
                 }
