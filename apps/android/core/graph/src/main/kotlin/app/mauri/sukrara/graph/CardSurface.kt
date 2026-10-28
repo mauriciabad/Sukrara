@@ -18,15 +18,8 @@ enum class CardSurface(
     WIDGET_GRAPH("widget-graph", Kind.CARD),
     WIDGET_COMBINED("widget-combined", Kind.CARD),
     APP_PANEL("app-panel", Kind.CARD),
-    FIRST_READING("first-reading", Kind.CARD),
-    LOCKSCREEN("lockscreen", Kind.CARD),
-    NOTIFICATION("notification", Kind.CARD),
     NOTIFICATION_TEXT("notification-text", Kind.GLYPH),
-    STATUS_HOOK("status-hook", Kind.GLYPH),
-    STATUS_ICONS("status-icons", Kind.GLYPH),
-    QUICK_TILE("quick-tile", Kind.GLYPH),
     WIDGET_DESCRIPTION("widget-description", Kind.GLYPH),
-    LOCK_DESCRIPTION("lock-widget-description", Kind.GLYPH),
 
     /** Picture sheets and fixtures (tests only; tools/check keeps it out of the app). */
     TEST("test", Kind.CARD),

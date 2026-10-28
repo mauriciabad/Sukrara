@@ -34,4 +34,22 @@ import Testing
         model.apply(snapshot)
         #expect(model.statusTitle == "—" && alerts.nextWake == nil && !alerts.mirroring)
     }
+
+    /// r-code-mac H2: a Keychain that won't read (the runtime retries) never disarms the no-data alarm.
+    @Test func anUnreadableKeychainKeepsTheNoDataAlarmArmed() {
+        let alerts = AlertController(
+            settings: AlertSettings(), clock: clock, store: MemoryAlertStore(), notifier: notifier, wake: wake)
+        let plan = LaunchPlan(mode: .normal, services: .all, data: .user(home: URL(fileURLWithPath: "/Users/u")))
+        let model = AppModel(plan: plan, clock: clock, alerts: alerts)
+        var snapshot = FollowerSnapshot.empty
+        snapshot.link = .following(wearer: "Ana", canWrite: false)
+        snapshot.readings = [Reading(t: clock.now, mgdl: 112, rate: 0)]
+        model.apply(snapshot)
+        #expect(alerts.nextWake != nil)
+        snapshot.link = .broken("Can't read the follower key from the Keychain")
+        snapshot.keychainUnreadable = true
+        model.apply(snapshot)
+        #expect(alerts.nextWake != nil)  // still armed: fires if the readings stop
+        #expect(model.notMonitoringReason != nil)  // and the panel says why
+    }
 }

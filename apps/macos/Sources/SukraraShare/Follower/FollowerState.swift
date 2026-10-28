@@ -68,6 +68,11 @@ public struct FollowerState: Codable, Equatable, Sendable {
     public var settingsU: Int?
     public var treatments: [String: TreatmentRecord] = [:]
     public var alertKeys: [String] = []
+    /// Rumor `created_at` of the newest key delivery and of the revoked notice that removed this follower: relays
+    /// replay both for 30 days, so a re-approval after a removal wins by time, not by arrival order (PROTOCOL-v2
+    /// "Acceptance rules"). Optional so a state saved before these fields existed still decodes (nil = 0).
+    public var lastKeyAt: Int?
+    public var revokedAt: Int?
 
     public init(
         follower: SecretKeyHex, identity: String, token: String, code: String, nearby: Bool, me: Profile,

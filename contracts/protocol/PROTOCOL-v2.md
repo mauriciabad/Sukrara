@@ -34,7 +34,7 @@ All content is JSON, NIP-44 v2 encrypted. Every event has a NIP-40 `expiration`.
 | **access request** | rumor kind 30500 in NIP-59 gift wrap (1059) to `I` | seal by `F` | — | `{"v":2,"type":"request","token":t,"profile":{"name":"Mom","avatar":{…}}}` |
 | **profile update** | rumor kind 30500 in gift wrap to `I` | seal by `F` | — | `{"v":2,"type":"profile","profile":{…}}` (applied only for an approved, non-revoked `F`) |
 | **key delivery** | rumor kind 30501 in gift wrap to `F` | seal by `I` | — | `{"v":2,"type":"key","sid","epoch":n,"g":nsec(G_n),"devices":[…],"relays":[…]}` |
-| **rekey request** | rumor kind 30500 in gift wrap to `I` | seal by `F` | — | `{"v":2,"type":"rekey","have":gk}` (follower saw an unknown `gk`) |
+| **rekey request** | rumor kind 30500 in gift wrap to `I` | seal by `F` | — | `{"v":2,"type":"rekey","have":gk}` (follower saw an unknown `gk`; `have` = the newest epoch's `gk` it holds; owners only log it) |
 | **history request** | rumor kind 30500 in gift wrap to `I` | seal by `F` | — | `{"v":2,"type":"history","since":hourStart}` (follower's backfill found hours missing) |
 | **revoked notice** | rumor kind 30501 in gift wrap to `F` | seal by `I` | — | `{"v":2,"type":"revoked"}` (courtesy; security comes from rotation) |
 | **invite used** | rumor kind 30501 in gift wrap to `F` | seal by `I` | exp +7 d | `{"v":2,"type":"invite-used"}`: another follower's request had already claimed this invite |
@@ -307,11 +307,22 @@ all unmerged as of 2026-10.)
 
 ## Acceptance rules (followers)
 
-- Roster: author == `I`, newest `created_at` wins.
+- Roster: author == `I`, under the `gk` of its own `epoch`; the highest `(epoch, created_at)` wins. A key delivery for
+  epoch n+1 outranks every roster of epoch ≤ n (its `devices` apply until roster n+1 arrives), so a late or refreshed
+  roster from a replaced phone can't bring the old device back ([sync/rotation.json](sync/rotation.json)).
 - Data (live/chunk): author ∈ current `roster.devices`, `gk` matches a known epoch, decrypts, `v == 2`. A chunk's `c`
   must be `H("cgm2:glucose:"+sid)` and its `d` must be `H("cgm2:h:"+sid+":"+h)` for the payload's own hour `h`.
 - Unknown `gk`: a rekey request only when the event is signed by `I` or a roster device (≤ 1 per `gk` per 5 min), so a
-  stranger can't make followers send them.
+  stranger can't make followers send them, and only when its `created_at` is newer than the newest key delivery's
+  rumor (an older event is a backfill of hours from before the follower's latest key, not a missed rotation). The
+  event isn't remembered as seen: it is read once the key arrives.
+- Author not (yet) in the roster: rejected but not remembered as seen — the roster that adds it (a new phone, a new
+  writer) may arrive later, and the event is judged again when a relay or Bluetooth delivers it again.
+- Revoked notice vs key delivery: both live 30 d on relays and come back in any order after a restart, so they are
+  ordered by their rumor `created_at`, not by arrival. A revoked notice older than the newest key delivery is ignored;
+  a key delivery newer than the revoked notice re-approves the follower (the wearer invited the same `F` again), even
+  when it carries a key the follower already holds. A follower must persist both times
+  ([sync/revoke-reapprove.json](sync/revoke-reapprove.json)).
 - Key delivery: sealed by `I`, and its `sid` equal to the one already known (if any).
 - Settings: author ∈ `roster.devices`, known `gk`, decrypts, `d == H("cgm2:settings:"+sid)`, `type == "settings"`,
   newest `u` wins ([Settings](#settings--v2-addition-2026-10-21-round-f28)).

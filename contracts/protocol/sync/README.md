@@ -14,6 +14,7 @@ test keys (the OGS draft-1 vector keys plus `D2` = sha256("sukrara/sync/D2")); a
 | `treatments-writer.json` | writer scope: wearer entry, writer's own entry and edit, writer hijack rejected, wearer tombstone, older `(u,o)` ignored |
 | `settings-mirror.json` | mirrored settings: newest `u` wins, only from a roster device; the payload holds every mirrored setting (graph + alerts) |
 | `rotation.json` | phone change / revoke: epoch 2 with a new device, old device and old epoch rejected, late epoch-1 roster ignored. Also the identity-restore case (same wire sequence: new device key, new epoch delivered to every follower, roster with only the new device); Mac `ProtocolCompatTests` replays it through the runtime |
+| `revoke-reapprove.json` | the wearer removes the follower, then re-approves the same follower key; across app restarts the relays replay the old revoked notice and both key deliveries: the older notice is ignored, a newer one removes it again. Also: no rekey for an old backfill under an unknown epoch, a rekey with `have` = newest held gk (throttled), a writer's entry rejected before the roster lists it and accepted after |
 | `poc-0.11.53-wearer.json` | CHANGES P2: what a **Sukrara Showcase 0.11.53** wearer publishes (made by the showcase's own `Proto.kt`, compiled from `poc/`): key → roster with profile + writer → chunk → live + sensor → sensor-only → alert → treatment → settings → its own phone change (epoch 2, D2) → stale epoch-1 roster ignored. V1 followers must accept it so they follow a not-yet-switched wearer |
 | `owner-conflict.json` | A3, owner side: the wearer's own echoes, its own rotation and late old events are `fine`; a newer roster or backup from another app publishing as the same identity is a `conflict` |
 
@@ -23,8 +24,10 @@ The fixtures carry the real signed, encrypted events (not decrypted payloads), s
 roster membership, epoch, decryption, tags — runs on both platforms exactly as it does on relays and Bluetooth.
 
 Follower sequences: `keys` (`{name: {sec, pub}}`), `sid`, `follower` (key name), `identity` (I's pub), `now` (unix s,
-the clock for every step), `events` (`{step: nostr event}`), `steps` (`[{event, expect}]`, `expect` =
-`accepted|rejected|ignored:<what>`, the reference follower's codes), `expected`:
+the clock for every step), `events` (`{step: nostr event}`), `steps` (`[{event, expect, rekey?}]`, `expect` =
+`accepted|rejected|ignored:<what>`, the reference follower's codes; `rekey` = the `have` gk of the rekey request that
+step must send, none when absent; a step `{"restart": true}` relaunches the follower: persisted state kept, seen event
+ids and rekey throttles forgotten), `expected`:
 
 - `status` (`new|requested|active|declined|inviteused|revoked`), `epochs` (sorted), `devices`, `writers`;
 - `readings`: `[t, sgv, rate|null]` sorted by `t`, first reading per `t` kept;

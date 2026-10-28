@@ -214,19 +214,63 @@ public actor RelayPool: RelayTransport {
         try? await socket.send("[\"AUTH\",\(event.json())]")
     }
 
+    /// Every minute: first drop every socket silent for over 270 s (the run loop reconnects it), then ping the ones
+    /// silent for over 150 s all at once, each given `pingTimeout`; a ping with no answer in time drops its socket too.
+    /// A half-open connection after sleep or a Wi-Fi roam can leave a ping unanswered for minutes, and it must not hold
+    /// up the other relays or the next round.
     private func watch() async {
         while !Task.isCancelled {
             try? await sleep(60)
             let t = now()
+            var quiet: [(url: URL, socket: any WebSocket)] = []
             for (url, connection) in connections {
                 guard let socket = connection.socket else { continue }
                 let silent = t - connection.lastReceived
                 if silent > 270 {
-                    socket.cancel()  // the run loop reconnects
-                } else if silent > 150, (try? await socket.ping()) != nil {
-                    connections[url]?.lastReceived = now()
+                    socket.cancel()
+                } else if silent > 150 {
+                    quiet.append((url, socket))
                 }
             }
+            guard !quiet.isEmpty else { continue }
+            let sleep = sleep
+            let answers = await withTaskGroup(of: (URL, Bool).self) { group in
+                for (url, socket) in quiet {
+                    group.addTask { (url, await Self.answers(socket, within: Self.pingTimeout, sleep: sleep)) }
+                }
+                var out: [URL: Bool] = [:]
+                for await (url, answered) in group { out[url] = answered }
+                return out
+            }
+            for (url, socket) in quiet {
+                if answers[url] == true {
+                    connections[url]?.lastReceived = now()
+                } else {
+                    socket.cancel()
+                }
+            }
+        }
+    }
+
+    public static let pingTimeout = 10.0
+
+    /// True when `socket` answers a ping within `seconds`. Returns at the deadline even if the ping never does (the
+    /// unanswered ping ends when its socket is cancelled).
+    private static func answers(
+        _ socket: any WebSocket, within seconds: Double, sleep: @escaping @Sendable (Double) async throws -> Void
+    ) async -> Bool {
+        let first = FirstAnswer()
+        return await withTaskCancellationHandler {
+            await withCheckedContinuation { continuation in
+                first.start(continuation)
+                Task { first.resume((try? await socket.ping()) != nil) }
+                Task {
+                    try? await sleep(seconds)
+                    first.resume(false)
+                }
+            }
+        } onCancel: {
+            first.resume(false)  // stop(): don't wait for the deadline
         }
     }
 
@@ -241,4 +285,31 @@ public actor RelayPool: RelayTransport {
     }
 
     private static func host(_ url: URL) -> String { url.host() ?? url.absoluteString }
+}
+
+/// Resumes a continuation with the first answer only (a ping racing its timeout).
+private final class FirstAnswer: @unchecked Sendable {
+    // Guarded by `lock`.
+    private let lock = NSLock()
+    private var continuation: CheckedContinuation<Bool, Never>?
+    /// The first answer, kept when it came before `start` (cancelled before the wait began).
+    private var answer: Bool?
+
+    func start(_ continuation: CheckedContinuation<Bool, Never>) {
+        let early = lock.withLock { () -> Bool? in
+            if answer == nil { self.continuation = continuation }
+            return answer
+        }
+        if let early { continuation.resume(returning: early) }
+    }
+
+    func resume(_ answer: Bool) {
+        let waiting = lock.withLock { () -> CheckedContinuation<Bool, Never>? in
+            guard self.answer == nil else { return nil }
+            self.answer = answer
+            defer { continuation = nil }
+            return continuation
+        }
+        waiting?.resume(returning: answer)
+    }
 }

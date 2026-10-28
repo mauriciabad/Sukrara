@@ -1,5 +1,5 @@
 {
-  "_about": "Path groups that must change together (tools/check/check.py 'parity'). Globs are fnmatch ('*' crosses '/'). A group fires when a 'trigger' side (default: any side) changed and another side didn't; skip with 'Parity-skip: <group>: <reason>'. 'fail' groups fail a range / merge, 'warn' groups only remind. V1 sides only: the frozen PoC (poc/) is in no group.",
+  "_about": "Path groups that must change together (tools/check/check.py 'parity'). Globs are fnmatch ('*' crosses '/'). A group fires when a 'trigger' side (default: any side) changed and another side didn't; skip with 'Parity-skip: <group>: <reason>'. 'fail' groups fail a range / merge, 'warn' groups only remind. V1 sides only: the frozen PoC (poc/) is in no group. Every glob must match a tracked file (static check 'parity-globs'): a dead glob silently turns a group off. Not grouped in V1 (one platform only, so nothing to pair): the doctor's report (neither app has it) and the CSV export writer (Mac SukraraCore/Export only; Android has no CSV export in V1) — add the group back with the second platform.",
   "groups": [
     {
       "name": "graph",
@@ -99,16 +99,7 @@
       "sides": {
         "spec": ["contracts/treatments/*"],
         "android": ["apps/android/core/model/*", "apps/android/core/protocol/*", "apps/android/feature/treatments/*"],
-        "mac": ["apps/macos/Sources/SukraraCore/*", "apps/macos/Sources/SukraraShare/*", "apps/macos/Sources/SukraraApp/Treatments/*"]
-      }
-    },
-    {
-      "name": "report",
-      "level": "warn",
-      "why": "The doctor's report exists on Android (home report card) and Mac (report window): same numbers, same periods",
-      "sides": {
-        "android": ["apps/android/feature/home/src/main/*Report*"],
-        "mac": ["apps/macos/Sources/SukraraApp/*Report*"]
+        "mac": ["apps/macos/Sources/SukraraCore/*", "apps/macos/Sources/SukraraShare/*", "apps/macos/Sources/SukraraApp/Windows/Treatments/*"]
       }
     },
     {
@@ -121,22 +112,12 @@
       }
     },
     {
-      "name": "export",
-      "level": "fail",
-      "why": "One CSV export: Android (:integrations export) and Mac (SukraraCore Export) write the same bytes (contracts/export)",
-      "sides": {
-        "android": ["apps/android/integrations/src/main/*/export/*"],
-        "mac": ["apps/macos/Sources/SukraraCore/Export/*"]
-      }
-    },
-    {
       "name": "export-fixtures",
       "level": "fail",
       "trigger": ["fixtures"],
-      "why": "The CSV export cases (contracts/export) are what both writers must produce",
+      "why": "The CSV export cases (contracts/export) are what the writer must produce (Mac only in V1: Android has no CSV export yet; add its side with the writer)",
       "sides": {
         "fixtures": ["contracts/export/*"],
-        "android": ["apps/android/integrations/*"],
         "mac": ["apps/macos/Sources/SukraraCore/Export/*", "apps/macos/Tests/CoreTests/*"]
       }
     },

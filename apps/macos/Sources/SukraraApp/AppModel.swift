@@ -18,6 +18,8 @@ public final class AppModel {
     private(set) var readings: [Reading] = []
     private(set) var sensor: SensorInfo?
     private(set) var link: LinkState = .notFollowing
+    /// The wearer's readings feed the card and the alert rules: following, or following with the Keychain retrying.
+    private var monitoring = false
     var unit: GlucoseUnit = .mgdl
     /// The card's settings (bands, hours…): this Mac's, or the wearer's mirrored ones (`GraphConfig.load`).
     var graph = GraphConfig()
@@ -66,11 +68,13 @@ public final class AppModel {
 
     /// One follower snapshot: the link, readings, sensor and treatments, and whether the wearer's alerts are mirrored.
     func apply(_ snapshot: FollowerSnapshot) {
-        let wasFollowing = link.isFollowing
+        let wasMonitoring = monitoring
         link = snapshot.link
-        if wasFollowing && !link.isFollowing { alerts?.resetMonitoring() }
+        // an unreadable Keychain (retrying) still follows the wearer: keep alerting on their readings, no-data included
+        monitoring = link.isFollowing || (snapshot.keychainUnreadable && !snapshot.readings.isEmpty)
+        if wasMonitoring && !monitoring { alerts?.resetMonitoring() }
         if let alerts {
-            alerts.setMirroring(link.isFollowing && alerts.settings.source == .wearer)
+            alerts.setMirroring(monitoring && alerts.settings.source == .wearer)
             alerts.sensor(
                 snapshot.sensor.map {
                     SensorWindow(
@@ -89,7 +93,7 @@ public final class AppModel {
             SensorInfo(start: TimeInterval($0.start), end: TimeInterval($0.end), warmupEnd: TimeInterval($0.warmupEnd))
         }
         // only a followed wearer's readings are shown or alerted on
-        apply(readings: link.isFollowing ? snapshot.readings : [])
+        apply(readings: monitoring ? snapshot.readings : [])
         onSnapshot?(snapshot)
     }
 
@@ -147,6 +151,8 @@ public final class AppModel {
         if plan.isOffline && plan.mode != .fixture {
             return L10n.t("Not monitoring: offline dev build (no sensor, relays or alerts)")
         }
+        // shown over the stored readings too: with the Keychain unreadable no new reading can arrive
+        if case .broken(let why) = link { return L10n.t("Not monitoring: \(why)") }
         guard readings.isEmpty else { return nil }
         switch link {
         case .notFollowing, .joining: return L10n.t("Not monitoring: not following anyone yet")

@@ -22,7 +22,8 @@ public struct FollowerMessages: Sendable {
         ["v": Wire.version, "type": "profile", "profile": profile.wireObject()]
     }
 
-    public static func rekeyBody(unknownEpoch gk: String) -> [String: Any] {
+    /// `have` = the newest epoch's gk the follower holds (PROTOCOL-v2 "rekey request").
+    public static func rekeyBody(have gk: String) -> [String: Any] {
         ["v": Wire.version, "type": "rekey", "have": gk]
     }
 

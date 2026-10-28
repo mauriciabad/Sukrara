@@ -16,12 +16,17 @@ struct RuntimeHarness {
     let stores: FollowerStores
     let runtime: FollowerRuntime
 
-    init(now: Int, hub: FakeRelayHub = FakeRelayHub(), secrets: any SecretStoring = InMemorySecretStore()) {
+    /// `directory`: an earlier harness's, to relaunch on the same stores.
+    init(
+        now: Int, hub: FakeRelayHub = FakeRelayHub(), secrets: any SecretStoring = InMemorySecretStore(),
+        directory: URL? = nil
+    ) {
         self.hub = hub
         self.secrets = secrets
         clock = FakeClock(Date(timeIntervalSince1970: Double(now)))
-        directory = FileManager.default.temporaryDirectory.appending(path: "sukrara-runtime-\(UUID().uuidString)")
-        stores = .files(SukraraPaths(home: directory), clock: clock)
+        self.directory =
+            directory ?? FileManager.default.temporaryDirectory.appending(path: "sukrara-runtime-\(UUID().uuidString)")
+        stores = .files(SukraraPaths(home: self.directory), clock: clock)
         runtime = FollowerRuntime(
             secrets: secrets, stores: stores, crypto: NostrSDKCrypto(), clock: clock,
             me: Profile(name: "Mac", avatar: nil), makeRelays: { _, _ in hub.connect() },
@@ -210,4 +215,95 @@ final class FailingSecretStore: SecretStoring {
     func read(account: String) throws -> Data? { throw KeychainError.status(-25308) }
     func write(_ data: Data, account: String) throws { throw KeychainError.status(-25308) }
     func delete(account: String) throws { throw KeychainError.status(-25308) }
+}
+
+/// A Keychain that refuses reads until `recover()` (the login keychain not unlocked yet at a login-item launch).
+final class FlakySecretStore: SecretStoring, @unchecked Sendable {
+    // Guarded by `lock`.
+    private let lock = NSLock()
+    private var failing = true
+    private let inner = InMemorySecretStore()
+
+    func recover() { lock.withLock { failing = false } }
+
+    func read(account: String) throws -> Data? {
+        if lock.withLock({ failing }) { throw KeychainError.status(-25308) }
+        return inner.read(account: account)
+    }
+
+    func write(_ data: Data, account: String) throws { inner.write(data, account: account) }
+    func delete(account: String) throws { inner.delete(account: account) }
+}
+
+/// r-code-mac H2: an unreadable Keychain at start is retried (backoff and every reconnect) and the snapshot says this
+/// Mac still follows, so the app keeps alerting on the stored readings.
+struct KeychainRetryTests {
+    let v = OgsVectors.shared
+    let requested = LinkState.requested(code: "0000", wearer: nil, nearby: false)
+
+    func secrets() throws -> FlakySecretStore {
+        var state = FollowerState(
+            follower: v.secret("F"), identity: v.pub("I"), token: "t", code: "0000", nearby: false,
+            me: Profile(name: "Mac", avatar: nil), wearer: nil, relays: Wire.defaultRelays)
+        state.status = .requested
+        let secrets = FlakySecretStore()
+        try secrets.write(try state.encoded(), account: KeychainStore.followerAccount)
+        return secrets
+    }
+
+    func runtime(_ secrets: FlakySecretStore, _ h: RuntimeHarness, sleep: @escaping @Sendable (Double) async throws -> Void)
+        -> FollowerRuntime
+    {
+        FollowerRuntime(
+            secrets: secrets, stores: h.stores, crypto: NostrSDKCrypto(), clock: h.clock,
+            me: Profile(name: "Mac", avatar: nil), makeRelays: { _, _ in h.hub.connect() }, sleep: sleep)
+    }
+
+    @Test func reconnectReadsTheKeychainAgain() async throws {
+        let secrets = try secrets()
+        let h = RuntimeHarness(now: v.now, secrets: secrets)
+        try await h.stores.readings.merge([Reading(t: Date(timeIntervalSince1970: Double(v.now)), mgdl: 120)])
+        let runtime = runtime(secrets, h) { _ in try await Task.sleep(for: .seconds(3600)) }
+        await runtime.start()
+        var snapshots = await runtime.snapshots().makeAsyncIterator()
+        let broken = try #require(await snapshots.next())
+        guard case .broken = broken.link else {
+            Issue.record("expected broken, got \(broken.link)")
+            return
+        }
+        #expect(broken.keychainUnreadable)
+        #expect(broken.readings.count == 1)  // still the wearer's
+        secrets.recover()
+        await runtime.reconnect()
+        let requested = requested
+        #expect(await eventually { await runtime.currentLink == requested })
+        await runtime.stop()
+    }
+
+    @Test func retriesOnItsOwnWithBackoff() async throws {
+        let secrets = try secrets()
+        let h = RuntimeHarness(now: v.now, secrets: secrets)
+        let delays = DelayLog()
+        let runtime = runtime(secrets, h) { seconds in
+            delays.add(seconds)
+            try await Task.sleep(for: .milliseconds(20))
+        }
+        await runtime.start()
+        #expect(await eventually { delays.values.count >= 3 })
+        #expect(Array(delays.values.prefix(3)) == [5, 10, 20])
+        secrets.recover()
+        let requested = requested
+        #expect(await eventually { await runtime.currentLink == requested })
+        await runtime.stop()
+    }
+}
+
+/// The delays a runtime asked to sleep, in order.
+final class DelayLog: @unchecked Sendable {
+    // Guarded by `lock`.
+    private let lock = NSLock()
+    private var log: [Double] = []
+
+    func add(_ seconds: Double) { lock.withLock { log.append(seconds) } }
+    var values: [Double] { lock.withLock { log } }
 }
