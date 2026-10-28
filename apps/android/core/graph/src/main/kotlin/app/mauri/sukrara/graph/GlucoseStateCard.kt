@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.graph
 
+import app.mauri.sukrara.core.model.AlertUiState
 import app.mauri.sukrara.core.model.GlucoseState
 import app.mauri.sukrara.core.model.SensorState
 import app.mauri.sukrara.core.model.Treatment
@@ -12,7 +13,7 @@ import java.time.Instant
 
 /**
  * The card's model from the one glucose state ([GlucoseState]) at [now]: what a card surface outside the app panel
- * (the widgets) draws. The badge shows *Mute all* while it runs; the alert answer joins when the runtime exposes it.
+ * (the widgets) draws. The badge is the alert runtime's answer ([AlertUiState.status]).
  */
 fun cardModelOf(
     state: GlucoseState,
@@ -25,10 +26,7 @@ fun cardModelOf(
         treatments = treatments,
         nowS = now.epochSecond,
         words = words,
-        status =
-            state.alerts.mutedUntil
-                ?.takeIf { it > now }
-                ?.let { CardStatus.Muted(it.epochSecond) } ?: CardStatus.None,
+        status = state.alerts.status,
         sensor = state.sensor.cardInfo(),
     )
 

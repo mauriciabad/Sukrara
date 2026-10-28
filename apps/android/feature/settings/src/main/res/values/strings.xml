@@ -16,8 +16,6 @@
     <string name="st_mute_all">Mute all</string>
     <string name="st_not_muted">Not muted</string>
     <string name="st_until">Until %1$s</string>
-    <string name="st_muted_all_until">All alerts muted until %1$s</string>
-    <string name="st_muted_all_forever">All alerts muted until you turn it off</string>
     <string name="st_unmute">Unmute</string>
     <string name="st_change_time">Change time</string>
     <string name="st_alerts_kinds">When to alert</string>
@@ -79,12 +77,6 @@
     <string name="st_sound_same">Same as the pack (%1$s)</string>
     <string name="st_kind_footer_level">An episode alerts once and then reminds at the interval above until the value is back in range.</string>
     <string name="st_kind_footer_other">Reminds at the interval above while it lasts.</string>
-    <string name="st_side_muted">%1$s alerts muted</string>
-    <string name="st_side_muted_until">%1$s alerts muted until %2$s</string>
-    <string name="st_side_quiet_carbs">%1$s alerts quiet after carbs %2$s</string>
-    <string name="st_side_quiet_insulin">%1$s alerts quiet after insulin %2$s</string>
-    <string name="st_side_quiet_falling">%1$s alerts quiet while falling back into range</string>
-    <string name="st_side_relaxed">%1$s alerts remind less: every %2$s</string>
     <string name="st_alert_anyway">Alert me anyway</string>
     <string name="st_remind_as_usual">Remind as usual</string>
     <string name="st_special_once">Once</string>

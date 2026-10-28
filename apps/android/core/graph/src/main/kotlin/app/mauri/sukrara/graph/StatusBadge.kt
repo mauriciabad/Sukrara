@@ -10,6 +10,7 @@ import android.graphics.Path
 import android.graphics.RectF
 import android.graphics.Typeface
 import androidx.core.graphics.PathParser
+import app.mauri.sukrara.core.model.CardStatus
 
 /**
  * The pill under the glucose value, from [CardStatus]: nothing in range; "Eat carbs" / "Take insulin" filled in the

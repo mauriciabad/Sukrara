@@ -81,8 +81,6 @@
     <string name="banner_clinic_text">Sube las lecturas a LibreView o Tidepool para que tu equipo médico las vea.</string>
     <string name="banner_clinic_action">Configurar</string>
 
-    <string name="home_muted_for">Alertas silenciadas · %1$s</string>
-    <string name="home_muted_forever">Alertas silenciadas hasta que las reactives</string>
     <string name="home_unmute">Reactivar</string>
     <string name="home_sensor_ends">El sensor termina %1$s</string>
 
@@ -92,9 +90,9 @@
     <string name="home_link_never">Esperando la primera lectura</string>
 
     <string name="home_treatments">Últimas 24 horas</string>
-    <string name="home_treatment_rapid">%1$s u de insulina rápida</string>
-    <string name="home_treatment_long">%1$s u de insulina lenta</string>
-    <string name="home_treatment_carbs">%1$s g de hidratos</string>
+    <string name="home_treatment_rapid">%1$s de insulina rápida</string>
+    <string name="home_treatment_long">%1$s de insulina lenta</string>
+    <string name="home_treatment_carbs">%1$s de hidratos</string>
     <string name="home_treatment_note">Nota</string>
     <string name="home_treatment_delete">Borrar %1$s de las %2$s</string>
     <string name="home_treatment_deleted">Tratamiento borrado</string>

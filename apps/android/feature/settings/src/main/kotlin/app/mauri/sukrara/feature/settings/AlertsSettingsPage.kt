@@ -16,6 +16,10 @@ import androidx.compose.ui.res.stringResource
 import app.mauri.sukrara.alerts.AlertKind
 import app.mauri.sukrara.alerts.AlertSettings
 import app.mauri.sukrara.core.model.AlertUiState
+import app.mauri.sukrara.core.model.Clock
+import app.mauri.sukrara.designsystem.alerts.MuteText
+import app.mauri.sukrara.designsystem.alerts.rememberAlertWords
+import app.mauri.sukrara.designsystem.alerts.rememberCountdownNow
 import app.mauri.sukrara.designsystem.dialog.Choice
 import app.mauri.sukrara.designsystem.dialog.ChoiceDialog
 import app.mauri.sukrara.designsystem.dialog.NumberDialog
@@ -27,7 +31,6 @@ import app.mauri.sukrara.designsystem.rows.SwitchRow
 import app.mauri.sukrara.designsystem.rows.ValueRow
 import app.mauri.sukrara.settings.SettingsSpec
 import java.time.Instant
-import java.time.ZoneId
 
 /** What the Alerts page can do (the ViewModel's actions; no-ops in screenshots). */
 class AlertsActions(
@@ -51,21 +54,17 @@ val KindOrder =
         AlertKind.NO_DATA,
     )
 
-/** The "Muted until 14:30 · Unmute · Change time" strip for Mute all, or nothing. */
+/** Mute all's "Alerts muted · 1 h 12 min left · Unmute · Change time" strip ([MuteText], counting down), or nothing. */
 @Composable
 fun MuteAllStrip(
     alerts: AlertUiState,
-    zone: ZoneId,
+    clock: Clock,
     onUnmute: () -> Unit,
     onChangeTime: () -> Unit,
 ) {
-    val until = alerts.mutedUntil ?: return
-    val text =
-        if (alerts.mutedUntilTurnedOff) {
-            stringResource(R.string.st_muted_all_forever)
-        } else {
-            stringResource(R.string.st_muted_all_until, clockTime(until, zone))
-        }
+    val words = rememberAlertWords()
+    val now = rememberCountdownNow(alerts.mutedUntil, clock::now)
+    val text = MuteText.muteAll(alerts, now, words) ?: return
     StateStrip(text, listOf(stringResource(R.string.st_unmute) to onUnmute, stringResource(R.string.st_change_time) to onChangeTime))
 }
 
@@ -74,7 +73,7 @@ fun MuteAllStrip(
 fun AlertsSettingsContent(
     ui: AlertsUi,
     confirmedAt: Instant?,
-    zone: ZoneId,
+    clock: Clock,
     actions: AlertsActions,
     onBack: () -> Unit,
 ) {
@@ -82,7 +81,7 @@ fun AlertsSettingsContent(
     val context = LocalContext.current
     var dialog by rememberSaveable { mutableStateOf<String?>(null) }
     SettingsPage(stringResource(R.string.st_alerts_title), onBack) {
-        MuteAllStrip(ui.alerts, zone, actions.unmuteAll) { dialog = "muteAll" }
+        MuteAllStrip(ui.alerts, clock, actions.unmuteAll) { dialog = "muteAll" }
         SettingsGroup {
             SwitchRow(
                 stringResource(R.string.st_alerts_main),
@@ -93,7 +92,7 @@ fun AlertsSettingsContent(
             ValueRow(
                 stringResource(R.string.st_mute_all),
                 ui.alerts.mutedUntil?.let {
-                    if (ui.alerts.mutedUntilTurnedOff) stringResource(R.string.st_special_until_turned_off) else stringResource(R.string.st_until, clockTime(it, zone))
+                    if (ui.alerts.mutedUntilTurnedOff) stringResource(R.string.st_special_until_turned_off) else stringResource(R.string.st_until, clockTime(it, clock.zone))
                 } ?: stringResource(R.string.st_not_muted),
                 { dialog = "muteAll" },
             )

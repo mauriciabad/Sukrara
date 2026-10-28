@@ -11,6 +11,8 @@ import app.mauri.sukrara.alerts.Side
 import app.mauri.sukrara.alerts.TreatmentKind
 import app.mauri.sukrara.core.model.DurationWords
 import app.mauri.sukrara.core.testing.Contracts
+import app.mauri.sukrara.designsystem.alerts.AlertWords
+import app.mauri.sukrara.designsystem.alerts.MuteText
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.int
@@ -23,16 +25,19 @@ import org.junit.Test
 import java.io.File
 import javax.xml.parsers.DocumentBuilderFactory
 
-/** Every mute / remind-less line of contracts/alerts/copy.json, worded from this module's en and es strings. */
+/**
+ * Every mute / remind-less line of contracts/alerts/copy.json, worded by [MuteText] from the en and es strings
+ * (`:core:designsystem`'s mute lines, this module's alert texts).
+ */
 class AlertCopyTest {
     private fun strings(file: String): Map<String, String> {
         val nodes = DocumentBuilderFactory.newInstance().newDocumentBuilder().parse(File(file)).getElementsByTagName("string")
         return (0 until nodes.length).associate { i -> nodes.item(i).attributes.getNamedItem("name").nodeValue to nodes.item(i).textContent }
     }
 
-    /** This module's strings, and THE duration formats from `:core:graph`, in one language folder. */
+    /** The mute lines' and this module's strings, and THE duration formats from `:core:graph`, in one language folder. */
     private fun words(dir: String): AlertWords {
-        val own = strings("src/main/res/$dir/strings.xml")
+        val own = strings("src/main/res/$dir/strings.xml") + strings("../core/designsystem/src/main/res/$dir/strings.xml")
         val graph = strings("../core/graph/src/main/res/$dir/strings.xml")
         return object : AlertWords {
             override fun get(name: String) = own[name] ?: error("missing string $name in $dir")
@@ -74,8 +79,8 @@ class AlertCopyTest {
         val cases = Json.parseToJsonElement(Contracts.file("alerts/copy.json").readText()).jsonObject.getValue("cases").jsonArray
         for (c in cases.map { it.jsonObject }) {
             val clock = { _: Long -> c["until"]?.jsonPrimitive?.content ?: "" }
-            assertEquals("en $c", c.str("en"), AlertCopy.line(lineOf(c), en, clock))
-            assertEquals("es $c", c.str("es"), AlertCopy.line(lineOf(c), es, clock))
+            assertEquals("en $c", c.str("en"), MuteText.line(lineOf(c), en, clock))
+            assertEquals("es $c", c.str("es"), MuteText.line(lineOf(c), es, clock))
         }
     }
 

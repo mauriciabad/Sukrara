@@ -20,6 +20,8 @@ dependencies {
     api(project(":core:model"))
     implementation(project(":core:data"))
     implementation(project(":core:alerts"))
+    // THE mute lines (MuteText) and their strings
+    implementation(project(":core:designsystem"))
     // THE clock-time formatter, the duration_* strings and Freshness (the face rule) for the glucose notification
     implementation(project(":core:graph"))
     implementation(libs.androidx.core.ktx)

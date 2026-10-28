@@ -113,6 +113,9 @@ class AlertMachine(
         )
     }
 
+    /** The badge under the value at [now] (the effective rules, also a mirroring follower's: the wearer's). */
+    fun status(now: Long): AlertStatus = AlertStatus.of(local.last, settings, doses, now, uiState(now))
+
     fun snapshot(): AlertState =
         AlertState(role = role, local = local.snapshot(), shared = shared?.snapshot(), mirror = mirror?.snapshot(), lastNow = lastNow)
 

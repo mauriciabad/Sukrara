@@ -20,6 +20,7 @@ import app.mauri.sukrara.core.model.AlertReadiness
 import app.mauri.sukrara.core.model.AlertRequirement
 import app.mauri.sukrara.core.model.AlertUiState
 import app.mauri.sukrara.core.model.SensorState
+import app.mauri.sukrara.core.testing.FakeClock
 import app.mauri.sukrara.designsystem.theme.SukraraTheme
 import app.mauri.sukrara.feature.settings.sensor.LibreViewSummary
 import app.mauri.sukrara.feature.settings.sensor.SensorSettingsActions
@@ -50,6 +51,7 @@ class SettingsGallery {
 
     private val now = Instant.parse("2026-10-27T14:00:00Z")
     private val zone = ZoneOffset.UTC
+    private val clock = FakeClock(now, zone)
     private val muted = AlertUiState(mutedUntil = now.plusSeconds(90 * 60))
     private val lowMuted =
         AlertUiState(quiet = listOf(AlertQuietSide("low", matching = true, reason = AlertQuietReason.Muted, until = now.plusSeconds(1800), relaxMin = 0, canRemindLess = false)))
@@ -72,14 +74,14 @@ class SettingsGallery {
 
     private val pages: List<Pair<String, @Composable () -> Unit>> =
         listOf(
-            "overview" to { SettingsOverviewContent(true, AlertUiState(), AlertReadiness(setOf(AlertRequirement.ExactAlarm)), zone, OverviewActions()) {} },
-            "overview-muted" to { SettingsOverviewContent(true, muted, AlertReadiness.Ready, zone, OverviewActions()) {} },
-            "alerts" to { AlertsSettingsContent(AlertsUi(AlertSettings(), AlertUiState()), null, zone, AlertsActions()) {} },
+            "overview" to { SettingsOverviewContent(true, AlertUiState(), AlertReadiness(setOf(AlertRequirement.ExactAlarm)), clock, OverviewActions()) {} },
+            "overview-muted" to { SettingsOverviewContent(true, muted, AlertReadiness.Ready, clock, OverviewActions()) {} },
+            "alerts" to { AlertsSettingsContent(AlertsUi(AlertSettings(), AlertUiState()), null, clock, AlertsActions()) {} },
             "alerts-muted-forever" to {
-                AlertsSettingsContent(AlertsUi(AlertSettings(), AlertUiState(mutedUntil = AlertUiState.UNTIL_TURNED_OFF)), now, zone, AlertsActions()) {}
+                AlertsSettingsContent(AlertsUi(AlertSettings(), AlertUiState(mutedUntil = AlertUiState.UNTIL_TURNED_OFF)), now, clock, AlertsActions()) {}
             },
-            "alert-kind-low-muted" to { AlertKindContent(AlertKind.LOW, AlertsUi(AlertSettings(), lowMuted), zone, AlertKindActions()) {} },
-            "alert-kind-very-low" to { AlertKindContent(AlertKind.VERY_LOW, AlertsUi(AlertSettings(), AlertUiState()), zone, AlertKindActions()) {} },
+            "alert-kind-low-muted" to { AlertKindContent(AlertKind.LOW, AlertsUi(AlertSettings(), lowMuted), clock, AlertKindActions()) {} },
+            "alert-kind-very-low" to { AlertKindContent(AlertKind.VERY_LOW, AlertsUi(AlertSettings(), AlertUiState()), clock, AlertKindActions()) {} },
             "threshold-review" to { AlertThresholdReviewContent(AlertSettings(), { _, _ -> }, {}, {}) },
             "ranges" to { RangesContent(GraphPrefs(), { _, _ -> }) {} },
             "graph" to { GraphBasicsContent(GraphPrefs(), { _, _ -> }, { _, _ -> }) {} },

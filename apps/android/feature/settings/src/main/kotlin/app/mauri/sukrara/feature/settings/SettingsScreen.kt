@@ -50,7 +50,7 @@ fun SettingsScreen(
     openSharing: () -> Unit,
     onReviewDone: (ThresholdReviewResult) -> Unit = { onBack() },
 ) {
-    val zone = deps.clock.zone
+    val clock = deps.clock
     when (route) {
         SettingsRoute.Overview -> {
             val vm = alertsViewModel(deps)
@@ -61,7 +61,7 @@ fun SettingsScreen(
                 ui?.settings?.on ?: true,
                 ui?.alerts ?: AlertUiState(),
                 readiness,
-                zone,
+                clock,
                 OverviewActions(navigate, openSensor, openSharing, vm::unmuteAll),
                 onBack,
             )
@@ -75,7 +75,7 @@ fun SettingsScreen(
                 AlertsSettingsContent(
                     it,
                     confirmedAt,
-                    zone,
+                    clock,
                     AlertsActions(vm::edit, vm::muteAll, vm::unmuteAll, { k -> navigate(SettingsRoute.AlertKindPage(k)) }, {
                         navigate(SettingsRoute.ThresholdReview)
                     }),
@@ -87,7 +87,7 @@ fun SettingsScreen(
         is SettingsRoute.AlertKindPage -> {
             val vm = alertsViewModel(deps)
             val ui by vm.ui.collectAsStateWithLifecycle()
-            ui?.let { AlertKindContent(route.kind, it, zone, AlertKindActions(vm::edit, vm::unmute, vm::remindAsUsual), onBack) }
+            ui?.let { AlertKindContent(route.kind, it, clock, AlertKindActions(vm::edit, vm::unmute, vm::remindAsUsual), onBack) }
         }
 
         SettingsRoute.Ranges -> {

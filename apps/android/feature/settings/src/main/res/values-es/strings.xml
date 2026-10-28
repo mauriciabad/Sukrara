@@ -16,8 +16,6 @@
     <string name="st_mute_all">Silenciar todo</string>
     <string name="st_not_muted">Sin silenciar</string>
     <string name="st_until">Hasta las %1$s</string>
-    <string name="st_muted_all_until">Todas las alertas silenciadas hasta las %1$s</string>
-    <string name="st_muted_all_forever">Todas las alertas silenciadas hasta que lo desactives</string>
     <string name="st_unmute">Reactivar</string>
     <string name="st_change_time">Cambiar hora</string>
     <string name="st_alerts_kinds">Cuándo avisar</string>
@@ -79,12 +77,6 @@
     <string name="st_sound_same">Como el paquete (%1$s)</string>
     <string name="st_kind_footer_level">Un episodio avisa una vez y luego recuerda con el intervalo indicado hasta que el valor vuelve al rango.</string>
     <string name="st_kind_footer_other">Recuerda con el intervalo indicado mientras dure.</string>
-    <string name="st_side_muted">Alertas de %1$s silenciadas</string>
-    <string name="st_side_muted_until">Alertas de %1$s silenciadas hasta las %2$s</string>
-    <string name="st_side_quiet_carbs">Alertas de %1$s en silencio tras carbohidratos %2$s</string>
-    <string name="st_side_quiet_insulin">Alertas de %1$s en silencio tras insulina %2$s</string>
-    <string name="st_side_quiet_falling">Alertas de %1$s en silencio mientras vuelve al rango</string>
-    <string name="st_side_relaxed">Alertas de %1$s recuerdan menos: cada %2$s</string>
     <string name="st_alert_anyway">Avisarme igualmente</string>
     <string name="st_remind_as_usual">Recordar como siempre</string>
     <string name="st_special_once">Una vez</string>

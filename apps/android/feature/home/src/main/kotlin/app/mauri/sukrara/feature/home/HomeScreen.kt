@@ -52,10 +52,13 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.mauri.sukrara.core.model.AlertRequirement
+import app.mauri.sukrara.core.model.AlertUiState
 import app.mauri.sukrara.core.model.Role
 import app.mauri.sukrara.core.model.SensorState
 import app.mauri.sukrara.core.model.Treatment
 import app.mauri.sukrara.core.model.TreatmentKind
+import app.mauri.sukrara.designsystem.alerts.MuteText
+import app.mauri.sukrara.designsystem.alerts.rememberAlertWords
 import app.mauri.sukrara.designsystem.banner.Banner
 import app.mauri.sukrara.designsystem.banner.BannerSeverity
 import app.mauri.sukrara.designsystem.banner.BannerSlot
@@ -67,6 +70,7 @@ import app.mauri.sukrara.designsystem.state.StateScreen
 import app.mauri.sukrara.feature.home.banners.BannerKind
 import app.mauri.sukrara.graph.CardWords
 import app.mauri.sukrara.graph.Clock
+import app.mauri.sukrara.graph.TreatmentMarks
 import java.time.Duration
 import java.time.Instant
 import app.mauri.sukrara.core.designsystem.R as DsR
@@ -174,11 +178,11 @@ fun HomeContent(
             // glucose first: the card (or, before any reading, why there is none) is always at the top
             GlucoseSection(state, callbacks, safetyBanner)
             BannerSlot(infoBanner)
-            MuteStrip(state.mutedUntil, state.now) {
+            MuteStrip(state.glucose.alerts.takeIf { state.mutedUntil != null }, state.now) {
                 haptics.confirm()
                 callbacks.onUnmute()
             }
-            Treatments(state.treatments, state.readOnly) {
+            Treatments(state.treatments, state.readOnly, state.now) {
                 haptics.confirm()
                 callbacks.onDelete(it)
             }
@@ -460,15 +464,19 @@ private fun requirementText(requirement: AlertRequirement): String =
         },
     )
 
-/** Mute alerts is on: the countdown and the way out (Unmute), in the neutral secondary colours, never red. */
+/**
+ * Mute alerts is on ([alerts] null = off): its line ([MuteText], "Alerts muted · 1 h 12 min left") and the way out
+ * (Unmute), in the neutral secondary colours, never red.
+ */
 @Composable
 private fun MuteStrip(
-    until: Instant?,
+    alerts: AlertUiState?,
     now: Instant,
     onUnmute: () -> Unit,
 ) {
-    Reveal(until != null) {
-        val end = until ?: return@Reveal
+    val words = rememberAlertWords()
+    Reveal(alerts != null) {
+        val line = alerts?.let { MuteText.muteAll(it, now, words) } ?: return@Reveal
         Surface(
             Modifier.fillMaxWidth().padding(horizontal = 16.dp),
             shape = MaterialTheme.shapes.large,
@@ -478,11 +486,7 @@ private fun MuteStrip(
             Row(Modifier.padding(start = 16.dp, end = 8.dp, top = 8.dp, bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                 Icon(painterResource(R.drawable.home_ic_notifications_off), contentDescription = null, modifier = Modifier.size(20.dp))
                 Text(
-                    if (end > now.plus(FOREVER)) {
-                        stringResource(R.string.home_muted_forever)
-                    } else {
-                        stringResource(R.string.home_muted_for, left(end, now))
-                    },
+                    line,
                     style = MaterialTheme.typography.titleSmall,
                     modifier = Modifier.weight(1f).padding(horizontal = 12.dp),
                 )
@@ -496,8 +500,11 @@ private fun MuteStrip(
 private fun Treatments(
     treatments: List<Treatment>,
     readOnly: Set<String>,
+    now: Instant,
     onDelete: (Treatment) -> Unit,
 ) {
+    val resources = LocalContext.current.resources
+    val words = remember(resources) { CardWords.of(resources) }
     Reveal(treatments.isNotEmpty()) {
         Text(
             stringResource(R.string.home_treatments),
@@ -510,6 +517,12 @@ private fun Treatments(
             Row(Modifier.fillMaxWidth().padding(start = 16.dp, end = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                 Text(time, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Text(label, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f).padding(horizontal = 12.dp))
+                // the time since the entry in the card's short durations ("12m", "3h")
+                Text(
+                    TreatmentMarks.duration(now.epochSecond - t.at.epochSecond, words),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
                 if (t.id !in readOnly) {
                     IconButton(onClick = { onDelete(t) }) {
                         Icon(painterResource(R.drawable.home_ic_delete), contentDescription = stringResource(R.string.home_treatment_delete, label, time))
@@ -520,9 +533,10 @@ private fun Treatments(
     }
 }
 
+/** "4.5u rapid insulin", "30g carbs": the amount as the card writes it ([TreatmentMarks.amount]) and the kind. */
 @Composable
 private fun treatmentLabel(t: Treatment): String {
-    val amount = java.text.NumberFormat.getNumberInstance(LocalContext.current.resources.configuration.locales[0]).format(t.amount)
+    val amount = TreatmentMarks.amount(t).orEmpty()
     val kind =
         when (t.kind) {
             TreatmentKind.RapidInsulin -> stringResource(R.string.home_treatment_rapid, amount)
@@ -555,19 +569,5 @@ private fun sinceTime(
     return DateUtils.formatDateTime(LocalContext.current, t.toEpochMilli(), flags)
 }
 
-/** Time left until [end] in the card's words ("1h 12m left"), rounded up to the minute. */
-@Composable
-private fun left(
-    end: Instant,
-    now: Instant,
-): String {
-    val resources = LocalContext.current.resources
-    val words = remember(resources) { CardWords.of(resources) }
-    return words.timeLeft(((end.epochSecond - now.epochSecond + 59) / 60).coerceAtLeast(1))
-}
-
 /** The time of day in the phone's 12/24-hour setting (the renderer's one clock formatter). */
 private fun clockTime(t: Instant): String = Clock.time(t.epochSecond)
-
-/** A mute ending further away than this is the alert engine's "until you turn it off". */
-private val FOREVER = Duration.ofDays(365)

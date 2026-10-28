@@ -105,8 +105,9 @@ the `api` names in `contracts/graph/surfaces/surfaces.json`).
   the surface and its place's `GraphConfig` (built by the settings repository from the schema keys; `GraphConfig`
   is a plain data class, not a JSON blob). The renderer depends only on `:core:model` and the generated
   `SettingsSpec` (`:core:data`): no `:core:alerts`, no `:monitor`.
-- **Status from outside.** The alert runtime (chunk 11) maps its alert status to `CardStatus` (None / Needed /
-  Taken / Paused / Muted) and supplies the `MuteRule` (when a treatment's mute ends, from the alert settings). The
+- **Status from outside.** The alert runtime maps its `AlertStatus` to `CardStatus` (`:core:model`: None / Needed /
+  Taken / Paused / Muted) and publishes it in the hub's `AlertUiState.status`, which every card surface (app panel,
+  widgets) passes to the renderer; it also supplies the `MuteRule` (when a treatment's mute ends, from the alert settings). The
   renderer only draws them (badge, last-treatment slot, mute lines).
 - **Words.** `CardWords.of(resources)` once per `Resources` (en + es strings of the module); durations through the one
   formatter `core.model.Durations` with the `duration_*` strings.

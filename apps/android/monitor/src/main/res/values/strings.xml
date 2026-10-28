@@ -46,30 +46,6 @@
     <string name="alert_action_unmute">Unmute</string>
     <string name="alert_action_change">Change time</string>
 
-    <!-- Mute / remind-less lines (contracts/alerts/copy.json; AlertCopyTest). Side names fill %1$s. -->
-    <string name="side_low">Low</string>
-    <string name="side_high">High</string>
-    <string name="side_falling_fast">Falling fast</string>
-    <string name="side_rising_fast">Rising fast</string>
-    <string name="side_no_data">No data</string>
-    <string name="mute_side">%1$s alerts muted</string>
-    <string name="mute_side_left_one">%1$s alerts muted · %2$s left</string>
-    <string name="mute_side_left_other">%1$s alerts muted · %2$s left</string>
-    <string name="mute_after_carbs_one">%1$s alerts muted after carbs · %2$s left</string>
-    <string name="mute_after_carbs_other">%1$s alerts muted after carbs · %2$s left</string>
-    <string name="mute_after_insulin_one">%1$s alerts muted after insulin · %2$s left</string>
-    <string name="mute_after_insulin_other">%1$s alerts muted after insulin · %2$s left</string>
-    <string name="mute_falling">%1$s alerts muted while falling back into range</string>
-    <string name="mute_less">%1$s reminders every %2$s</string>
-    <string name="mute_all_left_one">Alerts muted · %1$s left</string>
-    <string name="mute_all_left_other">Alerts muted · %1$s left</string>
-    <string name="mute_all_forever">Alerts muted until you turn it off</string>
-    <string name="mute_notif_until">Until %1$s</string>
-    <string name="mute_pill">Muted · %1$s</string>
-    <string name="mute_pill_forever">Muted</string>
-    <string name="mute_choice">For %1$s</string>
-    <string name="mute_choice_forever">Until you turn it off</string>
-
     <!-- Sensor end (CHANGES P7). -->
     <string name="sensor_end_soon_title">Sensor ends in %1$s</string>
     <string name="sensor_end_soon_text">Have a new sensor ready to change it in time.</string>

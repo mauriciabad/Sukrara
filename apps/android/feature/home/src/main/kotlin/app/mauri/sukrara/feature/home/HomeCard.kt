@@ -40,7 +40,6 @@ import app.mauri.sukrara.core.model.SensorState
 import app.mauri.sukrara.core.model.Treatment
 import app.mauri.sukrara.graph.CardModel
 import app.mauri.sukrara.graph.CardPart
-import app.mauri.sukrara.graph.CardStatus
 import app.mauri.sukrara.graph.CardSurface
 import app.mauri.sukrara.graph.CardWords
 import app.mauri.sukrara.graph.ChartView
@@ -126,7 +125,7 @@ fun PanelCard(
                 treatments = treatments,
                 nowS = nowS,
                 words = words,
-                status = glucose.alerts.mutedUntil?.takeIf { it > now }?.let { CardStatus.Muted(it.epochSecond) } ?: CardStatus.None,
+                status = glucose.alerts.status,
                 sensor = glucose.sensor.info(now),
             )
         }

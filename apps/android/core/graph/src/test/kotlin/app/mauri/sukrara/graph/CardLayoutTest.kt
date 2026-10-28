@@ -5,6 +5,7 @@ package app.mauri.sukrara.graph
 
 import android.graphics.Bitmap
 import android.graphics.Canvas
+import app.mauri.sukrara.core.model.CardStatus
 import app.mauri.sukrara.core.model.Treatment
 import app.mauri.sukrara.core.model.TreatmentKind
 import app.mauri.sukrara.core.model.TreatmentOrigin

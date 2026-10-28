@@ -13,6 +13,10 @@ import androidx.compose.ui.res.stringResource
 import app.mauri.sukrara.alerts.AlertKind
 import app.mauri.sukrara.core.model.AlertQuietReason
 import app.mauri.sukrara.core.model.AlertQuietSide
+import app.mauri.sukrara.core.model.Clock
+import app.mauri.sukrara.designsystem.alerts.MuteText
+import app.mauri.sukrara.designsystem.alerts.rememberAlertWords
+import app.mauri.sukrara.designsystem.alerts.rememberCountdownNow
 import app.mauri.sukrara.designsystem.dialog.Choice
 import app.mauri.sukrara.designsystem.dialog.ChoiceDialog
 import app.mauri.sukrara.designsystem.dialog.NumberDialog
@@ -23,7 +27,6 @@ import app.mauri.sukrara.designsystem.rows.SettingsGroup
 import app.mauri.sukrara.designsystem.rows.SwitchRow
 import app.mauri.sukrara.designsystem.rows.ValueRow
 import app.mauri.sukrara.settings.SettingsSpec
-import java.time.ZoneId
 
 /** What an alert's page can do besides editing its rule. */
 class AlertKindActions(
@@ -35,25 +38,20 @@ class AlertKindActions(
 /** Turning these off removes a safety net: it asks first (ux §2 #9). */
 private val ConfirmOff = setOf(AlertKind.VERY_LOW, AlertKind.NO_DATA)
 
-/** The side's quiet state with its exit: "Low alerts muted until 14:30 · Unmute", "… after carbs · Alert me anyway". */
+/**
+ * The side's quiet state with its exit, worded by [MuteText] and counting down: "Low alerts muted · 12 min left ·
+ * Unmute", "Low alerts muted after carbs · 12 min left · Alert me anyway".
+ */
 @Composable
 fun QuietStrip(
     kind: AlertKind,
     quiet: AlertQuietSide,
-    zone: ZoneId,
+    clock: Clock,
     actions: AlertKindActions,
 ) {
-    val until = quiet.until?.let { clockTime(it, zone) }
-    val text =
-        when (quiet.reason) {
-            AlertQuietReason.Muted ->
-                until?.let { stringResource(R.string.st_side_muted_until, kindName(kind.side.mainKind), it) }
-                    ?: stringResource(R.string.st_side_muted, kindName(kind.side.mainKind))
-            AlertQuietReason.AfterCarbs -> stringResource(R.string.st_side_quiet_carbs, kindName(kind.side.mainKind), until.orEmpty())
-            AlertQuietReason.AfterInsulin -> stringResource(R.string.st_side_quiet_insulin, kindName(kind.side.mainKind), until.orEmpty())
-            AlertQuietReason.FallingBack -> stringResource(R.string.st_side_quiet_falling, kindName(kind.side.mainKind))
-            null -> stringResource(R.string.st_side_relaxed, kindName(kind.side.mainKind), numberLabel(SchemaPrefs.spec("alerts.actions.relaxMin"), quiet.relaxMin.toDouble()))
-        }
+    val words = rememberAlertWords()
+    val now = rememberCountdownNow(quiet.until, clock::now)
+    val text = MuteText.side(quiet, now, words) ?: return
     val exit =
         when (quiet.reason) {
             AlertQuietReason.Muted -> stringResource(R.string.st_unmute) to { actions.unmute(kind) }
@@ -68,7 +66,7 @@ fun QuietStrip(
 fun AlertKindContent(
     kind: AlertKind,
     ui: AlertsUi,
-    zone: ZoneId,
+    clock: Clock,
     actions: AlertKindActions,
     onBack: () -> Unit,
 ) {
@@ -79,7 +77,7 @@ fun AlertKindContent(
     val repeatSpec = SchemaPrefs.RepeatSpec
     val label = numberLabeler()
     SettingsPage(kindName(kind), onBack) {
-        ui.quietOf(kind)?.let { QuietStrip(kind, it, zone, actions) }
+        ui.quietOf(kind)?.let { QuietStrip(kind, it, clock, actions) }
         SettingsGroup {
             SwitchRow(
                 stringResource(R.string.st_kind_use, kindName(kind)),

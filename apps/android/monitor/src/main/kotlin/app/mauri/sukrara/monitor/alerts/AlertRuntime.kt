@@ -15,6 +15,7 @@ import app.mauri.sukrara.alerts.AlertRole
 import app.mauri.sukrara.alerts.AlertSettings
 import app.mauri.sukrara.alerts.AlertSource
 import app.mauri.sukrara.alerts.AlertState
+import app.mauri.sukrara.alerts.AlertStatus
 import app.mauri.sukrara.alerts.Doses
 import app.mauri.sukrara.alerts.Firing
 import app.mauri.sukrara.alerts.QuietReason
@@ -22,11 +23,13 @@ import app.mauri.sukrara.alerts.Rules
 import app.mauri.sukrara.alerts.SensorWindow
 import app.mauri.sukrara.alerts.Side
 import app.mauri.sukrara.alerts.AlertUiState as EngineUiState
+import app.mauri.sukrara.alerts.TreatmentKind as EngineTreatmentKind
 import app.mauri.sukrara.core.model.AlertControls
 import app.mauri.sukrara.core.model.AlertDeliveryProblem
 import app.mauri.sukrara.core.model.AlertQuietReason
 import app.mauri.sukrara.core.model.AlertQuietSide
 import app.mauri.sukrara.core.model.AlertUiState
+import app.mauri.sukrara.core.model.CardStatus
 import app.mauri.sukrara.core.model.Clock
 import app.mauri.sukrara.core.model.GlucoseState
 import app.mauri.sukrara.core.model.Reading
@@ -449,6 +452,7 @@ class AlertRuntime(
         publish(
             AlertUiState(
                 firingKinds = firing.values.map { it.kind.wire }.toSet(),
+                status = m?.status(now)?.let(::cardStatusOf) ?: CardStatus.None,
                 mutedUntil = instantOf(ui.muteAllUntil),
                 quiet = ui.quiet.map { q ->
                     AlertQuietSide(
@@ -506,6 +510,24 @@ class AlertRuntime(
         }
 
         private val WEAR_S = Duration.ofDays(15).seconds
+
+        /** The badge's answer in the card's terms (contracts/graph/status.json). */
+        fun cardStatusOf(s: AlertStatus): CardStatus = when (s) {
+            AlertStatus.None -> CardStatus.None
+            is AlertStatus.Needed -> CardStatus.Needed(lowSide(s.kind))
+            is AlertStatus.Taken -> CardStatus.Taken(
+                if (s.treatment == EngineTreatmentKind.RAPID) TreatmentKind.RapidInsulin else TreatmentKind.Carbs,
+                s.at,
+                cardEnd(s.until),
+            )
+            is AlertStatus.Paused -> CardStatus.Paused(lowSide(s.kind), cardEnd(s.until))
+            is AlertStatus.Muted -> CardStatus.Muted(cardEnd(s.until))
+        }
+
+        /** The card's low side: very low, low and falling fast (what carbs answer). */
+        private fun lowSide(k: AlertKind) = k.side == Side.LOW || k.side == Side.FALLING_FAST
+
+        private fun cardEnd(until: Long) = if (until >= Rules.NEVER) CardStatus.NEVER else until
 
         fun instantOf(muteAllUntil: Long): Instant? = when {
             muteAllUntil <= 0 -> null
