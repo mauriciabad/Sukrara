@@ -35,7 +35,7 @@ class TestTreatmentsApp :
         object : AlertHints {
             override fun lowNow() = low
 
-            override fun quiet() = QuietRules(afterInsulinMin = 60, afterCarbsMin = 15)
+            override val quiet = kotlinx.coroutines.flow.flowOf(QuietRules(afterInsulinMin = 60, afterCarbsMin = 15))
         }
 
     override val treatments by lazy {

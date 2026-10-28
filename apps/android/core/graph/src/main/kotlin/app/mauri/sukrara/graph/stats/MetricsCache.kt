@@ -7,8 +7,8 @@ import app.mauri.sukrara.graph.RingSpec
 
 /**
  * The slots' report numbers over [history] (oldest first) up to [nowS], each window computed once: a card model
- * built per reading hands this to [app.mauri.sukrara.graph.CardModel.metricsOf], so a redraw (a scrolled frame, a
- * widget's second size) never counts a month again.
+ * built per reading (home) or per widget frame hands this to [app.mauri.sukrara.graph.CardModel.metricsOf], so a redraw
+ * (a scrolled frame, another widget or size of the same frame) never counts a month again.
  */
 class MetricsCache(
     private val history: List<GlucosePoint>,

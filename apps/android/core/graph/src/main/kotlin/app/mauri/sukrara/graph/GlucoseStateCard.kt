@@ -5,8 +5,6 @@ package app.mauri.sukrara.graph
 
 import app.mauri.sukrara.core.model.AlertUiState
 import app.mauri.sukrara.core.model.GlucoseState
-import app.mauri.sukrara.core.model.Reading
-import app.mauri.sukrara.core.model.ReadingHistory
 import app.mauri.sukrara.core.model.SensorState
 import app.mauri.sukrara.core.model.Treatment
 import app.mauri.sukrara.graph.stats.MetricsCache
@@ -17,15 +15,15 @@ import java.time.Instant
 /**
  * The card's model from the one glucose state ([GlucoseState]) at [now]: what a card surface outside the app panel
  * (the widgets) draws. The badge is the alert runtime's answer ([AlertUiState.status]). The chart draws the live
- * window; the slots count [stored] (the stored days before it, oldest first) joined with it: the 7–30-day rings need
- * more than the live window.
+ * window; the slots take their numbers from [slots] (a surface that has the stored days hands in a [MetricsCache] over
+ * them, built once per frame: the 7–30-day rings need more than the live window); null = the live window's.
  */
 fun cardModelOf(
     state: GlucoseState,
     treatments: List<Treatment>,
     now: Instant,
     words: CardWords,
-    stored: List<Reading> = emptyList(),
+    slots: MetricsCache? = null,
 ): CardModel =
     CardModel(
         readings = state.recent.map { it.toPoint() },
@@ -34,7 +32,7 @@ fun cardModelOf(
         words = words,
         status = state.alerts.status,
         sensor = state.sensor.cardInfo(),
-        metricsOf = MetricsCache(ReadingHistory.join(stored, state.recent).map { it.toPoint() }, now.epochSecond),
+        metricsOf = slots,
     )
 
 /** The sensor's dates as the card needs them; null when nothing is known (the card then shows no sensor badge). */

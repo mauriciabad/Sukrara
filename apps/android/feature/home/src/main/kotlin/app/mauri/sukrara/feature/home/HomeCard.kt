@@ -295,12 +295,14 @@ fun PanelCard(
                     val all = actions + chartActions
                     if (all.isNotEmpty()) customActions = all
                 }.overscroll(overscroll)
-                .scrollable(state, Orientation.Horizontal, overscroll, reverseDirection = true)
+                .scrollable(state, Orientation.Horizontal, enabled = base != null, overscrollEffect = overscroll, reverseDirection = true)
                 .pointerInput(scroll, default) {
+                    // no chart (3 h+ without readings): nothing to zoom
+                    if (base == null) return@pointerInput
                     pinch(scroll, laid, default, { first }, { latestNow }) { vx ->
                         scope.launch { state.scroll { with(fling) { performFling(-vx) } } }
                     }
-                }.pointerInput(scroll) {
+                }.pointerInput(scroll, default, reduced) {
                     detectTapGestures { p -> if (scroll.away && laid.now?.contains(p.x, p.y) == true) back() }
                 },
         ) {

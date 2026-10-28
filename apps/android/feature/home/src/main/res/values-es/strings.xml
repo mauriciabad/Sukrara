@@ -6,7 +6,6 @@
     <string name="home_title">Sukrara</string>
     <string name="home_settings">Ajustes</string>
     <string name="home_add_treatment">Añadir tratamiento</string>
-    <string name="home_chart_now">Ahora</string>
 
     <string name="home_a11y_value">%1$s miligramos por decilitro, %2$s, %3$s, %4$s</string>
     <string name="home_a11y_stale">Lectura antigua: %1$s</string>

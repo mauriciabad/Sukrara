@@ -33,18 +33,21 @@ sealed interface PillAction {
     companion object {
         /**
          * The action of the pill for [status] at [nowS]; [canAdd] = this phone may add entries; [ended] = the card shows
-         * the ended sensor's *Replace sensor* pill and this phone wears it.
+         * the ended sensor's *Replace sensor* pill and this phone wears it; [muteAll] = *Mute all* is on (a muted side's
+         * pill then also stands for Mute all, whose Unmute is what ends it).
          */
         fun of(
             status: CardStatus,
             nowS: Long,
             canAdd: Boolean,
             ended: Boolean = false,
+            muteAll: Boolean = false,
         ): PillAction =
             when {
                 ended -> ReplaceSensor
                 status is CardStatus.Needed -> if (canAdd) Treat(carbs = status.lowSide) else None
                 status is CardStatus.Taken && status.until > nowS -> Quiet(lowSide = status.treatment == TreatmentKind.Carbs, taken = true)
+                status is CardStatus.Paused && status.until > nowS && muteAll -> MuteAll
                 status is CardStatus.Paused && status.until > nowS -> Quiet(lowSide = status.lowSide, taken = false)
                 status is CardStatus.Muted && status.until > nowS -> MuteAll
                 else -> None

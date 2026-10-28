@@ -6,7 +6,6 @@
     <string name="home_title">Sukrara</string>
     <string name="home_settings">Settings</string>
     <string name="home_add_treatment">Add treatment</string>
-    <string name="home_chart_now">Now</string>
 
     <!-- TalkBack: the card as one sentence ("112 milligrams per decilitre, falling slowly, in range, 2 minutes ago") -->
     <string name="home_a11y_value">%1$s milligrams per decilitre, %2$s, %3$s, %4$s</string>

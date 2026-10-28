@@ -284,7 +284,7 @@ class AppGraph(
             home.glucose,
             data.settings,
             scope,
-            hints = AppAlertHints(alerts.store.settings.stateIn(scope, SharingStarted.Eagerly, AlertSettings()), home.glucose, clock),
+            hints = AppAlertHints(alerts.store.settings.stateIn(scope, SharingStarted.Eagerly, null), home.glucose, clock),
         )
     }
 

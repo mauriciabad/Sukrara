@@ -10,6 +10,7 @@ import app.mauri.sukrara.core.testing.FakeClock
 import app.mauri.sukrara.core.testing.InMemoryReadingsRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -53,11 +54,32 @@ class GlucoseHistoryTest {
             assertTrue(GlucoseHistory.SPLIT + GlucoseHistory.RELOAD < GlucoseHubImpl.WINDOW)
         }
 
-    @Test fun joinKeepsOnlyNewerLiveReadings() {
+    @Test fun joinCutsTheStoredPartWhereTheLiveWindowStarts() {
         val now = clock.now()
         val stored = listOf(reading(now - Duration.ofHours(30)), reading(now - Duration.ofHours(23)))
         val live = listOf(reading(now - Duration.ofHours(24)), reading(now - Duration.ofHours(23)), reading(now))
-        assertEquals(stored + reading(now), ReadingHistory.join(stored, live))
+        assertEquals(listOf(stored.first()) + live, ReadingHistory.join(stored, live))
         assertEquals(live, ReadingHistory.join(emptyList(), live))
+        assertEquals(stored, ReadingHistory.join(stored, emptyList()))
     }
+
+    /** A phone asleep for hours (uptime stalls, the clock doesn't): the next live update re-reads the stored part. */
+    @Test fun reloadsByWallClockOnALiveUpdate() =
+        runTest {
+            val store = InMemoryReadingsRepository()
+            store.upsert(month(3))
+            val live = MutableStateFlow(listOf(reading(clock.now())))
+            val history = GlucoseHistory(clock, store, live)
+            val seen = mutableListOf<List<Reading>>()
+            val job = backgroundScope.launch { history.stored.collect { seen += it } }
+            testScheduler.runCurrent()
+            clock.instant = clock.instant + Duration.ofHours(5)
+            store.upsert(listOf(reading(clock.now() - Duration.ofHours(23))))
+            live.value = listOf(reading(clock.now()))
+            testScheduler.runCurrent()
+            assertEquals(2, seen.size)
+            assertTrue(seen.last().last().t < clock.now() - GlucoseHistory.SPLIT)
+            assertTrue(seen.last().last().t > seen.first().last().t)
+            job.cancel()
+        }
 }

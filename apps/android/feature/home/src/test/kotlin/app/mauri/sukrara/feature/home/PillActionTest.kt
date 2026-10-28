@@ -37,6 +37,14 @@ class PillActionTest {
         assertEquals(PillAction.MuteAll, PillAction.of(CardStatus.Muted(now + 60), now, canAdd = false))
     }
 
+    /** Mute all on while out of range: the card shows the side as muted, and only Mute all's Unmute ends it. */
+    @Test fun aSideMutedByMuteAllOpensMuteAll() {
+        assertEquals(
+            PillAction.MuteAll,
+            PillAction.of(CardStatus.Paused(lowSide = false, until = now + 600), now, canAdd = true, muteAll = true),
+        )
+    }
+
     @Test fun anEndedSensorPairsANewOne() {
         assertEquals(PillAction.ReplaceSensor, PillAction.of(CardStatus.Needed(lowSide = true), now, canAdd = true, ended = true))
     }

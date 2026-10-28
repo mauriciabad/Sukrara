@@ -360,13 +360,17 @@ internal fun lastDay(state: HomeUiState): Boolean {
 }
 
 /** What the card's pill does for [state] (only the wearer pairs a sensor; anyone with a role may add a treatment). */
-internal fun pillAction(state: HomeUiState): PillAction =
-    PillAction.of(
+internal fun pillAction(state: HomeUiState): PillAction {
+    // the card draws *Replace sensor* there: only the wearer can act on it
+    if (state.glucose.sensor == SensorState.Ended && state.glucose.role != Role.Wearer) return PillAction.None
+    return PillAction.of(
         state.glucose.alerts.status,
         state.now.epochSecond,
         canAdd = state.glucose.role != null,
-        ended = state.glucose.sensor == SensorState.Ended && state.glucose.role == Role.Wearer,
+        ended = state.glucose.sensor == SensorState.Ended,
+        muteAll = state.mutedUntil != null,
     )
+}
 
 /** TalkBack's words for the pill: what it shows. */
 private fun pillWords(

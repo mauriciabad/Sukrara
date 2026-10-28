@@ -52,14 +52,14 @@ enum class Role { Wearer, Follower }
 /** The stored days and the live window as one history. */
 object ReadingHistory {
     /**
-     * [stored] (older readings, oldest first, read now and then) followed by the [live] readings newer than its last
-     * one: the live window overlaps the stored part, so nothing is missing and nothing counts twice.
+     * [stored] (older readings, oldest first, read now and then) up to where the [live] window starts, then the whole
+     * live window (always the fresher copy: a backfill inside it shows at once). Nothing counts twice.
      */
     fun join(
         stored: List<Reading>,
         live: List<Reading>,
     ): List<Reading> {
-        val last = stored.lastOrNull()?.t ?: return live
-        return stored + live.filter { it.t.isAfter(last) }
+        val start = live.firstOrNull()?.t ?: return stored
+        return stored.filter { it.t.isBefore(start) } + live
     }
 }

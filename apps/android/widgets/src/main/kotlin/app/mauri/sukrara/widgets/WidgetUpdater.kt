@@ -8,10 +8,13 @@ import app.mauri.sukrara.core.model.Clock
 import app.mauri.sukrara.core.model.GlucoseState
 import app.mauri.sukrara.core.model.LinkState
 import app.mauri.sukrara.core.model.Reading
+import app.mauri.sukrara.core.model.ReadingHistory
 import app.mauri.sukrara.core.model.SourceStatus
 import app.mauri.sukrara.core.model.Treatment
 import app.mauri.sukrara.graph.Freshness
 import app.mauri.sukrara.graph.GraphConfig
+import app.mauri.sukrara.graph.stats.MetricsCache
+import app.mauri.sukrara.graph.stats.toPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.Flow
@@ -35,7 +38,12 @@ data class WidgetFrame(
     val dark: Boolean,
     /** The stored days before the live window (the multi-day slots count them). */
     val stored: List<Reading> = emptyList(),
-)
+) {
+    /** The slots' numbers over the stored days and the live window: counted once per frame, for every widget and size. */
+    val slots: MetricsCache by lazy {
+        MetricsCache(ReadingHistory.join(stored, glucose.recent).map { it.toPoint() }, now.epochSecond)
+    }
+}
 
 /** The inputs of a frame, before the clock and the theme are read. */
 data class WidgetInputs(

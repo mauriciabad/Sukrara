@@ -179,7 +179,7 @@ class HomeViewModel(
                 firstProblem = readiness?.firstProblem,
                 nextSetupStep = env.nextSetupStep,
                 dataProblems = problems,
-                treatments = chart.filter { it.at >= now - TREATMENTS_WINDOW },
+                treatments = chart.filter { it.at >= now - TREATMENTS_WINDOW && it.at <= now + FUTURE_SLACK },
                 history = history,
                 chartTreatments = chart,
                 undo = pendingUndo,

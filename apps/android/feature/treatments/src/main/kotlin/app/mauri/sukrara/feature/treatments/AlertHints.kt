@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.feature.treatments
 
+import kotlinx.coroutines.flow.Flow
 import java.time.Duration
 import java.time.Instant
 
@@ -14,8 +15,8 @@ interface AlertHints {
     /** The latest reading is fresh and on the low side of the enabled alert rules: eating is what's needed. */
     fun lowNow(): Boolean
 
-    /** How long a treatment quiets this phone's alerts now. */
-    fun quiet(): QuietRules
+    /** How long a treatment quiets this phone's alerts, as the settings change ([QuietRules.NONE] until known). */
+    val quiet: Flow<QuietRules>
 }
 
 /**

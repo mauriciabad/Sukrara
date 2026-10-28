@@ -13,6 +13,8 @@ import app.mauri.sukrara.core.model.SourceId
 import app.mauri.sukrara.core.testing.FakeClock
 import app.mauri.sukrara.feature.treatments.QuietRules
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -22,7 +24,7 @@ import java.time.Duration
 /** The dialog's focus follows the latest fresh reading against the low rules, not a fired alert. */
 class AppAlertHintsTest {
     private val clock = FakeClock()
-    private val settings = MutableStateFlow(AlertSettings())
+    private val settings = MutableStateFlow<AlertSettings?>(AlertSettings())
     private val glucose = MutableStateFlow(GlucoseState.Initial.copy(role = Role.Wearer))
     private val hints = AppAlertHints(settings, glucose, clock)
 
@@ -43,19 +45,26 @@ class AppAlertHintsTest {
         assertFalse(hints.lowNow())
         latest(60, age = Duration.ofMinutes(30))
         assertFalse(hints.lowNow()) // stale: nothing is known now
+        // a low is a low whether or not its alert is on
         settings.value = AlertSettings(on = false)
         latest(60)
-        assertFalse(hints.lowNow())
+        assertTrue(hints.lowNow())
+        // settings not read yet: the default threshold
+        settings.value = null
+        assertTrue(hints.lowNow())
     }
 
-    @Test fun quietFollowsTheRulesOnThisPhone() {
-        assertEquals(QuietRules(60, 15), hints.quiet())
-        settings.value = AlertSettings(afterCarbs = QuietRule(on = false, min = 15))
-        assertEquals(QuietRules(60, null), hints.quiet())
-        glucose.value = glucose.value.copy(role = Role.Follower)
-        settings.value = AlertSettings(source = AlertSource.WEARER)
-        assertEquals(QuietRules.NONE, hints.quiet())
-        settings.value = AlertSettings(source = AlertSource.OWN)
-        assertEquals(QuietRules(60, 15), hints.quiet())
-    }
+    @Test fun quietFollowsTheRulesOnThisPhone() =
+        runTest {
+            assertEquals(QuietRules(60, 15), hints.quiet.first())
+            settings.value = AlertSettings(afterCarbs = QuietRule(on = false, min = 15))
+            assertEquals(QuietRules(60, null), hints.quiet.first())
+            glucose.value = glucose.value.copy(role = Role.Follower)
+            settings.value = AlertSettings(source = AlertSource.WEARER)
+            assertEquals(QuietRules.NONE, hints.quiet.first())
+            settings.value = AlertSettings(source = AlertSource.OWN)
+            assertEquals(QuietRules(60, 15), hints.quiet.first())
+            settings.value = null
+            assertEquals(QuietRules.NONE, hints.quiet.first())
+        }
 }

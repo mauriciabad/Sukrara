@@ -25,6 +25,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -96,6 +97,7 @@ class QuickTreatmentActivity : ComponentActivity() {
             form = rememberTreatmentFormState()
             SukraraTheme {
                 val cd = countdown
+                val quiet by module.hints.quiet.collectAsState(QuietRules.NONE)
                 LaunchedEffect(cd) { if (cd != null) runCountdown(cd) }
                 // M3 dialog scrim; a tap on it dismisses, like outside a dialog
                 Box(
@@ -119,7 +121,7 @@ class QuickTreatmentActivity : ComponentActivity() {
                         // over the lock screen Unlock takes Open Sukrara's place
                         onOpenApp = if (cd == null) ::openApp else null,
                         lock = cd?.let { LockInfo(it.wholeSeconds(now), ::unlock) },
-                        quiet = module.hints.quiet(),
+                        quiet = quiet,
                         // the card swallows taps so they don't reach the scrim
                         modifier = Modifier.pointerInput(Unit) { detectTapGestures { } },
                     )
