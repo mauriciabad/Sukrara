@@ -147,4 +147,8 @@ class InMemoryTreatmentsRepository : TreatmentsRepository {
         records.value.values
             .filter { it.treatment.modifiedAt > since }
             .sortedBy { it.treatment.modifiedAt }
+
+    override suspend fun replace(record: TreatmentRecord) = records.update { it + (record.treatment.id to record) }
+
+    override suspend fun deleteAll() = records.update { emptyMap() }
 }
