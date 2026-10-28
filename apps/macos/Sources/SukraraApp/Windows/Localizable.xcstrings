@@ -4384,6 +4384,102 @@
           }
         }
       }
+    },
+    "Sukrara · reading at %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sukrara · reading at %@"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sukrara · lectura de las %@"
+          }
+        }
+      }
+    },
+    "Sukrara · waiting for the first reading" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sukrara · waiting for the first reading"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sukrara · esperando la primera lectura"
+          }
+        }
+      }
+    },
+    "Sukrara · ready at %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sukrara · ready at %@"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sukrara · listo a las %@"
+          }
+        }
+      }
+    },
+    "Sensor ended — replace sensor" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sensor ended — replace sensor"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sensor terminado: cámbialo"
+          }
+        }
+      }
+    },
+    "Sukrara · no reading since %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sukrara · no reading since %@"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sukrara · sin lecturas desde las %@"
+          }
+        }
+      }
+    },
+    "Glucose: no reading since %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Glucose: no reading since %@"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Glucosa: sin lecturas desde las %@"
+          }
+        }
+      }
     }
   },
   "version" : "1.0"

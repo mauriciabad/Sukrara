@@ -225,7 +225,10 @@
         "face",
         "accessibilityLabel",
         "noValueText",
-        "yRange"
+        "yRange",
+        "rangeSide",
+        "trendImage",
+        "noReadingsSymbol"
       ],
       "SensorBadge": [
         "look",
