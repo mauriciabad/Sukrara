@@ -938,13 +938,35 @@ devices*; *Stop following* ends Bluetooth with the relays. Every state works wit
   `delta` from the sensor's rate (else the slope), `direction` from ±1 / 2 / 3 mg/dL/min. "Last asked" lives in memory
   only: no request log.
 - *Files* group: *Export data* ([Data export](#data-export)).
-- Not included yet: broadcasts to apps on this phone (xDrip+ `BgEstimate`, LibreLink, glucodata), Health Connect, the
-  phone's Nightscout read API on :17581, Tidepool upload (see *Not included*).
-- *Your clinic* group (wearer): *LibreView* ([LibreView upload](#libreview-upload)).
+- *Your clinic* group: *LibreView* (wearer, [LibreView upload](#libreview-upload)) and *Tidepool* (both roles,
+  [Tidepool upload](#tidepool-upload-docs27)).
+- *Apps on this phone* group: *Nightscout API on this phone* (both roles; `:integrations` `localserver/NightscoutApi`,
+  `NightscoutApiServer`, `NightscoutApiPage`; tests `NightscoutApiTest`). **Off by default** (schema `apps.nightscout`);
+  on, it listens on `127.0.0.1:17581` only (the same bounded `LocalHttpServer` and host rule as the xDrip+ server).
+  Every data route needs the **API secret**: 128 random bits as 32 hex digits, made when the API is first switched on,
+  kept Keystore-encrypted in the secure store (`nightscout-api`) and kept when the API is switched off. Accepted as
+  `api-secret: <SHA-1 of it>` or the secret itself (xDrip+, Home Assistant), `?token=` (watch faces, Nightguard,
+  LoopFollow) or `Authorization: Bearer`, compared in constant time; no `?secret=`. Only `api/v1/status` answers
+  without it, with server facts only (no name, no thresholds, no glucose). Routes: `api/v1/entries[/sgv|/current]`
+  (`count` up to 10 080, `find[date|dateString][$gt|$gte|$lt|$lte]`, sgv only), `api/v1/treatments` (not deleted, the
+  last 30 days, the upload's mapping), `api/v1/verifyauth`, `api/v2/properties` (`bgnow`, `delta`, `direction` only:
+  no insulin / carbs on board or pump data), `devicestatus` / `profile` / `food` → `[]`, `api/v3/*` → 404 so clients
+  fall back to v1. Readings of the last 7 days, newest first; each entry's `device` says where it came from:
+  `Sukrara · FreeStyle Libre 3`, `Sukrara · Juggluco`, `Sukrara · Dexcom G7 (untested)` (and the other untested
+  families), `Sukrara (following)` for a followed person's readings; a reading from any other source is never served.
+  LO / HI go out as 39 / 401 with direction `NONE`, and no slope is taken across them. The page: the switch with
+  "On · http://127.0.0.1:17581 · last asked 2 min ago", *Show API secret* (screenshots blocked while it shows; tap to
+  copy, marked sensitive for the clipboard preview; the xDrip+ address `http://<secret>@127.0.0.1:17581` and the
+  token address), *Hide API secret*, *New secret* (confirmed: apps using the old one stop reading), and a footer that
+  says only apps on this phone can reach it and that it isn't a source for a closed loop. Requests are never logged.
+  The home-network option (`apps.nightscoutLan`) is not built yet (see *Not included*).
 
 **States and exits**: *xDrip+ server off* (default) → switch on. *On / listening* → switch off stops it at once.
 *Port in use* → turn the other app's server off, then the switch off and on. *Left to Juggluco* → change the source in
-Settings › Sensor, or switch the server off. *Nightscout upload* states are on its page. Back leaves the page.
+Settings › Sensor, or switch the server off. *Nightscout API off* (default) → its switch. *On* → switch off (the secret
+stays). *Port in use* → as for the xDrip+ server. *Secret can't be read* → *New secret* (the API starts with it).
+*Secret shown* → *Hide API secret* or Back. *New secret* dialog → *Cancel* keeps the old one. *Nightscout upload*,
+*LibreView* and *Tidepool* states are on their pages. Back leaves the page.
 
 ## Insulin pens (docs/29)
 
@@ -961,14 +983,29 @@ Android (`apps/android/pen`: `opennov/` reader, `engine/PenEngine`, `Pens` runti
 
 ## Tidepool upload (docs/27)
 
-- Settings → Share with apps → *Tidepool* (both roles; Android only, the Mac doesn't upload). **Off by default**: the account row opens *Tidepool account* (email, password, *Sign in*; signed in: *Sign out*). The password is sent once to Tidepool's `POST /auth/login` and never stored; only the session token and the account's user id are kept, Keystore-encrypted (`tidepool.bin`). A refused login shows "Tidepool didn't accept this email and password".
-- *Upload to Tidepool* main switch (enabled once signed in), then *Status*, *Glucose readings* (on; "One every 5 minutes, the last 31 days included") and *Insulin, carbs & notes* (on; edits and deletions follow), each greyed "Unavailable while the upload is off" while it is off.
-- Wearer: uploads its own readings and treatments. Follower: one more switch, *Upload the person you follow*, **off by default** ("Off: nothing is uploaded from this phone"); until it is on the status says "Waiting for your choice below" and nothing is sent.
-- What goes up: one upload record per account, install and role (`client.name` `app.mauri.sukrara`, device `Sukrara-wearer-…` / `Sukrara-following-…`, `continuous`, deduplicated by origin id). Readings: `cbg`, mg/dL, the earliest reading of each 5-minute UTC slot, `sampleInterval` 5 min, trend rate in mg/dL/minute. Carbs → `food` (net carbohydrate, grams); rapid / long insulin → `insulin` with acting type `rapid` / `long`; an entry's note → the datum's `notes`; a note on its own → a Tidepool note on the daily view (edited and removed with it). Every datum: `time` (UTC), `deviceTime` (local), `timezoneOffset` (minutes at that instant, so the repeated hour when the clocks go back stays apart), `timezone` (IANA).
-- No duplicates: a slot or an entry sent again replaces the earlier one (origin id `sukrara-cbg-<slot>` / `sukrara-tr-<entry id>`). An edited entry is sent again, a deleted one is deleted on Tidepool, one deleted before it was ever sent is never sent.
-- Queue: every 5 minutes, at once when an entry changes or a setting changes. The first upload sends everything the phone keeps (31 days); afterwards any slot not on Tidepool yet goes up, so an outage or a sensor backfill fills itself in. Readings go in batches of 500, each remembered when Tidepool accepts it. A failure retries after 1, 2, 4 … minutes, at most an hour ("Will retry · <reason>"); an expired session that can't be refreshed shows "Signed out by Tidepool: sign in again" (the switch stays on and the queue catches up after signing in).
-- *Sign out*: the session and the switches are forgotten on the phone; what was uploaded stays on Tidepool. Signing in to the same account again continues where it left off (no note twice); another account starts from scratch.
-- *Status*: "Up to date · last upload <date time>", "Waiting for the first upload", or the retry / sign-in states above. Overview summary of Share with apps includes `Tidepool` while it uploads.
+- Settings → Share with apps → *Your clinic* → *Tidepool* (both roles; Android only, the Mac doesn't upload;
+  `:integrations` `tidepool/`: `TidepoolClient`, `TidepoolData`, `TidepoolQueue`, `TidepoolUploader`, `TidepoolPage`;
+  tests against MockWebServer only). **Off by default** (schema `apps.tidepool`). Sign-in uses Tidepool's own login
+  (`POST /auth/login`): the password is used once and never stored; only the session token and the account's user id
+  are kept, Keystore-encrypted (secure store `tidepool`). A refused login says Tidepool didn't accept the email and
+  password.
+- *Upload to Tidepool* main switch (enabled once signed in), *Status*, *Glucose* (one reading per 5 minutes, the last
+  30 days included, each tagged with its sensor model; untested families are labelled) and *Insulin, carbs and notes*
+  (edits and deletes follow; a note on its own becomes a Tidepool note), each unavailable while the upload is off.
+- Wearer: uploads its own readings and entries. Follower: *Upload the person you follow*, **off by default**; until it
+  is on nothing is sent.
+- One upload record per account, install and role (found again by device id, made when missing; if Tidepool deleted
+  it, a new one is made). Every datum has an origin id, so sending it again replaces it (no duplicates); an edited
+  entry is sent again, a deleted one deleted. Every 5 minutes and at once on an entry or setting change; failures retry
+  with backoff up to an hour ("Trying again soon · <reason>"); a session Tidepool ended shows "Signed out by Tidepool:
+  sign in again" (the switch stays on). *Sign out* (confirmed) forgets the session; what Tidepool has stays there.
+- The Share with apps row shows the status; the overview summary names *Tidepool* while it uploads.
+
+**States and exits**: *Signed out* → the sign-in dialog (*Cancel* keeps nothing). *Off* (default) → main switch.
+*Waiting for the follower's choice* → *Upload the person you follow*. *Waiting / up to date (last upload, count)* →
+main switch off, *Sign out*. *Trying again* → retries by itself; switch off to stop. *Signed out by Tidepool* → *Sign
+in again* on the status row. Every state shows on the Status row and every control is reachable with TalkBack and
+without a notification. Back leaves the page.
 
 ## LibreView upload
 
@@ -1085,6 +1122,6 @@ page.
 - Android settings pages: settings export / import / reset, settings search, the follower's *Settings from* page, relay / epoch / statistics / log pages, battery-lab knobs, mmol/L in the settings pages (thresholds and ranges are shown and typed in mg/dL; schema `general.unit` is set elsewhere),, the ▶ beside each sound in the Sound dialog (the alert's page has *Play sound*) and icons on every row. Reason: only what daily use needs; the defaults are the owner's own values.
 - Mac: Juggluco over Wi-Fi (LAN source and subnet discovery) and the Nostr v1 `cgmnostr:` follow link (v1 links carried plaintext secrets and had no UI). Follow the wearer with a protocol v2 invite instead.
 - Sensors: the untested-sensor banner and its *Send feedback* (the families themselves are read, see *Sensor life*); the Libre 3 experiment preferences (minimal subscription set, connection priority, screen-off skip). Reason: no hardware to test them, the owner uses a Libre 3.
-- Planned (issues filed): scanning an invite's QR code on Android and the follower's *Settings from* page, the glucose report card, the Tidepool upload, the phone's Nightscout read API, Health Connect and broadcasts, the rest of insulin pens (see its section), the calendar event, nearby pairing over Bluetooth. The sections above that describe them are the behaviour to build. Reason: what daily use needs comes first.
+- Planned (issues filed): scanning an invite's QR code on Android and the follower's *Settings from* page, the glucose report card, the Nightscout API on the home network (`apps.nightscoutLan`), Health Connect and broadcasts, the rest of insulin pens (see its section), the calendar event, nearby pairing over Bluetooth. The sections above that describe them are the behaviour to build. Reason: what daily use needs comes first.
 
 **States and exits**: none (these features aren't in the app).
