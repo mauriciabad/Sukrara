@@ -29,6 +29,13 @@ internal object Dexcom {
     /** Dexcom sensors report 40–400 mg/dL; anything else is "LO" / "HI", never a number. */
     val VALID_MGDL = 40..400
 
+    /**
+     * 1–12 are the special codes older Dexcom transmitters put in the glucose field (xDrip+ `SpecialGlucoseValues`:
+     * sensor not active, no antenna, bad RF, …): no value, never a LO. 0xFFF is the 12-bit field all ones (an unset
+     * 0xFFFF): no value, never a HI.
+     */
+    val PLAUSIBLE_MGDL = 13..0xFFE
+
     /** The challenge answer: AES-128-ECB over the 8 bytes twice, first 8 bytes out (xDrip+ calculateHash). */
     fun challengeHash(
         key: ByteArray,

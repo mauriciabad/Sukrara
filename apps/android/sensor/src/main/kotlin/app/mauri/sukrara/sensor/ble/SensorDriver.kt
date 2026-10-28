@@ -91,6 +91,9 @@ internal interface SensorEvents {
     /** The sensor said it has reached its end (patch state, life count). It may still send in a grace period. */
     fun onSensorEnded(serial: String) {}
 
+    /** The device the scan picked isn't this pairing's sensor (an old one still bonded): skip it, scan again. */
+    fun onWrongDevice() {}
+
     /** The sensor has ended and will not be connected again until a new sensor is scanned: persist it. */
     fun onEndedForGood(serial: String) {}
 
@@ -178,14 +181,8 @@ enum class NoValueReason {
     /** The sensor reports an error. */
     SensorError,
 
-    /** The message carries no number. */
+    /** The message carries no number (below / above the sensor's range is a LO / HI reading, not this). */
     Missing,
-
-    /** Lower than the sensor can measure ("LO"): no number is shown, never a made-up floor value. */
-    BelowRange,
-
-    /** Higher than the sensor can measure ("HI"). */
-    AboveRange,
 }
 
 /** Why a scanned family's pairing can't go on without the person. */

@@ -201,6 +201,11 @@ class SourceManager internal constructor(
             if (pairing.securityVersion != 0) return publish(SensorStatus.Unsupported("security version ${pairing.securityVersion}"))
         }
         if (pairing.ended) return publish(SensorStatus.Ended)
+        // a failure only the person can fix is kept: never retried in the background after a restart (no PIN dialog
+        // out of nowhere); the new-sensor flow's new pairing clears it
+        pairing.failed?.let { why ->
+            return publish(SensorStatus.Direct(pairing.profile, pairing.label, SensorStatus.Direct.keyOf(pairing), LinkStatus.Failed(why)))
+        }
         val events = DirectEvents(pairing)
         events.onStatus(LinkStatus.Connecting)
         _status.value = SourceStatus.Connecting
@@ -214,6 +219,7 @@ class SourceManager internal constructor(
                 address = found.address
                 found.name?.let { name -> events.found(name) }
             }
+            events.address = address
             val l = GattLink(connector, address, driver, events, this, log = log)
             link = l
             val startedAt = clock.now()
@@ -281,6 +287,9 @@ class SourceManager internal constructor(
         private val key = SensorStatus.Direct.keyOf(pairing)
         private var label = pairing.label
 
+        /** The device this run connects to (found by the scan or saved). */
+        var address = pairing.address
+
         /** A scan found the sensor: the screens call it by its advertised name from now on (a family without an id). */
         fun found(name: String) {
             if (pairing.serial.isEmpty()) label = name
@@ -295,8 +304,16 @@ class SourceManager internal constructor(
                 else -> publish(SensorStatus.Direct(pairing.profile, label, key, status))
             }
             if (status is LinkStatus.Reconnecting || status == LinkStatus.WaitingForSensor || status is LinkStatus.NoValue) interrupted()
-            // a wrong id / refused PIN may mean the scan picked the wrong device: the next pairing scans again
-            if (status is LinkStatus.Failed && pairing.profile.needsScan) scope.launch { pairings.setFound(pairing, "", "") }
+            // kept until a new pairing (which scans again: the scan may have picked the wrong device)
+            if (status is LinkStatus.Failed && pairing.profile.needsScan) scope.launch { pairings.markFailed(pairing, status.why) }
+        }
+
+        override fun onWrongDevice() {
+            val wrong = address
+            scope.launch {
+                if (wrong.isNotEmpty()) pairings.skipDevice(pairing, wrong)
+                retry() // scan again, without it
+            }
         }
 
         override fun onReading(reading: Reading) {

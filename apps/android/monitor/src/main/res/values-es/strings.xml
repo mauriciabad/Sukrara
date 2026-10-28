@@ -27,12 +27,15 @@
     <string name="alert_context_eat_more_again">vuelve a comer</string>
     <string name="alert_context_after_insulin">sigue alta tras la insulina</string>
     <string name="alert_context_after_more_insulin">sigue alta tras más insulina</string>
-    <string name="alert_text_value">%1$d mg/dL %2$s</string>
+    <string name="alert_text_value">%1$s %2$s</string>
+    <string name="alert_text_mgdl">%1$d mg/dL</string>
+    <string name="alert_text_lo">LO · por debajo de 40 mg/dL</string>
+    <string name="alert_text_hi">HI · por encima de 400 mg/dL</string>
     <string name="alert_text_falling">%1$s · baja %2$s mg/dL/min</string>
     <string name="alert_text_rising">%1$s · sube %2$s mg/dL/min</string>
     <string name="alert_text_no_reading">Sin lectura reciente</string>
     <string name="alert_text_no_data">Sin lecturas desde hace %1$s</string>
-    <string name="alert_text_no_data_last">Sin lecturas desde hace %1$s · última %2$d mg/dL</string>
+    <string name="alert_text_no_data_last">Sin lecturas desde hace %1$s · última %2$s</string>
     <string name="alert_relaxed_subtext">Avisos cada %1$s</string>
 
     <string name="alert_action_mute">Silenciar…</string>

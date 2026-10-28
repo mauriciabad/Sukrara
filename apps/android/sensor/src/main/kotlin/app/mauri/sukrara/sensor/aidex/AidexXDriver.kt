@@ -39,6 +39,12 @@ internal class AidexXDriver(
     private var lastMinute = -1
     private val poll = Runnable { ask(AidexX.OP_GLUCOSE) }
 
+    /** "Sensor ended" frames seen so far (this driver's life, across reconnections); [ENDED_CONFIRMATIONS] end it. */
+    private var endedFrames = 0
+
+    /** Juggluco keeps 18–800 mg/dL; outside, the 10-bit field is not a measurement (1023 = all ones). */
+    override val plausibleMgdl = 18..800
+
     override val scan = listOf(ScanSpec(name = AidexX.deviceName(serial)))
 
     override fun matches(advert: Advert) = advert.name == AidexX.deviceName(serial)
@@ -75,9 +81,13 @@ internal class AidexXDriver(
     ) {
         when (characteristic) {
             AidexX.KEY_UNBONDED, AidexX.KEY_BONDED -> {
-                if (value.size == 16 && session == null) {
-                    notifiedKey = value
-                    link?.read(AidexX.DATA) // the sensor answers a read with the session key
+                if (session == null) {
+                    if (value.size == 16) {
+                        notifiedKey = value
+                        link?.read(AidexX.DATA) // the sensor answers a read with the session key
+                    }
+                } else {
+                    current(value)
                 }
             }
 
@@ -127,11 +137,39 @@ internal class AidexXDriver(
         }
     }
 
+    /**
+     * A session-encrypted frame on the key characteristic once the session runs (Juggluco `aidexXprocessCurrentData`):
+     * type 1 = the current value (not used: it has no status byte, the polled record does), type 3 = the sensor has
+     * ended. Ending is for good, so it takes [ENDED_CONFIRMATIONS] CRC-checked frames, never one.
+     */
+    fun current(encrypted: ByteArray) {
+        val s = session ?: return
+        val plain = AidexX.reply(s, iv, encrypted) ?: return log("Aidex: a current frame failed its CRC")
+        if (plain.size != AidexX.CURRENT_SIZE) return log("Aidex: current frame of ${plain.size} bytes")
+        when (plain[0].toInt() and 0xFF) {
+            AidexX.CURRENT_ENDED -> {
+                endedFrames++
+                log("Aidex: sensor says it ended ($endedFrames/$ENDED_CONFIRMATIONS)")
+                if (endedFrames >= ENDED_CONFIRMATIONS) ended("the sensor said so")
+            }
+
+            AidexX.CURRENT_VALUE -> {
+                endedFrames = 0
+            }
+        }
+    }
+
     /** A record from a reply or an advertisement: the same 8 bytes either way. */
     fun onGlucose(g: AidexX.Glucose) {
         val start = sessionStart(now() - g.minutesSinceStart * 60L, authoritative = false)
         if (g.warmingUp) return events.onStatus(LinkStatus.WarmingUp((profile.warmupMin - g.minutesSinceStart).coerceAtLeast(0)))
         if (!g.valid) return events.onStatus(LinkStatus.NoValue(NoValueReason.Missing))
+        // No public map of the status byte (Juggluco leaves it a TODO). The recorded frames carry 0 and 1 with good
+        // values; anything else has never been seen with one: no number until the sensor is back to 0 / 1.
+        if (g.status !in AidexX.Glucose.KNOWN_GOOD_STATUS) {
+            log("Aidex: record status ${g.status}: no value")
+            return events.onStatus(LinkStatus.NoValue(NoValueReason.SensorError))
+        }
         if (g.minutesSinceStart == lastMinute) return
         lastMinute = g.minutesSinceStart
         reading(start + g.minutesSinceStart * 60L, g.mgdl, g.trend.toDouble())
@@ -148,5 +186,8 @@ internal class AidexXDriver(
     companion object {
         /** How often a connected sensor is asked for its value (it measures every minute). */
         const val POLL_MS = 60_000L
+
+        /** "Sensor ended" frames it takes to stop for good. */
+        const val ENDED_CONFIRMATIONS = 2
     }
 }

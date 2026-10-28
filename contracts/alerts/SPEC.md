@@ -18,6 +18,11 @@ One rule set for **Sukrara for Android** (wearer + follower) and **Sukrara for M
 The defaults are the user's own settings (2026-10-18). Lows are **strictly below** the threshold (low 70 alerts at
 69, not at 70); highs are at or above it.
 
+**LO / HI.** A sensor that reads below / above what it can measure sends a flagged reading, LO (`sgv < 40`, sent as
+39) or HI (`sgv > 400`, sent as 401), never a made-up number. Its real value is beyond every threshold: LO matches
+every low kind and HI every high kind whatever their thresholds, so the most severe one turned on (very low /
+extremely high) alerts at once. The card shows "LO" / "HI" (scenarios `levels.txt`).
+
 - **Level alerts** (`very_low`, `low`, `high`, `very_high`, `extremely_high`): at most one is active, the most severe
   that matches. **Rate alerts** are independent of level alerts; `rate` is the reading's trend in mg/dL/min. No rate →
   no rate alert. `no_data` is checked by a timer, cleared by the next reading.

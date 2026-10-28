@@ -47,6 +47,7 @@ internal class G6Driver(
     private val backfill = G6Messages.BackfillStream()
 
     override val validMgdl = Dexcom.VALID_MGDL
+    override val plausibleMgdl = Dexcom.PLAUSIBLE_MGDL
 
     override val scan = listOf(ScanSpec(name = advertisedName()))
 

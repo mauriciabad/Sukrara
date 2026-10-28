@@ -175,6 +175,15 @@ class AlertCopyTest {
         )
     }
 
+    @Test fun loAndHiAreNeverTheirStoredNumber() {
+        val lo = AlertReading(t = 1_000_000, mgdl = 39)
+        val hi = AlertReading(t = 1_000_000, mgdl = 401)
+        assertTrue(AlertCopy.body(firing(AlertKind.VERY_LOW, lo), en).startsWith("LO · below 40 mg/dL"))
+        assertTrue(AlertCopy.body(firing(AlertKind.EXTREMELY_HIGH, hi), es).startsWith("HI · por encima de 400 mg/dL"))
+        assertTrue(AlertCopy.body(firing(AlertKind.NO_DATA, lo), en).endsWith("last LO · below 40 mg/dL"))
+        assertTrue("39" !in AlertCopy.body(firing(AlertKind.VERY_LOW, lo), en))
+    }
+
     @Test fun spanishAndEnglishHaveTheSameKeys() {
         fun keys(dir: String): Set<String> {
             val doc = DocumentBuilderFactory.newInstance().newDocumentBuilder().parse(File("src/main/res/$dir/strings.xml"))

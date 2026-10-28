@@ -7,6 +7,7 @@ import app.mauri.sukrara.core.model.storage.SecretUnreadableException
 import app.mauri.sukrara.core.model.storage.SecureStore
 import app.mauri.sukrara.sensor.SensorProfile
 import app.mauri.sukrara.sensor.SensorSetup
+import app.mauri.sukrara.sensor.ble.FailReason
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.Serializable
@@ -55,6 +56,9 @@ class PairingStore(private val secure: SecureStore) {
         val ended: Boolean = false,
         val deviceName: String = "",
         val pairedAt: Long = 0,
+        /** [FailReason] name, or null. */
+        val failed: String? = null,
+        val skipAddresses: List<String> = emptyList(),
     )
 
     suspend fun load(): PairingLoad {
@@ -85,6 +89,7 @@ class PairingStore(private val secure: SecureStore) {
                         !r.profile.needsScan -> "${r.profile.id} can't be paired"
                         pin.isNotEmpty() || kAuth != null -> "secrets on a ${r.profile.id} record"
                         setup is SensorSetup.TypedId && !setup.valid(r.serial) -> "${r.profile.id} id has the wrong form"
+                        r.failed != null && FailReason.entries.none { it.name == r.failed } -> "unknown failure ${r.failed}"
                         else -> null
                     }
                 }
@@ -108,6 +113,8 @@ class PairingStore(private val secure: SecureStore) {
                             r.ended,
                             r.deviceName,
                             r.pairedAt,
+                            r.failed?.let { FailReason.valueOf(it) },
+                            r.skipAddresses,
                         ),
                     )
                 }
@@ -120,6 +127,33 @@ class PairingStore(private val secure: SecureStore) {
 
     /** Replaces the saved sensor (an NFC tap: always a new PIN, so the caller passes kAuth = null). */
     suspend fun save(p: Pairing) = writes.withLock { write(p) }
+
+    /**
+     * A new pairing of a scanned family replaces the saved one. The devices the old one skipped, and the old sensor
+     * itself once it has ended, stay skipped when it is the same family: a G7 still bonded and in its grace period is
+     * never picked for the new sensor.
+     */
+    suspend fun saveScanned(p: Pairing) =
+        writes.withLock {
+            val old = (load() as? PairingLoad.Ok)?.pairing?.takeIf { it.profile.scanGroup() == p.profile.scanGroup() }
+            val skip =
+                when {
+                    old == null -> p.skipAddresses
+                    old.ended && old.address.isNotEmpty() -> old.skipping(old.address)
+                    else -> old.skipAddresses
+                }
+            write(p.copy(skipAddresses = skip, failed = null))
+        }
+
+    /** The pairing failed in a way only the person can fix: kept (no retry after a restart) until a new pairing. */
+    suspend fun markFailed(ranWith: Pairing, reason: FailReason) =
+        updateIf({ it.sameScanned(ranWith) }) { it.copy(failed = reason, address = "", deviceName = "") }
+
+    /** The scan picked a device that isn't this pairing's sensor (an old one): never pick it again, scan again. */
+    suspend fun skipDevice(ranWith: Pairing, address: String) =
+        updateIf(
+            { it.sameScanned(ranWith) },
+        ) { it.copy(skipAddresses = it.skipping(address), address = "", deviceName = "", startEpoch = 0) }
 
     private suspend fun write(p: Pairing) {
         val r =
@@ -136,6 +170,8 @@ class PairingStore(private val secure: SecureStore) {
                 p.ended,
                 p.deviceName,
                 p.pairedAt,
+                p.failed?.name,
+                p.skipAddresses,
             )
         secure.write(NAME, json.encodeToString(Record.serializer(), r).encodeToByteArray())
     }
@@ -156,6 +192,9 @@ class PairingStore(private val secure: SecureStore) {
 
     /** The sensor said when its session started (a scanned family): the warm-up and the end count from it. */
     suspend fun setStart(ranWith: Pairing, startEpoch: Long) = updateIf({ it.sameScanned(ranWith) }) { it.copy(startEpoch = startEpoch) }
+
+    /** Families a scan finds the same way (G7 10 d and 15 d / Stelo are one radio family). */
+    private fun SensorProfile.scanGroup(): SensorProfile = if (this == SensorProfile.DexcomG7Long) SensorProfile.DexcomG7 else this
 
     /** The sensor has ended for good: don't connect to it again until a new scan. */
     suspend fun markEnded(ranWith: Pairing) =
