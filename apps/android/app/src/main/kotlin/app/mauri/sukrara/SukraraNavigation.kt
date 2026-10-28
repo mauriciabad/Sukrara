@@ -175,6 +175,7 @@ data class SettingsKey(
             "review" -> SettingsRoute.ThresholdReview
             "advanced" -> SettingsRoute.Advanced
             "log" -> SettingsRoute.Log
+            "from" -> SettingsRoute.SettingsFrom
             else -> SettingsRoute.Overview
         }
 
@@ -198,6 +199,7 @@ data class SettingsKey(
                 SettingsRoute.ThresholdReview -> SettingsKey("review")
                 SettingsRoute.Advanced -> SettingsKey("advanced")
                 SettingsRoute.Log -> SettingsKey("log")
+                SettingsRoute.SettingsFrom -> SettingsKey("from")
             }
     }
 }

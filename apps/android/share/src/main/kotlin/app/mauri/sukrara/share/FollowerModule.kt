@@ -18,6 +18,7 @@ import app.mauri.sukrara.share.follower.FollowerEngine
 import app.mauri.sukrara.share.follower.FollowerNotice
 import app.mauri.sukrara.share.follower.FollowerStore
 import app.mauri.sukrara.share.follower.RelayTransportFactory
+import app.mauri.sukrara.share.follower.WearerSettingsCache
 import app.mauri.sukrara.share.transport.OkHttpWebSockets
 import app.mauri.sukrara.share.transport.RelayPool
 
@@ -52,6 +53,9 @@ class FollowerModule(
             setLink = hub::setLink,
             onNotice = notices,
             nearbyTransports = NearbyTransportFactory { identity -> AndroidNearbyCentral(context, crypto, identity) },
+            // a damaged copy reads as none: the record (when readable) has the same settings
+            settingsCache =
+                data.typedStore("wearer_settings", WearerSettingsCache.serializer(), WearerSettingsCache(), WearerSettingsCache()),
         ).also { watchNetwork(it) }
     }
 

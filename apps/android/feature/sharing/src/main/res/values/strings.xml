@@ -167,7 +167,7 @@
     <!-- TalkBack label of the invite QR -->
     <string name="sh_share_qr_label">Invite QR code. The link is below.</string>
     <!-- Share: instructions -->
-    <string name="sh_share_scan">Send them the link: they open it in Sukrara on their phone or Mac. Sukrara for Mac can also scan this code.</string>
+    <string name="sh_share_scan">Send them the link: they open it in Sukrara on their phone or Mac. Sukrara on another phone or a Mac can also scan this code.</string>
     <!-- Invite note; %1$s = expiry, %2$s = label -->
     <string name="sh_share_note">This link works once, until %1$s. Send it only to %2$s: whoever opens it first can ask to follow you, and you still allow them. It holds no key to your glucose.</string>
     <!-- Invite note; %1$s = expiry -->
@@ -405,7 +405,7 @@
     <!-- The password manager returned something else -->
     <string name="sh_restore_manager_not_identity">That saved password isn\'t a Sukrara identity. Pick the entry named \"Sukrara · npub…\", or paste the recovery code.</string>
     <string name="sh_join_title">Follow someone</string>
-    <string name="sh_join_body">Ask the person who wears the sensor to open Sukrara, tap Share and send you the invite link. Paste it here.</string>
+    <string name="sh_join_body">Ask the person who wears the sensor to open Sukrara, tap Share and send you the invite link. Paste it here or scan the QR code on their phone.</string>
     <string name="sh_join_link">Invite link</string>
     <string name="sh_join_name">Your name</string>
     <string name="sh_join_name_hint">So they know who is asking. Optional.</string>
@@ -479,4 +479,16 @@
     <string name="sh_find_nearby_found">Tap the person you want to follow. Still looking for more…</string>
     <string name="sh_find_nearby_ask">Ask to follow</string>
     <string name="sh_find_nearby_stop">Stop looking</string>
+    <string name="sh_scan_qr">Scan QR code</string>
+    <string name="sh_scan_picture">From a picture</string>
+    <string name="sh_scan_point">Point the camera at the QR code on their phone. It\'s read on this phone: nothing is recorded or sent.</string>
+    <string name="sh_scan_preview">Camera view for the QR code</string>
+    <string name="sh_scan_cancel">Cancel</string>
+    <string name="sh_scan_allow">Allow camera</string>
+    <string name="sh_scan_settings">Open settings</string>
+    <string name="sh_scan_camera_why">Sukrara needs the camera to read the QR code. Nothing is recorded or sent. You can also paste the link or pick a picture of the code.</string>
+    <string name="sh_scan_camera_off">Camera access is off for Sukrara. Turn it on in the app\'s settings, or paste the link or pick a picture of the code.</string>
+    <string name="sh_scan_no_camera">Couldn\'t open a camera on this device. Paste the link or pick a picture of the code.</string>
+    <string name="sh_scan_read">Invite read. Add your name if you like and tap Join.</string>
+    <string name="sh_scan_picture_none">No Sukrara invite QR code in that picture. Try a sharper screenshot, or paste the link.</string>
 </resources>

@@ -5,7 +5,9 @@ package app.mauri.sukrara.feature.sharing
 
 import android.content.res.Configuration
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
@@ -30,6 +32,8 @@ import app.mauri.sukrara.feature.sharing.profile.ProfileScreen
 import app.mauri.sukrara.feature.sharing.setup.AlertThresholds
 import app.mauri.sukrara.feature.sharing.setup.RestoreGate
 import app.mauri.sukrara.feature.sharing.setup.RestoreUi
+import app.mauri.sukrara.feature.sharing.setup.ScanInvite
+import app.mauri.sukrara.feature.sharing.setup.ScanState
 import app.mauri.sukrara.feature.sharing.setup.SetupActions
 import app.mauri.sukrara.feature.sharing.setup.SetupContent
 import app.mauri.sukrara.feature.sharing.setup.SetupFacts
@@ -224,6 +228,9 @@ class SharingScreenshotTest {
                     a,
                 )
             },
+            "setup-join-scan-why" to { ScanScene(ScanState.Rationale) },
+            "setup-join-scan-off" to { ScanScene(ScanState.Denied) },
+            "setup-join-scan-no-camera" to { ScanScene(ScanState.NoCamera) },
             "approve-nearby" to {
                 ApproveDialog(request.copy(nearby = true), working = false, onAllow = {}, onDeny = {}, onLater = {}, time = ::utcTime)
             },
@@ -280,6 +287,14 @@ class SharingScreenshotTest {
                 }
             }
         }
+    }
+}
+
+/** The join step's QR scanner when the camera can't be used (each with its way out); the live preview needs a camera. */
+@Composable
+private fun ScanScene(state: ScanState) {
+    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        ScanInvite(enabled = true, onInvite = {}, initial = state)
     }
 }
 

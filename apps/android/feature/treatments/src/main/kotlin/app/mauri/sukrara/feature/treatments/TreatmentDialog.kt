@@ -66,6 +66,7 @@ import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
@@ -138,7 +139,7 @@ fun rememberTreatmentFormState(): TreatmentFormState = rememberSaveable(saver = 
 /**
  * The quick dialog's countdown over the lock screen: [seconds] left (the ring's digits), [spokenSeconds] (TalkBack's
  * calmer 5 s steps), the ring's [fraction] (1 = full), [warnings] (bumps once at the last 5 s: the ring pulses) and
- * the way to keep it open.
+ * the way to keep it open; [announce] = the one spoken *Closes in 10 seconds* is due.
  */
 data class LockInfo(
     val seconds: Int,
@@ -146,6 +147,8 @@ data class LockInfo(
     val spokenSeconds: Int = seconds,
     val fraction: () -> Float = { 1f },
     val warnings: Int = 0,
+    /** 10 s or less left: TalkBack hears *Closes in 10 seconds* once (a polite live region). */
+    val announce: Boolean = false,
 )
 
 /**
@@ -233,7 +236,10 @@ fun TreatmentDialogContent(
             }
             QuietLine(form, quiet, now)
             WhenRow(form, zone, now, onPick = { picking = true })
-            if (lock != null) LockRow(lock)
+            if (lock != null) {
+                LockRow(lock)
+                LockAnnouncement(lock.announce)
+            }
             FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp, androidx.compose.ui.Alignment.End)) {
                 if (onOpenApp != null) TextButton(onClick = onOpenApp) { Text(stringResource(R.string.treatment_open_app)) }
                 CountdownCancel(lock, onCancel)
@@ -248,6 +254,7 @@ fun TreatmentDialogContent(
             form = form,
             zone = zone,
             now = now,
+            lock = lock,
             onDone = { picking = false },
         )
     }
@@ -377,6 +384,21 @@ private fun quietText(
     }
 }
 
+/**
+ * TalkBack's one *Closes in 10 seconds* ([on] once the activity says it is due): a polite live region that is empty
+ * until then, so it is spoken once and never per second (the Cancel button's state carries the 5 s steps).
+ */
+@Composable
+private fun LockAnnouncement(on: Boolean) {
+    val text = if (on) pluralStringResource(R.plurals.treatment_lock_closes_in, 10, 10) else ""
+    Box(
+        Modifier.size(1.dp).semantics {
+            liveRegion = LiveRegionMode.Polite
+            contentDescription = text
+        },
+    )
+}
+
 @Composable
 private fun LockRow(lock: LockInfo) {
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
@@ -487,12 +509,14 @@ private fun CountdownRing(
  * When it happened: a segmented button switches between the time picker (a time later than now means yesterday,
  * [TreatmentForm.pickTime]) and *Minutes ago*: a number field with one-tap 5 / 15 / 30 / 60 chips
  * ([TreatmentForm.agoMinutes], under a day; resolved when saving). *Now* resets it; Cancel and back keep what was set.
+ * Over the lock screen Cancel carries the countdown ring (the countdown keeps running behind the picker).
  */
 @Composable
 private fun WhenDialog(
     form: TreatmentFormState,
     zone: ZoneId,
     now: () -> Instant,
+    lock: LockInfo?,
     onDone: () -> Unit,
 ) {
     val initial = (form.at ?: now()).atZone(zone).toLocalTime()
@@ -575,7 +599,8 @@ private fun WhenDialog(
                     form.ago = null
                     onDone()
                 }) { Text(stringResource(R.string.treatment_now)) }
-                TextButton(onClick = onDone) { Text(stringResource(R.string.treatment_cancel)) }
+                // over the lock screen the countdown keeps running behind the picker: its ring stays in sight here
+                CountdownCancel(lock, onDone)
             }
         },
         modifier = Modifier.testTag("treatment-time"),

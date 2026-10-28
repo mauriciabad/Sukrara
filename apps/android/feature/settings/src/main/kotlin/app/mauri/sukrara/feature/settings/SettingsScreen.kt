@@ -23,6 +23,10 @@ import app.mauri.sukrara.alerts.AlertSettings
 import app.mauri.sukrara.core.model.AlertUiState
 import app.mauri.sukrara.feature.settings.advanced.AdvancedScreen
 import app.mauri.sukrara.feature.settings.advanced.LogScreen
+import app.mauri.sukrara.feature.settings.follower.SettingsFromActions
+import app.mauri.sukrara.feature.settings.follower.SettingsFromContent
+import app.mauri.sukrara.feature.settings.follower.SettingsFromNote
+import app.mauri.sukrara.feature.settings.follower.SettingsFromViewModel
 import app.mauri.sukrara.feature.settings.graph.GraphActions
 import app.mauri.sukrara.feature.settings.graph.GraphContent
 import app.mauri.sukrara.feature.settings.graph.GraphMarksContent
@@ -86,6 +90,9 @@ sealed interface SettingsRoute {
 
     /** Settings › Advanced › Log. */
     data object Log : SettingsRoute
+
+    /** Settings › Settings from (a follower). */
+    data object SettingsFrom : SettingsRoute
 }
 
 /**
@@ -120,6 +127,7 @@ fun SettingsScreen(
             val clinic by deps.clinicBanner.collectAsStateWithLifecycle(false)
             val closedTips by deps.closedTips.collectAsStateWithLifecycle(0)
             val sharing by deps.overviewSharing.collectAsStateWithLifecycle(OverviewSharing())
+            val from by deps.settingsFrom.state.collectAsStateWithLifecycle(null)
             LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { deps.readiness.refresh() }
             SettingsOverviewContent(
                 ui?.settings?.on ?: true,
@@ -145,6 +153,7 @@ fun SettingsScreen(
                 clinic,
                 closedTips,
                 sharing,
+                from,
                 onBack,
             )
         }
@@ -153,6 +162,7 @@ fun SettingsScreen(
             val vm = alertsViewModel(deps)
             val ui by vm.ui.collectAsStateWithLifecycle()
             val confirmedAt by SchemaPrefs.thresholdsConfirmedAt(deps.settings).collectAsStateWithLifecycle(null)
+            val from by deps.settingsFrom.state.collectAsStateWithLifecycle(null)
             ui?.let {
                 AlertsSettingsContent(
                     it,
@@ -160,8 +170,9 @@ fun SettingsScreen(
                     clock,
                     AlertsActions(vm::edit, vm::muteAll, vm::unmuteAll, { k -> navigate(SettingsRoute.AlertKindPage(k)) }, {
                         navigate(SettingsRoute.ThresholdReview)
-                    }, deps.alertPlayback),
-                    onBack,
+                    }, deps.alertPlayback, vm::quietExit, vm::muteSide),
+                    header = { SettingsFromNote(from, { navigate(SettingsRoute.SettingsFrom) }) },
+                    onBack = onBack,
                 )
             }
         }
@@ -183,12 +194,21 @@ fun SettingsScreen(
         SettingsRoute.Ranges -> {
             val vm = viewModel { GraphPrefsViewModel(deps.settings) }
             val prefs by vm.prefs.collectAsStateWithLifecycle()
-            prefs?.let { RangesContent(it, vm::set, onBack, vm::reset, preview) }
+            val from by deps.settingsFrom.state.collectAsStateWithLifecycle(null)
+            prefs?.let {
+                RangesContent(it, vm::set, onBack, vm::reset) {
+                    SettingsFromNote(from, { navigate(SettingsRoute.SettingsFrom) }, preview = preview)
+                }
+            }
         }
 
         SettingsRoute.Graph, SettingsRoute.GraphMarks -> {
             val vm = viewModel { GraphViewModel(deps.settings) }
             val config by vm.config.collectAsStateWithLifecycle()
+            val from by deps.settingsFrom.state.collectAsStateWithLifecycle(null)
+            val withNote: @Composable () -> Unit = {
+                SettingsFromNote(from, { navigate(SettingsRoute.SettingsFrom) }, preview = preview)
+            }
             val actions =
                 GraphActions(
                     number = vm::set,
@@ -207,9 +227,9 @@ fun SettingsScreen(
                 )
             config?.let {
                 if (route == SettingsRoute.Graph) {
-                    GraphContent(it, actions, onBack, preview)
+                    GraphContent(it, actions, onBack, withNote)
                 } else {
-                    GraphMarksContent(it, actions, onBack, preview)
+                    GraphMarksContent(it, actions, onBack, withNote)
                 }
             }
         }
@@ -300,6 +320,12 @@ fun SettingsScreen(
 
         SettingsRoute.Log -> {
             LogScreen(deps.advanced, onBack)
+        }
+
+        SettingsRoute.SettingsFrom -> {
+            val vm = viewModel { SettingsFromViewModel(deps.settingsFrom) }
+            val state by vm.state.collectAsStateWithLifecycle()
+            state?.let { SettingsFromContent(it, clock, SettingsFromActions(vm::choose, vm::copyWearer, vm::resetToDefault), onBack) }
         }
 
         SettingsRoute.ThresholdReview -> {

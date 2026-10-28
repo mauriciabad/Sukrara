@@ -77,6 +77,12 @@ class LockCountdown(
     /** Few enough seconds left to warn (one haptic tick when something was typed). */
     fun warning(now: Long): Boolean = !stopped && remaining(now) <= WARN_MS
 
+    /**
+     * TalkBack's one polite *Closes in 10 seconds*: due once [ANNOUNCE_MS] or less is left while it runs (not while the
+     * unlock prompt pauses it, never after an unlock). The caller says it once; the seconds are never read out each.
+     */
+    fun announceDue(now: Long): Boolean = !stopped && pausedLeft == null && remaining(now) <= ANNOUNCE_MS
+
     /** The number inside the ring: whole seconds left, rounded up. */
     fun wholeSeconds(now: Long): Int = ceil(remaining(now) / 1000.0).toInt()
 
@@ -86,6 +92,7 @@ class LockCountdown(
     companion object {
         const val RESUME_FLOOR_MS = 5_000L
         const val WARN_MS = 5_000L
+        const val ANNOUNCE_MS = 10_000L
         const val TALKBACK_MS = 60_000L
 
         /**

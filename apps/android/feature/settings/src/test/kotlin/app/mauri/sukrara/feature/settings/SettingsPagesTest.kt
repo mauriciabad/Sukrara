@@ -89,6 +89,8 @@ class SettingsPagesTest {
             "statusbar.hideNotifIcon",
             "sensor.reminders",
             "sensor.countdownHours",
+            // Settings › Settings from (a follower)
+            "follower.settingsFrom",
         )
 
     /** Shown by another chunk's screen (sensor 18, sharing / setup 24, home 16, pens 19, integrations 26, widgets 20). */
@@ -104,7 +106,7 @@ class SettingsPagesTest {
     /** Not on a settings page, or internal format / state with no row. */
     private val pending =
         setOf(
-            "follower.settingsFrom",
+            // derived from follower.settingsFrom (no row of its own)
             "alerts.source",
             "alerts.v",
             "statusbar.systemIcons",

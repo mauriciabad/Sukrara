@@ -49,7 +49,6 @@ class HomeViewModelTest {
         override val dataProblems = MutableStateFlow<List<DataProblem>>(emptyList())
         override val bannerMemory: StateStore<BannerMemory> = InMemoryStateStore(BannerMemory())
         override val uploadMarks = MutableStateFlow<UploadMarks?>(null)
-        var unmuted = 0
 
         override fun acknowledge(problem: DataProblem) {
             dataProblems.value -= problem
@@ -57,14 +56,10 @@ class HomeViewModelTest {
 
         override fun resumeMonitoring() = Unit
 
-        override fun unmute() {
-            unmuted++
-        }
+        val alertActions = mutableListOf<HomeAlertAction>()
 
-        val quietEnded = mutableListOf<Boolean>()
-
-        override fun endQuiet(lowSide: Boolean) {
-            quietEnded += lowSide
+        override fun alert(action: HomeAlertAction) {
+            alertActions += action
         }
 
         override fun fix(requirement: AlertRequirement) = Unit

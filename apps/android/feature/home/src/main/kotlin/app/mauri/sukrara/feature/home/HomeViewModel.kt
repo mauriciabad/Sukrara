@@ -84,11 +84,8 @@ interface HomeDeps {
     /** Starts monitoring again after Android stopped it (a user action, so the service may start). */
     fun resumeMonitoring()
 
-    /** Ends Mute alerts now (the alert runtime). */
-    fun unmute()
-
-    /** Ends the low ([lowSide]) or high side's mute or treatment quiet now (the alert runtime). */
-    fun endQuiet(lowSide: Boolean)
+    /** Mutes, unmutes, ends a quiet or reminds as usual (the alert runtime, this phone only). */
+    fun alert(action: HomeAlertAction)
 
     /** Opens the system screen that fixes [requirement]. */
     fun fix(requirement: AlertRequirement)
@@ -266,9 +263,7 @@ class HomeViewModel(
         viewModelScope.launch { deps.bannerMemory.update { it.restore(kind) } }
     }
 
-    fun unmute() = deps.unmute()
-
-    fun endQuiet(lowSide: Boolean) = deps.endQuiet(lowSide)
+    fun alert(action: HomeAlertAction) = deps.alert(action)
 
     fun acknowledge(problem: DataProblem) = deps.acknowledge(problem)
 

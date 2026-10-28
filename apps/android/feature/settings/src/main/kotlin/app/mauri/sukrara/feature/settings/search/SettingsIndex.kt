@@ -56,6 +56,7 @@ object SettingsIndex {
             SettingsRoute.ThresholdReview -> R.string.st_review_title
             SettingsRoute.Advanced -> R.string.st_adv_title
             SettingsRoute.Log -> R.string.st_adv_log
+            SettingsRoute.SettingsFrom -> R.string.st_from_title
         }
 
     private fun page(

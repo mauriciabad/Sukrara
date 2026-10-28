@@ -25,6 +25,8 @@ import app.mauri.sukrara.designsystem.rows.Category
 import app.mauri.sukrara.designsystem.rows.CategoryIcon
 import app.mauri.sukrara.designsystem.rows.NavigationRow
 import app.mauri.sukrara.designsystem.rows.SettingsGroup
+import app.mauri.sukrara.feature.settings.follower.SettingsFromState
+import app.mauri.sukrara.feature.settings.follower.settingsFromLabel
 import app.mauri.sukrara.feature.settings.search.OtherPage
 import app.mauri.sukrara.feature.settings.search.SettingsSearchBar
 import kotlinx.coroutines.launch
@@ -66,6 +68,8 @@ fun SettingsOverviewContent(
     clinicBanner: Boolean = false,
     closedTips: Int = 0,
     sharing: OverviewSharing = OverviewSharing(),
+    /** A follower's *Settings from* (null on the wearer's phone: no row). */
+    settingsFrom: SettingsFromState? = null,
     onBack: () -> Unit,
 ) {
     val snackbar = remember { SnackbarHostState() }
@@ -145,6 +149,14 @@ fun SettingsOverviewContent(
             )
         }
         SettingsGroup {
+            if (settingsFrom != null) {
+                NavigationRow(
+                    stringResource(R.string.st_from_title),
+                    { actions.open(SettingsRoute.SettingsFrom) },
+                    summary = settingsFromLabel(settingsFrom),
+                    leading = { CategoryIcon(DsR.drawable.ds_ic_tune, Category.Blue) },
+                )
+            }
             NavigationRow(
                 stringResource(R.string.st_ranges_title),
                 {
