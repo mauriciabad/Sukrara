@@ -55,6 +55,43 @@ class GraphSettingsTest {
             assertEquals(LastPlace.END, c.lastPlace)
         }
 
+    @Test fun theStructuredKeysLandInTheConfig() =
+        runTest {
+            settings.set(GraphSettings.Slots, "GMI:1209600:0,AVERAGE:604800:1,CV:2592000:0")
+            settings.set(GraphSettings.RingOrder, "VERY_HIGH,HIGH,TARGET,TIGHT,LOW,VERY_LOW")
+            settings.set(GraphSettings.Lines, "120,80")
+            settings.set(GraphSettings.LastElse, "")
+            settings.set(GraphSettings.Marks, "rapid:point,long:point,carbs:point+amount,note:")
+            settings.set(GraphSettings.PlaceHours.getValue(GraphPlace.NOTIFICATION), 3.0)
+            settings.set(GraphSettings.SensorTime.getValue(GraphPlace.WIDGETS), false)
+            val c = GraphSettings.config(settings).first()
+            assertEquals(listOf(SlotKind.GMI, SlotKind.AVERAGE, SlotKind.CV), c.slots.map { it.kind })
+            assertFalse(c.slots[0].faded)
+            assertEquals(
+                "VERY_HIGH,HIGH,TARGET,TIGHT,LOW,VERY_LOW",
+                GraphText.ringOrderText(c.ringOrder),
+            )
+            assertEquals(listOf(80, 120), c.lines)
+            assertEquals(null, c.lastElse)
+            assertTrue(c.marks.has("carbs", MarkShow.AMOUNT))
+            assertFalse(c.marks.has("rapid", MarkShow.LINE))
+            assertEquals(3, c.hours(GraphPlace.NOTIFICATION))
+            assertEquals(c.defaultHours, c.hours(GraphPlace.APP))
+            assertFalse(c.sensorTime(GraphPlace.WIDGETS))
+            assertTrue(c.sensorTime(GraphPlace.APP))
+        }
+
+    @Test fun damagedTextReadsAsTheDefault() =
+        runTest {
+            settings.set(GraphSettings.Slots, "TIR:86400:1")
+            settings.set(GraphSettings.RingOrder, "TIGHT,TIGHT,LOW")
+            settings.set(GraphSettings.Lines, "abc,5,100,100,999")
+            val c = GraphSettings.config(settings).first()
+            assertEquals(GraphConfig.DEFAULT_SLOTS, c.slots)
+            assertEquals(RingSpec.DEFAULT_RING_ORDER, c.ringOrder)
+            assertEquals(listOf(100), c.lines)
+        }
+
     @Test fun bandsStayInOrderWhateverIsStored() =
         runTest {
             // a high range below the low one can't be drawn: the config clamps it like the renderer does

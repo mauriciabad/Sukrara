@@ -38,6 +38,7 @@ import app.mauri.sukrara.feature.home.DataProblemScreen
 import app.mauri.sukrara.feature.home.HomeAction
 import app.mauri.sukrara.feature.home.HomeScreen
 import app.mauri.sukrara.feature.home.HomeViewModel
+import app.mauri.sukrara.feature.home.PanelPreview
 import app.mauri.sukrara.feature.sensor.libreview.LibreViewSignInRoute
 import app.mauri.sukrara.feature.sensor.newsensor.NewSensorRoute
 import app.mauri.sukrara.feature.settings.AlertThresholdRows
@@ -114,6 +115,8 @@ data class SettingsKey(
             "kind" -> kind?.let(AlertKind::fromWire)?.let(SettingsRoute::AlertKindPage) ?: SettingsRoute.Alerts
             "ranges" -> SettingsRoute.Ranges
             "graph" -> SettingsRoute.Graph
+            "marks" -> SettingsRoute.GraphMarks
+            "lock" -> SettingsRoute.LockScreen
             "reliability" -> SettingsRoute.Reliability
             "statusbar" -> SettingsRoute.StatusBar
             "sensorend" -> SettingsRoute.SensorEnd
@@ -130,6 +133,8 @@ data class SettingsKey(
                 is SettingsRoute.AlertKindPage -> SettingsKey("kind", route.kind.wire)
                 SettingsRoute.Ranges -> SettingsKey("ranges")
                 SettingsRoute.Graph -> SettingsKey("graph")
+                SettingsRoute.GraphMarks -> SettingsKey("marks")
+                SettingsRoute.LockScreen -> SettingsKey("lock")
                 SettingsRoute.Reliability -> SettingsKey("reliability")
                 SettingsRoute.StatusBar -> SettingsKey("statusbar")
                 SettingsRoute.SensorEnd -> SettingsKey("sensorend")
@@ -328,6 +333,8 @@ fun SukraraNavigation(
                             openSensor = { backStack.push(SensorSettingsKey) },
                             // Settings › Sharing: share / QR, followers, requests (no identity yet: its Set up opens setup)
                             openSharing = { backStack.push(SharingRoute) },
+                            // the Ranges and Graph pages show home's own panel, redrawn as each setting changes
+                            preview = { PanelPreview(viewModel(factory = HomeViewModel.factory(graph.home))) },
                         )
                     }
                     entry<SensorSettingsKey> {

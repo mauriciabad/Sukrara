@@ -1,0 +1,3 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The root status bar's system icons are looked up by name (systemui/SlotIcons.kt), so resource shrinking must keep them. -->
+<resources xmlns:tools="http://schemas.android.com/tools" tools:keep="@drawable/sb_*,@drawable/monitor_ic_no_readings,@drawable/monitor_ic_sensor_ended" />

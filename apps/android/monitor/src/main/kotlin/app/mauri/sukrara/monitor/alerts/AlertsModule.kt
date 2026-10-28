@@ -72,6 +72,9 @@ class AlertsModule(
     val soundPicker = AlertSoundPicker()
     val notifier = AlertNotifier(ctx)
 
+    /** Settings' sound preview and *Send a test alert*. */
+    val tryOut = AlertTryOut(ctx, notifier)
+
     /** THE alert runtime of this process; also every surface's [AlertControls]. */
     val runtime =
         AlertRuntime(

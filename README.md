@@ -45,6 +45,9 @@ The full catalog, with every rule and number, is [docs/FEATURES.md](docs/FEATURE
   freshness steps as the card: from 5 min the number is struck through, from 20 min it's gone. Tap → *Add treatment*.
   Without the chip it is a card in your range's colour with the graph, its icon the number itself (Settings › Status
   bar); on Android 17 the Live Update expands to the value styled by range.
+- **On a rooted phone** (KernelSU / Magisk): the value and its arrow as **system icons** beside Wi-Fi and the battery;
+  with Sukrara's **LSPosed module** in System UI also as text beside the clock, in its range colour, placed next to the
+  icon you choose and first in line when the status bar is crowded (Settings › Status bar › With root).
 - **Alerts**: very low, low, high, very high, rising / falling fast and no data; each on its own channel,
   "like an alarm" ones pass Do Not Disturb. *Mute…*, *Remind less*, *Unmute* and *Change time* on the notification,
   in the app and with TalkBack; *Mute all* with a visible strip to undo it. The no-data check runs from an exact alarm,
@@ -59,9 +62,11 @@ The full catalog, with every rule and number, is [docs/FEATURES.md](docs/FEATURE
   how long, and a short countdown when opened on the lock screen.
 - **Home-screen widgets** (*Glucose*, *Glucose graph*, *Glucose and graph*) drawn by the same card renderer at the
   widget's real size; home offers *Add widget* until a graph widget is placed, and a tap opens *Add treatment*.
-- **Settings** for daily use: alerts (thresholds you confirm, repeats, sounds, quiet rules), an alert reliability
-  checklist with *Fix* buttons (notifications, alarms, full-screen, battery, Do Not Disturb, Bluetooth), ranges,
-  graph basics, sensor, and About with an update check against this repo's releases.
+- **Settings** for daily use: alerts (an on/off switch on each alert row, thresholds you confirm, repeats, sounds,
+  quiet rules, *Play sound* and *Send a test alert*), an alert reliability checklist with *Fix* buttons
+  (notifications, alarms, full-screen, battery, Do Not Disturb, Bluetooth), ranges and the whole graph (lines, time
+  per place, slots, ring order, treatments on the graph, sensor time; your card live on top), lock screen
+  *Time to save*, sensor, and About with an update check against this repo's releases.
 - **Sharing core**: your sharing identity, restorable from its recovery code so existing followers keep following;
   readings and alerts go to approved followers over Nostr relays (protocol v2). If another device is publishing as
   the same identity, Sukrara stops and says so instead of fighting it.
@@ -103,8 +108,7 @@ The full catalog, with every rule and number, is [docs/FEATURES.md](docs/FEATURE
   through at 5 min, the graph dimmed with the reading's time, no value at 20 min) and a tap opens Add treatment.
 - VoiceOver reads the value as one sentence with the range in words.
 
-**Not included**: the root status-bar
-icons and the LSPosed lock-screen widget, Dexcom / Aidex / SmartGuide (untested) sensors, Garmin via the local xDrip+
+**Not included**: the LSPosed lock-screen widget, Dexcom / Aidex / SmartGuide (untested) sensors, Garmin via the local xDrip+
 server, Nightscout / Tidepool / LibreView uploads, Health Connect and broadcasts, insulin pens, the sensor-end
 calendar event, the glucose report and CSV export, settings export / import, scanning an invite's QR code on Android
 and the Android follower's *Settings from* page, Bluetooth sharing from the phone, and the Mac's Juggluco-over-Wi-Fi
