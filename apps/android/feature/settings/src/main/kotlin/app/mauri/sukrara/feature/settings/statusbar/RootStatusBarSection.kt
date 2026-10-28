@@ -104,7 +104,7 @@ fun RootStatusBarSection(
     SettingsGroup(title = stringResource(R.string.st_root_group)) {
         SwitchRow(
             stringResource(R.string.st_root_value),
-            hookOn,
+            s.on,
             actions.setOn,
             summary =
                 when (access.root) {
@@ -112,7 +112,8 @@ fun RootStatusBarSection(
                     false -> stringResource(R.string.st_root_value_no_root)
                     true -> if (!s.on) stringResource(R.string.st_root_value_off) else placementText
                 },
-            enabled = root,
+            // on stays switchable without root (revoked, refused), so it can always be turned off
+            enabled = root || s.on,
         )
         SwitchRow(
             stringResource(R.string.st_root_colour),
@@ -215,6 +216,10 @@ fun AccessBanner(
 ) {
     val step: Triple<Int, String, Pair<Int, () -> Unit>?>? =
         when {
+            !valueOn -> {
+                null
+            }
+
             access.root == false -> {
                 Triple(
                     R.string.st_access_root_title,
@@ -223,7 +228,7 @@ fun AccessBanner(
                 )
             }
 
-            !valueOn || access.root != true -> {
+            access.root != true -> {
                 null
             }
 

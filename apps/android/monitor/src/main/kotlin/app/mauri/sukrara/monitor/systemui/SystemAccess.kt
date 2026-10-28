@@ -18,6 +18,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import java.util.concurrent.TimeUnit
 import kotlin.coroutines.resume
 
@@ -91,7 +92,12 @@ class SystemAccess(
 
     override suspend fun requestScope(): String? {
         val s = service ?: return "LSPosed isn't connected"
-        return suspendCancellableCoroutine { cont ->
+        // LSPosed may never answer (prompt ignored, service gone): the page's buttons mustn't stay busy
+        return withTimeoutOrNull(SCOPE_WAIT_MS) { scopeRequest(s) } ?: "no answer from LSPosed"
+    }
+
+    private suspend fun scopeRequest(s: XposedService): String? =
+        suspendCancellableCoroutine { cont ->
             runCatching {
                 s.requestScope(
                     listOf(SystemUi.PACKAGE),
@@ -108,7 +114,6 @@ class SystemAccess(
                 )
             }.onFailure { if (cont.isActive) cont.resume(it.javaClass.simpleName) }
         }
-    }
 
     override fun refresh() = refreshModule()
 
@@ -159,6 +164,7 @@ class SystemAccess(
     companion object {
         private const val TAG = "Sukrara.systemui"
         private const val SU_WAIT_S = 30L
+        private const val SCOPE_WAIT_MS = 60_000L
         internal const val TIMED_OUT = "no answer from su"
 
         /**

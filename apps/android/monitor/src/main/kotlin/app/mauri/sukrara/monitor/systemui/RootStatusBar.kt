@@ -7,6 +7,7 @@ import android.annotation.SuppressLint
 import android.app.BroadcastOptions
 import android.content.Context
 import android.content.Intent
+import android.os.SystemClock
 import android.util.Log
 import app.mauri.sukrara.core.data.settings.HookPosition
 import app.mauri.sukrara.core.data.settings.SurfaceSettings
@@ -107,7 +108,14 @@ class RootStatusBar(
             ) { s, p, bands, a, _ -> Input(s, p, bands, a.root == true) }
                 .conflate()
                 .catch { Log.w(TAG, "inputs failed: ${it.javaClass.simpleName}") }
-                .collect { apply(it) }
+                .collect {
+                    // a failure here must never take the app down or stop the next update
+                    try {
+                        apply(it)
+                    } catch (e: Exception) {
+                        Log.w(TAG, "apply failed: ${e.javaClass.simpleName}")
+                    }
+                }
         }
         // only someone who turned the value on is asked for root (su shows KernelSU's / Magisk's prompt)
         scope.launch { if (settings.flow(SurfaceSettings.RootValue).first()) runCatching { access.checkRoot() } }
@@ -125,10 +133,9 @@ class RootStatusBar(
     ) {
         access.onHello(code)
         sentOn = false
-        if (iconOrder) {
-            moduleOrders = true
-            scope.launch(io) { daemon?.command(DaemonProtocol.ORDER_MODULE) }
-        }
+        moduleOrders = iconOrder
+        retryAtMs = 0 // a new System UI: try the daemon again at once
+        scope.launch(io) { daemon?.command(if (iconOrder) DaemonProtocol.ORDER_MODULE else DaemonProtocol.ORDER_DAEMON) }
         poke()
         scope.launch {
             delay(1_500) // after the state has landed: System UI rebuilds the icon list on a notification change
@@ -145,19 +152,31 @@ class RootStatusBar(
 
     private fun apply(input: Input) {
         val now = clock.now().epochSecond
-        val hook = hookState(input.state, input.prefs, input.bands)
+        if (input.prefs != lastPrefs) retryAtMs = 0 // a settings change: try the daemon again at once
+        lastPrefs = input.prefs
+        val wantIcons = input.prefs.on && input.root && HookPosition.isSystemIcons(input.prefs.position)
+        // the module draws its text instead while the icons aren't on screen (no root, daemon failed), so the value
+        // never vanishes from the bar and the notification icon is hidden only while one of them shows
+        val iconsShown =
+            if (wantIcons) {
+                val l = look(input.state, now)
+                val since = input.state.latest?.let { Freshness.timeText(it.t.epochSecond, now) }
+                show(SlotIcons.plan(l, since))
+            } else {
+                stopDaemon()
+                false
+            }
+        val hook = hookState(input.state, input.prefs, input.bands).copy(iconsShown = iconsShown)
         if (hook.enabled || sentOn) send(hook, ask = !asked)
         if (hook.enabled) asked = true
         sentOn = hook.enabled
-        val wantIcons = input.prefs.on && input.root && HookPosition.isSystemIcons(input.prefs.position)
-        if (!wantIcons) {
-            stopDaemon()
-            return
-        }
-        val l = look(input.state, now)
-        val since = input.state.latest?.let { Freshness.timeText(it.t.epochSecond, now) }
-        show(SlotIcons.plan(l, since))
     }
+
+    private var lastPrefs: RootPrefs? = null
+
+    /** After a failed daemon start, no new `su` before this (uptime ms): a refused root isn't asked every minute. */
+    @Volatile private var retryAtMs = 0L
+    private var backoffMs = RETRY_MIN_MS
 
     private fun send(
         s: HookState,
@@ -174,22 +193,42 @@ class RootStatusBar(
         runCatching { context.sendBroadcast(i, null, options) }.onFailure { Log.w(TAG, "state: ${it.javaClass.simpleName}") }
     }
 
-    private fun show(plan: SlotIcons.Plan) {
-        val d = daemon?.takeIf { it.alive } ?: startDaemon() ?: return
+    /** Sets [plan]'s icons; true when they are on screen (an empty plan counts as shown: nothing to show). */
+    private fun show(plan: SlotIcons.Plan): Boolean {
+        val d = daemon?.takeIf { it.alive } ?: startDaemon() ?: return false
         for (cmd in SlotIcons.commands(plan, ::resId)) {
             val reply = d.command(cmd)
             daemonState = "on ($reply)"
             if (reply != "ok") {
-                if (reply == null) stopDaemon()
-                return
+                // never a new arrow beside an old number: clear both, or drop the daemon (its EOF clears them)
+                if (reply == null) {
+                    stopDaemon()
+                } else {
+                    SlotIcons.ORDER.forEach { d.command("remove $it") }
+                }
+                return false
             }
         }
+        return true
     }
 
     @SuppressLint("DiscouragedApi") // one drawable per value, chosen by name
     private fun resId(name: String) = context.resources.getIdentifier(name, "drawable", pkg)
 
     private fun startDaemon(): Daemon? {
+        val nowMs = SystemClock.uptimeMillis()
+        if (nowMs < retryAtMs) return null
+        val d = launchDaemon()
+        if (d == null) {
+            retryAtMs = nowMs + backoffMs
+            backoffMs = (backoffMs * 2).coerceAtMost(RETRY_MAX_MS)
+        } else {
+            backoffMs = RETRY_MIN_MS
+        }
+        return d
+    }
+
+    private fun launchDaemon(): Daemon? {
         val cmd = "CLASSPATH=${context.applicationInfo.sourceDir} exec app_process /system/bin ${SlotDaemon::class.java.name} $pkg"
         val d =
             runCatching { Daemon(ProcessBuilder("su", "-c", cmd).redirectErrorStream(true).start()) }.getOrElse {
@@ -261,6 +300,8 @@ class RootStatusBar(
         private const val TAG = "Sukrara.statusbar"
         private const val SU_WAIT_S = 30L
         private const val REPLY_WAIT_S = 5L
+        private const val RETRY_MIN_MS = 5 * 60_000L
+        private const val RETRY_MAX_MS = 30 * 60_000L
 
         /** The card's decision for the system icons. */
         fun look(

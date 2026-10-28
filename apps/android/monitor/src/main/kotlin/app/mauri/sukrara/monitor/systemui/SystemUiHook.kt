@@ -29,7 +29,6 @@ import app.mauri.sukrara.core.data.settings.HookPosition
 import app.mauri.sukrara.graph.TrendAngle
 import app.mauri.sukrara.graph.TrendMark
 import app.mauri.sukrara.graph.ValueGlyphs
-import app.mauri.sukrara.monitor.R
 import io.github.libxposed.api.XposedInterface
 import io.github.libxposed.api.XposedModule
 import io.github.libxposed.api.XposedModuleInterface.PackageReadyParam
@@ -120,7 +119,7 @@ class SystemUiHook : XposedModule() {
             val st = state
             val filtered =
                 try {
-                    if (set != null && st.enabled && st.hideIcon && st.mgdl > 0 && set.any(::ours)) {
+                    if (set != null && st.hideIcon && st.valueShown && set.any(::ours)) {
                         LinkedHashSet(set.filterNot(::ours))
                     } else {
                         null
@@ -766,8 +765,19 @@ class SystemUiHook : XposedModule() {
         var reference: WeakReference<TextView>? = null
         private val arrow = ArrowDrawable()
         private val ours = runCatching { ctx.createPackageContext(ourPkg, 0) }.getOrNull()
-        private val flag = ours?.getDrawable(R.drawable.monitor_ic_sensor_ended)?.mutate()
-        private val noReadings = ours?.getDrawable(R.drawable.monitor_ic_no_readings)?.mutate()
+
+        // by name in the installed APK's resources: after an app update the ids compiled into this (older) code may
+        // point elsewhere
+        private val flag = drawable("monitor_ic_sensor_ended")
+        private val noReadings = drawable("monitor_ic_no_readings")
+
+        @SuppressLint("DiscouragedApi")
+        private fun drawable(name: String): Drawable? =
+            runCatching {
+                val res = ours?.resources ?: return@runCatching null
+                res.getIdentifier(name, "drawable", ourPkg).takeIf { it != 0 }?.let { res.getDrawable(it, null).mutate() }
+            }.getOrNull()
+
         private var lastRefColor = 0
         private var followAlpha = 1f
         private var staleAlpha = 1f
@@ -799,8 +809,9 @@ class SystemUiHook : XposedModule() {
         fun render() =
             safe("render") {
                 val st = state
-                // `slot:` placements are System UI's own icons (the slot daemon's), ordered and coloured above
-                if (!st.enabled || st.mgdl <= 0 || HookPosition.isSystemIcons(st.position)) {
+                // `slot:` placements are System UI's own icons (the slot daemon's), ordered and coloured above; while
+                // those aren't on screen (no root, the daemon failed) the text stands in after the clock
+                if (!st.text) {
                     visibility = GONE
                     return@safe
                 }

@@ -204,6 +204,20 @@ class SystemUiTest {
         assertTrue(RootStatusBar.hookState(state(sensor = SensorState.Ended), p, Bands()).sensorEnded)
     }
 
+    @Test fun `the value never vanishes from the bar when the icons can't show`() {
+        val slot = hook(position = HookPosition.DEFAULT)
+        // icons on screen: no text, the notification icon may go
+        assertFalse(slot.copy(iconsShown = true).text)
+        assertTrue(slot.copy(iconsShown = true).valueShown)
+        // no root / daemon failed: the module's text stands in, so hiding the notification icon is still fine
+        assertTrue(slot.text)
+        assertTrue(slot.valueShown)
+        // no reading and no icons: nothing shows, so the notification icon stays
+        assertFalse(slot.copy(mgdl = 0, atS = 0).valueShown)
+        assertFalse(slot.copy(enabled = false).valueShown)
+        assertTrue(hook().text)
+    }
+
     // --- root and the module ------------------------------------------------------------------------------------
 
     @Test fun `the module state comes from the hello first, then LSPosed`() {

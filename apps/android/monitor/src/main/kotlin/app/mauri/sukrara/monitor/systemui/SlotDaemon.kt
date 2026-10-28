@@ -4,6 +4,7 @@
 package app.mauri.sukrara.monitor.systemui
 
 import android.os.IBinder
+import android.os.SystemClock
 import android.util.Log
 import java.io.File
 import java.util.concurrent.atomic.AtomicLong
@@ -27,9 +28,17 @@ object SlotDaemon {
     private const val TAG = "Sukrara.slots"
     private const val WATCHDOG_MS = 10 * 60_000L
 
+    @Volatile private var crashCleanup: (() -> Unit)? = null
+
     @JvmStatic
     fun main(args: Array<String>) {
         val pkg = args.getOrNull(0) ?: return
+        // any crash, also before the status bar service is reached: the app sees no "ready" and stops
+        Thread.setDefaultUncaughtExceptionHandler { _, e ->
+            Log.w(TAG, "slot daemon crashed", e)
+            crashCleanup?.invoke()
+            exitProcess(1)
+        }
         val binder =
             Class
                 .forName("android.os.ServiceManager")
@@ -54,7 +63,7 @@ object SlotDaemon {
         val removeIcon = svc.javaClass.getMethod("removeIcon", String::class.java)
         val slots = LinkedHashMap<String, Array<Any>>() // slot → setIcon args, in first-set order
         var modulePid: String? = null
-        val lastCommand = AtomicLong(System.currentTimeMillis())
+        val lastCommand = AtomicLong(SystemClock.uptimeMillis())
 
         fun removeAll() =
             synchronized(slots) {
@@ -70,12 +79,7 @@ object SlotDaemon {
                 slots.values.forEach { runCatching { setIcon.invoke(svc, *it) } }
             }
 
-        // any crash: no icon may outlive the daemon
-        Thread.setDefaultUncaughtExceptionHandler { _, e ->
-            Log.w(TAG, "slot daemon crashed", e)
-            removeAll()
-            exitProcess(1)
-        }
+        crashCleanup = { removeAll() } // no icon may outlive the daemon
         removeAll()
         Thread {
             var pid = systemUiPid()
@@ -86,7 +90,7 @@ object SlotDaemon {
             }
             while (true) {
                 Thread.sleep(5_000)
-                if (System.currentTimeMillis() - lastCommand.get() > WATCHDOG_MS) {
+                if (SystemClock.uptimeMillis() - lastCommand.get() > WATCHDOG_MS) {
                     Log.i(TAG, "no word from the app: removing the icons")
                     removeAll()
                     exitProcess(0)
@@ -102,7 +106,7 @@ object SlotDaemon {
         reply("ready")
         while (true) {
             val line = readlnOrNull() ?: break
-            lastCommand.set(System.currentTimeMillis())
+            lastCommand.set(SystemClock.uptimeMillis())
             val cmd = DaemonProtocol.parse(line)
             if (cmd == null) {
                 reply("err bad command")
@@ -165,6 +169,7 @@ object SlotDaemon {
 /** The slot daemon's line protocol, parsed in one place (also by the tests). */
 object DaemonProtocol {
     const val ORDER_MODULE = "order module"
+    const val ORDER_DAEMON = "order daemon"
     const val PING = "ping"
 
     sealed interface Command {

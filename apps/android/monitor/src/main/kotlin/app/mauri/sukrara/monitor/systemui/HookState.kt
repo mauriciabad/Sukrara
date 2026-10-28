@@ -25,12 +25,20 @@ data class HookState(
     val rate: Double? = null,
     val sensorEnded: Boolean = false,
     val readyAtS: Long = 0,
+    /** The slot daemon's icons are on screen now (a `slot:` placement with root and a running daemon). */
+    val iconsShown: Boolean = false,
 ) {
     /** The newest reading for the card's decision, or null. */
     fun latest(): GlucosePoint? = if (mgdl > 0) GlucosePoint(atS, mgdl, rate) else null
 
     /** Shown as system icons (the slot daemon's), which the module orders and colours. */
     val systemIcons: Boolean get() = enabled && HookPosition.isSystemIcons(position)
+
+    /** The module draws the value as text: a text placement, or a `slot:` one whose icons aren't on screen. */
+    val text: Boolean get() = enabled && mgdl > 0 && (!HookPosition.isSystemIcons(position) || !iconsShown)
+
+    /** The value is in the status bar (text or icons): only then may Sukrara's notification icon go. */
+    val valueShown: Boolean get() = text || (systemIcons && iconsShown)
 
     fun toBundle(): Bundle =
         Bundle().apply {
@@ -44,6 +52,7 @@ data class HookState(
             rate?.let { putDouble(RATE, it) }
             putBoolean(ENDED, sensorEnded)
             putLong(READY_AT, readyAtS)
+            putBoolean(ICONS_SHOWN, iconsShown)
         }
 
     companion object {
@@ -57,6 +66,7 @@ data class HookState(
         private const val RATE = "rate"
         private const val ENDED = "sensorEnded"
         private const val READY_AT = "readyAt"
+        private const val ICONS_SHOWN = "iconsShown"
 
         /**
          * Reads a state the module received. Every value is untrusted and clamped: an unknown placement is the
@@ -79,6 +89,7 @@ data class HookState(
                 rate = if (b.containsKey(RATE)) b.getDouble(RATE).takeIf { it.isFinite() && it in -20.0..20.0 } else null,
                 sensorEnded = b.getBoolean(ENDED, false),
                 readyAtS = b.getLong(READY_AT, 0).coerceAtLeast(0),
+                iconsShown = b.getBoolean(ICONS_SHOWN, false),
             )
         }
     }

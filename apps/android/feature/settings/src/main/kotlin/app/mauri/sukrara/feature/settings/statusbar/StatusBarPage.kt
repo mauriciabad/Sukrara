@@ -27,6 +27,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -57,7 +58,11 @@ class StatusBarViewModel(
 
     val actions =
         RootActions(
-            setOn = { set(SurfaceSettings.RootValue, it) },
+            setOn = { on ->
+                set(SurfaceSettings.RootValue, on)
+                // turning it on is the moment to ask for root
+                if (on) viewModelScope.launch { runCatching { systemAccess.checkRoot() } }
+            },
             setPosition = { set(SurfaceSettings.RootPosition, it) },
             setColor = { set(SurfaceSettings.RootColor, it) },
             setHideIcon = { set(SurfaceSettings.HideNotificationIcon, it) },
@@ -71,9 +76,14 @@ class StatusBarViewModel(
             restart = { run { systemAccess.restartSystemUi() } },
         )
 
-    /** Back on the page: ask root and LSPosed again (the person may have granted root or changed the scope). */
+    /**
+     * Back on the page: ask LSPosed again, and root only while the value is on (`su` shows KernelSU's / Magisk's
+     * prompt; someone who never turned it on isn't asked).
+     */
     fun refresh() {
-        viewModelScope.launch { runCatching { systemAccess.checkRoot() } }
+        viewModelScope.launch {
+            if (settings.flow(SurfaceSettings.RootValue).first()) runCatching { systemAccess.checkRoot() }
+        }
         systemAccess.refresh()
     }
 
