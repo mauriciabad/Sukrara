@@ -49,16 +49,16 @@ struct OpenAtLoginRows: View {
             Toggle(
                 L10n.t("Open at login"),
                 isOn: Binding(get: { loginItem.status.isOn }, set: { loginItem.set($0) }))
-            if let note = Self.note(loginItem.status) {
+            if let note = Self.note(loginItem.status, error: loginItem.lastError) {
                 // the colour only on the symbol: the words keep full contrast
                 Label {
-                    Text(note.text).foregroundStyle(note.warning ? .primary : .secondary)
+                    Text(note)
                 } icon: {
-                    Image(systemName: note.symbol).foregroundStyle(note.warning ? .orange : .secondary)
+                    Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.orange)
                 }
                 .fixedSize(horizontal: false, vertical: true)
             }
-            if loginItem.status.offersLoginItems {
+            if loginItem.offersLoginItems {
                 Button(L10n.t("Open Login Items…"), action: loginItem.openSettings)
             }
         } else {
@@ -68,18 +68,12 @@ struct OpenAtLoginRows: View {
         }
     }
 
-    /// The line under the switch, nil when the switch says it all (on / off).
-    static func note(_ status: LoginItem.Status) -> (text: String, symbol: String, warning: Bool)? {
-        switch status {
-        case .on, .off: nil
-        case .needsApproval:
-            (
-                L10n.t("Waiting for your approval: allow Sukrara in System Settings › General › Login Items."),
-                "exclamationmark.triangle.fill", true
-            )
-        case .notFound: (L10n.t("Sukrara isn't in your login items yet."), "info.circle", false)
-        case .failed(let why): (L10n.t("Couldn't change Open at login: \(why)"), "exclamationmark.triangle.fill", true)
-        }
+    /// The line under the switch (a refused change first: it explains why the switch didn't move), nil when the
+    /// switch says it all (on / off).
+    static func note(_ status: LoginItem.Status, error: String?) -> String? {
+        if let error { return L10n.t("Couldn't change Open at login: \(error)") }
+        return status == .needsApproval
+            ? L10n.t("Waiting for your approval: allow Sukrara in System Settings › General › Login Items.") : nil
     }
 }
 

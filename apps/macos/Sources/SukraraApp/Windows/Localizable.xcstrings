@@ -2225,22 +2225,6 @@
         }
       }
     },
-    "Sukrara isn't in your login items yet." : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Sukrara isn't in your login items yet."
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Sukrara aún no está en tus ítems de inicio."
-          }
-        }
-      }
-    },
     "Sukrara shows the glucose of someone you follow in the menu bar and alerts you when it's out of range." : {
       "localizations" : {
         "en" : {

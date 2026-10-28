@@ -5,32 +5,26 @@ import Foundation
 import Observation
 import ServiceManagement
 
-/// "Open at login" (`SMAppService.mainApp`). Every state is shown with its way out (Settings › General): on → off;
-/// needs approval → Open Login Items…; failed → the reason, try again or Open Login Items…; off / not found → on.
-/// Only a launch whose plan allows `loginItem` touches it (a dev build never registers itself).
+/// "Open at login" (`SMAppService.mainApp`). The switch always shows what macOS says (`status`); a refused change is
+/// shown next to it (`lastError`), never instead of it. Ways out (Settings › General): on → off; needs approval →
+/// Open Login Items…; an error → try again or Open Login Items…. Only a launch whose plan allows `loginItem` touches
+/// it (a dev build never registers itself).
 @Observable
 final class LoginItem {
     enum Status: Equatable {
-        case on, off
+        /// Not a login item (`.notRegistered`; for the main app `.notFound` means the same: never registered).
+        case off
+        case on
         /// Registered, but the user has to allow it in System Settings › General › Login Items.
         case needsApproval
-        /// macOS has no login item for this app (never registered, or this copy isn't the installed app).
-        case notFound
-        /// The last register / unregister was refused, with the reason in words.
-        case failed(String)
 
         /// The switch: on while registered (also while waiting for approval, so it can be turned off again).
-        var isOn: Bool { self == .on || self == .needsApproval }
-        /// Whether the row offers Open Login Items… (where the user allows it, or adds it by hand).
-        var offersLoginItems: Bool {
-            switch self {
-            case .needsApproval, .failed: true
-            default: false
-            }
-        }
+        var isOn: Bool { self != .off }
     }
 
     private(set) var status: Status = .off
+    /// The last change macOS refused or didn't take, in words; cleared by the next change that works.
+    private(set) var lastError: String?
     @ObservationIgnored private let service: any LoginService
 
     init(service: any LoginService) {
@@ -38,30 +32,37 @@ final class LoginItem {
         refresh()
     }
 
-    /// Re-reads the service (at launch and whenever Sukrara becomes active: the user may have changed it in System
-    /// Settings). A failure stays on screen until the service says something definite (on / needs approval).
+    /// Whether the row offers Open Login Items… (where the user allows it, or adds it by hand).
+    var offersLoginItems: Bool { status == .needsApproval || lastError != nil }
+
+    /// Re-reads macOS (at launch and whenever Sukrara becomes active: the user may have changed it in System
+    /// Settings). An error stays until the state macOS reports is the one that was asked for.
     func refresh() {
-        switch service.status {
-        case .enabled: status = .on
-        case .requiresApproval: status = .needsApproval
-        case .notFound: if case .failed = status {} else { status = .notFound }
-        default: if case .failed = status {} else { status = .off }
-        }
+        status =
+            switch service.status {
+            case .enabled: .on
+            case .requiresApproval: .needsApproval
+            default: .off
+            }
     }
 
     func set(_ on: Bool) {
+        var failure: String?
         do {
             if on { try service.register() } else { try service.unregister() }
-            status = .off  // this attempt decides: drop an earlier failure
-            refresh()
-            if on, !status.isOn {
-                status = .failed(
-                    L10n.t(
-                        "macOS didn't add Sukrara to the login items. Move Sukrara to the Applications folder and try again."
-                    ))
-            }
         } catch {
-            status = .failed(error.localizedDescription)
+            failure = error.localizedDescription
+        }
+        // register() can throw while still creating the item awaiting approval: macOS's state decides, not the throw
+        refresh()
+        if status.isOn == on {
+            lastError = nil
+        } else {
+            lastError =
+                failure
+                ?? L10n.t(
+                    "macOS didn't add Sukrara to the login items. Move Sukrara to the Applications folder and try again."
+                )
         }
     }
 

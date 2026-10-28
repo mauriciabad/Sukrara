@@ -68,46 +68,61 @@ func scratchStore() -> DefaultsSettingsStore {
         #expect(item.status == .needsApproval)
     }
 
-    @Test func aRefusedRegistrationSaysWhy() {
+    @Test func aRefusedRegistrationSaysWhyAndTheSwitchShowsTheRealState() {
         let fake = FakeLogin()
         fake.fail = true
         let item = LoginItem(service: fake)
         item.set(true)
-        guard case .failed = item.status else { Issue.record("expected .failed, got \(item.status)"); return }
+        #expect(item.status == .off && item.lastError != nil && item.offersLoginItems)
+        item.refresh()  // becoming active: the reason stays on screen
+        #expect(item.lastError != nil)
+        fake.fail = false
+        item.set(true)
+        #expect(item.status == .on && item.lastError == nil && !item.offersLoginItems)
     }
 
-    @Test func notFoundIsItsOwnStateAndARegistrationThatDoesntTakeFails() {
+    @Test func aRefusedUnregisterKeepsTheSwitchOn() {
+        final class StuckOn: LoginService {
+            var status: SMAppService.Status = .enabled
+            struct Refused: Error {}
+            func register() throws {}
+            func unregister() throws { throw Refused() }
+        }
+        let item = LoginItem(service: StuckOn())
+        item.set(false)
+        #expect(item.status == .on && item.status.isOn && item.lastError != nil)
+    }
+
+    @Test func aThrowWhileMacOSStillAsksForApprovalIsNoFailure() {
+        final class ThrowsButRegisters: LoginService {
+            var status: SMAppService.Status = .notRegistered
+            struct OperationNotPermitted: Error {}
+            func register() throws {
+                status = .requiresApproval
+                throw OperationNotPermitted()
+            }
+            func unregister() throws {}
+        }
+        let item = LoginItem(service: ThrowsButRegisters())
+        item.set(true)
+        #expect(item.status == .needsApproval && item.lastError == nil && item.offersLoginItems)
+    }
+
+    @Test func notFoundIsOffAndARegistrationThatDoesntTakeSaysSo() {
         let fake = FakeLogin()
         fake.status = .notFound
         let item = LoginItem(service: fake)
-        #expect(item.status == .notFound && !item.status.isOn && !item.status.offersLoginItems)
+        #expect(item.status == .off && item.lastError == nil)
         fake.next = .notFound  // register returned, but macOS still has no login item
         item.set(true)
-        guard case .failed = item.status else { Issue.record("expected .failed, got \(item.status)"); return }
-        #expect(item.status.offersLoginItems && !item.status.isOn)
-    }
-
-    @Test func aFailureStaysUntilTheServiceSaysSomethingDefinite() {
-        let fake = FakeLogin()
-        fake.fail = true
-        let item = LoginItem(service: fake)
-        item.set(true)
-        item.refresh()  // becoming active: still not registered, the reason stays on screen
-        guard case .failed = item.status else { Issue.record("expected .failed, got \(item.status)"); return }
-        fake.status = .requiresApproval  // the user added it by hand in Login Items
-        item.refresh()
-        #expect(item.status == .needsApproval && item.status.isOn && item.status.offersLoginItems)
-        fake.fail = false
-        fake.next = .enabled
-        item.set(true)
-        #expect(item.status == .on)
+        #expect(item.status == .off && item.lastError != nil)
     }
 
     @Test func everyStateBeyondOnAndOffHasALine() {
-        #expect(OpenAtLoginRows.note(.on) == nil && OpenAtLoginRows.note(.off) == nil)
-        #expect(OpenAtLoginRows.note(.needsApproval)?.warning == true)
-        #expect(OpenAtLoginRows.note(.notFound)?.warning == false)
-        #expect(OpenAtLoginRows.note(.failed("Operation not permitted"))?.text.contains("Operation not permitted") == true)
+        #expect(OpenAtLoginRows.note(.on, error: nil) == nil && OpenAtLoginRows.note(.off, error: nil) == nil)
+        #expect(OpenAtLoginRows.note(.needsApproval, error: nil) != nil)
+        let refused = OpenAtLoginRows.note(.on, error: "Operation not permitted")
+        #expect(refused?.contains("Operation not permitted") == true)
     }
 }
 

@@ -141,7 +141,8 @@ private struct ActionRows: View {
         VStack(alignment: .leading, spacing: 2) {
             Divider().padding(.bottom, 4)
             Button(action: links.openAddTreatment) {
-                PanelRowLabel(title: L10n.t("Add Treatment…"), symbol: "plus.circle", shortcut: "↩")
+                PanelRowLabel(
+                    title: L10n.t("Add Treatment…"), symbol: "plus.circle", shortcut: add == .available ? "↩" : nil)
             }
             .keyboardShortcut(add == .available ? .defaultAction : nil)
             .disabled(add != .available)
@@ -192,18 +193,20 @@ private struct PanelRowStyle: ButtonStyle {
     private struct Row: View {
         let configuration: ButtonStyleConfiguration
         @Environment(\.isEnabled) private var isEnabled
+        @Environment(\.isFocused) private var isFocused
         @State private var hovering = false
 
         var body: some View {
-            let lit = hovering && isEnabled
+            // hover or Full Keyboard Access focus, in the system's menu selection colours
+            let lit = (hovering || isFocused) && isEnabled
             configuration.label
                 .padding(.horizontal, 6)
                 .padding(.vertical, 4)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .foregroundStyle(lit ? AnyShapeStyle(.white) : AnyShapeStyle(.primary))
+                .foregroundStyle(lit ? Color(nsColor: .selectedMenuItemTextColor) : .primary)
                 .background(
                     RoundedRectangle(cornerRadius: 5)
-                        .fill(lit ? AnyShapeStyle(.tint) : AnyShapeStyle(.clear))
+                        .fill(lit ? Color(nsColor: .selectedContentBackgroundColor) : .clear)
                         .opacity(configuration.isPressed ? 0.8 : 1)
                 )
                 .opacity(isEnabled ? 1 : 0.45)
