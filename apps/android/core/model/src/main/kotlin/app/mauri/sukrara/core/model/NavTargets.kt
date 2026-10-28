@@ -17,6 +17,9 @@ object NavTargets {
     /** The new-sensor / sensor setup flow. */
     const val ACTION_SENSOR_SETUP = "app.mauri.sukrara.action.SENSOR_SETUP"
 
+    /** Boolean extra of [ACTION_SENSOR_SETUP]: a sensor was tapped (NFC) while Sukrara wasn't in front. */
+    const val EXTRA_FROM_SENSOR_TAP = "app.mauri.sukrara.extra.FROM_SENSOR_TAP"
+
     /** Settings › Insulin pens › one pen ([EXTRA_PEN_SERIAL]); without the extra, the pens page. */
     const val ACTION_PEN_PAGE = "app.mauri.sukrara.action.PEN_PAGE"
     const val EXTRA_PEN_SERIAL = "app.mauri.sukrara.extra.PEN_SERIAL"

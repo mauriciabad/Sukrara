@@ -78,7 +78,14 @@ data class SensorSettingsState(
     val account: LibreViewSummary?,
     val link: SourceLink = SourceLink.Receiving,
     val family: SensorFamily? = null,
+    /** A sensor pairing is saved on this phone (*Forget this sensor* shows). */
+    val paired: Boolean = false,
+    /** *Open Sukrara when you scan a sensor*: null = the phone has no NFC (the row doesn't show). */
+    val openOnScan: OpenOnScan? = null,
 )
+
+/** The tap switch: [on], and [blocked] = Android stops Sukrara's tag intents (Settings › Apps › Sukrara). */
+data class OpenOnScan(val on: Boolean, val blocked: Boolean = false)
 
 /**
  * What Settings › Sensor needs from the sensor feature (features never depend on each other: the app implements it
@@ -95,6 +102,15 @@ interface SensorSettingsPort {
 
     /** Forgets the LibreView account's email and receiver ID; a running sensor keeps working. */
     suspend fun signOut()
+
+    /** *Open Sukrara when you scan a sensor* on or off. */
+    fun setOpenOnScan(on: Boolean) = Unit
+
+    /**
+     * *Forget this sensor*: the saved pairing goes and the link stops; no "no data" alarm follows (monitoring counts
+     * again from the next sensor's first reading). Runs to the end in the app's scope.
+     */
+    fun forget() = Unit
 }
 
 class SensorSettingsViewModel(private val port: SensorSettingsPort) : ViewModel() {
@@ -108,6 +124,10 @@ class SensorSettingsViewModel(private val port: SensorSettingsPort) : ViewModel(
     fun signOut() {
         viewModelScope.launch { port.signOut() }
     }
+
+    fun setOpenOnScan(on: Boolean) = port.setOpenOnScan(on)
+
+    fun forget() = port.forget()
 
     companion object {
         fun factory(

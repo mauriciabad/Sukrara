@@ -61,6 +61,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.time.Instant
+import app.mauri.sukrara.core.designsystem.R as DsR
 
 /** Everything Settings › Sensor end shows. [sensor] = the wearer's sensor as the hub knows it. */
 data class SensorEndPrefs(
@@ -123,12 +124,21 @@ fun SensorEndContent(
     var pickingNight by rememberSaveable { mutableStateOf<Boolean?>(null) }
     SettingsPage(stringResource(R.string.st_sensorend_title), onBack, modifier) {
         SettingsGroup {
-            InfoRow(stringResource(R.string.st_sensorend_current), summary = currentSensor(prefs.sensor, now))
+            InfoRow(
+                stringResource(R.string.st_sensorend_current),
+                summary = currentSensor(prefs.sensor, now),
+                icon = DsR.drawable.ds_ic_dia_sensor,
+            )
         }
         SettingsGroup(title = stringResource(R.string.st_sensorend_reminders)) {
-            if (c.reminders.isEmpty()) InfoRow(stringResource(R.string.st_sensorend_no_reminders))
+            if (c.reminders.isEmpty()) InfoRow(stringResource(R.string.st_sensorend_no_reminders), icon = DsR.drawable.ds_ic_calendar_month)
             c.reminders.forEachIndexed { i, r ->
-                ValueRow(reminderDays(r.daysBefore), Clock.minuteOfDay(r.minuteOfDay), { editing = i })
+                ValueRow(
+                    reminderDays(r.daysBefore),
+                    Clock.minuteOfDay(r.minuteOfDay),
+                    { editing = i },
+                    icon = DsR.drawable.ds_ic_calendar_month,
+                )
             }
         }
         if (c.reminders.size < SensorEndConfig.MAX_REMINDERS) {
@@ -142,6 +152,7 @@ fun SensorEndContent(
                 c.unlock,
                 { v -> actions.change { it.copy(unlock = v) } },
                 summary = stringResource(R.string.st_sensorend_unlock_summary),
+                icon = DsR.drawable.ds_ic_lock_open,
             )
         }
         SettingsGroup(title = stringResource(R.string.st_sensorend_night)) {
@@ -151,18 +162,21 @@ fun SensorEndContent(
                 c.evening,
                 { v -> actions.change { it.copy(evening = v) } },
                 summary = stringResource(R.string.st_sensorend_evening_summary, Clock.minuteOfDay(evening)),
+                icon = DsR.drawable.ds_ic_bedtime,
             )
             ValueRow(
                 stringResource(R.string.st_sensorend_bedtime),
                 Clock.minuteOfDay(c.nightStart),
                 { pickingNight = true },
                 enabled = c.evening,
+                icon = DsR.drawable.ds_ic_bedtime,
             )
             ValueRow(
                 stringResource(R.string.st_sensorend_wakeup),
                 Clock.minuteOfDay(c.nightEnd),
                 { pickingNight = false },
                 enabled = c.evening,
+                icon = DsR.drawable.ds_ic_sunny,
             )
         }
         SettingsGroup(title = stringResource(R.string.st_sensorend_countdowns)) {
@@ -171,18 +185,21 @@ fun SensorEndContent(
                 c.countdown,
                 { v -> actions.change { it.copy(countdown = v) } },
                 summary = stringResource(R.string.st_sensorend_countdown_summary),
+                icon = DsR.drawable.ds_ic_timelapse,
             )
             ValueRow(
                 stringResource(R.string.st_sensorend_countdown_hours),
                 pluralStringResource(R.plurals.st_sensorend_hours_before, prefs.countdownHours, prefs.countdownHours),
                 { choosingHours = true },
                 enabled = c.countdown,
+                icon = DsR.drawable.ds_ic_hourglass_top,
             )
             SwitchRow(
                 stringResource(R.string.st_sensorend_warmup),
                 c.warmup,
                 { v -> actions.change { it.copy(warmup = v) } },
                 summary = stringResource(R.string.st_sensorend_warmup_summary),
+                icon = DsR.drawable.ds_ic_hourglass_top,
             )
         }
         FooterText(stringResource(R.string.st_sensorend_footer))

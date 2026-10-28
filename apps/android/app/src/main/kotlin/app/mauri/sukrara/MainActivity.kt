@@ -19,6 +19,7 @@ import androidx.lifecycle.lifecycleScope
 import app.mauri.sukrara.core.model.NavTargets
 import app.mauri.sukrara.designsystem.theme.SukraraTheme
 import app.mauri.sukrara.monitor.service.StartReason
+import app.mauri.sukrara.sensor.pairing.PairingLoad
 import kotlinx.coroutines.launch
 
 /** The one activity: launcher, invite links (`sukrara:` / `https://sukrara.mauri.app/join`). */
@@ -39,7 +40,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         if (savedInstanceState == null) {
             deepLink = intent?.data
-            openNewSensor = opensNewSensor(intent?.action)
+            intent?.let(::askNewSensor)
             openPen = penPage(intent)
             openHealth = healthRationale(intent)
         }
@@ -64,9 +65,26 @@ class MainActivity : ComponentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         deepLink = intent.data
-        if (opensNewSensor(intent.action)) openNewSensor = true
+        askNewSensor(intent)
         penPage(intent)?.let { openPen = it }
         if (healthRationale(intent)) openHealth = true
+    }
+
+    /**
+     * The new-sensor flow for [i] (a notification, a widget, a sensor tap). A tap only when no sensor is being read:
+     * resting the phone on the running sensor must not re-pair it (a new pairing would interrupt its readings); then
+     * the app just opens.
+     */
+    private fun askNewSensor(i: Intent) {
+        if (!opensNewSensor(i.action)) return
+        if (!i.getBooleanExtra(NavTargets.EXTRA_FROM_SENSOR_TAP, false)) {
+            openNewSensor = true
+            return
+        }
+        lifecycleScope.launch {
+            val current = (graph.sensor.pairings.load() as? PairingLoad.Ok)?.pairing
+            if (current == null || current.ended || current.failed != null) openNewSensor = true
+        }
     }
 
     override fun onResume() {

@@ -15,6 +15,8 @@ dependencies {
     implementation(project(":core:designsystem"))
     // THE clock formatter (24-hour setting) for "muted until" times
     implementation(project(":core:graph"))
+    // the settings file pickers (Settings › Advanced); Back clears the settings search
+    implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.androidx.lifecycle.runtime.compose)
     implementation(libs.kotlinx.serialization.json)
