@@ -15,6 +15,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import app.mauri.sukrara.core.designsystem.R as DsR
 
 /** Checks for an update once when the About page opens (and on *Check again*); never polls. */
 class AboutViewModel(
@@ -55,10 +56,10 @@ fun AboutContent(
     val context = LocalContext.current
     SettingsPage(stringResource(R.string.st_about_title), onBack) {
         SettingsGroup {
-            InfoRow(stringResource(R.string.st_about_version), summary = installed)
+            InfoRow(stringResource(R.string.st_about_version), summary = installed, icon = DsR.drawable.ds_ic_info)
             when (update) {
                 UpdateState.Checking -> {
-                    InfoRow(stringResource(R.string.st_update_checking))
+                    InfoRow(stringResource(R.string.st_update_checking), icon = DsR.drawable.ds_ic_update)
                 }
 
                 is UpdateState.UpToDate -> {
@@ -66,6 +67,7 @@ fun AboutContent(
                         stringResource(R.string.st_update_none),
                         onCheckAgain,
                         summary = stringResource(R.string.st_update_check_again),
+                        icon = DsR.drawable.ds_ic_check_circle,
                     )
                 }
 
@@ -74,6 +76,7 @@ fun AboutContent(
                         stringResource(R.string.st_update_available, update.release.tag.removePrefix("v")),
                         { context.openUrl(update.release.url) },
                         summary = stringResource(if (update.release.prerelease) R.string.st_update_prerelease else R.string.st_update_open),
+                        icon = DsR.drawable.ds_ic_download,
                     )
                 }
 
@@ -82,6 +85,7 @@ fun AboutContent(
                         stringResource(R.string.st_update_offline),
                         { context.openUrl(UpdateCheck.RELEASES_URL) },
                         summary = stringResource(R.string.st_update_offline_summary),
+                        icon = DsR.drawable.ds_ic_download,
                     )
                 }
             }
@@ -95,16 +99,20 @@ fun AboutContent(
         val others = latest?.assets.orEmpty().filterNot { it.name.endsWith(".apk") }
         if (others.isNotEmpty()) {
             SettingsGroup(title = stringResource(R.string.st_other_devices)) {
-                for (asset in others) NavigationRow(platformOf(asset.name), { context.openUrl(asset.url) }, summary = asset.name)
+                for (asset in others) {
+                    NavigationRow(platformOf(asset.name), {
+                        context.openUrl(asset.url)
+                    }, summary = asset.name, icon = DsR.drawable.ds_ic_download)
+                }
             }
         }
         SettingsGroup {
             NavigationRow(stringResource(R.string.st_report_problem), {
                 context.openUrl(UpdateCheck.ISSUES_URL)
-            }, summary = stringResource(R.string.st_report_problem_summary))
+            }, summary = stringResource(R.string.st_report_problem_summary), icon = DsR.drawable.ds_ic_bug_report)
             NavigationRow(stringResource(R.string.st_source_code), {
                 context.openUrl(UpdateCheck.REPO_URL)
-            }, summary = stringResource(R.string.st_license))
+            }, summary = stringResource(R.string.st_license), icon = DsR.drawable.ds_ic_code)
         }
     }
 }

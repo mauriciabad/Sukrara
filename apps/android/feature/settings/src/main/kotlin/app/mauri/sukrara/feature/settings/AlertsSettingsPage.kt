@@ -33,6 +33,7 @@ import app.mauri.sukrara.designsystem.rows.SwitchRow
 import app.mauri.sukrara.designsystem.rows.ValueRow
 import app.mauri.sukrara.settings.SettingsSpec
 import java.time.Instant
+import app.mauri.sukrara.core.designsystem.R as DsR
 
 /** What the Alerts page can do (the ViewModel's actions; no-ops in screenshots). */
 class AlertsActions(
@@ -103,6 +104,7 @@ fun AlertsSettingsContent(
                 s.on,
                 { on -> if (on) actions.edit { it.copy(on = true) } else dialog = "alertsOff" },
                 summary = stringResource(if (s.on) R.string.st_alerts_main_on else R.string.st_alerts_main_off),
+                icon = DsR.drawable.ds_ic_notifications,
             )
             ValueRow(
                 stringResource(R.string.st_mute_all),
@@ -116,6 +118,7 @@ fun AlertsSettingsContent(
                     }
                 } ?: stringResource(R.string.st_not_muted),
                 { dialog = "muteAll" },
+                icon = DsR.drawable.ds_ic_notifications_off,
             )
         }
         AlertsLately(ui.alerts.lately, clock)
@@ -139,6 +142,7 @@ fun AlertsSettingsContent(
                         { actions.openKind(kind) },
                         summary = if (rule.on) kindSummary(s, kind) else stringResource(R.string.st_off),
                         enabled = s.on,
+                        icon = kindIcon(kind),
                     )
                 }
             }
@@ -149,6 +153,7 @@ fun AlertsSettingsContent(
                 actions.openReview,
                 summary =
                     confirmedAt?.let { stringResource(R.string.st_review_confirmed) } ?: stringResource(R.string.st_review_not_confirmed),
+                icon = DsR.drawable.ds_ic_rule,
             )
         }
         SettingsGroup(title = stringResource(R.string.st_quiet_title)) {
@@ -166,12 +171,13 @@ fun AlertsSettingsContent(
                     rule.on,
                     { on -> actions.edit(AlertEdits.quiet(which) { it.copy(on = on) }) },
                     summary = stringResource(R.string.st_quiet_for, numberLabel(spec, rule.min.toDouble())),
+                    icon = quietIcon(which),
                 )
                 if (rule.on) {
                     ValueRow(stringResource(R.string.st_quiet_length), numberLabel(spec, rule.min.toDouble()), {
                         dialog =
                             "quiet:${which.name}"
-                    })
+                    }, icon = DsR.drawable.ds_ic_timer)
                 }
             }
         }
@@ -184,6 +190,7 @@ fun AlertsSettingsContent(
                 {
                     dialog = "actionMute"
                 },
+                icon = DsR.drawable.ds_ic_notifications_off,
             )
             ValueRow(
                 stringResource(
@@ -193,6 +200,7 @@ fun AlertsSettingsContent(
                 {
                     dialog = "actionRelax"
                 },
+                icon = DsR.drawable.ds_ic_snooze,
             )
             ValueRow(
                 stringResource(
@@ -202,6 +210,7 @@ fun AlertsSettingsContent(
                 {
                     dialog = "backMgdl"
                 },
+                icon = DsR.drawable.ds_ic_trending_down,
             )
             ValueRow(
                 stringResource(
@@ -211,20 +220,28 @@ fun AlertsSettingsContent(
                 {
                     dialog = "backMin"
                 },
+                icon = DsR.drawable.ds_ic_repeat,
             )
         }
         SettingsGroup(title = stringResource(R.string.st_sounds_title)) {
-            ValueRow(stringResource(R.string.st_sound_pack), packName(s.sounds.pack), { dialog = "pack" })
+            ValueRow(
+                stringResource(R.string.st_sound_pack),
+                packName(s.sounds.pack),
+                { dialog = "pack" },
+                icon = DsR.drawable.ds_ic_volume_up,
+            )
             SwitchRow(
                 stringResource(R.string.st_shuffle),
                 s.sounds.shuffle,
                 { on -> actions.edit { it.copy(sounds = it.sounds.copy(shuffle = on)) } },
                 summary = stringResource(R.string.st_shuffle_summary),
+                icon = DsR.drawable.ds_ic_shuffle,
             )
             NavigationRow(
                 stringResource(R.string.st_notification_settings),
                 { context.openNotificationSettings() },
                 summary = stringResource(R.string.st_notification_settings_summary),
+                icon = DsR.drawable.ds_ic_tune,
             )
         }
         FooterText(stringResource(R.string.st_alerts_footer))

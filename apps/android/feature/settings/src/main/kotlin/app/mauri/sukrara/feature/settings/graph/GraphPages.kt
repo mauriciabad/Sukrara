@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.feature.settings.graph
 
+import androidx.annotation.DrawableRes
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
@@ -112,7 +113,7 @@ fun ResetIcon(
 ) {
     if (!section.changed(config)) return
     IconButton(onClick = { onReset(section) }, modifier) {
-        Icon(painterResource(R.drawable.st_ic_restart_alt), contentDescription = stringResource(R.string.st_reset_section, title))
+        Icon(painterResource(DsR.drawable.ds_ic_restart_alt), contentDescription = stringResource(R.string.st_reset_section, title))
     }
 }
 
@@ -156,6 +157,15 @@ private fun placeName(p: GraphPlace): String =
             GraphPlace.WIDGETS -> R.string.st_place_widgets
         },
     )
+
+/** Where a per-place setting applies: the app, the notification, the widgets. */
+@DrawableRes
+private fun placeIcon(p: GraphPlace): Int =
+    when (p) {
+        GraphPlace.APP -> DsR.drawable.ds_ic_smartphone
+        GraphPlace.NOTIFICATION -> DsR.drawable.ds_ic_notifications
+        GraphPlace.WIDGETS -> DsR.drawable.ds_ic_widgets
+    }
 
 @Composable
 private fun lastPlaceName(p: LastPlace): String =
@@ -211,19 +221,19 @@ fun GraphContent(
                 stringResource(R.string.st_graph_line_add),
                 stringResource(if (c.lines.size < max) R.string.st_graph_line_add_summary else R.string.st_graph_line_full, max),
                 { dialog = GraphDialog.AddLine },
-                icon = R.drawable.st_ic_add,
+                icon = DsR.drawable.ds_ic_add,
                 enabled = c.lines.size < max,
             )
             ValueRow(stringResource(R.string.st_graph_grid), label(SettingsSpec.GRID_HOURS, c.gridHours.toDouble()), {
                 dialog = GraphDialog.Grid
-            })
+            }, icon = DsR.drawable.ds_ic_bar_chart)
         }
 
         val timeTitle = stringResource(R.string.st_graph_hours)
         SettingsGroup(title = timeTitle, titleAction = { ResetIcon(GraphSection.Time, c, timeTitle, actions.reset) }) {
             ValueRow(stringResource(R.string.st_graph_hours_default), label(SettingsSpec.GRAPH_HOURS, c.defaultHours.toDouble()), {
                 dialog = GraphDialog.DefaultHours
-            })
+            }, icon = DsR.drawable.ds_ic_schedule)
             for (p in GraphPlace.entries) {
                 val own = c.placeHours[p]
                 ValueRow(
@@ -231,6 +241,7 @@ fun GraphContent(
                     own?.let { label(SettingsSpec.PLACE_HOURS, it.toDouble()) }
                         ?: stringResource(R.string.st_graph_hours_same, label(SettingsSpec.GRAPH_HOURS, c.defaultHours.toDouble())),
                     { dialog = GraphDialog.PlaceHours(p) },
+                    icon = placeIcon(p),
                 )
             }
         }
@@ -239,41 +250,57 @@ fun GraphContent(
         SettingsGroup(title = besideTitle, titleAction = { ResetIcon(GraphSection.Beside, c, besideTitle, actions.reset) }) {
             ValueRow(stringResource(R.string.st_graph_rings), label(SettingsSpec.RING_COUNT, c.ringCount.toDouble()), {
                 dialog = GraphDialog.RingCount
-            })
+            }, icon = DsR.drawable.ds_ic_donut_large)
             for (i in 0 until c.ringCount.coerceIn(0, c.slots.size)) {
                 val slot = c.slots[i]
                 val name = slotName(i)
-                ValueRow(name, slotKindName(slot.kind) + " · " + period(slot.windowS.toDouble()), { dialog = GraphDialog.SlotKindOf(i) })
+                ValueRow(name, slotKindName(slot.kind) + " · " + period(slot.windowS.toDouble()), {
+                    dialog = GraphDialog.SlotKindOf(i)
+                }, icon = DsR.drawable.ds_ic_donut_small)
                 ValueRow(stringResource(R.string.st_slot_period, name), period(slot.windowS.toDouble()), {
                     dialog = GraphDialog.SlotPeriod(i)
-                })
+                }, icon = DsR.drawable.ds_ic_schedule)
                 if (i > 0) {
                     SwitchRow(stringResource(R.string.st_slot_faded, name), slot.faded, { on ->
                         actions.slots(c.slots.toMutableList().also { it[i] = slot.copy(faded = on) })
-                    })
+                    }, icon = DsR.drawable.ds_ic_opacity)
                 }
             }
-            ValueRow(stringResource(R.string.st_last), lastPlaceName(c.lastPlace), { dialog = GraphDialog.Last })
+            ValueRow(
+                stringResource(R.string.st_last),
+                lastPlaceName(c.lastPlace),
+                { dialog = GraphDialog.Last },
+                icon = DsR.drawable.ds_ic_last_page,
+            )
             if (c.lastPlace != LastPlace.OFF) {
                 val other = c.lastElse
                 ValueRow(
                     stringResource(R.string.st_last_else),
                     other?.let { slotKindName(it.kind) + " · " + period(it.windowS.toDouble()) } ?: stringResource(R.string.st_nothing),
                     { dialog = GraphDialog.LastElseKind },
+                    icon = DsR.drawable.ds_ic_donut_small,
                 )
                 if (other != null) {
                     ValueRow(stringResource(R.string.st_last_else_period), period(other.windowS.toDouble()), {
                         dialog = GraphDialog.LastElsePeriod
-                    })
-                    SwitchRow(stringResource(R.string.st_last_else_faded), other.faded, { on -> actions.lastElse(other.copy(faded = on)) })
+                    }, icon = DsR.drawable.ds_ic_schedule)
+                    SwitchRow(
+                        stringResource(R.string.st_last_else_faded),
+                        other.faded,
+                        { on -> actions.lastElse(other.copy(faded = on)) },
+                        icon = DsR.drawable.ds_ic_opacity,
+                    )
                 }
             }
-            ValueRow(stringResource(R.string.st_ring_counts), rangeName(c.ringRange, c), { dialog = GraphDialog.Range })
+            ValueRow(stringResource(R.string.st_ring_counts), rangeName(c.ringRange, c), {
+                dialog = GraphDialog.Range
+            }, icon = DsR.drawable.ds_ic_dia_range)
             SwitchRow(
                 stringResource(R.string.st_graph_marks),
                 c.ringMarks,
                 { actions.bool(GraphSettings.RingMarks, it) },
                 summary = stringResource(R.string.st_graph_marks_summary),
+                icon = DsR.drawable.ds_ic_edit_note,
             )
         }
 
@@ -293,22 +320,29 @@ fun GraphContent(
                 c.side,
                 { actions.bool(GraphSettings.Side, it) },
                 summary = stringResource(R.string.st_graph_side_summary),
+                icon = DsR.drawable.ds_ic_align_horizontal_left,
             )
             SwitchRow(
                 stringResource(R.string.st_graph_crown),
                 c.columnCrown,
                 { actions.bool(GraphSettings.ColumnCrown, it) },
                 enabled = c.side,
+                icon = DsR.drawable.ds_ic_crown,
             )
         }
 
         SettingsGroup {
-            NavigationRow(stringResource(R.string.st_marks_title), actions.openMarks, summary = marksSummary(c.marks))
+            NavigationRow(
+                stringResource(R.string.st_marks_title),
+                actions.openMarks,
+                summary = marksSummary(c.marks),
+                icon = DsR.drawable.ds_ic_edit_note,
+            )
         }
 
         val sensorTitle = stringResource(R.string.st_graph_sensor)
         SettingsGroup(title = sensorTitle, titleAction = { ResetIcon(GraphSection.SensorTime, c, sensorTitle, actions.reset) }) {
-            for (p in GraphPlace.entries) SwitchRow(placeName(p), c.sensorTime(p), { actions.sensorTime(p, it) })
+            for (p in GraphPlace.entries) SwitchRow(placeName(p), c.sensorTime(p), { actions.sensorTime(p, it) }, icon = placeIcon(p))
         }
 
         if (GraphSection.All.changed(c)) {
@@ -319,7 +353,7 @@ fun GraphContent(
                     stringResource(R.string.st_graph_reset_all_text),
                     stringResource(R.string.st_reset),
                     { actions.reset(GraphSection.All) },
-                    icon = R.drawable.st_ic_restart_alt,
+                    icon = DsR.drawable.ds_ic_restart_alt,
                 )
             }
         }
@@ -594,7 +628,7 @@ fun GraphMarksContent(
                     stringResource(R.string.st_marks_reset),
                     "",
                     { actions.reset(GraphSection.Marks) },
-                    icon = R.drawable.st_ic_restart_alt,
+                    icon = DsR.drawable.ds_ic_restart_alt,
                 )
             }
         }

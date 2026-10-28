@@ -70,7 +70,7 @@ The full catalog, with every rule and number, is [docs/FEATURES.md](docs/FEATURE
   how long, and a short countdown when opened on the lock screen.
 - **Home-screen widgets** (*Glucose*, *Glucose graph*, *Glucose and graph*) drawn by the same card renderer at the
   widget's real size; home offers *Add widget* until a graph widget is placed, and a tap opens *Add treatment*.
-- **Settings** for daily use: alerts (an on/off switch on each alert row, thresholds you confirm, repeats, sounds,
+- **Settings** for daily use (searchable, accents optional; an icon on every row): alerts (an on/off switch on each alert row, thresholds you confirm, repeats, sounds,
   quiet rules, *Play sound* and *Send a test alert*), an alert reliability checklist with *Fix* buttons
   (notifications, alarms, full-screen, battery, Do Not Disturb, Bluetooth), ranges and the whole graph (lines, time
   per place, slots, ring order, treatments on the graph, sensor time; your card live on top), lock screen

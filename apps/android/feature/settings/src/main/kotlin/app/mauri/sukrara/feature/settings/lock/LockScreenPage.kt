@@ -26,6 +26,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import app.mauri.sukrara.core.designsystem.R as DsR
 
 /** Seconds the quick treatment dialog stays over the lock screen before it closes unsaved (`lock.treatmentTime`). */
 val LockTreatmentTime = SchemaSettings.number("lock.treatmentTime")
@@ -53,7 +54,7 @@ fun LockScreenContent(
     val spec = SettingsSpec.LOCK_TREATMENT_TIME
     SettingsPage(stringResource(R.string.st_lock_title), onBack) {
         SettingsGroup(title = stringResource(R.string.st_lock_treatment)) {
-            ValueRow(stringResource(R.string.st_lock_time), label(spec, seconds), { editing = true })
+            ValueRow(stringResource(R.string.st_lock_time), label(spec, seconds), { editing = true }, icon = DsR.drawable.ds_ic_timer)
         }
         FooterText(stringResource(R.string.st_lock_footer))
     }

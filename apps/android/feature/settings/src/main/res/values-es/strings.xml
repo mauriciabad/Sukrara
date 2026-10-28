@@ -565,4 +565,9 @@
     <string name="st_note_all_muted">Todas las alertas silenciadas durante %1$s</string>
     <string name="st_note_all_muted_off">Todas las alertas silenciadas hasta que lo desactives</string>
     <string name="st_note_all_unmuted">Alertas activadas de nuevo</string>
+    <!-- settings search -->
+    <string name="st_search_hint">Buscar en ajustes</string>
+    <string name="st_search_clear">Borrar búsqueda</string>
+    <string name="st_search_none">Ningún ajuste coincide con “%1$s”</string>
+    <string name="st_search_in">En %1$s</string>
 </resources>
