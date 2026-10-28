@@ -36,8 +36,14 @@ enum class NfcFailure {
     /** The tap didn't complete (moved away too soon, no answer). Scanning again is safe. */
     MovedTooSoon,
 
-    /** Not a Libre 3 / 3 Plus (a Libre 2, Lingo, another security version). */
-    NotLibre3,
+    /** A Libre 1 / 2 / 2 Plus: not read directly (Juggluco reads them). Nothing was sent to it. */
+    Libre2,
+
+    /** A Libre-made sensor that isn't a Libre 3 / 3 Plus (a Lingo, unknown patch info). Nothing was started. */
+    OtherSensor,
+
+    /** Not a sensor at all (a bank card, an NFC tag, a pen): hold the phone to the sensor instead. */
+    NotASensor,
 
     /** The sensor has ended. */
     SensorEnded,
@@ -400,7 +406,9 @@ object NewSensorMachine {
             is PairOutcome.NeedsLibreViewSignIn -> NewSensorStep.NeedsLibreViewSignIn
             is PairOutcome.OwnedByAnotherApp -> NewSensorStep.TakeoverFailed
             is PairOutcome.Ended -> NewSensorStep.NfcFailed(NfcFailure.SensorEnded)
-            PairOutcome.Libre2Unsupported, is PairOutcome.Unsupported -> NewSensorStep.NfcFailed(NfcFailure.NotLibre3)
+            PairOutcome.Libre2Unsupported -> NewSensorStep.NfcFailed(NfcFailure.Libre2)
+            PairOutcome.NotASensor -> NewSensorStep.NfcFailed(NfcFailure.NotASensor)
+            is PairOutcome.Unsupported -> NewSensorStep.NfcFailed(NfcFailure.OtherSensor)
             is PairOutcome.Failed -> NewSensorStep.NfcFailed(NfcFailure.MovedTooSoon)
         }
 
@@ -490,12 +498,21 @@ object NewSensorMachine {
             }
 
             // Bluetooth / permission back: connecting again (its 2-min clock starts over); a timed-out link that is still
-            // trying stays "not answering" until it is live or warming up
+            // trying stays "not answering" until it is live or warming up. While connecting, the link says which
+            // pairing step is ticked off (connecting, pairing securely, starting readings)
             else -> {
-                if (step is NewSensorStep.BleFailed && step.cause != BleFailure.Timeout) {
-                    NewSensorStep.ConnectingBle(serial, now, activated = false, profile = profile)
-                } else {
-                    step
+                when {
+                    step is NewSensorStep.BleFailed && step.cause != BleFailure.Timeout -> {
+                        NewSensorStep.ConnectingBle(serial, now, activated = false, profile = profile, link = link)
+                    }
+
+                    step is NewSensorStep.ConnectingBle -> {
+                        step.copy(link = link)
+                    }
+
+                    else -> {
+                        step
+                    }
                 }
             }
         }

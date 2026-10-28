@@ -35,6 +35,10 @@ internal object Libre3Nfc {
         /** A Libre 1 / 2 / 2 Plus (TI chip): not supported, nothing was sent to it. */
         data object Libre2 : Result
 
+        /** Not a FreeStyle Libre at all (a card, a tag, another device): nothing was sent to it. */
+        data object NotASensor : Result
+
+        /** A Libre 3 chip that isn't a Libre 3 / 3 Plus (a Lingo, unreadable patch info): nothing was started. */
         data class Unsupported(val why: String) : Result
 
         data class Failed(val why: String) : Result
@@ -93,7 +97,7 @@ internal object Libre3Nfc {
         when (chip(tag.id)) {
             Chip.LIBRE3 -> Unit
             Chip.LIBRE2 -> return Result.Libre2
-            Chip.OTHER -> return Result.Unsupported("not a FreeStyle Libre 3")
+            Chip.OTHER -> return Result.NotASensor
         }
         val nfc = NfcV.get(tag) ?: return Result.Failed("not a Libre 3 (no NfcV)")
         return try {

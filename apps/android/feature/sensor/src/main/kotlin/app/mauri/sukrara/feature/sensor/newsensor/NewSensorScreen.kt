@@ -11,6 +11,7 @@ import android.icu.text.MeasureFormat
 import android.icu.util.Measure
 import android.icu.util.MeasureUnit
 import android.net.Uri
+import android.nfc.NfcAdapter
 import android.provider.Settings
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -38,14 +39,20 @@ import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.Role
@@ -62,6 +69,7 @@ import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.mauri.sukrara.core.model.Durations
 import app.mauri.sukrara.designsystem.haptics.rememberHaptics
+import app.mauri.sukrara.designsystem.motion.Reveal
 import app.mauri.sukrara.designsystem.motion.Swap
 import app.mauri.sukrara.feature.sensor.R
 import app.mauri.sukrara.graph.CardWords
@@ -93,8 +101,24 @@ fun NewSensorRoute(
         onPauseOrDispose {}
     }
     LaunchedEffect(viewModel) {
-        viewModel.effects.collect { haptics.confirm() } // the tap worked / the sensor is ready
+        viewModel.effects.collect { effect ->
+            when (effect) {
+                NewSensorEffect.TagFound -> haptics.tick()
+
+                // keep still: it's being read
+                NewSensorEffect.TapSucceeded, NewSensorEffect.Ready -> haptics.confirm()
+
+                NewSensorEffect.TapFailed -> haptics.reject()
+            }
+        }
     }
+    // a phone held to the arm mustn't lock mid-tap or mid-pairing; the warm-up and the end let it sleep
+    val view = LocalView.current
+    DisposableEffect(view, step.keepsScreenOn) {
+        view.keepScreenOn = step.keepsScreenOn
+        onDispose { view.keepScreenOn = false }
+    }
+    val antenna = remember(context) { antennaSpot(NfcAdapter.getDefaultAdapter(context)) }
     val currentOnDone by rememberUpdatedState(onDone)
     LaunchedEffect(step) {
         if (step == NewSensorStep.Cancelled || step == NewSensorStep.LeftRunning) currentOnDone()
@@ -119,13 +143,22 @@ fun NewSensorRoute(
 
     val now by produceState(viewModel.now(), step) {
         value = viewModel.now()
-        while (step is NewSensorStep.WarmingUp || step is NewSensorStep.ConfirmUntested) {
+        // the countdowns and the "Taking longer?" note
+        while (step is NewSensorStep.WarmingUp || step is NewSensorStep.ConfirmUntested || step is NewSensorStep.ConnectingBle) {
             value = viewModel.now()
             delay(1_000)
         }
     }
 
-    NewSensorContent(step, now, modifier, onChoose = viewModel::onChoose, onIdChange = viewModel::onIdChange) { action ->
+    NewSensorContent(
+        step,
+        now,
+        modifier,
+        chosen = state.profile,
+        antenna = antenna,
+        onChoose = viewModel::onChoose,
+        onIdChange = viewModel::onIdChange,
+    ) { action ->
         when (action) {
             NewSensorAction.ContinueAnyway -> {
                 viewModel.onContinue()
@@ -182,20 +215,38 @@ fun NewSensorRoute(
     }
 }
 
-/** One page per step, cross-faded (snaps with reduced motion). Stateless: screenshots render it directly. */
+/**
+ * The step bar over one page per step, cross-faded (snaps with reduced motion). Stateless but for the tips (open after
+ * [TIPS_AFTER] on the tap page, or [tipsOpen] for screenshots): screenshots render it directly. [chosen] is the family
+ * picked on the first step (the bar says "Set up" instead of "Scan" for a family found by a scan), [antenna] where
+ * this phone's NFC antenna is.
+ */
 @Composable
 fun NewSensorContent(
     step: NewSensorStep,
     now: Instant,
     modifier: Modifier = Modifier,
+    chosen: SensorProfile? = null,
+    antenna: Offset = DefaultAntenna,
+    tipsOpen: Boolean = false,
     onChoose: (SensorProfile) -> Unit = {},
     onIdChange: (String) -> Unit = {},
-    onAction: (NewSensorAction) -> Unit,
+    onAction: (NewSensorAction) -> Unit = {},
 ) {
-    // pages change only on real transitions (the countdown, the choice and the typed id move inside a page)
-    Swap(Paged(step), modifier.fillMaxSize()) { shown ->
-        // the page on its way out keeps its own step; the current one follows every change
-        StepPage(if (shown == Paged(step)) step else shown.step, now, onChoose, onIdChange, onAction)
+    Column(modifier.fillMaxSize()) {
+        step.stage?.let { stage ->
+            StepBar(
+                stage,
+                complete = step == NewSensorStep.Ready,
+                setsUp = step.setsUp(chosen),
+                modifier = Modifier.padding(start = 24.dp, end = 24.dp, top = 16.dp),
+            )
+        }
+        // pages change only on real transitions (the countdown, the choice and the typed id move inside a page)
+        Swap(Paged(step), Modifier.weight(1f).fillMaxWidth()) { shown ->
+            // the page on its way out keeps its own step; the current one follows every change
+            StepPage(if (shown == Paged(step)) step else shown.step, now, antenna, tipsOpen, onChoose, onIdChange, onAction)
+        }
     }
 }
 
@@ -210,8 +261,12 @@ private class Paged(val step: NewSensorStep) {
 private fun NewSensorStep.pageKey(): Any =
     when (this) {
         is NewSensorStep.ChooseSensor -> NewSensorStep.ChooseSensor::class
+
         is NewSensorStep.SensorSetupStep -> NewSensorStep.SensorSetupStep::class to profile
-        is NewSensorStep.ConnectingBle -> copy(since = Instant.EPOCH)
+
+        // a new text is a new page; the link moving the ticked pairing steps is not
+        is NewSensorStep.ConnectingBle -> Triple(NewSensorStep.ConnectingBle::class, profile, page().text)
+
         else -> this
     }
 
@@ -219,9 +274,11 @@ private fun NewSensorStep.pageKey(): Any =
 private fun StepPage(
     step: NewSensorStep,
     now: Instant,
+    antenna: Offset,
+    tipsOpen: Boolean,
     onChoose: (SensorProfile) -> Unit,
     onIdChange: (String) -> Unit,
-    onAction: (NewSensorAction) -> Unit,
+    onAction: (NewSensorAction) -> Unit = {},
 ) {
     val page = step.page()
     val arg = page.arg.orEmpty()
@@ -230,6 +287,7 @@ private fun StepPage(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
+        Hero(step, now, antenna)
         Text(
             stringResource(page.title, arg),
             // TalkBack reads each new step's title as it appears
@@ -241,8 +299,10 @@ private fun StepPage(
             color = if (page.warning) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface,
             textAlign = TextAlign.Center,
         )
-        if (page.busy) CircularProgressIndicator(Modifier.size(40.dp))
-        if (step is NewSensorStep.WarmingUp) Countdown(step.readyAt, now)
+        // the reading has its own drawing; connecting shows its spinner on the pairing step under way
+        if (page.busy && step != NewSensorStep.ReadingNfc && step !is NewSensorStep.ConnectingBle) {
+            CircularProgressIndicator(Modifier.size(40.dp))
+        }
         Text(
             stringResource(page.text, arg),
             style = MaterialTheme.typography.bodyLarge,
@@ -251,6 +311,16 @@ private fun StepPage(
         )
         if (step is NewSensorStep.ChooseSensor) SensorChoices(step.selected, onChoose)
         if (step is NewSensorStep.SensorSetupStep) step.typedId?.let { IdField(step.id, it.length, step.canPair, onIdChange) }
+        if (step is NewSensorStep.ConnectingBle) {
+            PairSteps(pairProgress(step.link))
+            Reveal(step.isSlow(now)) {
+                Note(
+                    stringResource(R.string.newsensor_slow_title),
+                    stringResource(if (step.profile.needsScan) R.string.newsensor_slow_scanned_text else R.string.newsensor_slow_text),
+                )
+            }
+        }
+        if (step == NewSensorStep.WaitingForTap) Tips(tipsOpen)
         page.note?.let {
             Text(
                 stringResource(it),
@@ -279,6 +349,35 @@ private fun StepPage(
             onAction = onAction,
         )
     }
+}
+
+/** The drawing over a step's title: the phone on the sensor, the read, the warm-up ring, the ready check. */
+@Composable
+private fun Hero(step: NewSensorStep, now: Instant, antenna: Offset) {
+    when {
+        step == NewSensorStep.WaitingForTap ||
+            (step is NewSensorStep.NfcFailed && step.cause == NfcFailure.MovedTooSoon) -> ScanArt(antenna)
+
+        step == NewSensorStep.ReadingNfc -> ReadingArt()
+
+        step is NewSensorStep.WarmingUp -> WarmUpArt(warmUpDone(step.readyAt, now)) { Countdown(step.readyAt, now) }
+
+        step == NewSensorStep.Ready -> ReadyArt()
+    }
+}
+
+/** "Nothing happens?" on the tap page: the tips, open by themselves after [TIPS_AFTER] without a tap. */
+@Composable
+private fun Tips(open: Boolean) {
+    var shown by remember { mutableStateOf(open) }
+    LaunchedEffect(Unit) {
+        delay(TIPS_AFTER.toMillis())
+        shown = true
+    }
+    Reveal(shown) {
+        Note(stringResource(R.string.newsensor_tips_title), stringResource(R.string.newsensor_tips_text))
+    }
+    if (!shown) TextButton({ shown = true }) { Text(stringResource(R.string.newsensor_tips_button)) }
 }
 
 /** Whole seconds until "Continue anyway" is enabled (rounded up; 0 = enabled). */
@@ -377,7 +476,7 @@ private fun Actions(
     actions: List<NewSensorAction>,
     enabled: (NewSensorAction) -> Boolean = { true },
     label: @Composable (NewSensorAction) -> String = { stringResource(it.label) },
-    onAction: (NewSensorAction) -> Unit,
+    onAction: (NewSensorAction) -> Unit = {},
 ) {
     Column(Modifier.fillMaxWidth().padding(top = 8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         actions.forEachIndexed { i, action ->

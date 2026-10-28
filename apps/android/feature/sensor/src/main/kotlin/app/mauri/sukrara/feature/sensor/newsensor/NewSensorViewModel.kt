@@ -59,7 +59,15 @@ interface NewSensorPort {
 }
 
 /** One-shot effects the screen plays (one haptic each). */
-enum class NewSensorEffect { TapSucceeded, Ready }
+enum class NewSensorEffect {
+    /** A tag answered: it's being read (a light tick, so the person keeps still). */
+    TagFound,
+    TapSucceeded,
+
+    /** The tap read something that can't be used (not a sensor, an ended or unsupported one, moved too soon). */
+    TapFailed,
+    Ready,
+}
 
 /**
  * Runs [NewSensorMachine]. The NFC exchange runs in [appScope], never in the ViewModel's scope: closing the screen
@@ -175,6 +183,16 @@ class NewSensorViewModel(
                 after.step is NewSensorStep.ConnectingBle
             ) {
                 _effects.trySend(NewSensorEffect.TapSucceeded)
+            }
+            if (before.step != NewSensorStep.ReadingNfc &&
+                after.step == NewSensorStep.ReadingNfc
+            ) {
+                _effects.trySend(NewSensorEffect.TagFound)
+            }
+            if (before.step == NewSensorStep.ReadingNfc &&
+                (after.step is NewSensorStep.NfcFailed || after.step == NewSensorStep.TakeoverFailed)
+            ) {
+                _effects.trySend(NewSensorEffect.TapFailed)
             }
             if (before.step != NewSensorStep.Ready && after.step == NewSensorStep.Ready) _effects.trySend(NewSensorEffect.Ready)
             return
