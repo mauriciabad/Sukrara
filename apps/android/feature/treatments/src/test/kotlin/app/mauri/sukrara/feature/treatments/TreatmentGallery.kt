@@ -17,6 +17,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.onLast
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
@@ -123,5 +126,35 @@ class TreatmentGallery {
         compose.waitForIdle()
         check(form.ago == 15) { "ago ${form.ago}" }
         compose.onRoot().captureRoboImage("build/outputs/roborazzi/treatment-when-ago-chip-light.png")
+    }
+
+    /**
+     * The *When?* picker over the lock screen: its Cancel carries the countdown ring, and the one *Closes in 10 seconds*
+     * is there for TalkBack once it is due.
+     */
+    @Test fun whenPickerOverTheLockScreen() {
+        val form = TreatmentFormState(carbs = "15")
+        compose.setContent {
+            SukraraTheme(dark = false, dynamic = false) {
+                TreatmentDialogContent(
+                    form = form,
+                    focusCarbs = false,
+                    zone = ZoneOffset.UTC,
+                    now = { now },
+                    onSave = { _, _ -> },
+                    onCancel = {},
+                    lock = LockInfo(9, onUnlock = {}, spokenSeconds = 10, fraction = { 0.15f }, announce = true),
+                )
+            }
+        }
+        compose.onNodeWithContentDescription("Closes in 10 seconds").assertExists()
+        compose.onNodeWithTag("treatment-when").performClick()
+        compose.waitForIdle()
+        compose.onNodeWithTag("treatment-time").captureRoboImage("build/outputs/roborazzi/treatment-when-lock-light.png")
+        // Cancel closes the picker only: the entry and the countdown stay
+        compose.onAllNodesWithText("Cancel").onLast().performClick()
+        compose.waitForIdle()
+        compose.onNodeWithTag("treatment-time").assertDoesNotExist()
+        check(form.carbs == "15")
     }
 }

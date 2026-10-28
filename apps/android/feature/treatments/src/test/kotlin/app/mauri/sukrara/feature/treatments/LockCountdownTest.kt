@@ -53,4 +53,17 @@ class LockCountdownTest {
         assertEquals(0.5f, cd.fraction(10_000), 0.001f)
         assertEquals(0.55f, cd.fraction(9_500, stepped = true), 0.001f)
     }
+
+    @Test fun closesInTenSecondsIsDueOnceTenSecondsAreLeftWhileItRuns() {
+        val cd = LockCountdown(60_000, startedAt = 0)
+        assertFalse(cd.announceDue(49_999))
+        assertTrue(cd.announceDue(50_000))
+        // the unlock prompt holds the time: nothing to say while it is up
+        cd.pause(51_000)
+        assertFalse(cd.announceDue(51_000))
+        cd.resume(52_000)
+        assertTrue(cd.announceDue(52_000))
+        cd.stop()
+        assertFalse(cd.announceDue(100_000))
+    }
 }

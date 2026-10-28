@@ -51,4 +51,16 @@
     <string name="mute_pill_forever">Muted</string>
     <string name="mute_choice">For %1$s</string>
     <string name="mute_choice_forever">Until you turn it off</string>
+    <!-- The ways out of a quiet alert and of Mute alerts (QuietControls: home, Settings › Alerts › Active now, TalkBack) -->
+    <string name="ds_quiet_unmute">Unmute</string>
+    <string name="ds_quiet_anyway">Alert me anyway</string>
+    <string name="ds_quiet_as_usual">Remind as usual</string>
+    <string name="ds_quiet_change_to">Change to</string>
+    <string name="ds_mute_all_unmute">Unmute</string>
+    <string name="ds_mute_all_change">Change time</string>
+    <!-- TalkBack action on the card: %1$s side name ("Low"), %2$s the way out ("Unmute") -->
+    <string name="ds_quiet_a11y_action">%1$s alerts: %2$s</string>
+    <string name="ds_a11y_unmute_all">Unmute alerts</string>
+    <string name="ds_a11y_change_mute">Change how long alerts are muted</string>
+    <string name="ds_a11y_mute_all">Mute alerts</string>
 </resources>
