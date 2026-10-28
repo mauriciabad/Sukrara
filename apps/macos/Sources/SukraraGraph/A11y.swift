@@ -149,8 +149,8 @@ enum A11y {
         return [value, chart].compactMap { $0 }.joined(separator: ". ")
     }
 
-    /// A card without a value says how old its chart is, as the picture does (`Freshness.AgeMark`): nothing while
-    /// fresh, "last reading 9:50" from 91 s, "old reading" too from 5 min, "no reading since 9:50" from 20 min (and
+    /// A card without a value says how old its chart is, as the picture does (`Freshness.AgeMark`): "last reading
+    /// 9:50" at every age, "old reading" too from 5 min, "no reading since 9:50" from 20 min (and
     /// once the chart is gone), "no readings yet" without any.
     static func age(_ data: CardData, words w: CardWords) -> String? {
         guard let t = data.latest?.t else { return w.noReadings }

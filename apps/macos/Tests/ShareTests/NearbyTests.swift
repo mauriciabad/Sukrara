@@ -5,6 +5,28 @@ import Foundation
 import SukraraShare
 import Testing
 
+/// The chunk backfill window (FEATURES: 1 h before the newest stored reading, at least 13 h, at most 7 days back).
+@Suite struct ChunkWindowTests {
+    let now = 1_800_000_000
+
+    @Test func anEmptyStoreAsksForTheLast13Hours() {
+        #expect(FollowerSession.chunkSince(newestStored: nil, now: now) == now - 13 * 3600)
+    }
+
+    @Test func aRecentStoreStillAsksForAtLeast13Hours() {
+        #expect(FollowerSession.chunkSince(newestStored: now - 600, now: now) == now - 13 * 3600)
+    }
+
+    @Test func anOlderStoreStartsAnHourBeforeItsNewestReading() {
+        let newest = now - 2 * 86_400
+        #expect(FollowerSession.chunkSince(newestStored: newest, now: now) == newest - 3600)
+    }
+
+    @Test func neverBeyondTheChunksSevenDayExpiry() {
+        #expect(FollowerSession.chunkSince(newestStored: now - 30 * 86_400, now: now) == now - 7 * 86_400)
+    }
+}
+
 /// BLE framing and the per-connection protocol against the OGS `ble` vectors and a fake peripheral.
 struct NearbyTests {
     let v = OgsVectors.shared

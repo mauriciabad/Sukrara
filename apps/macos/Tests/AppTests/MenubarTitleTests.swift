@@ -36,6 +36,29 @@ import Testing
         #expect(t.accessibilityLabel.contains("112"))
     }
 
+    /// Same rate, same arrow on every text place: the menu bar title and the alert title write the arrow of
+    /// contracts/graph/trend for each of its rates (the card draws it from the same `TrendAngle`).
+    @Test func everyTextPlaceWritesTheFixtureArrow() throws {
+        let url = Contracts.root.appending(path: "graph/trend/trend.json")
+        let root = try #require(try JSONSerialization.jsonObject(with: Data(contentsOf: url)) as? [String: Any])
+        let cases = try #require(root["cases"] as? [[String: Any]])
+        #expect(!cases.isEmpty)
+        let now = clock.now.timeIntervalSince1970
+        for c in cases {
+            let rate = (c["rate"] as? NSNumber)?.doubleValue
+            let want = try #require((c["expect"] as? [String: Any])?["text"] as? String)
+            let data = CardData(readings: [GraphReading(t: now - 30, v: 64, rate: rate)], sensor: nil, now: now)
+            let menubar = MenubarTitle.of(
+                look: GlucoseCard.face(data, unit: .mgdl, surface: .menubarTitle), spoken: "", alerts: .idle,
+                reason: nil)
+            #expect(menubar.text == "64 \(want)", "menu bar, \(c["name"] ?? "")")
+            let firing = AlertFiring(
+                id: "a", kind: .low, at: clock.now, reading: GlucoseSample(at: clock.now, mgdl: 64, rate: rate),
+                threshold: 70, n: 1, treated: 0)
+            #expect(AlertText(language: .en).title(firing).hasSuffix("64 mg/dL \(want)"), "alert, \(c["name"] ?? "")")
+        }
+    }
+
     @Test func staleValueIsStruck() {
         let t = title(minutesAgo: 10)
         #expect(t.strike && t.text.hasPrefix("112"))

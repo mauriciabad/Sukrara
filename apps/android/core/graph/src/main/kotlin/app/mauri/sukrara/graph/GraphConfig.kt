@@ -64,6 +64,17 @@ data class GraphConfig(
             marks = marks,
         )
 
+    /** The app's home panel: the APP place's window and sensor time, the rings and last-treatment slot. */
+    fun appPanelStyle() =
+        CardStyle(
+            graph = graphStyle(hours(GraphPlace.APP)),
+            rings = rings(),
+            last = lastPlace,
+            lastElse = lastElseRing(),
+            sensorTime = sensorTime(GraphPlace.APP),
+            bands = bands,
+        )
+
     companion object {
         /** The chart's extra lines: 100 mg/dL unless the user changes them. */
         val DEFAULT_LINES = listOf(SettingsSpec.LINE.default.toInt())

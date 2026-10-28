@@ -43,9 +43,30 @@ func cardContext(_ size: CGSize) -> CGContext {
 /// Every fixture set has cases (a moved or emptied folder would let the parameterized tests pass with none).
 @Test(arguments: [
     "freshness/freshness.json", "clock", "sensor", "place/place.json", "mark", "share", "status.json", "labels",
+    "trend/trend.json",
 ])
 func fixtureSetHasCases(_ set: String) {
     #expect(!GraphFixtures.cases(set).isEmpty, "\(set) under \(GraphFixtures.dir.path)")
+}
+
+/// contracts/graph/trend: the one trend arrow (Android TrendFixtureTest): the drawn angle and double, the text arrow,
+/// and the face's `arrowText` every text place writes (a stale value writes the ring, as the card draws it).
+@Suite struct TrendFixtureTests {
+    @Test(arguments: GraphFixtures.cases("trend/trend.json"))
+    func arrow(_ c: JSON) {
+        let e = c.expect, rate = c.number("rate")
+        #expect(TrendAngle.text(rate) == e.string("text"))
+        if let rate, let deg = e.number("deg") {
+            #expect(abs(TrendAngle.deg(rate) - deg) < 1e-3)
+            #expect(TrendAngle.isDouble(rate) == e.bool("double"))
+        } else {
+            #expect(rate == nil && e.number("deg") == nil)
+        }
+        let fresh = Freshness.look(sgv: 100, t: now - 30, rate: rate, now: now, ended: false)
+        #expect(fresh.arrowText == e.string("text"))
+        let stale = Freshness.look(sgv: 100, t: now - 6 * 60, rate: rate, now: now, ended: false)
+        #expect(stale.arrowText == "○")
+    }
 }
 
 @Suite struct FreshnessFixtureTests {
@@ -130,12 +151,30 @@ func fixtureSetHasCases(_ set: String) {
             #expect(lay.first("graph.age")?.info == want)
             #expect(lay.first("chart") != nil)
         }
-        // VoiceOver hears the same age (nothing extra while fresh)
+        // VoiceOver hears the same age (the time at every age)
         let spoken = GlucoseCard.accessibilityLabel(
             CardData(readings: readings, now: now), unit: .mgdl, surface: .widgetGraph, config: GraphConfig(),
             words: .en)
         #expect(spoken.hasPrefix("Glucose:") == (want != "none"), "\(spoken)")
         #expect(spoken.contains("old reading") == (want == "dimmed"), "\(spoken)")
+    }
+
+    /// The age pill never grows past the chart, however narrow the widget (GraphOnlyAgeTest.pillStaysInsideTheChart).
+    @Test(arguments: [40.0, 60.0, 90.0, 140.0, 332.0])
+    func agePillStaysInsideTheChart(_ w: Double) {
+        for age in [10.0, 400.0, 1500.0] {
+            var readings = (1...60).reversed().map { GraphReading(t: now - age - Double($0) * 60, v: 120, rate: 0) }
+            readings.append(GraphReading(t: now - age, v: 118, rate: 0.2))
+            let st = CardStyle(graph: GraphStyle(), rings: [], value: false, sensorTime: false)
+            let size = CGSize(width: w, height: 60)
+            let lay = GlucoseCard.draw(
+                cardContext(size), size: size, readings: readings, marks: [], now: now, st, GraphPalette.of(dark: false),
+                surface: .widgetGraph, part: .all)
+            guard let chart = lay.first("chart")?.box, let pill = lay.first("graph.age")?.box else {
+                Issue.record("w=\(w) age=\(age): no chart or pill"); continue
+            }
+            #expect(pill.minX >= chart.minX - 0.01 && pill.maxX <= chart.maxX + 0.01, "w=\(w) age=\(age): \(pill) in \(chart)")
+        }
     }
 }
 

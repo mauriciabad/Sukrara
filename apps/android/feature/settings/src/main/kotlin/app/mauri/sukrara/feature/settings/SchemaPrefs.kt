@@ -7,6 +7,7 @@ import app.mauri.sukrara.alerts.AlertKind
 import app.mauri.sukrara.core.data.settings.SchemaSettings
 import app.mauri.sukrara.core.data.settings.Setting
 import app.mauri.sukrara.core.model.storage.SettingsRepository
+import app.mauri.sukrara.graph.GraphSettings
 import app.mauri.sukrara.settings.NumberSpec
 import app.mauri.sukrara.settings.SettingsSpec
 import kotlinx.coroutines.flow.Flow
@@ -15,19 +16,19 @@ import java.time.Instant
 
 /**
  * The schema settings these pages show, declared by schema id (store and key come from the generated spec, never
- * typed here). Bool defaults match `GraphConfig`'s.
+ * typed here). The graph ones are `GraphSettings`' (the one source the cards draw from), so a page and a card can't
+ * read different keys.
  */
 object SchemaPrefs {
     /** The six graph ranges, lowest first; each must stay between its neighbours. */
-    val Bands: List<Setting<Double>> =
-        listOf("veryLow", "low", "tight", "high", "veryHigh", "extremelyHigh").map { SchemaSettings.number("graph.band.$it") }
+    val Bands: List<Setting<Double>> = GraphSettings.Bands
 
-    val GraphHours = SchemaSettings.number("graph.hours")
-    val GridHours = SchemaSettings.number("graph.gridHours")
-    val RingCount = SchemaSettings.number("graph.ringCount")
-    val Side = SchemaSettings.bool("graph.side", default = true)
-    val ColumnCrown = SchemaSettings.bool("graph.columnCrown", default = true)
-    val RingMarks = SchemaSettings.bool("graph.ringMarks", default = true)
+    val GraphHours = GraphSettings.Hours
+    val GridHours = GraphSettings.GridHours
+    val RingCount = GraphSettings.RingCount
+    val Side = GraphSettings.Side
+    val ColumnCrown = GraphSettings.ColumnCrown
+    val RingMarks = GraphSettings.RingMarks
 
     /** When the wearer confirmed the alert thresholds (ISO instant; empty = never: CHANGES P4). */
     val ThresholdsConfirmedAt = SchemaSettings.text("alerts.thresholdsConfirmedAt", default = "")

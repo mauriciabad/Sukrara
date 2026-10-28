@@ -3,6 +3,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.monitor.alerts
 
+import app.mauri.sukrara.alerts.AlertKind
+import app.mauri.sukrara.alerts.AlertReading
+import app.mauri.sukrara.alerts.Firing
 import app.mauri.sukrara.alerts.MuteLine
 import app.mauri.sukrara.alerts.Side
 import app.mauri.sukrara.alerts.TreatmentKind
@@ -15,6 +18,7 @@ import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.File
 import javax.xml.parsers.DocumentBuilderFactory
@@ -73,6 +77,24 @@ class AlertCopyTest {
             assertEquals("en $c", c.str("en"), AlertCopy.line(lineOf(c), en, clock))
             assertEquals("es $c", c.str("es"), AlertCopy.line(lineOf(c), es, clock))
         }
+    }
+
+    private fun firing(kind: AlertKind, reading: AlertReading?) =
+        Firing(kind = kind, id = "e1", n = 1, reading = reading, threshold = 70.0, at = 1_000_000)
+
+    @Test fun anAlertWithoutAReadingNeverShowsAMadeUpValue() {
+        for (kind in listOf(AlertKind.LOW, AlertKind.VERY_LOW, AlertKind.HIGH, AlertKind.FALLING_FAST, AlertKind.RISING_FAST)) {
+            assertEquals("en $kind", "No recent reading", AlertCopy.body(firing(kind, null), en))
+            assertEquals("es $kind", "Sin lectura reciente", AlertCopy.body(firing(kind, null), es))
+        }
+    }
+
+    @Test fun aLevelAlertShowsTheValueAndArrowAndTheFastOnesTheRate() {
+        val r = AlertReading(t = 1_000_000, mgdl = 69, rate = -2.4)
+        assertTrue(AlertCopy.body(firing(AlertKind.LOW, r), en).startsWith("69 mg/dL "))
+        assertTrue(AlertCopy.body(firing(AlertKind.FALLING_FAST, r), en).endsWith(" · falling 2.4 mg/dL/min"))
+        assertEquals("no rate: no made-up 0.0", AlertCopy.body(firing(AlertKind.LOW, r.copy(rate = null)), en),
+            AlertCopy.body(firing(AlertKind.FALLING_FAST, r.copy(rate = null)), en))
     }
 
     @Test fun spanishAndEnglishHaveTheSameKeys() {

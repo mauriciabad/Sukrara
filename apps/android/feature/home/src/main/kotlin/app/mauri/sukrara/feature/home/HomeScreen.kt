@@ -178,7 +178,7 @@ fun HomeContent(
                 haptics.confirm()
                 callbacks.onUnmute()
             }
-            Treatments(state.treatments) {
+            Treatments(state.treatments, state.readOnly) {
                 haptics.confirm()
                 callbacks.onDelete(it)
             }
@@ -258,6 +258,7 @@ private fun GlucoseSection(
                     glucose = state.glucose,
                     treatments = state.treatments,
                     now = state.now,
+                    config = state.config,
                     description = cardDescription(state, resources),
                     modifier = Modifier.padding(horizontal = 16.dp),
                     actions =
@@ -499,6 +500,7 @@ private fun MuteStrip(
 @Composable
 private fun Treatments(
     treatments: List<Treatment>,
+    readOnly: Set<String>,
     onDelete: (Treatment) -> Unit,
 ) {
     Reveal(treatments.isNotEmpty()) {
@@ -513,8 +515,10 @@ private fun Treatments(
             Row(Modifier.fillMaxWidth().padding(start = 16.dp, end = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                 Text(time, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Text(label, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f).padding(horizontal = 12.dp))
-                IconButton(onClick = { onDelete(t) }) {
-                    Icon(painterResource(R.drawable.home_ic_delete), contentDescription = stringResource(R.string.home_treatment_delete, label, time))
+                if (t.id !in readOnly) {
+                    IconButton(onClick = { onDelete(t) }) {
+                        Icon(painterResource(R.drawable.home_ic_delete), contentDescription = stringResource(R.string.home_treatment_delete, label, time))
+                    }
                 }
             }
         }
