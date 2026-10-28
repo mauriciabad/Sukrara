@@ -43,7 +43,10 @@ public actor FollowerRuntime: FollowerService {
     static let historyInterval = 30 * 60
     static let persistInterval: TimeInterval = 300
     static let snapshotWindow: TimeInterval = 24 * 3600
-    static let nearbyLeave: Double = 60
+    /// B§6: another wearer's phone is avoided for 10 minutes.
+    public static let nearbyLeaveOther: Double = 600
+    /// A phone with nothing to pair with (it may open pairing in a moment): a minute.
+    public static let nearbyLeaveNoPairing: Double = 60
     private static let log = Logger(subsystem: SukraraIDs.appBundleID, category: "follower")
 
     private let secrets: any SecretStoring
@@ -475,16 +478,17 @@ public actor FollowerRuntime: FollowerService {
         case .state(let state):
             nearbyState = state
             await publishSnapshot()
-        case .info(let info, let owner):
+        case .info(let info, let owner, let phone):
             if session == nil {
                 if let invite = info.invite, invite.expiry > now {
                     nearbyOffer = NearbyOffer(invite: invite)
                     await publishSnapshot()
                 } else {
-                    await nearby?.leave(for: Self.nearbyLeave)  // nothing to pair with: keep both radios idle
+                    // nothing to pair with: keep both radios idle
+                    await nearby?.leave(phone: phone, for: Self.nearbyLeaveNoPairing)
                 }
             } else if owner == .other {
-                await nearby?.leave(for: Self.nearbyLeave)  // another wearer's phone
+                await nearby?.leave(phone: phone, for: Self.nearbyLeaveOther)  // another wearer's phone
             }
         }
     }

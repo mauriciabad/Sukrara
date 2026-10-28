@@ -196,8 +196,8 @@ class NearbyServerCoreTest {
     @Test fun malformedFramesAndTooManyCentralsAreRefused() {
         core.connected("x")
         assertEquals(false to listOf(NearbyServerCore.Effect.Disconnect("x")), core.write("x", byteArrayOf(0, 1, 0), true, false, 0))
-        assertFalse(core.write("x", BleFraming.frames(1, "[]".toByteArray(), 23).single(), true, true, 0).first)
         assertFalse(core.write("x", BleFraming.frames(1, "[]".toByteArray(), 23).single(), false, false, 0).first)
+        assertFalse(core.write("x", BleFraming.frames(1, "[]".toByteArray(), 23).single(), true, false, offset = 3).first)
 
         repeat(NearbyServerCore.MAX_CENTRALS) { core.connected("p$it") }
         assertEquals(listOf(NearbyServerCore.Effect.Disconnect("p8")), core.connected("p8"))

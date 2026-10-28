@@ -441,7 +441,7 @@ class FollowerEngine(
             // another wearer's phone: leave it and keep looking (B§6 "Which owner")
             is NearbyEvent.Info -> {
                 when (e.owner) {
-                    BleMessages.Owner.Other -> nearby?.leave(LEAVE_OTHER_PHONE_S)
+                    BleMessages.Owner.Other -> nearby?.leave(e.phone, LEAVE_OTHER_PHONE_S)
 
                     // the phone proved it's the wearer's: entries still pending go to it now (no internet needed)
                     BleMessages.Owner.Ours -> resendPending()
@@ -845,7 +845,9 @@ class FollowerEngine(
         private val TREATMENT_KINDS = setOf("rapid", "long", "carbs", "note")
 
         const val NEARBY_VIA = "ble"
-        private const val LEAVE_OTHER_PHONE_S = 60L
+
+        /** B§6: another wearer's phone is avoided for 10 minutes. */
+        const val LEAVE_OTHER_PHONE_S = 600L
 
         const val INBOX = "inbox"
         const val ROSTER = "roster"

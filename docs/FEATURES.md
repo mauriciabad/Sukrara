@@ -870,16 +870,22 @@ past the other app's event; blocks again if it's still running) or *Help*.
   scan + connect, `neverForLocation`) or *not connected* (monitoring stopped).
 - `HELLO` carries a fresh random nonce; the phone's `INFO` answers `m = H("cgm2:ble:"+sid+":"+nonce)`. A follower writes
   nothing to a phone (requests, rekeys, history requests, treatments) until its `INFO` proves our stream (`m` over one
-  of its last 4 nonces). Another wearer's phone is left for 60 s and the scan goes on. A pending request: receive only.
+  of its last 4 nonces; once the follower knows the stream id a pairing `i` never proves it). Another wearer's phone is
+  avoided for 10 minutes (that phone only, by its connection: never the one connected since) and the scan goes on; on
+  the Mac, a phone with nothing to pair with (not following yet) is left for a minute. A pending request: receive only.
   After a new key the follower sends `HELLO` again with its proof. Entries still pending go to the phone as soon as it
   proved it's the wearer's; one counts as delivered on a relay's OK or the wearer's echo (a bare write response doesn't).
 - Reliability (Android follower): scan by service UUID (starts spaced: at most 4 per 30 s; restarted every 25 min), one
   connection at a time with a 25 s connect timeout (that phone skipped 60 s), MTU 517, a 10 s timeout on every GATT
   step, `HELLO` again after 3 min without data, link dropped after 5 min, rescan after 3 s doubling to 1 min while
   connections fail, a new `BluetoothGatt` per connection.
+- Frame sizes: every frame fits one ATT write / notification at the link's MTU (Android central: the negotiated MTU;
+  Mac: CoreBluetooth's write-without-response length + 3), so a Mac at the default MTU 23 needs no long write; the
+  wearer's phone still accepts a long (Prepare/Execute) write as one frame (`contracts/protocol/ble/default-mtu.json`).
 - Limits: reassembly drops a message idle for 30 s or over 256 KiB, at most 16 open at once (Android and Mac). The
   wearer's phone takes at most 8 follower devices at once (a connection counts only once it writes to the service), checks
-  each write before answering (a malformed frame, a prepared write or more than 256 KiB a minute → error and disconnect;
+  each write before answering (a malformed frame, a long write out of offset order or over 512 bytes, or more than
+  256 KiB a minute → error and disconnect;
   more than 30 messages a minute → dropped), sends one backlog per device per 5 s (a sooner `HELLO` is answered when due),
   and never re-sends an expired event from its backlog.
 - Not included yet: *Pair nearby* / *Find phones nearby* (joining over Bluetooth without a link), the "· 1 nearby" sub

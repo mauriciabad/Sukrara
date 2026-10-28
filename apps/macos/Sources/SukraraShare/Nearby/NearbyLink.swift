@@ -37,7 +37,7 @@ public struct NearbyLink: Sendable {
 
     public var identity: Identity
     private let crypto: any NostrCrypto
-    private var perFrame: Int?
+    private var mtu: Int?
     private var reassembler = BleReassembler()
     private var outbox: [Pending] = []
     private var inFlight: Pending?
@@ -52,11 +52,11 @@ public struct NearbyLink: Sendable {
         self.crypto = crypto
     }
 
-    public var isConnected: Bool { perFrame != nil }
+    public var isConnected: Bool { mtu != nil }
 
-    /// Notifications are on: start the protocol. `perFrame` = writable bytes per frame minus the 6-byte header.
-    public mutating func connected(perFrame: Int, nonce: String) -> [Effect] {
-        self.perFrame = perFrame
+    /// Notifications are on: start the protocol. `mtu` = the connection's ATT MTU (`NearbyCentral.attMtu`).
+    public mutating func connected(mtu: Int, nonce: String) -> [Effect] {
+        self.mtu = mtu
         return hello(nonce: nonce)
     }
 
@@ -100,7 +100,7 @@ public struct NearbyLink: Sendable {
     /// The connection is gone: everything queued fails.
     public mutating func disconnected() -> [Effect] {
         let failed = ([inFlight].compactMap { $0 } + outbox).compactMap(\.token)
-        perFrame = nil
+        mtu = nil
         outbox = []
         inFlight = nil
         verified = false
@@ -109,9 +109,9 @@ public struct NearbyLink: Sendable {
     }
 
     private mutating func enqueue(_ payload: Data, token: Int?) -> [Effect] {
-        guard let perFrame else { return token.map { [.sent(token: $0, ok: false)] } ?? [] }
+        guard let mtu else { return token.map { [.sent(token: $0, ok: false)] } ?? [] }
         msgId &+= 1
-        let frames = BleFraming.frames(msgId: msgId, payload: payload, perFrame: perFrame)
+        let frames = BleFraming.frames(msgId: msgId, payload: payload, mtu: mtu)
         for (i, frame) in frames.enumerated() {
             outbox.append(Pending(frame: frame, token: i == frames.count - 1 ? token : nil))
         }
