@@ -30,8 +30,11 @@ The full catalog, with every rule and number, is [docs/FEATURES.md](docs/FEATURE
   (NFC), then Sukrara keeps it connected over Bluetooth by itself, with 24 h backfill and automatic reconnects. It
   uses your **LibreView account's receiver ID** (sign in once, only to get the ID), so a sensor can move between
   Sukrara and Abbott's app. Or read from **Juggluco's local web server** if Juggluco keeps the sensor.
-- A guided **new sensor** screen: where the NFC antenna is, warm-up countdown, every failure handled on the same screen
-  (ended sensor, Libre 1/2, another app holding the sensor, Bluetooth off).
+- **Other sensors, untested**: Dexcom G7 / ONE+ / Stelo (read along with the Dexcom app), Dexcom G6 / ONE, Accu-Chek
+  SmartGuide and Aidex X / LinX / GlucoRx. They were never tested with a real sensor: the new sensor screen tags them
+  *Untested* and asks you to confirm before pairing.
+- A guided **new sensor** screen: which sensor, warm-up countdown, every failure handled on the same screen
+  (ended sensor, Libre 1/2, another app holding the sensor, Bluetooth off, a wrong ID or PIN).
 - **Settings › Sensor**: the current sensor (status, serial, start, end and time left), the reading source (Libre 3
   directly or Juggluco, saying first what changes), the LibreView account (email and receiver ID, sign in / out; the
   password is never stored) and *Pair new sensor*.

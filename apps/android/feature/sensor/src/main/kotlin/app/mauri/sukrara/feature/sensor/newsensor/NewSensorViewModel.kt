@@ -8,6 +8,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import app.mauri.sukrara.core.model.Clock
 import app.mauri.sukrara.core.model.SensorState
+import app.mauri.sukrara.sensor.SensorProfile
 import app.mauri.sukrara.sensor.pairing.PairOutcome
 import app.mauri.sukrara.sensor.source.SensorStatus
 import kotlinx.coroutines.CancellationException
@@ -31,6 +32,15 @@ interface NewSensorPort {
     suspend fun env(): SensorEnv
 
     suspend fun pair(tag: Tag): PairOutcome
+
+    /**
+     * Save a scanned family's new pairing ([id]: the typed id, or empty), make reading the sensor directly the source
+     * and start monitoring. Returns the pairing's key (`SensorStatus.Direct.key`).
+     */
+    suspend fun pairScanned(
+        profile: SensorProfile,
+        id: String,
+    ): String
 
     val detail: StateFlow<SensorStatus>
     val sensor: StateFlow<SensorState>
@@ -59,8 +69,9 @@ class NewSensorViewModel(
     private val port: NewSensorPort,
     private val clock: Clock,
     private val appScope: CoroutineScope,
+    initial: NewSensorState = NewSensorState(),
 ) : ViewModel() {
-    private val _state = MutableStateFlow(NewSensorState())
+    private val _state = MutableStateFlow(initial)
     val state: StateFlow<NewSensorState> = _state.asStateFlow()
 
     private val _effects = Channel<NewSensorEffect>(Channel.BUFFERED)
@@ -93,6 +104,20 @@ class NewSensorViewModel(
     }
 
     fun onContinue() = send(NewSensorEvent.Continue)
+
+    fun onChoose(profile: SensorProfile) = send(NewSensorEvent.Choose(profile))
+
+    fun onIdChange(text: String) = send(NewSensorEvent.IdTyped(text))
+
+    /** "Pair" on a scanned family's setup: saved in [appScope] (leaving the screen mustn't lose a half-saved pairing). */
+    fun onPair() {
+        val step = _state.value.step as? NewSensorStep.SensorSetupStep ?: return
+        if (!step.canPair) return
+        appScope.launch {
+            val key = port.pairScanned(step.profile, step.id)
+            send(NewSensorEvent.PairedScanned(key))
+        }
+    }
 
     fun onCancel() = send(NewSensorEvent.Cancel)
 
@@ -134,7 +159,9 @@ class NewSensorViewModel(
             val before = _state.value
             val after = NewSensorMachine.reduce(before, event, clock.now())
             if (!_state.compareAndSet(before, after)) continue
-            if (before.step == NewSensorStep.ReadingNfc && after.step is NewSensorStep.ConnectingBle) {
+            if ((before.step == NewSensorStep.ReadingNfc || before.step is NewSensorStep.SensorSetupStep) &&
+                after.step is NewSensorStep.ConnectingBle
+            ) {
                 _effects.trySend(NewSensorEffect.TapSucceeded)
             }
             if (before.step != NewSensorStep.Ready && after.step == NewSensorStep.Ready) _effects.trySend(NewSensorEffect.Ready)

@@ -14,11 +14,13 @@ import app.mauri.sukrara.feature.sensor.newsensor.NewSensorEvent.Tapped
 import app.mauri.sukrara.feature.sensor.newsensor.NewSensorEvent.Tick
 import app.mauri.sukrara.feature.sensor.newsensor.NewSensorEvent.UseJuggluco
 import app.mauri.sukrara.sensor.SensorProfile
+import app.mauri.sukrara.sensor.ble.FailReason
 import app.mauri.sukrara.sensor.ble.LinkStatus
 import app.mauri.sukrara.sensor.pairing.PairOutcome
 import app.mauri.sukrara.sensor.source.SensorStatus
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.time.Duration
 import java.time.Instant
@@ -37,7 +39,14 @@ class NewSensorMachineTest {
             notificationsAllowed = true,
         )
 
-    private fun run(vararg events: NewSensorEvent, from: NewSensorState = NewSensorState(), now: Instant = t0) =
+    private fun run(
+        vararg events: NewSensorEvent,
+        from: NewSensorState =
+            NewSensorState(
+                profile = SensorProfile.Libre3,
+            ),
+        now: Instant = t0,
+    ) =
         events.fold(from) { s, e -> NewSensorMachine.reduce(s, e, now) }
 
     private fun step(vararg events: NewSensorEvent, now: Instant = t0) = run(*events, now = now).step
@@ -262,5 +271,85 @@ class NewSensorMachineTest {
             val final = run(*events)
             assertEquals(final, run(Start(ok), TagFound, Retry, Cancel, Tick(t0.plusSeconds(999)), from = final))
         }
+    }
+
+    // MARK: choosing the sensor and the untested families
+
+    private val fresh = NewSensorState()
+
+    @Test fun `the flow opens on the choice with the Libre 3 preselected, which goes on to its gates`() {
+        val chosen = run(Start(ok), from = fresh)
+        assertEquals(NewSensorStep.ChooseSensor(SensorProfile.Libre3), chosen.step)
+        assertEquals(NewSensorStep.WaitingForTap, run(NewSensorEvent.Continue, from = chosen).step)
+    }
+
+    @Test fun `an untested family asks first, and Continue anyway works only after the wait`() {
+        val warned = run(Start(ok), NewSensorEvent.Choose(SensorProfile.DexcomG6), NewSensorEvent.Continue, from = fresh)
+        assertEquals(NewSensorStep.ConfirmUntested(SensorProfile.DexcomG6, t0), warned.step)
+        assertEquals(warned, run(NewSensorEvent.Continue, from = warned, now = t0.plusSeconds(9)))
+        assertEquals(
+            NewSensorStep.SensorSetupStep(SensorProfile.DexcomG6),
+            run(NewSensorEvent.Continue, from = warned, now = t0.plusSeconds(10)).step,
+        )
+        // Cancel goes back to the choice, never on
+        assertEquals(NewSensorStep.ChooseSensor(SensorProfile.DexcomG6), run(Cancel, from = warned).step)
+    }
+
+    @Test fun `a scanned family needs Bluetooth incl scanning and skips the Libre 3 gates`() {
+        val noLibreGates = ok.copy(coreAvailable = false, nfcAvailable = false, signedIn = false)
+        val setup = SensorProfile.AidexX
+
+        fun after(env: SensorEnv) =
+            run(Start(env), NewSensorEvent.Choose(setup), NewSensorEvent.Continue, NewSensorEvent.Continue, from = fresh, now = t0)
+                .let { run(NewSensorEvent.Continue, from = it, now = t0.plusSeconds(10)) }
+                .step
+        assertEquals(NewSensorStep.SensorSetupStep(setup), after(noLibreGates))
+        assertEquals(NewSensorStep.NeedsBluetoothPermission, after(noLibreGates.copy(scanPermission = false)))
+        assertEquals(NewSensorStep.BluetoothOff, after(noLibreGates.copy(bluetoothOn = false)))
+    }
+
+    @Test fun `the typed id is normalized and Pair waits for a valid one`() {
+        val setup = NewSensorState(step = NewSensorStep.SensorSetupStep(SensorProfile.DexcomG6), profile = SensorProfile.DexcomG6, env = ok)
+        val typed = run(NewSensorEvent.IdTyped("8g-ab c"), from = setup)
+        assertEquals("8GABC", (typed.step as NewSensorStep.SensorSetupStep).id)
+        assertEquals(typed, run(NewSensorEvent.PairedScanned("k"), from = typed))
+        val full = run(NewSensorEvent.IdTyped("8GABCD99"), from = typed) // cut to 6
+        assertEquals("8GABCD", (full.step as NewSensorStep.SensorSetupStep).id)
+        assertEquals(
+            NewSensorStep.ConnectingBle("k", t0, activated = false, profile = SensorProfile.DexcomG6),
+            run(NewSensorEvent.PairedScanned("k"), from = full).step,
+        )
+        // the gates re-checked on resume keep what was typed
+        assertEquals(full, run(Start(ok), from = full).copy(env = ok))
+    }
+
+    @Test fun `a scanned family's link states show on the connecting page, a failure goes back to the setup`() {
+        val connecting =
+            NewSensorState(
+                step = NewSensorStep.ConnectingBle("k", t0, activated = false, profile = SensorProfile.SmartGuide),
+                profile = SensorProfile.SmartGuide,
+                env = ok,
+            )
+
+        fun direct(link: LinkStatus) = Source(SensorStatus.Direct(SensorProfile.SmartGuide, "AC-1", "k", link), SensorState.Active(null))
+        assertEquals(LinkStatus.EnterPin, (run(direct(LinkStatus.EnterPin), from = connecting).step as NewSensorStep.ConnectingBle).link)
+        assertEquals(
+            connecting,
+            run(Source(SensorStatus.Direct(SensorProfile.SmartGuide, "x", "other", LinkStatus.Live), SensorState.None), from = connecting),
+        )
+        val failed = run(direct(LinkStatus.Failed(FailReason.BondFailed)), from = connecting)
+        assertEquals(NewSensorStep.BleFailed("k", BleFailure.BondFailed), failed.step)
+        assertEquals(NewSensorStep.SensorSetupStep(SensorProfile.SmartGuide), run(Retry, from = failed).step)
+        assertEquals(NewSensorStep.Ready, run(direct(LinkStatus.Live), from = connecting).step)
+    }
+
+    @Test fun `a scanned family gets longer before the not-answering page`() {
+        val connecting =
+            NewSensorState(step = NewSensorStep.ConnectingBle("k", t0, false, SensorProfile.DexcomG7), profile = SensorProfile.DexcomG7)
+        assertTrue(run(Tick(t0.plus(NewSensorMachine.BLE_TIMEOUT)), from = connecting).step is NewSensorStep.ConnectingBle)
+        assertEquals(
+            NewSensorStep.BleFailed("k", BleFailure.Timeout),
+            run(Tick(t0.plus(NewSensorMachine.SCANNED_TIMEOUT)), from = connecting).step,
+        )
     }
 }

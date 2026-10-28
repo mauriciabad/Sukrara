@@ -55,6 +55,13 @@ class NewSensorViewModelTest {
 
         override suspend fun pair(tag: Tag): PairOutcome = error("tests pass the read directly")
 
+        val scanned = ArrayList<Pair<SensorProfile, String>>()
+
+        override suspend fun pairScanned(profile: SensorProfile, id: String): String {
+            scanned += profile to id
+            return "key:$id"
+        }
+
         override val detail = MutableStateFlow<SensorStatus>(SensorStatus.NoSensor)
         override val sensor = MutableStateFlow<SensorState>(SensorState.None)
 
@@ -76,7 +83,7 @@ class NewSensorViewModelTest {
     @After fun tearDown() = Dispatchers.resetMain()
 
     private fun TestScope.vm(port: FakePort, appScope: TestScope = this) =
-        NewSensorViewModel(port, clock, appScope.backgroundScope).also {
+        NewSensorViewModel(port, clock, appScope.backgroundScope, NewSensorState(profile = SensorProfile.Libre3)).also {
             it.start()
             runCurrent()
         }
