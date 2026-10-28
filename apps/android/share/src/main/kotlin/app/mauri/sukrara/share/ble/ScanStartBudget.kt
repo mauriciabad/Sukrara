@@ -14,10 +14,13 @@ class ScanStartBudget(
 ) {
     private val starts = ArrayDeque<Long>()
 
-    /** Counts a start at [t] and returns 0, or returns how long to wait before one is allowed (nothing counted). */
+    /**
+     * Counts a start at [t] (a monotonic clock) and returns 0, or returns how long to wait before one is allowed
+     * (nothing counted). A start "after" [t] (a clock that went back) no longer counts.
+     */
     @Synchronized
     fun take(t: Long): Long {
-        starts.removeAll { t - it > windowMs }
+        starts.removeAll { t - it > windowMs || it > t }
         if (starts.size >= limit) return windowMs - (t - starts.first()) + 100
         starts += t
         return 0

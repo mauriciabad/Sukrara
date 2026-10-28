@@ -227,6 +227,8 @@ class SetupViewModel(
      * left as skipped (written first), so its Finish-setup row stays.
      */
     fun back(onLeave: () -> Unit) {
+        // the join step's list is gone: Bluetooth stops looking
+        searching.value = null
         val u = ui.value ?: return onLeave()
         if (u.single) {
             leaving = true
@@ -253,6 +255,7 @@ class SetupViewModel(
     /** P10: called after the person confirmed what the role means. A changed role resets the alert runtime first. */
     fun chooseRole(role: Role) =
         act {
+            searching.value = null
             val facts = ui.value?.facts ?: return@act
             val chosen = SetupMachine.chooseRole(role, confirmed = true, facts) as? Result.Done ?: return@act
             if (facts.role != chosen.value) m.resetAlerts()
@@ -283,7 +286,11 @@ class SetupViewModel(
                     JoinResult.Offline
                 }
             joining.value = if (result == JoinResult.Joined) JoinUi.Idle else JoinUi.Failed(result)
-            if (result == JoinResult.Joined) m.pendingInvite.value = null
+            if (result == JoinResult.Joined) {
+                m.pendingInvite.value = null
+                // the follow's own link takes over: a second search would spend the shared scan budget
+                searching.value = null
+            }
         }
     }
 
@@ -347,6 +354,7 @@ class SetupViewModel(
     }
 
     fun completeJoin() {
+        searching.value = null
         val facts = ui.value?.facts ?: return
         record { SetupMachine.completeJoin(it, facts) }
     }

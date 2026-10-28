@@ -127,6 +127,17 @@ internal fun ColumnScope.ScanInvite(
                 }
             }
         }
+    // restored as Scanning after the permission was revoked (that ends the process): explain and ask again
+    if (state == ScanState.Scanning && !granted()) {
+        LaunchedEffect(Unit) {
+            state =
+                if (activity?.shouldShowRequestPermissionRationale(Manifest.permission.CAMERA) == true) {
+                    ScanState.Rationale
+                } else {
+                    ScanState.Denied
+                }
+        }
+    }
     // back from the system settings with the camera allowed: straight to scanning
     if (state == ScanState.Denied) {
         LifecycleResumeEffect(Unit) {
@@ -212,26 +223,29 @@ internal fun ColumnScope.ScanInvite(
             }
         }
 
+        // without the permission the effect above leaves Scanning: never bind the camera meanwhile
         ScanState.Scanning -> {
-            ScanCard {
-                Text(
-                    stringResource(R.string.sh_scan_point),
-                    style = MaterialTheme.typography.bodyMedium,
-                    modifier = Modifier.padding(horizontal = 16.dp).semantics { liveRegion = LiveRegionMode.Polite },
-                )
-                CameraPreview(
-                    onInvite = found,
-                    onNoCamera = { state = ScanState.NoCamera },
-                    modifier =
-                        Modifier
-                            .padding(horizontal = 16.dp)
-                            .fillMaxWidth()
-                            .aspectRatio(1f)
-                            .clip(RoundedCornerShape(16.dp)),
-                )
-                Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp), horizontalArrangement = Arrangement.End) {
-                    TextButton(onClick = { state = ScanState.Closed }, modifier = Modifier.heightIn(min = 48.dp)) {
-                        Text(stringResource(R.string.sh_scan_cancel))
+            if (granted()) {
+                ScanCard {
+                    Text(
+                        stringResource(R.string.sh_scan_point),
+                        style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier.padding(horizontal = 16.dp).semantics { liveRegion = LiveRegionMode.Polite },
+                    )
+                    CameraPreview(
+                        onInvite = found,
+                        onNoCamera = { state = ScanState.NoCamera },
+                        modifier =
+                            Modifier
+                                .padding(horizontal = 16.dp)
+                                .fillMaxWidth()
+                                .aspectRatio(1f)
+                                .clip(RoundedCornerShape(16.dp)),
+                    )
+                    Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp), horizontalArrangement = Arrangement.End) {
+                        TextButton(onClick = { state = ScanState.Closed }, modifier = Modifier.heightIn(min = 48.dp)) {
+                            Text(stringResource(R.string.sh_scan_cancel))
+                        }
                     }
                 }
             }
@@ -287,7 +301,8 @@ private fun CameraPreview(
                 val link = firstInvite(runCatching { reader.read(it) }.getOrDefault(emptyList()).map { r -> r.text })
                 if (link != null && done.compareAndSet(false, true)) {
                     ContextCompat.getMainExecutor(ctx).execute {
-                        if (owner.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) invite(link)
+                        // read while the screen was stopping: dropped, and the preview reads again when it's back
+                        if (owner.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) invite(link) else done.set(false)
                     }
                 }
             }
@@ -319,7 +334,8 @@ private fun inviteInPicture(
                 .decodeBitmap(ImageDecoder.createSource(ctx.contentResolver, uri)) { d, info, _ ->
                     d.allocator = ImageDecoder.ALLOCATOR_SOFTWARE
                     val side = maxOf(info.size.width, info.size.height)
-                    if (side > MAX_PICTURE_SIDE) d.setTargetSampleSize(side / MAX_PICTURE_SIDE)
+                    // rounded up: a 3999 px picture decodes at half size, never at full size
+                    if (side > MAX_PICTURE_SIDE) d.setTargetSampleSize((side + MAX_PICTURE_SIDE - 1) / MAX_PICTURE_SIDE)
                 }.let { if (it.config != Bitmap.Config.ARGB_8888) it.copy(Bitmap.Config.ARGB_8888, false) else it }
         firstInvite(reader(hard = true).read(bitmap).map { it.text })
     }.getOrNull()

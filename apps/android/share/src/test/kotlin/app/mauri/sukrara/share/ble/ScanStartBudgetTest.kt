@@ -16,4 +16,11 @@ class ScanStartBudgetTest {
         assertEquals(30_100L - 5_000L, budget.take(6_000))
         assertEquals(0L, budget.take(31_001))
     }
+
+    @Test fun aClockThatWentBackNeverBlocksForLonger() {
+        val budget = ScanStartBudget(limit = 4, windowMs = 30_000)
+        repeat(4) { assertEquals(0L, budget.take(10_000_000L + it)) }
+        // an hour earlier: the starts "in the future" no longer count
+        assertEquals(0L, budget.take(10_000_000L - 3_600_000L))
+    }
 }
