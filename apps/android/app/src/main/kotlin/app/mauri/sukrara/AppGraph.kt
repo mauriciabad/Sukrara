@@ -17,6 +17,7 @@ import app.mauri.sukrara.core.model.ReadingSource
 import app.mauri.sukrara.core.model.Role
 import app.mauri.sukrara.core.model.SystemClock
 import app.mauri.sukrara.core.model.Treatment
+import app.mauri.sukrara.core.model.storage.TreatmentRecord
 import app.mauri.sukrara.feature.sensor.SensorUiModule
 import app.mauri.sukrara.feature.settings.AlertPlayback
 import app.mauri.sukrara.feature.settings.AlertSettingsStore
@@ -43,6 +44,10 @@ import app.mauri.sukrara.monitor.notify.NotificationGroups
 import app.mauri.sukrara.monitor.notify.NotificationIds
 import app.mauri.sukrara.monitor.sensorend.SensorEndMemory
 import app.mauri.sukrara.monitor.service.StartReason
+import app.mauri.sukrara.pen.PenLog
+import app.mauri.sukrara.pen.PenNotificationPorts
+import app.mauri.sukrara.pen.PensModule
+import app.mauri.sukrara.pen.engine.Ledger
 import app.mauri.sukrara.protocol.event.AlertCodec
 import app.mauri.sukrara.sensor.SensorModule
 import app.mauri.sukrara.sensor.pairing.PairingLoad
@@ -196,6 +201,7 @@ class AppGraph(
             clock = clock,
             sensor = monitor.hub.state.map { it.sensor },
             systemAccess = monitor.systemAccess,
+            pensAvailable = { pens.available() },
             alertPlayback =
                 object : AlertPlayback {
                     override fun play(
@@ -394,6 +400,50 @@ class AppGraph(
     }
 
     /**
+     * Insulin pens (NFC) on the wearer's phone: the ledger (`pens.json`; damaged → empty: a known pen's next tap is
+     * a first scan that continues after its newest logged entry) and its writes into the treatment log.
+     */
+    val pens: PensModule by lazy {
+        val info = NotificationGroups.Group.INFO
+
+        fun id(kind: PenNotificationPorts.Kind) =
+            if (kind == PenNotificationPorts.Kind.Read) NotificationIds.PEN_RESULTS else NotificationIds.PEN_CHECK
+
+        fun channel(kind: PenNotificationPorts.Kind) =
+            if (kind ==
+                PenNotificationPorts.Kind.Read
+            ) {
+                Channels.PEN_RESULTS
+            } else {
+                Channels.PEN_CHECK
+            }
+        PensModule(
+            context = app,
+            store = data.typedStore("pens", Ledger.serializer(), Ledger(), whenCorrupt = Ledger()),
+            log =
+                object : PenLog {
+                    override suspend fun all() = data.treatments.changedSince(Instant.EPOCH)
+
+                    override fun canWrite() = treatments.log.penMayWrite()
+
+                    override suspend fun store(record: TreatmentRecord) = treatments.log.storeFromPen(record)
+                },
+            settings = data.settings,
+            clock = clock,
+            roleSource = role.data.map { it.role },
+            scope = scope,
+            ports =
+                PenNotificationPorts(
+                    readsChannel = Channels.PEN_RESULTS,
+                    checkChannel = Channels.PEN_CHECK,
+                    group = info.key,
+                    post = { kind, n -> NotificationGroups.post(app, id(kind), n, info, channel(kind)) },
+                    cancel = { kind -> NotificationGroups.cancel(app, id(kind), info) },
+                ),
+        )
+    }
+
+    /**
      * Loads what the modules need from disk, once, off the main thread. [App] starts it; anything that reads state
      * first does `graph.ready.await()` (cheap once done).
      */
@@ -409,6 +459,7 @@ class AppGraph(
                 integrations.load()
                 integrations.start(scope)
             }
+            step("pens") { pens.start() }
             // sharing runs while this phone is the wearer (needs an identity: created / restored in Settings › Sharing)
             step("share") { scope.launch { shareOwner.ownerEngine.followRole(role.data.map { it.role }, scope) } }
             step("follower") {

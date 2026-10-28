@@ -42,6 +42,9 @@ interface SettingsDeps {
 
     val clock: Clock
 
+    /** Whether this phone reads insulin pens (the wearer's phone with NFC): Settings shows *Insulin pens* only then. */
+    fun pensAvailable(): Boolean = false
+
     /** Root for Sukrara and the System UI module (Settings › Status bar, "With root"). */
     val systemAccess: SystemAccessPort
 

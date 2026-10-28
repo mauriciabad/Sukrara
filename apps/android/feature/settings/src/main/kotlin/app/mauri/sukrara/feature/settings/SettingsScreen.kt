@@ -25,6 +25,8 @@ import app.mauri.sukrara.feature.settings.graph.GraphMarksContent
 import app.mauri.sukrara.feature.settings.graph.GraphViewModel
 import app.mauri.sukrara.feature.settings.lock.LockScreenContent
 import app.mauri.sukrara.feature.settings.lock.LockScreenViewModel
+import app.mauri.sukrara.feature.settings.pens.PensContent
+import app.mauri.sukrara.feature.settings.pens.PensViewModel
 import app.mauri.sukrara.feature.settings.sensorend.SensorEndActions
 import app.mauri.sukrara.feature.settings.sensorend.SensorEndContent
 import app.mauri.sukrara.feature.settings.sensorend.SensorEndViewModel
@@ -50,6 +52,9 @@ sealed interface SettingsRoute {
     data object GraphMarks : SettingsRoute
 
     data object LockScreen : SettingsRoute
+
+    /** Settings › Insulin pens (the wearer's phone with NFC). */
+    data object Pens : SettingsRoute
 
     data object Reliability : SettingsRoute
 
@@ -100,6 +105,7 @@ fun SettingsScreen(
                     openSharing = openSharing,
                     openApps = openApps,
                     unmuteAll = vm::unmuteAll,
+                    pens = deps.pensAvailable(),
                 ),
                 apps,
                 onBack,
@@ -169,6 +175,12 @@ fun SettingsScreen(
                     GraphMarksContent(it, actions, onBack, preview)
                 }
             }
+        }
+
+        SettingsRoute.Pens -> {
+            val vm = viewModel { PensViewModel(deps.settings) }
+            val ui by vm.ui.collectAsStateWithLifecycle()
+            ui?.let { PensContent(it, vm, onBack) }
         }
 
         SettingsRoute.LockScreen -> {
