@@ -73,6 +73,8 @@ kotlinx-coroutines-android = { module = "org.jetbrains.kotlinx:kotlinx-coroutine
 kotlinx-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "coroutines" }
 kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "serializationJson" }
 okhttp = { module = "com.squareup.okhttp3:okhttp", version.ref = "okhttp" }
+# a local fake HTTP server for upload tests (:integrations), never in an APK
+okhttp-mockwebserver = { module = "com.squareup.okhttp3:mockwebserver", version.ref = "okhttp" }
 nostr-sdk = { module = "org.nostrdevkit:nostr-sdk", version.ref = "nostrSdk" }
 # the JVM build of the same bindings: unit tests only (:core:protocol, adapter contract tests), never in an APK
 nostr-sdk-jvm = { module = "org.nostrdevkit:nostr-sdk-jvm", version.ref = "nostrSdk" }
