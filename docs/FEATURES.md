@@ -653,7 +653,11 @@ tests `GlucoseHubTest`, `MonitorServiceLogicTest`).
 - **Monitoring starts at the first reading** of the current source (remembered across restarts). Before that every
   surface says *Not monitoring: no sensor yet* and no "no data" alarm can be armed. Only removing the
   sensor or changing the role (explicit actions) go back to *Not monitoring*.
-- Readings: LO / HI kept (never dropped); a reading stamped more than 5 min ahead of the phone's clock is dropped
+- Readings: LO / HI kept (never dropped) and stored as the flags at the one way in (Android hub `GlucoseRange.normalise`,
+  Mac follower `GlucoseRange.normalised`): any number below 40 from any source (sensor, Juggluco, relay, Nearby) is
+  stored as 39 and any above 400 as 401, without a rate, so the follower's card shows *LO* / *HI* and the graph, uploads
+  and the CSV export (39 / 401, never "LO" / "HI": Tidepool's LibreView import refuses a non-numeric cell) all agree;
+  0, negatives and values above 1000 are dropped as malformed; a reading stamped more than 5 min ahead of the phone's clock is dropped
   (it would look fresh for too long); the gap then shows and alarms as no data. The hub keeps the last 24 h for every surface.
 - Bluetooth off → the wearer sees *Bluetooth is off*; on → the source reconnects with a fresh connection.
 - **Monitoring stopped**: when Android refuses to start the service (background start not allowed, permission) the

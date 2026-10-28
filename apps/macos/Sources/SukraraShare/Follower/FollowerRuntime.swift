@@ -674,8 +674,10 @@ public actor FollowerRuntime: FollowerService {
 
     // MARK: - conversions
 
+    /// A wire reading as stored: LO / HI normalised to the flags (the decoder already refused values outside 1…1000).
     static func reading(_ wire: WireReading) -> Reading {
-        Reading(t: Date(timeIntervalSince1970: Double(wire.t)), mgdl: wire.sgv, rate: wire.rate)
+        GlucoseRange.normalised(
+            Reading(t: Date(timeIntervalSince1970: Double(wire.t)), mgdl: wire.sgv, rate: wire.rate))
     }
 
     /// nil for an entry Core's model refuses (unknown kind or origin): it is not stored.
