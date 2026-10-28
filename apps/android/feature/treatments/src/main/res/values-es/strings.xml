@@ -42,4 +42,7 @@
     <string name="treatment_quiet_highs">Altas silenciadas %1$s</string>
     <string name="treatment_quiet_lows">Bajas silenciadas %1$s</string>
     <string name="treatment_quiet_both">Altas silenciadas %1$s · bajas silenciadas %2$s</string>
+    <string name="treatment_pen_duplicate_title">¿Ya registrada por tu pluma?</string>
+    <string name="treatment_pen_duplicate_text">Tu pluma registró %1$s a las %2$s. ¿Registrar también esta dosis?</string>
+    <string name="treatment_pen_duplicate_log">Registrar igualmente</string>
 </resources>

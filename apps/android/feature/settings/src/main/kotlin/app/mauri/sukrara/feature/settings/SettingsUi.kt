@@ -64,12 +64,14 @@ fun SettingsPage(
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
     scroll: Boolean = true,
+    snackbar: androidx.compose.material3.SnackbarHostState? = null,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val bar = TopAppBarDefaults.exitUntilCollapsedScrollBehavior(rememberTopAppBarState())
     Scaffold(
         modifier = modifier.fillMaxSize().nestedScroll(bar.nestedScrollConnection),
         containerColor = MaterialTheme.colorScheme.surfaceContainer,
+        snackbarHost = { snackbar?.let { androidx.compose.material3.SnackbarHost(it) } },
         topBar = {
             LargeTopAppBar(
                 title = { Text(title) },

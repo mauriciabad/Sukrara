@@ -145,4 +145,8 @@
         <item quantity="one">%1$d follower</item>
         <item quantity="other">%1$d followers</item>
     </plurals>
+    <string name="banner_pens_title">Pen taps are blocked</string>
+    <string name="banner_pens_text">Android doesn\'t let pen taps reach Sukrara, so your pen doses aren\'t read or logged.</string>
+    <string name="banner_pens_allow">Allow</string>
+    <string name="banner_pens_turn_off">Turn off</string>
 </resources>

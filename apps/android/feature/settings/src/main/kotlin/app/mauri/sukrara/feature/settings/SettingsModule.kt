@@ -35,6 +35,7 @@ class SettingsModule(
     systemAccess: SystemAccessPort,
     alertPlayback: AlertPlayback,
     pensAvailable: () -> Boolean = { false },
+    pens: () -> app.mauri.sukrara.core.model.PensPort? = { null },
 ) {
     val deps: SettingsDeps =
         object : SettingsDeps {
@@ -53,6 +54,8 @@ class SettingsModule(
             override val alertPlayback = alertPlayback
 
             override fun pensAvailable() = pensAvailable()
+
+            override val pens get() = pens()
         }
 
     /** When the alert thresholds were confirmed (null = never): home's Finish-setup card asks until they are. */

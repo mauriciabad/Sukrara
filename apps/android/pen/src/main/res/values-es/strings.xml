@@ -83,9 +83,12 @@
     </plurals>
     <string name="pen_read_clock_held">Sin registrar: %1$s. Revisa sus dosis.</string>
     <string name="pen_untested_title">Pluma sin probar</string>
-    <string name="pen_untested_text">Sukrara aún no registra %1$s: no se ha comprobado con una pluma real. Escribe sus dosis a mano.</string>
     <string name="pen_card_close">Cerrar</string>
     <string name="pen_card_label">Lectura de la pluma</string>
     <string name="pen_undo_failed">No se pudo deshacer</string>
     <string name="pen_undo_failed_text">Algo cambió desde esa lectura. Revisa tus tratamientos en Sukrara.</string>
+    <string name="pen_untested_check_text">Sukrara no registra nada de %1$s hasta que lo compruebes una vez con la pantalla de la pluma.</string>
+    <string name="pen_check_it">Comprobar</string>
+    <string name="pen_notusable_title">Pluma no utilizable</string>
+    <string name="pen_notusable_text">%1$s no coincidió con su pantalla, así que Sukrara no registra nada de ella. Escribe sus dosis a mano.</string>
 </resources>

@@ -9,6 +9,7 @@ import app.mauri.sukrara.core.model.AlertControls
 import app.mauri.sukrara.core.model.AlertReadinessSource
 import app.mauri.sukrara.core.model.AlertUiState
 import app.mauri.sukrara.core.model.Clock
+import app.mauri.sukrara.core.model.PensPort
 import app.mauri.sukrara.core.model.SensorState
 import app.mauri.sukrara.core.model.SystemAccessPort
 import app.mauri.sukrara.core.model.storage.SettingsRepository
@@ -44,6 +45,9 @@ interface SettingsDeps {
 
     /** Whether this phone reads insulin pens (the wearer's phone with NFC): Settings shows *Insulin pens* only then. */
     fun pensAvailable(): Boolean = false
+
+    /** The pens, their pages and Android's tap state (null on a phone that doesn't read pens). */
+    val pens: PensPort? get() = null
 
     /** Root for Sukrara and the System UI module (Settings › Status bar, "With root"). */
     val systemAccess: SystemAccessPort

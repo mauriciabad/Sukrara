@@ -124,9 +124,12 @@ data object ExportRoute : NavKey
 data class SettingsKey(
     val page: String,
     val kind: String? = null,
+    val serial: String? = null,
 ) : NavKey {
     fun route(): SettingsRoute =
         when (page) {
+            "pen" -> serial?.let(SettingsRoute::Pen) ?: SettingsRoute.Pens
+            "pendoses" -> serial?.let(SettingsRoute::PenDoses) ?: SettingsRoute.Pens
             "alerts" -> SettingsRoute.Alerts
             "kind" -> kind?.let(AlertKind::fromWire)?.let(SettingsRoute::AlertKindPage) ?: SettingsRoute.Alerts
             "ranges" -> SettingsRoute.Ranges
@@ -153,6 +156,8 @@ data class SettingsKey(
                 SettingsRoute.GraphMarks -> SettingsKey("marks")
                 SettingsRoute.LockScreen -> SettingsKey("lock")
                 SettingsRoute.Pens -> SettingsKey("pens")
+                is SettingsRoute.Pen -> SettingsKey("pen", serial = route.serial)
+                is SettingsRoute.PenDoses -> SettingsKey("pendoses", serial = route.serial)
                 SettingsRoute.Reliability -> SettingsKey("reliability")
                 SettingsRoute.StatusBar -> SettingsKey("statusbar")
                 SettingsRoute.SensorEnd -> SettingsKey("sensorend")
@@ -189,8 +194,21 @@ fun SukraraNavigation(
     openNewSensor: Boolean,
     onNewSensorShow: () -> Unit,
     modifier: Modifier = Modifier,
+    openPen: String? = null,
+    onPenShow: () -> Unit = {},
 ) {
     val backStack = rememberNavBackStack(HomeRoute)
+    // the pen read card's *Check it*: Settings › Insulin pens › that pen, on top of what is open
+    val penShown by rememberUpdatedState(onPenShow)
+    LaunchedEffect(openPen) {
+        val serial = openPen ?: return@LaunchedEffect
+        val page = SettingsKey("pen", serial = serial)
+        if (backStack.last() != page) {
+            if (SettingsKey("pens") !in backStack) backStack.add(SettingsKey("pens"))
+            backStack.add(page)
+        }
+        penShown()
+    }
     // a request (a notification tap, also while the app is open) opens the flow once, on top of home
     val newSensorShown by rememberUpdatedState(onNewSensorShow)
     LaunchedEffect(openNewSensor) {
@@ -490,6 +508,16 @@ private fun route(
         // its banner stays hidden until the integrations provide the input and the route
         HomeAction.OpenClinicUpload -> {
             Unit
+        }
+
+        HomeAction.AllowPenTaps -> {
+            context.graph.pens.port
+                .openTagSettings()
+        }
+
+        HomeAction.TurnOffPens -> {
+            context.graph.pens.turnOff()
+            home.refresh()
         }
     }
 }

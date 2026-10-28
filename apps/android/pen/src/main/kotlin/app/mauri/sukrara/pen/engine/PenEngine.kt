@@ -67,6 +67,7 @@ data class Pen(
     val doses: Map<String, Seen> = emptyMap(),
     val wrote: Map<String, Long> = emptyMap(), // entry id → the `u` the engine last wrote
     val replaced: Map<String, PenEntry> = emptyMap(), // entry id → the hand-typed entry a merge replaced
+    val opened: Boolean = false, // the pen's page was opened once (app-side: Settings › Insulin pens' hint)
 )
 
 /** A question: what some doses were (`doses`), or whether an injection is a hand-typed entry (`match`). */

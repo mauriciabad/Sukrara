@@ -13,6 +13,7 @@ import app.mauri.sukrara.core.data.settings.SchemaSettings
 import app.mauri.sukrara.core.model.Clock
 import app.mauri.sukrara.core.model.DefaultDispatchers
 import app.mauri.sukrara.core.model.DispatcherProvider
+import app.mauri.sukrara.core.model.PenDuplicates
 import app.mauri.sukrara.core.model.ReadingSource
 import app.mauri.sukrara.core.model.Role
 import app.mauri.sukrara.core.model.SystemClock
@@ -202,6 +203,7 @@ class AppGraph(
             sensor = monitor.hub.state.map { it.sensor },
             systemAccess = monitor.systemAccess,
             pensAvailable = { pens.available() },
+            pens = { pens.port.takeIf { pens.available() } },
             alertPlayback =
                 object : AlertPlayback {
                     override fun play(
@@ -336,6 +338,7 @@ class AppGraph(
             },
             treatmentLog = { treatments.log },
             sharing = { shareOwner.ownerEngine.state },
+            penTapsBlocked = { pens.tapsBlockedWhileOn() },
         )
     }
 
@@ -396,6 +399,8 @@ class AppGraph(
             data.settings,
             scope,
             hints = AppAlertHints(alerts.store.settings.stateIn(scope, SharingStarted.Eagerly, null), home.glucose, clock),
+            // read when the dialog saves (the pens module is built on first use, after this one)
+            penDuplicates = PenDuplicates { kind, at -> pens.duplicates.near(kind, at) },
         )
     }
 

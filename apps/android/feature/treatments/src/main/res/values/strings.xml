@@ -40,4 +40,7 @@
     <string name="treatment_quiet_highs">Highs quiet for %1$s</string>
     <string name="treatment_quiet_lows">Lows quiet for %1$s</string>
     <string name="treatment_quiet_both">Highs quiet for %1$s · lows quiet for %2$s</string>
+    <string name="treatment_pen_duplicate_title">Already logged by your pen?</string>
+    <string name="treatment_pen_duplicate_text">Your pen logged %1$s at %2$s. Log this dose too?</string>
+    <string name="treatment_pen_duplicate_log">Log anyway</string>
 </resources>
