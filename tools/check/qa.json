@@ -1,5 +1,5 @@
 {
-  "_about": "Changed path -> docs/QA.md sections to check by hand (printed by tools/check/run.sh). Globs: fnmatch ('*' crosses '/'). V1 paths only.",
+  "_about": "Changed path -> docs/QA.md sections to check by hand (printed by tools/check/run.sh). Globs: fnmatch ('*' crosses '/'). App paths only (not poc/).",
   "map": [
     {"paths": ["apps/android/core/graph/*", "apps/macos/Sources/SukraraGraph/*", "contracts/graph/*"],
      "qa": ["Q2 Graph and value card", "Q3 Android widgets", "Q5 Glucose notification", "Q6 Mac menubar panel", "Q7 Mac widgets"]},

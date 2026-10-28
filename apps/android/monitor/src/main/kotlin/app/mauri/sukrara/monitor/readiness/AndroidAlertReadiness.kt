@@ -1,4 +1,4 @@
-// Sukrara — https://github.com/mauriciabad/Sukrara
+// Sukrara — https://github.com/mauriciabad/sukrara
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.monitor.readiness
@@ -42,7 +42,7 @@ import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.stateIn
 
 /**
- * THE alert checklist of the app (CHANGES P5): home's reliability row, the settings Reliability page and the setup
+ * THE alert checklist of the app: home's reliability row, the settings Reliability page and the setup
  * permission step all render this one instance (`AppGraph.alerts.readiness`). It re-reads the phone when a screen
  * asks ([refresh], on every resume), when the alert settings or the role's source change, and while someone collects
  * it, on the system broadcasts that flip an item without leaving the app (Bluetooth, Do Not Disturb, a blocked

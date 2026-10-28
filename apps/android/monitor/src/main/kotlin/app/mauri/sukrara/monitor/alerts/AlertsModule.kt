@@ -1,4 +1,4 @@
-// Sukrara — https://github.com/mauriciabad/Sukrara
+// Sukrara — https://github.com/mauriciabad/sukrara
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.monitor.alerts
@@ -30,7 +30,7 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
 
 /**
- * The alert runtime's wiring (A4: chunk 02's `AppGraph` composes it; the Application implements [AlertsHost]).
+ * The alert runtime's wiring (the `AppGraph` composes it; the Application implements [AlertsHost]).
  * Inputs from other chunks come in as ports with safe defaults until they land: the alert settings store and the
  * runtime's typed stores (09), the hub (10), treatments (09/19), the wearer's mirrored settings and `alert` events
  * (25), the publisher to the followers (13) and the service starter (10).
@@ -107,7 +107,7 @@ class AlertsModule(
         }
     }
 
-    /** "Start fresh" / leaving a role (chunk 24): alerts and their saved state go, the sensor-end notices too. */
+    /** "Start fresh" / leaving a role: alerts and their saved state go, the sensor-end notices too. */
     suspend fun reset() {
         runtime.reset()
         sensorEnd.onSensor(app.mauri.sukrara.core.model.SensorState.None)

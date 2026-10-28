@@ -1,4 +1,4 @@
-// Sukrara — https://github.com/mauriciabad/Sukrara
+// Sukrara — https://github.com/mauriciabad/sukrara
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara
@@ -19,7 +19,7 @@ class AppRoles(private val store: StateStore<RoleRecord>) : RoleStore {
     override suspend fun set(role: Role) = store.update { it.copy(role = role) }
 }
 
-/** Setup's alert step on the alert runtime's own settings store (chunk 11): confirmed values are what it checks. */
+/** Setup's alert step on the alert runtime's own settings store: confirmed values are what it checks. */
 class AppAlertSettings(private val store: AlertStateStore) : AlertSettingsAccess {
     override val settings: Flow<AlertSettings> = store.settings
 

@@ -1,11 +1,11 @@
-// Sukrara — https://github.com/mauriciabad/Sukrara
+// Sukrara — https://github.com/mauriciabad/sukrara
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.buildlogic
 
 /**
  * The app version from `<repo>/VERSION` (`major.minor.patch`, the one version source of both apps).
- * versionCode = major·1 000 000 + minor·1 000 + patch, so it grows with every release (0.90.0 → 90000); minor and
+ * versionCode = major·1 000 000 + minor·1 000 + patch, so it grows with every release (0.12.0 → 12000); minor and
  * patch stay below 1000 so two versions never share a code.
  */
 data class AppVersion(val major: Int, val minor: Int, val patch: Int) {

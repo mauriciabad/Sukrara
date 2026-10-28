@@ -1,4 +1,4 @@
-// Sukrara — https://github.com/mauriciabad/Sukrara
+// Sukrara — https://github.com/mauriciabad/sukrara
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.protocol.follow
@@ -33,7 +33,7 @@ data class Epoch(val n: Int, val key: KeyPair)
 
 /**
  * Everything a follower must remember to judge the next event: who the wearer is, which keys it trusts, and the dedupe /
- * ordering marks. Not the data itself (readings, treatments, settings are stored by the follower engine). Chunk 25
+ * ordering marks. Not the data itself (readings, treatments, settings are stored by the follower engine). The engine
  * persists it (the epochs hold secrets: SecureStore).
  */
 data class FollowerState(
@@ -186,7 +186,7 @@ class StreamFollower(private val crypto: NostrCrypto, initial: FollowerState) {
     /**
      * Readable later once the key arrives, so not marked seen. A rekey request only for an event signed by I or a roster
      * device that is newer than our latest key (a backfill of old hours isn't a missed rotation), ≤ 1 per `gk` per
-     * 5 min. Its `have` names the newest epoch we hold, as the PoC sends it.
+     * 5 min. Its `have` names the newest epoch we hold, as every wearer sends it.
      */
     private fun unknownEpoch(ev: SignedEvent, gk: String, now: Long): FollowResult {
         state = state.copy(seen = state.seen - ev.id)
@@ -326,7 +326,7 @@ class StreamFollower(private val crypto: NostrCrypto, initial: FollowerState) {
 
     /**
      * A key delivery sealed by I. A delivery newer than the revoked notice re-approves a removed follower (the wearer
-     * invited it again), as in the PoC; otherwise a revoked follower stays revoked.
+     * invited it again); otherwise a revoked follower stays revoked.
      */
     private fun onKey(k: Rumor.KeyDelivery, sentAt: Long): FollowResult {
         val s = state
@@ -343,7 +343,7 @@ class StreamFollower(private val crypto: NostrCrypto, initial: FollowerState) {
         }
         val newest = s.epochs.values.maxOfOrNull { it.n } ?: 0
         val latest = k.epoch >= newest
-        // A newer epoch's key outranks every roster of older epochs (PoC): a late or refreshed roster from the
+        // A newer epoch's key outranks every roster of older epochs: a late or refreshed roster from the
         // replaced device can't bring its devices back before the new epoch's roster arrives.
         val raise = k.epoch > s.rosterEpoch
         state = s.copy(

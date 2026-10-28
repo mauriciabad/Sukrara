@@ -1,11 +1,11 @@
-// Sukrara — https://github.com/mauriciabad/Sukrara
+// Sukrara — https://github.com/mauriciabad/sukrara
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
 import Foundation
 
 /// The readings history: `readings.csv` under the App Support folder, 31 days.
 ///
-/// Format (V1): a header line `t_ms,mgdl,rate`, then one line per reading, oldest first — Unix epoch milliseconds,
+/// Format: a header line `t_ms,mgdl,rate`, then one line per reading, oldest first — Unix epoch milliseconds,
 /// mg/dL, mg/dL per minute or empty. CSV rather than JSONL: half the size, appendable, the same columns as the
 /// export. The file is read once; a merge of readings newer than the newest stored appends (the common case: one
 /// reading a minute), anything else rewrites the file atomically. A last line cut short by a crash during an append is

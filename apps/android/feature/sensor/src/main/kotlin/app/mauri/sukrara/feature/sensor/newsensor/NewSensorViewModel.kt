@@ -1,4 +1,4 @@
-// Sukrara — https://github.com/mauriciabad/Sukrara
+// Sukrara — https://github.com/mauriciabad/sukrara
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.feature.sensor.newsensor
@@ -25,7 +25,7 @@ import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
 import java.time.Instant
 
-/** What the new-sensor flow needs from the sensor side (SensorUiModule implements it over chunk 12's SensorModule). */
+/** What the new-sensor flow needs from the sensor side (SensorUiModule implements it over the SensorModule). */
 interface NewSensorPort {
     /** Re-read every time the gates are checked (permissions and installed apps change while the screen is away). */
     suspend fun env(): SensorEnv

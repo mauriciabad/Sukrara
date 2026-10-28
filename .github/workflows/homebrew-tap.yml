@@ -1,4 +1,4 @@
-# Sukrara — https://github.com/mauriciabad/Sukrara
+# Sukrara — https://github.com/mauriciabad/sukrara
 # Copyright (C) 2026 Maurici Abad
 # SPDX-License-Identifier: GPL-3.0-or-later
 # Keeps the Homebrew cask (github.com/mauriciabad/homebrew-tap, Casks/sukrara.rb) on the latest stable release: when
@@ -31,7 +31,7 @@ jobs:
       - name: Hash the release dmg
         id: dmg
         run: |
-          # Prereleases (0.90.x release candidates) never reach the cask; the job condition skips a published
+          # Prereleases never reach the cask; the job condition skips a published
           # prerelease, this also refuses one dispatched by hand.
           if [ "$(gh release view "$TAG" -R "${{ github.repository }}" --json isPrerelease --jq .isPrerelease)" = true ]; then
             echo "::error::$TAG is a prerelease: the cask only follows stable releases"; exit 1

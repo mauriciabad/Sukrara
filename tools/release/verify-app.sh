@@ -1,8 +1,8 @@
 #!/bin/sh
-# Sukrara — https://github.com/mauriciabad/Sukrara
+# Sukrara — https://github.com/mauriciabad/sukrara
 # Copyright (C) 2026 Maurici Abad
 # SPDX-License-Identifier: GPL-3.0-or-later
-# Checks a V1 Mac bundle before it is installed or released:
+# Checks a Mac bundle before it is installed or released:
 #   tools/release/verify-app.sh <Sukrara.app> [--unsigned]
 # - bundle id app.mauri.sukrara, version / build = tools/release/version.sh (dev builds may add .<yyMMddHHmm>)
 # - the widget extension (app.mauri.sukrara.widget) is inside

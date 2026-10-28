@@ -1,6 +1,6 @@
 {
   "_about": [
-    "THE settings schema of Sukrara V1: every user setting of the Android and Mac apps, so the platforms can't drift",
+    "THE settings schema of Sukrara: every user setting of every app, so the platforms can't drift",
     "apart. 'numbers' are the number formats (stored units; valid = a preset, a special value, or a custom value in",
     "min..max on step; 'scale' = stored units per shown unit, 'nudge' = one stepper click). 'settings' is the inventory:",
     "each entry exists on both platforms or names the one platform in 'only' with the reason. Per platform: 'store' =",
@@ -9,8 +9,7 @@
     "holding contracts/alerts/SPEC.md §3, '{kind}' = each alert kind). 'mirror' = a follower in 'Settings from: Wearer'",
     "takes the wearer's value ('wire' = its key in the wearer's settings event, contracts/protocol/PROTOCOL-v2.md).",
     "Generated code: python3 tools/settings/gen.py writes SettingsSpec.kt (:core:data) and SettingsSpec.swift",
-    "(SukraraCore); tools/check rule 'settings' checks it; SettingsSchemaTest on both apps tests the models against it.",
-    "PoC -> V1 key table: README.md here."
+    "(SukraraCore); tools/check rule 'settings' checks it; SettingsSchemaTest on every app tests the models against it."
   ],
   "options": {
     "_about": "Option lists both platforms offer (the user, 2026-10-21: option lists must not diverge either). Each platform's list is tested against these values in order (SettingsSchemaTest, -settingsselftest); a value one platform can't offer goes in 'only' with the reason.",

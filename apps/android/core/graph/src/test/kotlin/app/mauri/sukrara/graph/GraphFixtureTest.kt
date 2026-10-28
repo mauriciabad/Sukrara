@@ -1,4 +1,4 @@
-// Sukrara — https://github.com/mauriciabad/Sukrara
+// Sukrara — https://github.com/mauriciabad/sukrara
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.graph
@@ -249,7 +249,7 @@ class GraphFixtureTest {
 
     /**
      * The badge, last-treatment slot and amounts (status.json). The alert status itself is decided by the alert
-     * runtime (chunk 11, with its own scenarios); here the card gets the expected status and must draw it as the file says.
+     * runtime (with its own scenarios); here the card gets the expected status and must draw it as the file says.
      */
     @Test
     fun status() {

@@ -1,4 +1,4 @@
-// Sukrara — https://github.com/mauriciabad/Sukrara
+// Sukrara — https://github.com/mauriciabad/sukrara
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.feature.settings
@@ -14,7 +14,7 @@ import okhttp3.OkHttpClient
 import java.time.Instant
 
 /**
- * The settings feature's wiring (CHANGES A4): `AppGraph` builds it with one line and implements [SettingsDeps] by
+ * The settings feature's wiring: `AppGraph` builds it with one line and implements [SettingsDeps] by
  * returning [deps]. Construction does no I/O.
  */
 class SettingsModule(

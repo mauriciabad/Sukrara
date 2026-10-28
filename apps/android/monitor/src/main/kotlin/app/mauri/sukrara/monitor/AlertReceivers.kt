@@ -1,4 +1,4 @@
-// Sukrara — https://github.com/mauriciabad/Sukrara
+// Sukrara — https://github.com/mauriciabad/sukrara
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.monitor
@@ -14,7 +14,7 @@ import app.mauri.sukrara.monitor.alerts.AlertsModule
 import app.mauri.sukrara.monitor.notify.NotificationGroups
 import kotlinx.coroutines.withTimeoutOrNull
 
-/** The Application implements this (chunk 02 wires it), so receivers and the provider reach the one [AlertsModule]. */
+/** The Application implements this, so receivers and the provider reach the one [AlertsModule]. */
 interface AlertsHost {
     val alerts: AlertsModule
 }
@@ -65,7 +65,7 @@ class AlertActionReceiver : BroadcastReceiver() {
 /**
  * The alert checks' exact alarms (non-exported: only `AndroidAlarms.alertCheck` sets them). Evaluates from the saved
  * record **without** the monitoring service (no data still alerts on time when Android killed it), re-arms the next
- * alarm, checks the sensor end, then asks chunk 10's starter to bring the service back (it shows "Monitoring stopped —
+ * alarm, checks the sensor end, then asks the starter to bring the service back (it shows "Monitoring stopped —
  * tap to resume" when Android refuses). Boot, app update and clock changes reach the same check through
  * [BootReceiver], which starts the service once.
  */

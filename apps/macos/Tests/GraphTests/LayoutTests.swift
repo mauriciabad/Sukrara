@@ -1,4 +1,4 @@
-// Sukrara — https://github.com/mauriciabad/Sukrara
+// Sukrara — https://github.com/mauriciabad/sukrara
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
 import CoreGraphics
@@ -37,7 +37,7 @@ private struct Scene {
 
 /// The alert decision the layout scenes are drawn with: the alert engine's default rules (contracts/alerts/SPEC.md §3:
 /// very low 55, low 70, high 180, very high 250, extremely high 300; carbs quiet lows 15 min, rapid insulin quiets
-/// highs 60 min, never extremely high), as the PoC renders and Android do for these fixtures.
+/// highs 60 min, never extremely high), as Android does for these fixtures.
 enum DefaultAlertRules {
     private static let levels: [(kind: String, side: AlertStatus.Side, low: Bool, mgdl: Double)] = [
         ("very_low", .low, true, 55), ("extremely_high", .high, false, 300), ("very_high", .high, false, 250),

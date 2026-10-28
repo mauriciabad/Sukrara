@@ -1,9 +1,9 @@
-// Sukrara — https://github.com/mauriciabad/Sukrara
+// Sukrara — https://github.com/mauriciabad/sukrara
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
 import Foundation
 
-/// The treatment log: `treatments.json` under the App Support folder (`FollowedTreatments` V1, atomic writes). An
+/// The treatment log: `treatments.json` under the App Support folder (`FollowedTreatments`, atomic writes). An
 /// unreadable file (or another format version) is moved aside (`treatments.json.corrupt-<unix s>`), the log starts
 /// empty and `issue` says so; the wearer's phone re-sends the last 30 days of entries on the next subscription.
 public actor TreatmentFileStore: TreatmentStoring {

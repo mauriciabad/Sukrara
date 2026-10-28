@@ -1,4 +1,4 @@
-// Sukrara — https://github.com/mauriciabad/Sukrara
+// Sukrara — https://github.com/mauriciabad/sukrara
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.share.owner
@@ -30,7 +30,7 @@ sealed interface OwnerShareState {
     ) : OwnerShareState
 
     /**
-     * A3: another app (e.g. Sukrara Showcase) publishes as this identity. Roster / backup / rotation and follower
+     * Another device (e.g. the old phone after a restore) publishes as this identity. Roster / backup / rotation and follower
      * changes are paused; readings and alerts continue ([followersReceiving] says whether followers still accept them).
      * Exits: "I turned it off — retry", Help.
      */
@@ -41,7 +41,7 @@ sealed interface OwnerShareState {
     ) : OwnerShareState
 }
 
-/** Bluetooth sharing with nearby followers (chunk 25). Until then a no-op. */
+/** Bluetooth sharing with nearby followers. Until then a no-op. */
 interface OwnerNearby {
     fun publish(event: SignedEvent)
 

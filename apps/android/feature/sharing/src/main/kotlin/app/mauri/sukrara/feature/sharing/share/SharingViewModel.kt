@@ -1,4 +1,4 @@
-// Sukrara — https://github.com/mauriciabad/Sukrara
+// Sukrara — https://github.com/mauriciabad/sukrara
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.feature.sharing.share
@@ -27,7 +27,7 @@ sealed interface InviteUi {
     data object Failed : InviteUi
 }
 
-/** Share screen, approve dialog and followers page: all actions go through [OwnerSharing] (chunk 13's engine). */
+/** Share screen, approve dialog and followers page: all actions go through [OwnerSharing] (the engine). */
 class SharingViewModel(private val sharing: OwnerSharing) : ViewModel() {
     val state: StateFlow<OwnerShareState> = sharing.state
 

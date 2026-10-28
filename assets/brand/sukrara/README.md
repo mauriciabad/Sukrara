@@ -16,5 +16,4 @@ change the concept in `brand.py` and re-export.
 | `garmin/launcher_icon_*.png` | Connect IQ `launcherIcon` (colour circle, or `_mono` for MIP screens); use the size the SDK's device profile asks for |
 | `web/` | `favicon.svg`, `favicon-32.png`, `apple-touch-icon.png`, `icon-512.png` (PWA manifest), `og.png` (link previews) |
 
-Ids: application / bundle id `app.mauri.sukrara` for the final app; the showcase PoC uses
-`app.mauri.sukrara.poc` so both can be installed side by side.
+Ids: application / bundle id `app.mauri.sukrara`.

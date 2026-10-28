@@ -1,5 +1,5 @@
 #!/bin/sh
-# Sukrara — https://github.com/mauriciabad/Sukrara
+# Sukrara — https://github.com/mauriciabad/sukrara
 # Copyright (C) 2026 Maurici Abad
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
@@ -11,8 +11,8 @@
 #                                AD_HOC=1 does the same.
 #   Bundle/bundle.sh --dev       CFBundleVersion <versionCode>.<UTC yyMMddHHmm>: chronod keeps a widget's gallery
 #                                previews while CFBundleVersion stays the same.
-#   NOTARY_PROFILE=<profile>     notarize + staple (needs a Developer ID identity; not used for 0.90.x).
-# Version: <repo>/VERSION (x.y.z); CFBundleVersion = versionCode = x*1000000 + y*1000 + z (0.90.0 → 90000).
+#   NOTARY_PROFILE=<profile>     notarize + staple (needs a Developer ID identity).
+# Version: <repo>/VERSION (x.y.z); CFBundleVersion = versionCode = x*1000000 + y*1000 + z (0.12.0 → 12000).
 # Never copy the result into ~/Applications by hand: tools/install.sh mac does that.
 set -eu
 HERE=$(cd "$(dirname "$0")" && pwd)
@@ -67,10 +67,10 @@ if [ "$UNSIGNED" = 0 ]; then
   case "$NAME" in '"Developer ID Application:'*) TS=--timestamp ;; esac
 fi
 
-# Resources: V1 locations, PoC fallbacks until chunk 01 moves them
+# Resources: the brand icon and the alert sounds
 first_existing() { for p in "$@"; do [ -e "$p" ] && { echo "$p"; return; }; done; }
-ICON=$(first_existing "$REPO/assets/brand/sukrara/macos/AppIcon.icns" "$REPO/poc/spikes/brand/assets/sukrara/macos/AppIcon.icns")
-SOUNDS=$(first_existing "$REPO/contracts/alerts/sounds/mac" "$REPO/poc/spikes/alerts/sounds/out")
+ICON=$(first_existing "$REPO/assets/brand/sukrara/macos/AppIcon.icns")
+SOUNDS=$(first_existing "$REPO/contracts/alerts/sounds/mac")
 missing() {
   if [ "$UNSIGNED" = 1 ]; then echo "bundle.sh: warning: $* (unsigned build continues)" >&2
   else die "$* (a signed build ships alert sounds and the icon)"; fi

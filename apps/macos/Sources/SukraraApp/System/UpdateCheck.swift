@@ -1,10 +1,10 @@
-// Sukrara — https://github.com/mauriciabad/Sukrara
+// Sukrara — https://github.com/mauriciabad/sukrara
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
 import Foundation
 import Observation
 
-/// A version like "0.90.1" or "v0.90.1-rc.2" (a pre-release suffix sorts before the plain version).
+/// A version like "0.12.1" or "v0.12.1-rc.2" (a pre-release suffix sorts before the plain version).
 struct AppVersion: Comparable, Equatable, CustomStringConvertible {
     let parts: [Int]
     let prerelease: String?
@@ -74,7 +74,7 @@ final class UpdateCheck {
         case upToDate
     }
 
-    static let releasesURL = URL(string: "https://api.github.com/repos/mauriciabad/Sukrara/releases")!
+    static let releasesURL = URL(string: "https://api.github.com/repos/mauriciabad/sukrara/releases")!
 
     private(set) var state: State = .idle
     @ObservationIgnored private let fetcher: any HTTPFetching

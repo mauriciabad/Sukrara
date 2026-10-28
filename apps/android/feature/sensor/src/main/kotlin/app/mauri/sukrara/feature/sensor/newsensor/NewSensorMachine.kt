@@ -1,4 +1,4 @@
-// Sukrara — https://github.com/mauriciabad/Sukrara
+// Sukrara — https://github.com/mauriciabad/sukrara
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.feature.sensor.newsensor
@@ -16,10 +16,8 @@ data class SensorEnv(
     val coreAvailable: Boolean,
     val nfcAvailable: Boolean,
     val nfcOn: Boolean,
-    /** A LibreView account receiver ID is known (CHANGES P1: never start a sensor with a random ID). */
+    /** A LibreView account receiver ID is known (never start a sensor with a random ID). */
     val signedIn: Boolean,
-    /** Sukrara Showcase (the PoC) is installed and may still own the sensor. */
-    val showcaseInstalled: Boolean,
     /** LibreLink / Libre by Abbott is installed: running both loses the sensor. */
     val officialAppInstalled: Boolean,
     /** Nearby devices (BLUETOOTH_CONNECT) is granted. */
@@ -57,8 +55,6 @@ sealed interface NewSensorStep {
     /** No LibreView receiver ID: nothing is sent to the sensor until the person signs in. */
     data object NeedsLibreViewSignIn : NewSensorStep
 
-    data object ShowcaseWarning : NewSensorStep
-
     data object OfficialAppWarning : NewSensorStep
 
     data object NeedsBluetoothPermission : NewSensorStep
@@ -74,8 +70,8 @@ sealed interface NewSensorStep {
 
     data class NfcFailed(val cause: NfcFailure) : NewSensorStep
 
-    /** Another receiver (the showcase, another account) owns the sensor; nothing changed on it. */
-    data class TakeoverFailed(val showcaseInstalled: Boolean) : NewSensorStep
+    /** Another receiver (another app or account) owns the sensor; nothing changed on it. */
+    data object TakeoverFailed : NewSensorStep
 
     data class ConnectingBle(val serial: String, val since: Instant, val activated: Boolean) : NewSensorStep
 
@@ -134,12 +130,11 @@ sealed interface NewSensorEvent {
 data class NewSensorState(
     val step: NewSensorStep = NewSensorStep.Idle,
     val env: SensorEnv? = null,
-    val showcaseAcknowledged: Boolean = false,
     val officialAcknowledged: Boolean = false,
     val notificationsSkipped: Boolean = false,
 )
 
-/** The pure transition table (NewSensorMachineTest). The receiver-ID order is chunk 12's (`ReceiverIds`). */
+/** The pure transition table (NewSensorMachineTest). The receiver-ID order is in `ReceiverIds`. */
 object NewSensorMachine {
     /** How long Bluetooth may take to give the first sign of life after a tap. */
     val BLE_TIMEOUT: Duration = Duration.ofMinutes(2)
@@ -153,7 +148,6 @@ object NewSensorMachine {
         NewSensorStep.Idle,
         NewSensorStep.CoreMissing,
         NewSensorStep.NeedsLibreViewSignIn,
-        NewSensorStep.ShowcaseWarning,
         NewSensorStep.OfficialAppWarning,
         NewSensorStep.NoNfc,
         NewSensorStep.NfcOff,
@@ -176,7 +170,6 @@ object NewSensorMachine {
                 if (step == NewSensorStep.ReadingNfc) state else state.copy(step = NewSensorStep.UsingJuggluco)
             is NewSensorEvent.Start -> if (step in GATES) gate(state.copy(env = event.env)) else state
             NewSensorEvent.Continue -> when (step) {
-                NewSensorStep.ShowcaseWarning -> gate(state.copy(showcaseAcknowledged = true))
                 NewSensorStep.OfficialAppWarning -> gate(state.copy(officialAcknowledged = true))
                 NewSensorStep.NeedsNotifications -> gate(state.copy(notificationsSkipped = true))
                 else -> state
@@ -191,8 +184,8 @@ object NewSensorMachine {
     }
 
     /**
-     * The gates in order, all before anything is sent to a sensor: core → NFC → LibreView account → showcase →
-     * official app → Bluetooth permission → Bluetooth on → notifications (skippable) → tap.
+     * The gates in order, all before anything is sent to a sensor: core → NFC → LibreView account → official app
+     * → Bluetooth permission → Bluetooth on → notifications (skippable) → tap.
      */
     private fun gate(state: NewSensorState): NewSensorState {
         val env = state.env ?: return state
@@ -201,7 +194,6 @@ object NewSensorMachine {
             !env.nfcAvailable -> NewSensorStep.NoNfc
             !env.nfcOn -> NewSensorStep.NfcOff
             !env.signedIn -> NewSensorStep.NeedsLibreViewSignIn
-            env.showcaseInstalled && !state.showcaseAcknowledged -> NewSensorStep.ShowcaseWarning
             env.officialAppInstalled && !state.officialAcknowledged -> NewSensorStep.OfficialAppWarning
             !env.bluetoothPermission -> NewSensorStep.NeedsBluetoothPermission
             !env.bluetoothOn -> NewSensorStep.BluetoothOff
@@ -214,7 +206,7 @@ object NewSensorMachine {
     private fun afterTap(outcome: PairOutcome, now: Instant): NewSensorStep = when (outcome) {
         is PairOutcome.Paired -> NewSensorStep.ConnectingBle(outcome.serial, now, outcome.activated)
         is PairOutcome.NeedsLibreViewSignIn -> NewSensorStep.NeedsLibreViewSignIn
-        is PairOutcome.OwnedByAnotherApp -> NewSensorStep.TakeoverFailed(outcome.showcaseInstalled)
+        is PairOutcome.OwnedByAnotherApp -> NewSensorStep.TakeoverFailed
         is PairOutcome.Ended -> NewSensorStep.NfcFailed(NfcFailure.SensorEnded)
         PairOutcome.Libre2Unsupported, is PairOutcome.Unsupported -> NewSensorStep.NfcFailed(NfcFailure.NotLibre3)
         is PairOutcome.Failed -> NewSensorStep.NfcFailed(NfcFailure.MovedTooSoon)
@@ -236,7 +228,7 @@ object NewSensorMachine {
         }
         return when (detail) {
             SensorStatus.BluetoothPermissionMissing -> NewSensorStep.BleFailed(serial, BleFailure.PermissionMissing)
-            is SensorStatus.OwnedByAnotherApp -> NewSensorStep.TakeoverFailed(detail.showcaseInstalled)
+            is SensorStatus.OwnedByAnotherApp -> NewSensorStep.TakeoverFailed
             SensorStatus.Ended -> if (step is NewSensorStep.WarmingUp) NewSensorStep.NfcFailed(NfcFailure.SensorEnded) else step
             is SensorStatus.Libre3 -> if (detail.serial != serial) step else afterLink(step, serial, detail.link, state, now)
             else -> step
@@ -271,9 +263,9 @@ object NewSensorMachine {
         }
 
     private fun retry(state: NewSensorState, now: Instant): NewSensorState = when (val step = state.step) {
-        // after stopping the other app (showcase: Settings › Sensor › Stop), the same sensor can be scanned again —
+        // after stopping the other app, the same sensor can be scanned again —
         // through the gates, which may have changed meanwhile
-        is NewSensorStep.NfcFailed, is NewSensorStep.TakeoverFailed -> gate(state)
+        is NewSensorStep.NfcFailed, NewSensorStep.TakeoverFailed -> gate(state)
         is NewSensorStep.BleFailed -> state.copy(step = NewSensorStep.ConnectingBle(step.serial, now, activated = false))
         else -> state
     }

@@ -1,8 +1,7 @@
-# apps/android — Sukrara V1 for Android
+# apps/android — Sukrara for Android
 
-Sukrara V1's Android app: Kotlin only (JNI/C is fine), minSdk 36 / targetSdk 37, Jetpack Compose, GPL header on
-every file. A clean rewrite of the PoC in [`poc/spikes/showcase-android`](../../poc/spikes/showcase-android); it reads
-the shared specs and fixtures from [`contracts/`](../../contracts/) and builds the Libre 3 native core from a local
+Sukrara's Android app: Kotlin only (JNI/C is fine), minSdk 36 / targetSdk 37, Jetpack Compose, GPL header on
+every file. It reads the shared specs and fixtures from [`contracts/`](../../contracts/) and builds the Libre 3 native core from a local
 Juggluco checkout (a release build fails without it). Architecture: [`docs/ARCHITECTURE.md`](../../docs/ARCHITECTURE.md)
 §Android. Setup (JDK 21, SDK, emulator, signing): [`docs/DEVELOPMENT.md`](../../docs/DEVELOPMENT.md).
 
@@ -63,10 +62,10 @@ Packages follow the module path: `:feature:home` → `app.mauri.sukrara.feature.
   ViewModels are created with `viewModelFactory { initializer { … } }` from the deps.
 - **Who starts what**: `App.onCreate` builds the graph and starts `ready`; `MainActivity.onResume` calls
   `monitor.starter.start(StartReason.App)`; the service attaches the role's `ReadingSource` (wearer: the sensor's
-  `SourceManager`, run only while attached — `RunWhileAttached`; follower: chunk 25) and the alert runtime.
+  `SourceManager`, run only while attached — `RunWhileAttached`; follower: the follower engine) and the alert runtime.
 - **Alert checklist (one source)**: `graph.alerts.readiness` (`AlertReadinessSource`, `:monitor`
   `AndroidAlertReadiness`) is THE alert-readiness checklist. Home's banner (`HomeModule`), Settings › Alert reliability
-  (`SettingsModule(readiness = …)`) and the setup permission step (chunk 24: take it in `SetupModule`'s constructor
+  (`SettingsModule(readiness = …)`) and the setup permission step (take it in `SetupModule`'s constructor
   from `alerts.readiness`, don't build a second checker) render the same instance: `readiness` (StateFlow), `refresh()`
   on resume, `fix(item)` opens the Android screen. Runtime permissions that need an Activity (POST_NOTIFICATIONS,
   BLUETOOTH_CONNECT) are requested by the screen; the source then re-reads on the next resume.
@@ -114,20 +113,20 @@ Fakes in `:core:testing`: `FakeClock` (settable time and zone), `TestDispatchers
 |---|---|---|
 | `MainActivity` (launcher, `sukrara:`, App Link `https://sukrara.mauri.app/join*`), `HealthPermissionsRationale` alias | `:app` | live |
 | `debug.DebugReceiver` (exported, `DUMP`) | `:app` `src/debug` | debug builds only |
-| `MonitoringService` (FGS `connectedDevice`), `BootReceiver`, `AlertCheckReceiver`, `AlertActionReceiver`, `HealthCheckReceiver` | `:monitor` | skeleton, enabled (10/11 fill) |
-| `AlertSoundProvider` `${applicationId}.alertsound` (exported read-only for System UI) | `:monitor` | skeleton (11) |
-| `SensorTapActivity` (NFC, `DISPATCH_NFC_MESSAGE`) | `:sensor` | disabled until 12/18 |
-| `PenTapActivity` (NFC), `PenReadActivity` | `:pen` | disabled until 19 |
-| `TreatmentTileService`, `QuickTreatmentActivity` | `:feature:treatments` | disabled until 19 |
+| `MonitoringService` (FGS `connectedDevice`), `BootReceiver`, `AlertCheckReceiver`, `AlertActionReceiver`, `HealthCheckReceiver` | `:monitor` | live |
+| `AlertSoundProvider` `${applicationId}.alertsound` (exported read-only for System UI) | `:monitor` | live |
+| `SensorTapActivity` (NFC, `DISPATCH_NFC_MESSAGE`) | `:sensor` | declared disabled (taps are read by the new-sensor screen) |
+| `PenTapActivity` (NFC), `PenReadActivity` | `:pen` | tap activity enabled only while pens are on |
+| `TreatmentTileService`, `QuickTreatmentActivity` | `:feature:treatments` | live |
 | `FileProvider` `${applicationId}.export` | `:integrations` | live (not exported) |
-| Glance widget receivers + config activity | `:widgets` | added by chunk 20 |
+| Glance widget receivers + config activity | `:widgets` | live |
 
 A Bluetooth on/off receiver can't be declared in the manifest (`ACTION_STATE_CHANGED` isn't an exempt implicit
 broadcast): `:sensor` / `:share` register it at runtime while monitoring runs.
 
 ## Release builds
 
-- Version from `<repo>/VERSION` (`0.90.0` → versionCode 90000; `BuildConfig.PRERELEASE` while major is 0).
+- Version from `<repo>/VERSION` (`0.12.0` → versionCode 12000; `BuildConfig.PRERELEASE` while major is 0).
 - Signed with `SUKRARA_KEYSTORE` (default `~/.android/sukrara-release.jks`, alias `sukrara`); the password comes only
   from env `SUKRARA_KEYSTORE_PASSWORD` (Gradle never reads the Keychain):
   `SUKRARA_KEYSTORE_PASSWORD="$(security find-generic-password -s sukrara-android-release -a sukrara -w)" ./gradlew :app:assembleRelease`.

@@ -1,4 +1,4 @@
-// Sukrara — https://github.com/mauriciabad/Sukrara
+// Sukrara — https://github.com/mauriciabad/sukrara
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.feature.settings
@@ -22,7 +22,7 @@ import app.mauri.sukrara.designsystem.rows.nameRes
 import app.mauri.sukrara.designsystem.rows.whyRes
 
 /**
- * Alert reliability: the same checklist as home's row and the setup step (CHANGES P5), every item with its state
+ * Alert reliability: the same checklist as home's row and the setup step, every item with its state
  * and, while missing, a Fix button that opens the system screen for it. The page refreshes when it comes back.
  */
 @Composable

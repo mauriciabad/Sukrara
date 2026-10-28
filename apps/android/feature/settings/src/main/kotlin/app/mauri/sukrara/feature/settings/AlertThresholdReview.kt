@@ -1,4 +1,4 @@
-// Sukrara — https://github.com/mauriciabad/Sukrara
+// Sukrara — https://github.com/mauriciabad/sukrara
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.feature.settings
@@ -34,7 +34,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
-/** The result chunk 24's setup step gets back. */
+/** The result the setup step gets back. */
 sealed interface ThresholdReviewResult {
     data class Confirmed(val settings: AlertSettings) : ThresholdReviewResult
 
@@ -42,7 +42,7 @@ sealed interface ThresholdReviewResult {
 }
 
 /**
- * Review alert thresholds (CHANGES P4: never silently defaulted). Shows the thresholds in use as a draft; changes
+ * Review alert thresholds (never silently defaulted). Shows the thresholds in use as a draft; changes
  * stay in the draft until *Use these thresholds*, which saves them and the confirmation time together. Leaving
  * (Cancel / back) stores nothing.
  */

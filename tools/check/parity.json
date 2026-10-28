@@ -1,5 +1,5 @@
 {
-  "_about": "Path groups that must change together (tools/check/check.py 'parity'). Globs are fnmatch ('*' crosses '/'). A group fires when a 'trigger' side (default: any side) changed and another side didn't; skip with 'Parity-skip: <group>: <reason>'. 'fail' groups fail a range / merge, 'warn' groups only remind. V1 sides only: the frozen PoC (poc/) is in no group. Every glob must match a tracked file (static check 'parity-globs'): a dead glob silently turns a group off. Not grouped in V1 (one platform only, so nothing to pair): the doctor's report (neither app has it) and the CSV export writer (Mac SukraraCore/Export only; Android has no CSV export in V1) — add the group back with the second platform.",
+  "_about": "Path groups that must change together (tools/check/check.py 'parity'). Globs are fnmatch ('*' crosses '/'). A group fires when a 'trigger' side (default: any side) changed and another side didn't; skip with 'Parity-skip: <group>: <reason>'. 'fail' groups fail a range / merge, 'warn' groups only remind. App sides only: the frozen PoC (poc/) is in no group. Every glob must match a tracked file (static check 'parity-globs'): a dead glob silently turns a group off. Not grouped (one platform only, so nothing to pair): the doctor's report (no app has it) and the CSV export writer (Mac SukraraCore/Export only; Android has no CSV export) — add the group back with the second platform.",
   "groups": [
     {
       "name": "graph",
@@ -115,7 +115,7 @@
       "name": "export-fixtures",
       "level": "fail",
       "trigger": ["fixtures"],
-      "why": "The CSV export cases (contracts/export) are what the writer must produce (Mac only in V1: Android has no CSV export yet; add its side with the writer)",
+      "why": "The CSV export cases (contracts/export) are what the writer must produce (Mac only: Android has no CSV export; add its side with the writer)",
       "sides": {
         "fixtures": ["contracts/export/*"],
         "mac": ["apps/macos/Sources/SukraraCore/Export/*", "apps/macos/Tests/CoreTests/*"]

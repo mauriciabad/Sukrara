@@ -1,4 +1,4 @@
-// Sukrara — https://github.com/mauriciabad/Sukrara
+// Sukrara — https://github.com/mauriciabad/sukrara
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.monitor.alerts
@@ -17,14 +17,14 @@ import kotlinx.coroutines.flow.map
 import kotlinx.serialization.Serializable
 
 /**
- * What the alert runtime keeps across a process death (typed DataStore `alert_state`, chunk 09's [StateStore]):
+ * What the alert runtime keeps across a process death (typed DataStore `alert_state`, the [StateStore]):
  * the machine's state (episodes, this device's mutes / Remind less, Mute all, the last reading) and whether monitoring
  * has started, so the alarm receiver can check no data with the service dead and never before monitoring began.
  */
 @Serializable
 data class AlertRecord(
     val machine: AlertState? = null,
-    /** Monitoring has started (the hub's `monitoringStartedAt` is set): only then can no data alert (CHANGES P3). */
+    /** Monitoring has started (the hub's `monitoringStartedAt` is set): only then can no data alert. */
     val monitoring: Boolean = false,
     /** The followed person's name for a follower's notifications. */
     val who: String? = null,

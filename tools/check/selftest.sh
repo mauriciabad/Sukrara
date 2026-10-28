@@ -1,5 +1,5 @@
 #!/bin/sh
-# Sukrara — https://github.com/mauriciabad/Sukrara
+# Sukrara — https://github.com/mauriciabad/sukrara
 # Copyright (C) 2026 Maurici Abad
 # SPDX-License-Identifier: GPL-3.0-or-later
 # The checks' own tests: stage throwaway files in a TEMPORARY index (the real index and work tree are never touched)
@@ -30,12 +30,12 @@ case_() {
   fi
 }
 
-HDR='// Sukrara — https://github.com/mauriciabad/Sukrara
+HDR='// Sukrara — https://github.com/mauriciabad/sukrara
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later'
 
-case_ "V1 Kotlin without header fails" fail header apps/android/x/src/main/kotlin/A.kt 'fun a() = 1'
-case_ "V1 hardcoded UI text fails" fail strings apps/android/x/src/main/kotlin/A.kt "$HDR
+case_ "Kotlin without header fails" fail header apps/android/x/src/main/kotlin/A.kt 'fun a() = 1'
+case_ "hardcoded UI text fails" fail strings apps/android/x/src/main/kotlin/A.kt "$HDR
 @Composable fun A() { Text(\"hi there\") }"
 case_ "same under poc/ passes" pass "" poc/x/src/main/kotlin/A.kt '@Composable fun A() { Text("hi there") }'
 case_ "a debug fake in src/main fails" fail debug apps/android/app/src/main/kotlin/app/mauri/sukrara/DebugFakes.kt "$HDR
@@ -57,11 +57,11 @@ case_ "a hand-written DataStore key fails" fail settings apps/android/core/data/
 val k = booleanPreferencesKey(\"graphHours\")"
 case_ "a hand-written defaults key fails" fail settings apps/macos/Sources/SukraraCore/Store.swift "$HDR
 let v = UserDefaults.standard.integer(forKey: \"graphHours\")"
-case_ "a cleartext URL in V1 Kotlin fails" fail cleartext apps/android/integrations/src/main/kotlin/app/mauri/sukrara/N.kt "$HDR
+case_ "a cleartext URL in app Kotlin fails" fail cleartext apps/android/integrations/src/main/kotlin/app/mauri/sukrara/N.kt "$HDR
 val u = \"http://example.org\""
 case_ "an image outside the allowed folders fails" fail images apps/android/x/shot.png 'not really a png'
 case_ "an image in the frozen PoC passes" pass "" poc/spikes/brand/assets/x/icon.png 'not really a png'
-case_ "an nsec in V1 code fails" fail secrets apps/android/x/src/main/kotlin/K.kt "$HDR
+case_ "an nsec in app code fails" fail secrets apps/android/x/src/main/kotlin/K.kt "$HDR
 val k = \"nsec1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq\""
 
 if [ "$fails" -gt 0 ]; then echo "$fails self-test case(s) failed"; exit 1; fi

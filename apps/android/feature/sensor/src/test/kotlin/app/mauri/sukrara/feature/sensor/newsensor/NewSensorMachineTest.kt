@@ -1,4 +1,4 @@
-// Sukrara — https://github.com/mauriciabad/Sukrara
+// Sukrara — https://github.com/mauriciabad/sukrara
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.feature.sensor.newsensor
@@ -25,7 +25,7 @@ import java.time.Instant
 class NewSensorMachineTest {
     private val t0: Instant = Instant.parse("2026-10-27T08:00:00Z")
     private val ok = SensorEnv(
-        coreAvailable = true, nfcAvailable = true, nfcOn = true, signedIn = true, showcaseInstalled = false,
+        coreAvailable = true, nfcAvailable = true, nfcOn = true, signedIn = true,
         officialAppInstalled = false, bluetoothPermission = true, bluetoothOn = true, notificationsAllowed = true,
     )
 
@@ -47,8 +47,7 @@ class NewSensorMachineTest {
             ok.copy(coreAvailable = false, nfcAvailable = false, signedIn = false) to NewSensorStep.CoreMissing,
             ok.copy(nfcAvailable = false, signedIn = false) to NewSensorStep.NoNfc,
             ok.copy(nfcOn = false, signedIn = false) to NewSensorStep.NfcOff,
-            ok.copy(signedIn = false, showcaseInstalled = true) to NewSensorStep.NeedsLibreViewSignIn,
-            ok.copy(showcaseInstalled = true, officialAppInstalled = true) to NewSensorStep.ShowcaseWarning,
+            ok.copy(signedIn = false, officialAppInstalled = true) to NewSensorStep.NeedsLibreViewSignIn,
             ok.copy(officialAppInstalled = true, bluetoothPermission = false) to NewSensorStep.OfficialAppWarning,
             ok.copy(bluetoothPermission = false, bluetoothOn = false) to NewSensorStep.NeedsBluetoothPermission,
             ok.copy(bluetoothOn = false, notificationsAllowed = false) to NewSensorStep.BluetoothOff,
@@ -75,12 +74,12 @@ class NewSensorMachineTest {
             step(Start(ok), TagFound, Tapped(PairOutcome.NeedsLibreViewSignIn("ABC", neverStarted = true))),
         )
 
-    @Test fun `showcase warning then official app warning, each continued once`() {
-        val env = ok.copy(showcaseInstalled = true, officialAppInstalled = true)
-        assertEquals(NewSensorStep.OfficialAppWarning, step(Start(env), Continue))
-        assertEquals(NewSensorStep.WaitingForTap, step(Start(env), Continue, Continue))
+    @Test fun `official app warning, continued once`() {
+        val env = ok.copy(officialAppInstalled = true)
+        assertEquals(NewSensorStep.OfficialAppWarning, step(Start(env)))
+        assertEquals(NewSensorStep.WaitingForTap, step(Start(env), Continue))
         // re-checking after coming back doesn't ask again
-        assertEquals(NewSensorStep.WaitingForTap, step(Start(env), Continue, Continue, Start(env)))
+        assertEquals(NewSensorStep.WaitingForTap, step(Start(env), Continue, Start(env)))
     }
 
     @Test fun `notifications can be skipped`() =
@@ -88,7 +87,7 @@ class NewSensorMachineTest {
 
     @Test fun `tap outcomes map to their steps`() {
         val cases = mapOf(
-            PairOutcome.OwnedByAnotherApp("ABC", showcaseInstalled = true) to NewSensorStep.TakeoverFailed(true),
+            PairOutcome.OwnedByAnotherApp("ABC") to NewSensorStep.TakeoverFailed,
             PairOutcome.Ended("ABC") to NewSensorStep.NfcFailed(NfcFailure.SensorEnded),
             PairOutcome.Libre2Unsupported to NewSensorStep.NfcFailed(NfcFailure.NotLibre3),
             PairOutcome.Unsupported("lingo") to NewSensorStep.NfcFailed(NfcFailure.NotLibre3),
@@ -111,7 +110,7 @@ class NewSensorMachineTest {
     @Test fun `takeover refused - stop the other app, then scan again`() =
         assertEquals(
             NewSensorStep.WaitingForTap,
-            step(Start(ok), TagFound, Tapped(PairOutcome.OwnedByAnotherApp("ABC", true)), Retry),
+            step(Start(ok), TagFound, Tapped(PairOutcome.OwnedByAnotherApp("ABC")), Retry),
         )
 
     @Test fun `new sensor warms up then is ready`() {
@@ -151,8 +150,8 @@ class NewSensorMachineTest {
             step(*paired, Source(SensorStatus.BluetoothPermissionMissing, SensorState.ActionNeeded(app.mauri.sukrara.core.model.SensorAction.GrantBluetooth))),
         )
         assertEquals(
-            NewSensorStep.TakeoverFailed(showcaseInstalled = true),
-            step(*paired, Source(SensorStatus.OwnedByAnotherApp(true), SensorState.None)),
+            NewSensorStep.TakeoverFailed,
+            step(*paired, Source(SensorStatus.OwnedByAnotherApp, SensorState.None)),
         )
     }
 
@@ -207,14 +206,13 @@ class NewSensorMachineTest {
             arrayOf<NewSensorEvent>(Start(ok.copy(nfcAvailable = false))),
             arrayOf<NewSensorEvent>(Start(ok.copy(nfcOn = false))),
             arrayOf<NewSensorEvent>(Start(ok.copy(signedIn = false))),
-            arrayOf<NewSensorEvent>(Start(ok.copy(showcaseInstalled = true))),
             arrayOf<NewSensorEvent>(Start(ok.copy(officialAppInstalled = true))),
             arrayOf<NewSensorEvent>(Start(ok.copy(bluetoothPermission = false))),
             arrayOf<NewSensorEvent>(Start(ok.copy(bluetoothOn = false))),
             arrayOf<NewSensorEvent>(Start(ok.copy(notificationsAllowed = false))),
             arrayOf<NewSensorEvent>(Start(ok)),
             arrayOf<NewSensorEvent>(Start(ok), TagFound, Tapped(PairOutcome.Failed("x"))),
-            arrayOf<NewSensorEvent>(Start(ok), TagFound, Tapped(PairOutcome.OwnedByAnotherApp("A", false))),
+            arrayOf<NewSensorEvent>(Start(ok), TagFound, Tapped(PairOutcome.OwnedByAnotherApp("A"))),
         )
         beforeTap.forEach { assertEquals(NewSensorStep.Cancelled, step(*it, Cancel)) }
         assertEquals(NewSensorStep.ReadingNfc, step(Start(ok), TagFound, Cancel))

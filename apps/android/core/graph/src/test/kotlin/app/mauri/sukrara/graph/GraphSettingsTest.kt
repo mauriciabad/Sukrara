@@ -1,4 +1,4 @@
-// Sukrara — https://github.com/mauriciabad/Sukrara
+// Sukrara — https://github.com/mauriciabad/sukrara
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.graph
@@ -64,7 +64,7 @@ class GraphSettingsTest {
             assertTrue("$b", b.low < b.tight && b.tight <= b.high && b.high < b.veryHigh)
         }
 
-    /** The P0: a changed range changes the card the widgets and home draw (not only the settings page). */
+    /** A changed range changes the card the widgets and home draw (not only the settings page). */
     @Test fun aChangedRangeChangesTheDrawnCard() =
         runTest {
             val model =

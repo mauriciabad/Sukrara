@@ -79,8 +79,8 @@ secret `HOMEBREW_TAP_DEPLOY_KEY`. One-time setup (the repo owner):
 
 ```sh
 ssh-keygen -t ed25519 -N '' -C 'release workflow → homebrew-tap' -f /tmp/tapkey
-gh repo deploy-key add /tmp/tapkey.pub -R mauriciabad/homebrew-tap --allow-write --title 'cgm-reading-mac-spike release workflow'
-gh secret set HOMEBREW_TAP_DEPLOY_KEY -R mauriciabad/Sukrara < /tmp/tapkey
+gh repo deploy-key add /tmp/tapkey.pub -R mauriciabad/homebrew-tap --allow-write --title 'sukrara release workflow'
+gh secret set HOMEBREW_TAP_DEPLOY_KEY -R mauriciabad/sukrara < /tmp/tapkey
 rm /tmp/tapkey /tmp/tapkey.pub
 ```
 
@@ -226,10 +226,9 @@ Play requires an upload key. The plan:
 4. (Alternative if the package were kept: APK Signature Scheme v3 key rotation can move an install from the debug key
    to a new key in place. Not worth it given the rename.)
 
-### The V1 Android release key
+### The Android release key
 
-Done for V1 (0.90.0, 2026-10-27), steps 1–2 above; step 3's migration is dropped (owner decision: V1 starts clean,
-the showcase stays installed next to it until the owner uninstalls it).
+Steps 1–2 above are done; step 3's migration is dropped (the app starts clean).
 
 - **Where:** `~/.android/sukrara-release.jks` (PKCS12, RSA 4096, valid 30 years, alias `sukrara`), outside the repo,
   made once by `tools/release/make-keystore.sh` (it refuses to overwrite an existing key). Its random password is in
@@ -255,21 +254,20 @@ touches a phone). It builds the APK with the release key (no key or no pinned Ju
 falls back to the debug key), runs `verify-apk.sh` (signer = `android-cert.sha256`, package / version from `VERSION`,
 not debuggable, Libre 3 core inside, R8 full mode with the mapping that belongs to this APK, no debug classes or
 debug-tool strings, no exported component without a permission beyond the launcher and the alert sound provider,
-`POST_PROMOTED_NOTIFICATIONS` declared), then installs it beside the showcase and launches it (see `docs/QA.md` Q10
+`POST_PROMOTED_NOTIFICATIONS` declared), then installs it fresh and launches it (see `docs/QA.md` Q10
 for every assertion). Keep the mapping (`apps/android/app/build/outputs/mapping/release/mapping.txt`) with the
 release: crash stack traces from the owner's phone are unreadable without it. Keep-rule fixes go to the owning
 module's `consumer-rules.pro` (the module that uses the reflective / JNI library), never to a blanket `-keep`.
 
-### Cutting a V1 release
+### Cutting a release
 
-On `main` (clean, pushed), with `tools/check/v1-complete` committed: `tools/release/android-release.sh` (signed APK →
+On `main` (clean, pushed), with `tools/check/strict` committed: `tools/release/android-release.sh` (signed APK →
 `apps/android/app/build/dist/Sukrara-<version>.apk`, verified; the R8 mapping is archived in
 `~/.android/sukrara-mappings/`, not uploaded, because About lists every non-APK asset as a download) and
 `tools/release/mac-release.sh` (bundle → `verify-app.sh` → dmg + zip in `apps/macos/build/`). Then tag `v<version>`
 on `main` and `gh release create v<version> --verify-tag --prerelease --latest=false` with the three files while the
 version is 0.x (`Sukrara-<version>.apk`, `Sukrara-<version>.dmg`, `Sukrara-mac-<version>.zip`). A prerelease never
-bumps the Homebrew cask (`homebrew-tap.yml` skips it, also when dispatched by hand) and never becomes *Latest*, so
-the showcase's update check (`/releases/latest`) doesn't offer it. **0.90.x is not notarized**: there is no Developer
+bumps the Homebrew cask (`homebrew-tap.yml` skips it, also when dispatched by hand) and never becomes *Latest*. **The Mac app is not notarized yet**: there is no Developer
 ID identity or notarytool profile on the release Mac (checked 2026-10-27), so the dmg is Apple Development signed and
 the first open needs *Open Anyway* (README › Install). `NOTARY_PROFILE` in `bundle.sh` / `dmg.sh` / `mac-release.sh`
 takes over once a Developer ID exists.

@@ -1,24 +1,23 @@
-# Sukrara — https://github.com/mauriciabad/Sukrara
+# Sukrara — https://github.com/mauriciabad/sukrara
 # Copyright (C) 2026 Maurici Abad
 # SPDX-License-Identifier: GPL-3.0-or-later
 """Deterministic guards for the repo rules in CLAUDE.md. Python 3.9 stdlib only; run through tools/check/run.sh.
 
-Scope (V1): the per-app rules scan the V1 apps (apps/android, apps/macos) and contracts/; the frozen PoC (poc/) is
-checked by java, secrets and large only (it is frozen). A file named by a registry (surfaces.json, allow.json) that doesn't
-exist yet is a 'pending V1 file' NOTE (counted in one line; --pending lists them) until tools/check/v1-complete exists,
-then it fails.
+Scope: the per-app rules scan the apps (apps/*) and contracts/; the frozen PoC (poc/) is checked by java, secrets and
+large only (it is frozen). A file named by a registry (surfaces.json, allow.json) that doesn't exist is a 'pending
+file' NOTE (counted in one line; --pending lists them) while tools/check/strict is absent; once it exists, it fails.
 
 Modes
   --staged              the index (pre-commit): static rules fail, coupling rules only remind
   --commit-msg FILE     coupling rules with the message's trailers (commit-msg hook); strict for merge commits
   --range A..B          a branch / push / PR: everything strict (CI, tools/install.sh)
   --merge-of SHA        re-judge a past merge commit the way the commit-msg hook judges a merge
-  --pending             list every pending V1 file (otherwise only counted)
+  --pending             list every pending file (otherwise only counted)
 Checks
   parity      path groups that must change together (parity.json), skip: 'Parity-skip: <group>: <reason>'
   features    app code changes need docs/FEATURES.md, skip: 'Features-skip: <reason>'
   parity-globs  every glob in parity.json (group sides, features) matches a tracked file: a dead glob turns its group
-              off without a word. Whole V1 tree.
+              off without a word. Whole tree.
   java        no .java source (Android is Kotlin only)
   header      new source files carry the GPL SPDX header (a file moved out of poc/ counts as new)
   secrets     nsec/private keys/tokens in added lines; secrets/, keys, APKs, build dirs as paths
@@ -28,10 +27,10 @@ Checks
   strings     new hardcoded UI text in Android Kotlin; each module's values/ and values-es/ keys in sync
   cleartext   the app permits cleartext only to loopback (network_security_config, for Juggluco): every
               http:// / ws:// literal or "http"/"ws" scheme in Android Kotlin, and every place that opens a
-              connection, must be on allow.json's cleartext_ok / network_ok lists (with the reason). Whole V1 tree.
+              connection, must be on allow.json's cleartext_ok / network_ok lists (with the reason). Whole tree.
   card-surface  one graph everywhere and the freshness steps everywhere (the user, 2026-10-21: a badge moved on one
               surface only; the status bar kept a 20-min-old value as if current; "things like this cannot happen
-              again"). Whole V1 tree, Android + Mac, from THE registry contracts/graph/surfaces/surfaces.json:
+              again"). Whole tree, every app, from THE registry contracts/graph/surfaces/surfaces.json:
               a file that calls the card renderer (GlucoseCard.draw / image / face) must be a registered file of the
               surface it names; the CardSurface enums list exactly the registry; a glyph surface takes its value from
               GlucoseCard.face; every surface is rendered by the cross-surface tests (the registry's 'tests').
@@ -54,7 +53,7 @@ Checks
               with the reason; alert 'path's are fields of contracts/alerts/SPEC.md §3; no stored key written by hand
               (Android *PreferencesKey("…"), Mac forKey: "…" / @AppStorage("…")): keys come from SettingsSpec.Keys;
               number settings only through the one input pattern (NumberDialog / NumberSettingRow; NumberSpec values
-              only from the generated file). Whole V1 tree.
+              only from the generated file). Whole tree.
   states      complete flows (the user, 2026-10-21: "There's no way to unmute! On any platform"): every '## ' feature
               section of docs/FEATURES.md has a '**States and exits**' paragraph (each state a user can enter, where
               it shows, how to change and leave it, on every platform), unless allow.json 'states_pending' lists the
@@ -85,7 +84,7 @@ ANDROID = "apps/android/"
 MAC = "apps/macos/"
 CONTRACTS = "contracts/"
 POC = "poc/"
-V1_COMPLETE = "tools/check/v1-complete"
+STRICT = "tools/check/strict"
 ANDROID_MAIN = ANDROID + "*/src/main/*"  # fnmatch: '*' crosses '/'
 ANDROID_KT = ANDROID + "*/src/main/kotlin/*.kt"
 MAC_SOURCES = MAC + "Sources/"
@@ -144,7 +143,7 @@ class Change:
                 n += 1
 
     def new(self, path):
-        """Added, or moved / copied out of the frozen PoC into V1 (a move doesn't make PoC code V1-clean)."""
+        """Added, or moved / copied out of the frozen PoC into an app (a move doesn't make PoC code clean)."""
         st = self.files[path][0]
         return st == "A" or (st in "RC" and self.origin.get(path, "").startswith(POC) and not path.startswith(POC))
 
@@ -176,11 +175,11 @@ class Report:
         self.list_pending = list_pending
 
     def pending(self, files, path, check, what):
-        """True (and noted) when a file a registry names doesn't exist yet: a NOTE until tools/check/v1-complete exists,
+        """True (and noted) when a file a registry names doesn't exist yet: a NOTE while tools/check/strict is absent,
         then a failure."""
         if path in files:
             return False
-        if V1_COMPLETE in files:
+        if STRICT in files:
             self.add("FAIL", check, "%s doesn't exist (%s). Fix the registry or write the file." % (path, what))
         elif path not in [p for p, _, _ in self.pending_files]:
             self.pending_files.append((path, check, what))
@@ -196,8 +195,8 @@ class Report:
         for lv, check, text in self.items:
             print("%s [%s] %s" % (lv, check, text.replace("\n", "\n    ")))
         if self.pending_files:
-            print("NOTE [pending] %d V1 files named by the registries don't exist yet (fail once %s exists)%s" % (
-                len(self.pending_files), V1_COMPLETE, ":" if self.list_pending else "; run.sh --pending lists them."))
+            print("NOTE [pending] %d files named by the registries don't exist yet (fail once %s exists)%s" % (
+                len(self.pending_files), STRICT, ":" if self.list_pending else "; run.sh --pending lists them."))
             if self.list_pending:
                 for path, check, what in self.pending_files:
                     print("    %s  (%s: %s)" % (path, check, what))
@@ -284,7 +283,7 @@ SECRET_TEXT = [
     (re.compile(r"\bAKIA[0-9A-Z]{16}\b"), "an AWS key"),
     (re.compile(r"\bxox[abp]-[A-Za-z0-9-]{10,}"), "a Slack token"),
 ]
-HEADER_HELP = ("    // Sukrara — https://github.com/mauriciabad/Sukrara\n    // Copyright (C) 2026 Maurici Abad\n"
+HEADER_HELP = ("    // Sukrara — https://github.com/mauriciabad/sukrara\n    // Copyright (C) 2026 Maurici Abad\n"
                "    // SPDX-License-Identifier: GPL-3.0-or-later\n    (# for py / sh / yml, <!-- --> for xml)")
 IMAGE = re.compile(r"\.(png|jpe?g|webp|gif|heic)$", re.I)
 UI_TEXT = re.compile(r'\bText\(\s*"((?:[^"\\]|\\.)*)"'
@@ -295,7 +294,7 @@ NOT_WORDS = re.compile(r"\$\{[^}]*\}|\$\w+|mg/dL|mmol/L|Sukrara|Libre 3|dBm|n?c?
 STRING_KEY = re.compile(r'<(string|plurals)\s+name="([^"]+)"([^>]*)>')
 # Debug commands that replace the sensor or make up data must not exist in a release build (2026-10-18: `cmd sensorEnd` on
 # the user's release build faked a sensor over the real one; 2026-10-19: the release app never shows a value, an alert,
-# a treatment or a sensor state that isn't real). V1 compiles them out: Android src/debug, Mac #if DEBUG / test targets.
+# a treatment or a sensor state that isn't real). The apps compile them out: Android src/debug, Mac #if DEBUG / test targets.
 DEBUG_NAMES = re.compile(r"\b(DebugReceiver|DebugFakes|Synthetic\w*)\b")
 DEBUG_FILE = re.compile(r"(^|/)(DebugReceiver|DebugFakes|Synthetic\w*)\.kt$")
 MAC_DEBUG_NAMES = re.compile(r"\b(debugsend|DebugFakes|Synthetic\w*)\b")
@@ -329,7 +328,7 @@ def outside_debug(text):
 
 
 def check_debug(ch, rep):
-    """debug: see the module doc. Whole V1 tree at the change's revision."""
+    """debug: see the module doc. Whole tree at the change's revision."""
     for p in tree_files(ch):
         if p.startswith(ANDROID) and not any(d in p for d in ANDROID_DEBUG_DIRS):
             if DEBUG_FILE.search(p):
@@ -355,7 +354,7 @@ NETWORK = re.compile(r"openConnection\(|newWebSocket\(|Request\.Builder\(|\.toUR
 
 
 def check_cleartext(ch, rep):
-    """cleartext: whole-tree scan of the V1 Android app's main Kotlin (not only the change): a cleartext URL or scheme, or a
+    """cleartext: whole-tree scan of the Android app's main Kotlin (not only the change): a cleartext URL or scheme, or a
     new place that opens connections, fails unless allow.json lists that exact spot with its reason."""
     allow = load("allow.json")
     clear_ok, net_ok = allow["cleartext_ok"], allow["network_ok"]
@@ -573,12 +572,12 @@ def check_card(ch, rep):
 # Android: the card renderer owns clock formatting (brief 08); the time *source* interface is :core:model Clock
 CLOCK_KT = ANDROID + "core/graph/src/main/kotlin/app/mauri/sukrara/graph/Clock.kt"
 CLOCK_SWIFT = MAC_SOURCES + "SukraraCore/Clock.swift"
-# files that write times as data or log text (not the user's clock): path -> why. Each V1 chunk adds its own.
+# files that write times as data or log text (not the user's clock): path -> why. Add an entry with the reason.
 CLOCK_OK = {}
 
 
-def v1_code(p):
-    """'kt' / 'swift' for V1 app source (Android main Kotlin, Mac Sources outside the test / snapshot targets), else None."""
+def app_code(p):
+    """'kt' / 'swift' for app source (Android main Kotlin, Mac Sources outside the test / snapshot targets), else None."""
     if p.endswith(".kt") and match(p, [ANDROID_KT]):
         return "kt"
     if p.endswith(".swift") and p.startswith(MAC_SOURCES) and not p.startswith(MAC_DEBUG_TARGETS):
@@ -595,9 +594,9 @@ def check_clock(ch, rep):
     """clock: every clock time goes through Clock with the one 24-hour setting (the user, 2026-10-21: the value widget
     wrote "08:59" beside the chart cards' "8:59 AM"). No own hour24 flag, is24HourFormat or time formatter outside
     Clock (Android :core:graph Clock.kt, Mac SukraraCore Clock.swift; the app injects the system setting into Clock on a
-    line that names Clock.hour24Source). Whole V1 tree; data / log formats are listed in CLOCK_OK."""
+    line that names Clock.hour24Source). Whole tree; data / log formats are listed in CLOCK_OK."""
     for p in tree_files(ch):
-        lang = v1_code(p)
+        lang = app_code(p)
         kt = lang == "kt"
         if not lang or p in (CLOCK_KT, CLOCK_SWIFT) or p in CLOCK_OK:
             continue
@@ -627,7 +626,7 @@ def check_durations(ch, rep):
     """durations: see the module doc. Whole tree at the change's revision."""
     ok_files = load("allow.json").get("durations_ok", {})
     for p in tree_files(ch):
-        lang = v1_code(p)
+        lang = app_code(p)
         kt = lang == "kt"
         xml = match(p, [ANDROID + "*/src/main/res/values*/strings.xml"])
         if not (lang or xml) or p in (DURATIONS_KT, DURATIONS_SWIFT) or p in ok_files:
@@ -702,7 +701,7 @@ def normal_field(path, kinds):
 
 def check_settings(ch, rep):
     """settings: THE schema (contracts/settings/settings.json; the user, 2026-10-21: "make something that makes sure
-    settings don't diverge across platforms"). Whole V1 tree at the change's revision:
+    settings don't diverge across platforms"). Whole tree at the change's revision:
     - the generated SettingsSpec.kt / .swift match the schema (tools/settings/gen.py);
     - every entry is on both platforms, or on one with 'only': {platform, reason}; number refs and defaults are valid;
       keys are camelCase; an alert entry's 'path' is the same on both platforms and a field of SPEC.md §3, and every
@@ -781,7 +780,7 @@ def check_settings(ch, rep):
         for f in sorted(fields - paths):
             rep.add("FAIL", "settings", "%s §3 field '%s' has no entry in %s." % (ALERT_SPEC, f, SETTINGS_SCHEMA))
     for p in tree_files(ch):
-        lang = v1_code(p)
+        lang = app_code(p)
         if not lang or p in (SETTINGS_KT, SETTINGS_SWIFT):
             continue
         src = ch.blob(p) or ""

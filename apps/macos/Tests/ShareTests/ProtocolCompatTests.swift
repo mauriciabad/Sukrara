@@ -1,4 +1,4 @@
-// Sukrara — https://github.com/mauriciabad/Sukrara
+// Sukrara — https://github.com/mauriciabad/sukrara
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
 import Foundation
@@ -12,8 +12,8 @@ import Testing
 /// stores must end as the fixture says. `rotation.json` is also the identity-restore case: a new device key and
 /// epoch delivered to every follower, a roster with only the new device, late rosters from the old one ignored —
 /// the link stays "following" with no action. `revoke-reapprove.json` relaunches the runtime mid-sequence: a removed
-/// and re-approved Mac keeps following when the relays replay the old revoked notice. The 0.11.53 wire format itself is pinned by the OGS vectors (Python
-/// reference, `FollowerRuntimeTests.joinRequestThenFollowFillsTheStores`).
+/// and re-approved Mac keeps following when the relays replay the old revoked notice. The wire format itself is pinned by the
+/// OGS vectors (Python reference, `FollowerRuntimeTests.joinRequestThenFollowFillsTheStores`).
 struct ProtocolCompatTests {
     @Test(arguments: SyncFixtureTests.followerSequences)
     func replayThroughTheRuntime(_ name: String) async throws {

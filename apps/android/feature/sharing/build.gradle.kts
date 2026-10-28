@@ -1,8 +1,8 @@
-// Sukrara — https://github.com/mauriciabad/Sukrara
+// Sukrara — https://github.com/mauriciabad/sukrara
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-// First-run setup flow, sharing, invites, following (chunk 24).
+// First-run setup flow, sharing, invites, following.
 plugins {
     id("sukrara.android.library")
     id("sukrara.android.compose")
@@ -23,7 +23,7 @@ dependencies {
     implementation(project(":core:data"))
     // the alert settings the alert step confirms
     implementation(project(":core:alerts"))
-    // the wearer's sharing engine (chunk 13)
+    // the wearer's sharing engine
     implementation(project(":share"))
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.viewmodel.compose)

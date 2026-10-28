@@ -1,4 +1,4 @@
-// Sukrara — https://github.com/mauriciabad/Sukrara
+// Sukrara — https://github.com/mauriciabad/sukrara
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.feature.sharing.setup
@@ -6,7 +6,7 @@ package app.mauri.sukrara.feature.sharing.setup
 import android.content.Context
 import app.mauri.sukrara.feature.sharing.R
 
-/** The words of a Finish-setup row, for home's "Finish setup" banner (chunk 16 shows the first one). */
+/** The words of a Finish-setup row, for home's "Finish setup" banner (home shows the first one). */
 fun FinishItem.label(context: Context): String =
     context.getString(
         when (this) {

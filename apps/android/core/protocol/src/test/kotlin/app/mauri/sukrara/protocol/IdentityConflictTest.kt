@@ -1,4 +1,4 @@
-// Sukrara — https://github.com/mauriciabad/Sukrara
+// Sukrara — https://github.com/mauriciabad/sukrara
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.protocol
@@ -27,9 +27,9 @@ import org.junit.Assert.assertEquals
 import org.junit.Test
 
 /**
- * A3, contracts/protocol/sync/owner-conflict.json: the wearer's phone (device D2 after a restore + rotation to epoch 2)
+ * contracts/protocol/sync/owner-conflict.json: the wearer's phone (device D2 after a restore + rotation to epoch 2)
  * sees roster / backup events signed by its identity. Its own echoes, its own rotation and late old events are fine;
- * a newer roster or backup from the showcase still publishing as the same identity is a conflict.
+ * a newer roster or backup from another device still publishing as the same identity is a conflict.
  */
 class IdentityConflictTest {
     private val crypto = SdkTestCrypto()
@@ -54,12 +54,12 @@ class IdentityConflictTest {
         Triple("own-roster-echo", roster(2, g2, d2, now - 50), "fine"),
         Triple("own-rotation-unrecorded", roster(2, g2, d2, now - 10), "fine"),
         Triple("old-roster-late", roster(1, g1, d, now - 500), "fine"),
-        Triple("showcase-roster", roster(1, g1, d, now + 10), "conflict:RosterFromOtherDevice"),
+        Triple("other-device-roster", roster(1, g1, d, now + 10), "conflict:RosterFromOtherDevice"),
         Triple("unknown-epoch-roster", roster(3, g3, d, now + 20), "conflict:RosterUnknownEpoch"),
         Triple("own-backup-echo", backup(listOf(1 to g1, 2 to g2), now - 40), "fine"),
         Triple("own-backup-unrecorded", backup(listOf(1 to g1, 2 to g2), now - 5), "fine"),
         Triple("old-backup-late", backup(listOf(1 to g1), now - 1000), "fine"),
-        Triple("showcase-backup", backup(listOf(1 to g1), now + 30), "conflict:BackupFromElsewhere"),
+        Triple("other-device-backup", backup(listOf(1 to g1), now + 30), "conflict:BackupFromElsewhere"),
         Triple("stranger-roster", f.roster(v.key("X"), g1.public, v.sid, RosterPayload(1, listOf(d.public.hex), emptyList(), emptyList(), null), now + 40), "fine"),
     )
 
@@ -72,7 +72,7 @@ class IdentityConflictTest {
         if (System.getProperty("sukrara.regen") == "true") {
             val fx = buildJsonObject {
                 put("v", 1)
-                put("about", "A3 owner-side identity conflict (contracts/protocol/sync/README.md). Throwaway keys.")
+                put("about", "Owner-side identity conflict (contracts/protocol/sync/README.md). Throwaway keys.")
                 put("keys", buildJsonObject { listOf("I" to i, "D" to d, "D2" to d2, "G1" to g1, "G2" to g2, "G3" to g3).forEach { (n, k) -> put(n, buildJsonObject { put("sec", k.secret.revealHex()); put("pub", k.public.hex) }) } })
                 put("sid", v.sid)
                 put("marks", buildJsonObject {
@@ -97,12 +97,12 @@ class IdentityConflictTest {
         }
     }
 
-    @Test fun backupBodyKeepsWhatTheShowcaseWrites() {
-        val showcase = """{"v":2,"sid":"${v.sid}","epochs":[{"n":1,"g":"${crypto.nsec(g1.secret)}"}],
+    @Test fun backupBodyKeepsEveryField() {
+        val body = """{"v":2,"sid":"${v.sid}","epochs":[{"n":1,"g":"${crypto.nsec(g1.secret)}"}],
             "followers":[{"f":"${d.public.hex}","name":"Mom","since":5,"avatar":null}],
             "invites":[{"t":"tok","x":9,"label":"Mom","nearby":false,"sentAt":3,"claimedBy":null,"done":true}],
             "relays":["wss://nos.lol","ws://x"],"writers":["${d.public.hex}"],"profile":{"name":"Alex","avatar":null}}"""
-        val b = BackupCodec.decode(showcase)
+        val b = BackupCodec.decode(body)
         assertEquals(listOf(1), b.epochs.map { it.n })
         assertEquals("Mom", b.followers.single().name)
         assertEquals("Mom", b.invites.single().label)

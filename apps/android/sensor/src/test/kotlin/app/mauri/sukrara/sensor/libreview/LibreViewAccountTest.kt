@@ -1,4 +1,4 @@
-// Sukrara — https://github.com/mauriciabad/Sukrara
+// Sukrara — https://github.com/mauriciabad/sukrara
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.sensor.libreview
@@ -74,7 +74,7 @@ class LibreViewAccountTest {
             assertFalse(stored.toString().contains("SYNTHETIC")) // no token either
 
             account.signOut()
-            assertEquals(ReceiverIdState(own = 99L), state.data.first()) // V1's own ID survives sign-out
+            assertEquals(ReceiverIdState(own = 99L), state.data.first()) // Sukrara's own ID survives sign-out
         } finally {
             server.stop(0)
         }

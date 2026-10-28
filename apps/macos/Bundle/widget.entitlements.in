@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- Sukrara — https://github.com/mauriciabad/Sukrara -->
+<!-- Sukrara — https://github.com/mauriciabad/sukrara -->
 <!-- Copyright (C) 2026 Maurici Abad -->
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <!-- The widget: sandboxed (WidgetKit requires it), reads only the App Group snapshot. No network. -->

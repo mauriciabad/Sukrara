@@ -1,8 +1,6 @@
-# apps/macos — Sukrara V1 for Mac
+# apps/macos — Sukrara for Mac
 
-The V1 Mac app: a menu bar app (`Sukrara.app`, `LSUIElement`) with a WidgetKit extension (`SukraraWidget.appex`).
-A clean rewrite of the PoC in [`poc/spikes/menubar`](../../poc/spikes/menubar) and
-[`poc/spikes/widgets-macos`](../../poc/spikes/widgets-macos); it is tested against [`contracts/`](../../contracts/).
+A menu bar app (`Sukrara.app`, `LSUIElement`) with a WidgetKit extension (`SukraraWidget.appex`), tested against [`contracts/`](../../contracts/).
 Architecture and the interfaces other parts implement: [`docs/ARCHITECTURE.md`](../../docs/ARCHITECTURE.md) (Mac).
 
 ## Build, test, bundle

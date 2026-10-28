@@ -1,7 +1,7 @@
-# Sukrara — https://github.com/mauriciabad/Sukrara
+# Sukrara — https://github.com/mauriciabad/sukrara
 # Copyright (C) 2026 Maurici Abad
 # SPDX-License-Identifier: GPL-3.0-or-later
-# The repo's guards (CLAUDE.md → tools/check) plus both V1 apps' builds and tests over the shared contracts/.
+# The repo's guards (CLAUDE.md → tools/check) plus every app's builds and tests over the shared contracts/.
 # The trigger is never path-filtered (a skipped workflow leaves a required check pending forever): the `changes` job
 # decides which jobs run, and `gate` is the ONLY required check: it fails unless every job that should have run passed.
 name: Checks
@@ -72,13 +72,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - name: Is there a V1 Android build yet?
-        id: present
-        run: |
-          if [ -f apps/android/settings.gradle.kts ]; then echo "build=true" >> "$GITHUB_OUTPUT"
-          else echo "build=false" >> "$GITHUB_OUTPUT"; echo "apps/android has no Gradle build yet: nothing to build"; fi
       - uses: actions/setup-java@v5
-        if: steps.present.outputs.build == 'true'
         with:
           distribution: temurin
           java-version: '21'
@@ -86,10 +80,9 @@ jobs:
       # Pinned in :sensor (ndkVersion / cmake version); ubuntu-24.04 ships neither. Only a build with a Juggluco
       # checkout compiles the Libre 3 core (NativeCore) and CI has none, so this runs once SUKRARA_JUGGLUCO is set.
       - name: Android NDK + CMake for the Libre 3 core
-        if: steps.present.outputs.build == 'true' && env.SUKRARA_JUGGLUCO != ''
+        if: env.SUKRARA_JUGGLUCO != ''
         run: '"$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "ndk;28.2.13676358" "cmake;4.1.2"'
       - name: ./gradlew check (unit + contract tests, lint) + Roborazzi verify
-        if: steps.present.outputs.build == 'true'
         working-directory: apps/android
         # verifyReleaseSigning guards real release outputs and needs the owner's key; CI has none and ships no
         # release artifact, so it is excluded here (release builds are checked by tools/release/verify-apk.sh).
@@ -99,7 +92,7 @@ jobs:
           ./gradlew --no-daemon check -x verifyReleaseSigning
           :core:graph:verifyRoborazziDebug :widgets:verifyRoborazziDebug
       - name: Roborazzi diffs
-        if: failure() && steps.present.outputs.build == 'true'
+        if: failure()
         uses: actions/upload-artifact@v4
         with:
           name: roborazzi-diffs
@@ -115,20 +108,13 @@ jobs:
       DEVELOPER_DIR: /Applications/Xcode_27.1.app/Contents/Developer
     steps:
       - uses: actions/checkout@v7
-      - name: Is there a V1 Mac package yet?
-        id: present
-        run: |
-          if [ -f apps/macos/Package.swift ]; then echo "build=true" >> "$GITHUB_OUTPUT"
-          else echo "build=false" >> "$GITHUB_OUTPUT"; echo "apps/macos has no Swift package yet: nothing to build"; fi
       - name: swift build + swift test (contract tests over contracts/)
-        if: steps.present.outputs.build == 'true'
         working-directory: apps/macos
         run: |
           xcodebuild -version
           swift build
           swift test
       - name: Unsigned bundle (app + widget appex) + launch smoke
-        if: steps.present.outputs.build == 'true'
         working-directory: apps/macos
         run: |
           Bundle/bundle.sh --unsigned

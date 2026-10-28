@@ -1,4 +1,4 @@
-// Sukrara — https://github.com/mauriciabad/Sukrara
+// Sukrara — https://github.com/mauriciabad/sukrara
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.monitor
@@ -27,7 +27,7 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 
 /**
- * The monitor's objects (DI module, A4): the hub, the service's starter, the health check, the freshness ticker and
+ * The monitor's objects (DI module): the hub, the service's starter, the health check, the freshness ticker and
  * the glucose notification. `AppGraph` builds one and the `Application` exposes it through [MonitorHost].
  *
  * [source] is the role's one reading source: wearer → the sensor module's source, follower → the follower engine;

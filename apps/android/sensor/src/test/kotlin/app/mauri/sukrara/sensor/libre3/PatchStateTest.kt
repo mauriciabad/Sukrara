@@ -1,4 +1,4 @@
-// Sukrara — https://github.com/mauriciabad/Sukrara
+// Sukrara — https://github.com/mauriciabad/sukrara
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.sensor.libre3
@@ -7,7 +7,7 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-/** When the direct client gives up on a sensor (2026-10-18: the owner's expired Libre 3 Plus looped for ever). PoC test. */
+/** When the direct client gives up on a sensor (2026-10-18: the owner's expired Libre 3 Plus looped for ever). */
 class PatchStateTest {
     @Test
     fun running() {

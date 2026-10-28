@@ -1,4 +1,4 @@
-// Sukrara — https://github.com/mauriciabad/Sukrara
+// Sukrara — https://github.com/mauriciabad/sukrara
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.sensor.libre3
@@ -12,7 +12,7 @@ import app.mauri.sukrara.sensor.pairing.ReceiverIds
 
 /**
  * The NFC half of starting or taking over a FreeStyle Libre 3 / 3 Plus (after Juggluco's Libre3.java, libre3/NFC.java
- * and nfc.cpp, GPLv3; ported from the PoC unchanged). Two ISO 15693 custom commands in one tap:
+ * and nfc.cpp, GPLv3). Two ISO 15693 custom commands in one tap:
  *  1. patch info → serial, state, product type;
  *  2. activate (a new sensor, 0xA0) or switch receiver (a running one, 0xA8), carrying the receiver ID → BLE address,
  *     BLE PIN and activation time.
@@ -86,7 +86,7 @@ internal object Libre3Nfc {
         else -> Chip.OTHER
     }
 
-    /** One tap: [account] = the LibreView receiver ID (null = not signed in), [own] = V1's own. */
+    /** One tap: [account] = the LibreView receiver ID (null = not signed in), [own] = Sukrara's own. */
     fun scan(tag: Tag, account: Long?, own: Long, log: (String) -> Unit): Result {
         when (chip(tag.id)) {
             Chip.LIBRE3 -> Unit

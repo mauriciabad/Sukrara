@@ -1,12 +1,12 @@
-// Sukrara — https://github.com/mauriciabad/Sukrara
+// Sukrara — https://github.com/mauriciabad/sukrara
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
 import Foundation
 import SukraraShare
 import SukraraTesting
 
-/// The OGS vectors (contracts/protocol/ogs/ogs-draft1.json): events made by the Python reference with the
-/// showcase's wire format — passing them means following a Sukrara 0.11 wearer works at the wire level.
+/// The OGS vectors (contracts/protocol/ogs/ogs-draft1.json): events made by the Python reference — passing
+/// them means following a wearer works at the wire level.
 /// Immutable after loading (a parsed JSON tree nobody mutates), so sharing it across tests is safe.
 struct OgsVectors: @unchecked Sendable {
     let raw: [String: Any]

@@ -1,4 +1,4 @@
-// Sukrara — https://github.com/mauriciabad/Sukrara
+// Sukrara — https://github.com/mauriciabad/sukrara
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.feature.sharing.setup
@@ -74,7 +74,7 @@ import androidx.compose.animation.AnimatedContent
  * The first-run setup (brief 24, binding order): welcome → role → permissions → sensor →
  * alert thresholds → sharing identity → home. Each step says "Step N of M" to TalkBack, has Back (except the first)
  * and Skip / Later where skipping is safe; skipped steps go to the home "Finish setup" card.
- * [onOpenSensorSetup] opens chunk 18's new-sensor flow; [thresholdRows] are Settings' threshold rows (the alert step
+ * [onOpenSensorSetup] opens the new-sensor flow; [thresholdRows] are Settings' threshold rows (the alert step
  * shows the same rows as Settings › Review alert thresholds); [onDone] goes home.
  */
 @Composable

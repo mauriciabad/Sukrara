@@ -1,4 +1,4 @@
-// Sukrara — https://github.com/mauriciabad/Sukrara
+// Sukrara — https://github.com/mauriciabad/sukrara
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.monitor.notify
@@ -43,7 +43,7 @@ data class LiveNotificationContent(
     enum class Icon { TREND, NO_TREND, NO_READINGS, SENSOR_ENDED, APP }
 
     sealed interface Target {
-        /** The quick "Add treatment" dialog; Carbs focused while a low is going on (CHANGES P9). */
+        /** The quick "Add treatment" dialog; Carbs focused while a low is going on. */
         data class QuickTreatment(val focusCarbs: Boolean) : Target
 
         data object OpenApp : Target

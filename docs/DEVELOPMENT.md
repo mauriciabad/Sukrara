@@ -1,6 +1,6 @@
-# Developing Sukrara V1
+# Developing Sukrara
 
-The know-how for whoever works on Sukrara V1 (Android `apps/android`, Mac `apps/macos`, shared `contracts/`). The
+The know-how for whoever works on Sukrara (the apps in `apps/`, shared `contracts/`, `tools/`). The
 rules are in [`CLAUDE.md`](../CLAUDE.md); the architecture in [`ARCHITECTURE.md`](ARCHITECTURE.md); the frozen PoC's
 own notes stay in [`poc/spikes/showcase-android/NEXT.md`](../poc/spikes/showcase-android/NEXT.md).
 
@@ -25,7 +25,7 @@ own notes stay in [`poc/spikes/showcase-android/NEXT.md`](../poc/spikes/showcase
 | Settings code after a schema change | `python3 tools/settings/gen.py` (commit both SettingsSpec files) |
 | Android: everything CI runs | `cd apps/android && ./gradlew check` |
 | Mac: build + tests | `cd apps/macos && swift build && swift test` |
-| Version | `tools/release/version.sh` → `0.90.0 90000 prerelease` (from `VERSION`) |
+| Version | `tools/release/version.sh` → `0.12.0 12000 prerelease` (from `VERSION`) |
 
 CI (`.github/workflows/checks.yml`) runs the rules on every push and the Android / Mac jobs when their paths (or
 `contracts/`, `tools/`, `VERSION`, `assets/`) change; `gate` is the only required check.
@@ -40,8 +40,6 @@ CI (`.github/workflows/checks.yml`) runs the rules on every push and the Android
   test build; test builds run from another path, offline (`LaunchMode`: snapshot / test runs start no Bluetooth,
   relays or alerts). After replacing the app, `pkill -f SukraraWidget.appex` and keep `pluginkit -mAv | grep sukrara`
   pointing only at `~/Applications/Sukrara.app`.
-- **Side by side with the PoC**: V1 is `app.mauri.sukrara`, the showcase PoC `app.mauri.sukrara.poc`. Only one may
-  own the Libre 3 sensor; only one should alert (double alarms).
 
 ## Install (one build line)
 
@@ -49,9 +47,7 @@ Every install must contain all merged work, or features silently vanish from the
 `tools/install.sh phone|mac [--dry-run]`. It refuses a dirty tree, a HEAD without `origin/main`, the branches in
 `tools/check/integration.txt` or the commit installed last time, and failing checks; then it builds the release,
 verifies it (`tools/release/verify-apk.sh` / `verify-app.sh`), installs in place and records the commit in
-`<git common dir>/sukrara-installed-v1-<target>`. On the Mac it first quits the showcase, moves it to
-`~/Applications/Sukrara Showcase.app` (never deleted), flags its login item (turn it off in System Settings › Login
-Items) and makes V1 the `sukrara:` link handler.
+`<git common dir>/sukrara-installed-<target>`. On the Mac it also makes the installed app the `sukrara:` link handler.
 
 ## Signing
 
@@ -59,7 +55,7 @@ Items) and makes V1 the `sukrara:` link handler.
   `tools/release/make-keystore.sh`; its password lives in the Keychain item `sukrara-android-release`. The release
   build reads `SUKRARA_KEYSTORE` (default that path) and the env `SUKRARA_KEYSTORE_PASSWORD` only; `tools/install.sh` and
   the release scripts export it from the Keychain item.
-  Its public SHA-256 is `tools/release/android-cert.sha256`. Backup procedure: [docs/20](20-publishing.md#the-v1-android-release-key).
+  Its public SHA-256 is `tools/release/android-cert.sha256`. Backup procedure: [docs/20](20-publishing.md#the-android-release-key).
   Debug builds use `~/.android/debug.keystore` (`tools/release/android-debug-cert.sha256`, also in assetlinks).
 - **Mac**: the Apple Development identity of team `QWUV9H4A3G` (no notarization yet); App Group
   `QWUV9H4A3G.app.mauri.sukrara`.

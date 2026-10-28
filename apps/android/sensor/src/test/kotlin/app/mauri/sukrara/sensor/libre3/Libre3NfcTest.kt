@@ -1,4 +1,4 @@
-// Sukrara — https://github.com/mauriciabad/Sukrara
+// Sukrara — https://github.com/mauriciabad/sukrara
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.sensor.libre3
@@ -10,7 +10,7 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-/** Vectors: the sensor answers quoted in Juggluco's libre3/nfc.cpp and the CRC checks in dp_activation.hpp (PoC test, unchanged). */
+/** Vectors: the sensor answers quoted in Juggluco's libre3/nfc.cpp and the CRC checks in dp_activation.hpp. */
 class Libre3NfcTest {
     private fun hex(s: String) = ByteArray(s.length / 2) { s.substring(it * 2, it * 2 + 2).toInt(16).toByte() }
 

@@ -1,10 +1,10 @@
-// Sukrara — https://github.com/mauriciabad/Sukrara
+// Sukrara — https://github.com/mauriciabad/sukrara
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
 import Foundation
 
 /// Builds what a follower sends (PROTOCOL-v2 "Events"): gift wraps to the identity (sealed by `F`) and, as a writer,
-/// treatment events. Bodies and TTLs are wire-identical to Sukrara 0.11.
+/// treatment events. Bodies and TTLs follow PROTOCOL-v2.
 public struct FollowerMessages: Sendable {
     let crypto: any NostrCrypto
     let follower: SecretKeyHex
