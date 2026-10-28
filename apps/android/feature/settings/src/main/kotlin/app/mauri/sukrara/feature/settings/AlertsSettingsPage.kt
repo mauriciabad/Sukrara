@@ -183,18 +183,23 @@ fun AlertsSettingsContent(
                         summary = if (rule.on) kindSummary(s, kind) else stringResource(R.string.st_off),
                         enabled = s.on,
                         icon = kindIcon(kind),
+                        switchEnabled = s.on && !ui.mirrors(kind),
                     )
                 }
             }
         }
-        SettingsGroup {
-            NavigationRow(
-                stringResource(R.string.st_review_title),
-                actions.openReview,
-                summary =
-                    confirmedAt?.let { stringResource(R.string.st_review_confirmed) } ?: stringResource(R.string.st_review_not_confirmed),
-                icon = DsR.drawable.ds_ic_rule,
-            )
+        // the review edits the thresholds: only where this phone's own are in use
+        if (!ui.mirrored) {
+            SettingsGroup {
+                NavigationRow(
+                    stringResource(R.string.st_review_title),
+                    actions.openReview,
+                    summary =
+                        confirmedAt?.let { stringResource(R.string.st_review_confirmed) }
+                            ?: stringResource(R.string.st_review_not_confirmed),
+                    icon = DsR.drawable.ds_ic_rule,
+                )
+            }
         }
         SettingsGroup(title = stringResource(R.string.st_quiet_title)) {
             for (which in QuietKind.entries) {
@@ -212,15 +217,17 @@ fun AlertsSettingsContent(
                     { on -> actions.edit(AlertEdits.quiet(which) { it.copy(on = on) }) },
                     summary = stringResource(R.string.st_quiet_for, numberLabel(spec, rule.min.toDouble())),
                     icon = quietIcon(which),
+                    readOnly = ui.mirrored,
                 )
                 if (rule.on) {
                     ValueRow(stringResource(R.string.st_quiet_length), numberLabel(spec, rule.min.toDouble()), {
                         dialog =
                             "quiet:${which.name}"
-                    }, icon = DsR.drawable.ds_ic_timer)
+                    }, icon = DsR.drawable.ds_ic_timer, readOnly = ui.mirrored)
                 }
             }
         }
+
         SettingsGroup(title = stringResource(R.string.st_actions_title)) {
             ValueRow(
                 stringResource(

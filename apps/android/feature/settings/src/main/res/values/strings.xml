@@ -651,5 +651,5 @@
     <string name="st_from_reset_done">Reset to default</string>
     <string name="st_from_footer">Sounds, alarm volume, no-data alerts, the notification\'s buttons and the time shown per place are always this phone\'s own.</string>
     <string name="st_from_note">In use: %1$s</string>
-    <string name="st_from_note_summary">Changes here are kept for Custom. Tap to choose</string>
+    <string name="st_from_note_summary">Read only here. To change them, choose Custom</string>
 </resources>
