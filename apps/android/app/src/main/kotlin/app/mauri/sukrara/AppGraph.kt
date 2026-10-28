@@ -34,6 +34,9 @@ import app.mauri.sukrara.graph.GraphConfig
 import app.mauri.sukrara.graph.GraphSettings
 import app.mauri.sukrara.integrations.CurrentSensor
 import app.mauri.sukrara.integrations.IntegrationsModule
+import app.mauri.sukrara.integrations.libreview.LvGlucose
+import app.mauri.sukrara.integrations.libreview.LvReadings
+import app.mauri.sukrara.integrations.libreview.LvState
 import app.mauri.sukrara.integrations.nightscout.NsState
 import app.mauri.sukrara.monitor.MonitorModule
 import app.mauri.sukrara.monitor.alerts.AlertRecord
@@ -50,6 +53,7 @@ import app.mauri.sukrara.pen.PensModule
 import app.mauri.sukrara.pen.engine.Ledger
 import app.mauri.sukrara.protocol.event.AlertCodec
 import app.mauri.sukrara.sensor.SensorModule
+import app.mauri.sukrara.sensor.ble.SensorGlucose
 import app.mauri.sukrara.sensor.pairing.PairingLoad
 import app.mauri.sukrara.sensor.pairing.ReceiverIdState
 import app.mauri.sukrara.sensor.source.SensorSourceKind
@@ -230,7 +234,11 @@ class AppGraph(
                 },
             appsShared =
                 integrations.summary.map { s ->
-                    setOfNotNull(AppOutput.NightscoutUpload.takeIf { s.nightscoutUpload }, AppOutput.XdripServer.takeIf { s.xdripServer })
+                    setOfNotNull(
+                        AppOutput.LibreView.takeIf { s.libreView },
+                        AppOutput.NightscoutUpload.takeIf { s.nightscoutUpload },
+                        AppOutput.XdripServer.takeIf { s.xdripServer },
+                    )
                 },
         )
     }
@@ -243,12 +251,20 @@ class AppGraph(
             secure = data.secureStore,
             // losing it only costs one comparison with the site (nothing is sent twice: the site is checked first)
             nightscoutState = data.typedStore("nightscout-upload", NsState.serializer(), NsState(), whenCorrupt = NsState()),
+            // a lost state re-sends nothing old (each part starts again from now) but can't retract versions sent before
+            libreViewState = data.typedStore("libreview-upload", LvState.serializer(), LvState(), whenCorrupt = LvState()),
             readings = data.readings,
             treatments = data.treatments,
             sensor =
                 sensor.source.sensorInfo.map { info ->
                     info?.let { CurrentSensor(it.serial, Instant.ofEpochSecond(it.startEpoch), Instant.ofEpochSecond(it.endEpoch)) }
                 },
+            libreReadings =
+                sensor.source.sensorGlucose.map { b ->
+                    fun g(x: SensorGlucose) = LvGlucose(x.lifeCount, x.mgdl, x.epochSec, x.rate)
+                    LvReadings(b.serial, b.current?.let(::g), b.history.map(::g))
+                },
+            libreViewEmail = sensor.libreView.email,
             role = role.data.map { it.role },
             jugglucoIsSource = data.settings.flow(SensorSource).map { SensorSourceKind.fromId(it) == SensorSourceKind.Juggluco },
             http = data.http,

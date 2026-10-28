@@ -558,7 +558,7 @@ Android, both roles (round f33, the user: closed tips never came back; `features
 - A row shows a changed value at once (switch, summary), without reopening the page (`SettingsGroupTest`).
 - **One settings schema** (round f28, the user 2026-10-21: settings must not diverge across platforms): `poc/spikes/settings/settings.json` lists every setting of both apps (store and key per platform, or the one platform with the reason), the number formats and what a follower mirrors from the wearer; `tools/settings/gen.py` generates `SettingsSpec.kt` / `SettingsSpec.swift` from it. `tools/check` rule `settings` fails on a stale generated file, an entry on one platform without a reason, a stored key without an entry (or an entry whose key isn't stored), or a number input that doesn't take its spec; `SettingsSchemaTest` (Android) and `-settingsselftest` (Mac) test the models' keys, defaults and every valid number against it.
 - **One number input** for every number setting on both platforms (schema `numbers`: presets, special values, range, step, unit): the special values (*Off*, *Once*, *None*, *Default (12 h)*, *Every reading*) and presets as choices, then *Custom…* (es *Personalizado…*, the ellipsis character because it asks for more input, like the Mac's; only where the schema allows custom values; `StringsParityTest`) with a number field: unit as its suffix, "From 1 to 48 h" under it, the same text as the error while the value isn't in range on the step; OK saves only a valid value. A custom value shows as *Custom…* selected with its value and round-trips through settings export / import. Closed lists (rings 0–3, vertical lines Off / 1 / 2 / 3 / 4 / 6 / 12 h) are plain choices. Android: the dialog (`NumberDialog`); Mac: a pop-up of the same choices plus *Custom…*, which shows a field with a stepper and the unit. No sliders: the range limits are typed exactly.
-- Number formats (stored units; custom range): ranges very low 30–80 (presets 50 / 54 / 55 / 60), low 40–120 (65 / 70 / 75 / 80), very good 80–250 (120 / 140 / 160), high 100–300 (160 / 180 / 200), very high 150–400 (220 / 250 / 300), extremely high 200–450 (300 / 350 / 400) mg/dL, kept in order by `Bands.sane`; graph time 1–48 h (3 / 6 / 12 / 24), per place the same or *Default*; ring and fallback periods 12 h / 1 / 3 / 7 / 14 / 30 days or 1–90 days; lines 40–400 mg/dL, up to 6; sensor countdown 1–24 h (2 / 4 / 8 / 12 / 24); thresholds very low 40–80, low 50–120, high 120–300, very high 150–400, extremely high 200–450 mg/dL (five presets each), rates 0.5–5.0 mg/dL/min in 0.1 steps (1 / 1.5 / 2 / 2.5 / 3), no data 5–240 min; remind *Once* / 5 / 10 / 15 / 30 / 60 / 120 or 1–240 min; quiet after insulin 10–360 min, falling 5–120, carbs 5–120; notification Mute 1–720 min, Remind less 5–120 min (only slower than every level alert's repeat), the margin 0–50 mg/dL / 0–60 min (10 / 10), Mute all 5–1440 min or until you turn it off (For 30 min / 1 h / 2 h / 4 h / 8 h / Until you turn it off); Nostr interval *Every reading* / 5 / 15 / 30 or 1–120 min, LibreView 5 / 15 / 60 or 1–240 min. Values outside a format are brought back into it when the settings load.
+- Number formats (stored units; custom range): ranges very low 30–80 (presets 50 / 54 / 55 / 60), low 40–120 (65 / 70 / 75 / 80), very good 80–250 (120 / 140 / 160), high 100–300 (160 / 180 / 200), very high 150–400 (220 / 250 / 300), extremely high 200–450 (300 / 350 / 400) mg/dL, kept in order by `Bands.sane`; graph time 1–48 h (3 / 6 / 12 / 24), per place the same or *Default*; ring and fallback periods 12 h / 1 / 3 / 7 / 14 / 30 days or 1–90 days; lines 40–400 mg/dL, up to 6; sensor countdown 1–24 h (2 / 4 / 8 / 12 / 24); thresholds very low 40–80, low 50–120, high 120–300, very high 150–400, extremely high 200–450 mg/dL (five presets each), rates 0.5–5.0 mg/dL/min in 0.1 steps (1 / 1.5 / 2 / 2.5 / 3), no data 5–240 min; remind *Once* / 5 / 10 / 15 / 30 / 60 / 120 or 1–240 min; quiet after insulin 10–360 min, falling 5–120, carbs 5–120; notification Mute 1–720 min, Remind less 5–120 min (only slower than every level alert's repeat), the margin 0–50 mg/dL / 0–60 min (10 / 10), Mute all 5–1440 min or until you turn it off (For 30 min / 1 h / 2 h / 4 h / 8 h / Until you turn it off); Nostr interval *Every reading* / 5 / 15 / 30 or 1–120 min. Values outside a format are brought back into it when the settings load.
 - **Settings from** (followers, Android and Mac; schema `follower.settingsFrom`): *Wearer* (default), *Default* or *Custom*, for what a follower mirrors (`"mirror": true`: the six ranges, the graph's default time, lines, vertical lines, rings (count, kind, period, fainter, centre count, order, rewards), time in range and crown beside the graph, last treatment (place, fallback), sensor countdown hours, each alert's on / threshold / remind except no data, and the three quiet rules). The wearer's phone sends those as its settings event (PROTOCOL-v2 *Settings*). Only in Custom are they shown and changed; there *Copy the wearer's settings* and *Reset to defaults* (each after a confirmation) start Custom from either. Always the follower's own: per-place times, sensor time per place, sounds, *Like an alarm* / volume, the notification's Mute / Remind less, Mute all, no data, the alerts main switch. Android: the follower's overview, Graph and Alerts pages (alert rows stay, read-only "Set by the wearer's app" / "Sukrara's default", for their sound pages); it replaces the old *Alert rules* choice. Wearer mode waits for the wearer's settings with the defaults (says so).
 - Ring order (Android + Mac; the user 2026-10-21: the first version fought the page's scroll and looked wrong on the Mac): rows show the segment's colour and name, no position number. States: idle → dragging → dropped (saved, the row settles with a spring) or cancelled (the order before the drag comes back, nothing saved). Android (`ReorderList`): pick up at once on touch-down on the trailing drag handle (the handle owns the touch, so the page never scrolls from it) or by a long press on the row (a swipe before that scrolls the page and never reorders); the held row lifts (8 dp elevation, 2 % larger, dragged state layer), follows the finger, and the other rows slide out of its way live (`animateItem`); the page auto-scrolls near its top / bottom edge; haptics on pick-up, each slot change and the drop; TalkBack actions *Move up* / *Move down* / *Move to top* / *Move to bottom*. Mac (`RingOrderTable`): the system's reorderable list (NSTableView, gap feedback as in the Finder sidebar): the drag image is the row itself, the source row leaves a gap and the others slide apart where it will land; Escape or a drop outside flies it back; *Move Up* / *Move Down* in each row's context menu and for VoiceOver. Reset beside the heading (Android) / Reset Order (Mac). Tests: `ReorderDragTest` (handle drag reorders without scrolling, a swipe on a row scrolls without reordering, long press then drag, a drop in place saves nothing), `-settingsselftest` (move logic, Move Up / Down).
 - Alerts page: main switch, then one two-target row per alert (switch = on/off, row = the alert's page), quiet rules, sounds.
@@ -876,7 +876,8 @@ past the other app's event; blocks again if it's still running) or *Help*.
   only: no request log.
 - *Files* group: *Export data* ([Data export](#data-export)).
 - Not included yet: broadcasts to apps on this phone (xDrip+ `BgEstimate`, LibreLink, glucodata), Health Connect, the
-  phone's Nightscout read API on :17581, LibreView and Tidepool uploads (see *Not included*).
+  phone's Nightscout read API on :17581, Tidepool upload (see *Not included*).
+- *Your clinic* group (wearer): *LibreView* ([LibreView upload](#libreview-upload)).
 
 **States and exits**: *xDrip+ server off* (default) → switch on. *On / listening* → switch off stops it at once.
 *Port in use* → turn the other app's server off, then the switch off and on. *Left to Juggluco* → change the source in
@@ -905,6 +906,51 @@ Android (`apps/android/pen`: `opennov/` reader, `engine/PenEngine`, `Pens` runti
 - Queue: every 5 minutes, at once when an entry changes or a setting changes. The first upload sends everything the phone keeps (31 days); afterwards any slot not on Tidepool yet goes up, so an outage or a sensor backfill fills itself in. Readings go in batches of 500, each remembered when Tidepool accepts it. A failure retries after 1, 2, 4 … minutes, at most an hour ("Will retry · <reason>"); an expired session that can't be refreshed shows "Signed out by Tidepool: sign in again" (the switch stays on and the queue catches up after signing in).
 - *Sign out*: the session and the switches are forgotten on the phone; what was uploaded stays on Tidepool. Signing in to the same account again continues where it left off (no note twice); another account starts from scratch.
 - *Status*: "Up to date · last upload <date time>", "Waiting for the first upload", or the retry / sign-in states above. Overview summary of Share with apps includes `Tidepool` while it uploads.
+
+## LibreView upload
+
+- Settings → Share with apps → *Your clinic* → *LibreView* (wearer only; Android only, the Mac doesn't upload;
+  `:integrations` `libreview/`: `LibreViewClient`, `LibreViewQueue`, `LibreViewUploader`, `LibreViewPage`; tests
+  `LibreViewPayloadTest` over `contracts/treatments/libreview-fixture.json`, `LibreViewUploaderTest` against
+  MockWebServer). **Off by default**; the Share with apps row shows the status and the overview summary includes
+  `LibreView` while it is on.
+- *Account* opens *Sign in to LibreView* (email, prefilled from the sensor screens' LibreView account; password, "Used
+  once to sign in, never saved"). The LibreView app login (`/api/nisperson/getauthentication`, Abbott's config URLs
+  checked to be https) gets a token; the token and the profile fields the sensor registration repeats are kept only in
+  the Keystore-encrypted secure store (`libreview`); the password never leaves the dialog's memory and that request.
+  Wrong password: "LibreView didn't accept this email and password". If another device uploads for the account
+  (LibreLink, the Libre 3 app, Juggluco), the dialog says so and offers *Take over* (`SetDevice:true`, that device stops
+  uploading) or *Cancel*: Sukrara never takes over by itself.
+- *Upload to LibreView* (enabled once signed in; turning it off always works, also after signing out or on a follower
+  phone, which sees "Only the phone that wears the sensor uploads"), *Status* ("Last upload 4 min ago · 3 items", "On ·
+  nothing sent yet", "Trying again soon · <reason>", "LibreView asks you to sign in again (another app may have taken
+  over the account)" — tapping it opens the sign-in).
+- *What to send*: *Glucose* ("From a Libre 3 connected to this phone, since <date time>") and *Insulin, carbs and
+  notes* (entries made or changed from now on; edits and deletes correct what LibreView has); both on, disabled while
+  the upload is off. Each part goes up only from the moment it (or the upload) was switched on: the person's earlier
+  LibreView data (from LibreLink or another app) is never doubled. *Sign out* (confirmed) forgets the token; LibreView
+  keeps what it has.
+- What goes up: exactly what the FreeStyle Libre 3 app sends (contracts/treatments/SPEC.md §3, byte for byte). Entries:
+  one record per version (`recordNumber` from the entry id and version); an edit sends a retraction of the version
+  LibreView has plus the new one, a delete only the retraction, one deleted before it went up nothing. What LibreView
+  got is remembered for a year (typed store `libreview-upload`), so later edits still retract it; entries made on
+  another device wait 2 min. Glucose: only readings Sukrara takes from a Libre 3 itself (the sensor link tags each
+  batch with its serial; Juggluco's readings never go up), record number = the serial's base | life count; the newest
+  reading as current (< 5 min old), the 5-minute history, `sensorstart` once per sensor after `PUT /api/nisperson`
+  registered it (skipped if sign-in didn't return the profile, so it can't blank it). Unsent history is kept in memory
+  (3 days): readings lost to a restart come back with the sensor's backfill.
+- When: after each new Libre 3 reading, entry change or setting change, and every 5 minutes. At most 100 entries and
+  288 readings per upload; a bigger catch-up continues at once. Network or server trouble retries after 30 s doubling
+  to 15 min (±20 %); a token LibreView no longer accepts (401 / 403 / `wrongDeviceInToken`) stops until the person
+  signs in again (unlike the contract's re-auth: the password isn't kept); entries LibreView refuses (`status` ≠ 0)
+  wait until an entry or a setting changes (glucose goes on without them), refused glucose retries with the backoff,
+  a refused sensor registration holds that sensor's glucose until the next sign-in; the reason is in the status. An
+  entry whose kind changed is retracted under the kind LibreView has. Redirects are never followed.
+
+**States and exits**: *Signed out* → *Account* → dialog (*Cancel* keeps nothing). *Another device uploads* → *Take
+over* or *Cancel*. *Off* (default) → main switch. *On · nothing sent yet / last upload* → main switch off, *Sign out*.
+*Trying again* → retries by itself; switch off to stop. *Sign in again* → the status row or *Account*. *Refused* → change
+or switch off. *Follower phone* → switch shown off and disabled with the reason. Back leaves the page.
 
 ## Nightscout upload (docs/25)
 
@@ -968,6 +1014,6 @@ page.
 - Android settings pages: settings export / import / reset, settings search, the follower's *Settings from* page, relay / epoch / statistics / log pages, battery-lab knobs, mmol/L in the settings pages (thresholds and ranges are shown and typed in mg/dL; schema `general.unit` is set elsewhere),, the ▶ beside each sound in the Sound dialog (the alert's page has *Play sound*) and icons on every row. Reason: only what daily use needs; the defaults are the owner's own values.
 - Mac: Juggluco over Wi-Fi (LAN source and subnet discovery) and the Nostr v1 `cgmnostr:` follow link (v1 links carried plaintext secrets and had no UI). Follow the wearer with a protocol v2 invite instead.
 - Sensors: the untested-sensor banner and its *Send feedback* (the families themselves are read, see *Sensor life*); the Libre 3 experiment preferences (minimal subscription set, connection priority, screen-off skip). Reason: no hardware to test them, the owner uses a Libre 3.
-- Planned (issues filed): scanning an invite's QR code on Android and the follower's *Settings from* page, the glucose report card, LibreView / Tidepool uploads, the phone's Nightscout read API, Health Connect and broadcasts, the rest of insulin pens (see its section), the calendar event, Bluetooth sharing from the phone. The sections above that describe them are the behaviour to build. Reason: what daily use needs comes first.
+- Planned (issues filed): scanning an invite's QR code on Android and the follower's *Settings from* page, the glucose report card, the Tidepool upload, the phone's Nightscout read API, Health Connect and broadcasts, the rest of insulin pens (see its section), the calendar event, Bluetooth sharing from the phone. The sections above that describe them are the behaviour to build. Reason: what daily use needs comes first.
 
 **States and exits**: none (these features aren't in the app).

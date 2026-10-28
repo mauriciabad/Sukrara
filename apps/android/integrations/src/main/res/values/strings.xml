@@ -35,9 +35,10 @@
 
     <!-- Share with apps -->
     <string name="in_apps_title">Share with apps</string>
-    <string name="in_apps_intro_wearer">Your glucose in other apps: your own Nightscout site, Garmin watches through the xDrip+ server, and a file for your clinic.</string>
+    <string name="in_apps_intro_wearer">Your glucose in other apps: your clinic through LibreView, your own Nightscout site, Garmin watches through the xDrip+ server, and a file for your clinic.</string>
     <string name="in_apps_intro_follower">The glucose of the person you follow in other apps: Garmin watches through the xDrip+ server, and a file.</string>
     <string name="in_apps_nightscout_group" translatable="false">Nightscout</string>
+    <string name="in_apps_clinic_group">Your clinic</string>
     <string name="in_apps_watch_group">Watches</string>
     <string name="in_apps_xdrip">xDrip+ server</string>
     <string name="in_apps_xdrip_off">For Garmin watches · any app on this phone can read it while it\'s on</string>
@@ -110,4 +111,35 @@
     <string name="in_ns_test_failed">Couldn\'t reach the site (%1$s)</string>
     <string name="in_ns_problem_https">Use https://: Sukrara sends your data only encrypted</string>
     <string name="in_ns_problem_url">This isn\'t a web address</string>
+
+    <!-- LibreView upload -->
+    <string name="in_lv_title" translatable="false">LibreView</string>
+    <string name="in_lv_intro">Send your Libre 3 glucose and your entries to your LibreView account, the way the FreeStyle Libre 3 app does, so your clinic sees them in its reports.</string>
+    <string name="in_lv_account">Account</string>
+    <string name="in_lv_sign_in">Sign in</string>
+    <string name="in_lv_signed_in">Signed in</string>
+    <string name="in_lv_main">Upload to LibreView</string>
+    <string name="in_lv_main_needs_account">Sign in first</string>
+    <string name="in_lv_status_setup">Sign in first</string>
+    <string name="in_lv_status_auth">LibreView asks you to sign in again (another app may have taken over the account)</string>
+    <string name="in_lv_glucose">Glucose</string>
+    <string name="in_lv_glucose_summary">From a Libre 3 connected to this phone, from the moment you switch it on</string>
+    <string name="in_lv_glucose_from">From a Libre 3 connected to this phone, since %1$s</string>
+    <string name="in_lv_entries_summary">Entries you make or change from now on; edits and deletes correct what LibreView has</string>
+    <string name="in_lv_sign_out">Sign out</string>
+    <string name="in_lv_sign_out_title">Sign out of LibreView?</string>
+    <string name="in_lv_sign_out_text">Nothing more goes up until you sign in again. What LibreView already has stays there.</string>
+    <string name="in_lv_sign_out_action">Sign out</string>
+    <string name="in_lv_footer">Use the email and password of your LibreView account (the one LibreLink or the Libre 3 app uses). Sukrara sends the password once to sign in and keeps only LibreView\'s sign-in token, encrypted on this phone. Only one device uploads for a LibreView account: if LibreLink, the Libre 3 app or Juggluco does, Sukrara asks before it takes over. Glucose goes up only from a Libre 3 that Sukrara connects to itself.</string>
+    <string name="in_lv_dialog_title">Sign in to LibreView</string>
+    <string name="in_lv_email">Email</string>
+    <string name="in_lv_password">Password</string>
+    <string name="in_lv_password_note">Used once to sign in, never saved</string>
+    <string name="in_lv_sign_in_action">Sign in</string>
+    <string name="in_lv_signing_in">Signing in…</string>
+    <string name="in_lv_bad_credentials">LibreView didn\'t accept this email and password</string>
+    <string name="in_lv_failed">Couldn\'t sign in (%1$s)</string>
+    <string name="in_lv_take_over_title">Another device uploads for this account</string>
+    <string name="in_lv_take_over_text">LibreView takes data from one device per account, today another one (LibreLink, the Libre 3 app or Juggluco). If Sukrara takes over, that device stops uploading to LibreView. Take over only if Sukrara should be the one that uploads.</string>
+    <string name="in_lv_take_over">Take over</string>
 </resources>

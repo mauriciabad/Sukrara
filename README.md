@@ -88,7 +88,8 @@ The full catalog, with every rule and number, is [docs/FEATURES.md](docs/FEATURE
   the 4-digit code they may ask for), then their readings, sensor, entries and alerts arrive over the relays and drive
   home, widgets, the live notification and your own alerts (including *no data*). Add entries when they let you;
   notifications say when an invite was used, declined or your access removed; *Stop following* in Settings › Sharing.
-- **Share with apps**: upload to your own **Nightscout** site (https, access token kept encrypted; 30-day catch-up,
+- **Share with apps**: upload your Libre 3 glucose and entries to **LibreView** for your clinic (password used once,
+  never saved; asks before taking over another uploading device; only from the moment you switch it on), to your own **Nightscout** site (https, access token kept encrypted; 30-day catch-up,
   pauses when another app uploads to the same site), an **xDrip+-compatible server** on this phone for **Garmin**
   watches (off until you switch it on; loopback only), and **Export data** as a LibreView-layout CSV to save or share.
 - English and Spanish (Spain) everywhere.
@@ -116,8 +117,7 @@ The full catalog, with every rule and number, is [docs/FEATURES.md](docs/FEATURE
   through at 5 min, the graph dimmed with the reading's time, no value at 20 min) and a tap opens Add treatment.
 - VoiceOver reads the value as one sentence with the range in words.
 
-**Not included**: the LSPosed lock-screen widget, Dexcom / Aidex / SmartGuide (untested) sensors, Tidepool /
-LibreView uploads, the phone's Nightscout read API, Health Connect and broadcasts, the pen list and dose review, the sensor-end
+**Not included**: the LSPosed lock-screen widget, Dexcom / Aidex / SmartGuide (untested) sensors, Tidepool upload, the phone's Nightscout read API, Health Connect and broadcasts, the pen list and dose review, the sensor-end
 calendar event, the glucose report, settings export / import, scanning an invite's QR code on Android and the Android
 follower's *Settings from* page, Bluetooth sharing from the phone, and the Mac's Juggluco-over-Wi-Fi source.
 
