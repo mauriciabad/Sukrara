@@ -22,8 +22,10 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import java.time.Instant
@@ -67,7 +69,13 @@ class FollowerSettingsBridge(
 
     /** What the alert pages show: the settings the alert runtime runs ([alertMirror] over this phone's own). */
     override val alertsInUse: Flow<AlertSettings?> =
-        combine(alerts.settings, alertMirror) { own, mirror -> mirror?.let { AlertMirror.effective(own, it) } }.distinctUntilChanged()
+        // cold: reading the alert store here would build the alerts (and the monitor) while they build this
+        combine(
+            flow {
+                emitAll(alerts.settings)
+            },
+            alertMirror,
+        ) { own, mirror -> mirror?.let { AlertMirror.effective(own, it) } }.distinctUntilChanged()
 
     override val state: Flow<SettingsFromState?> =
         combine(role, stored, wearerOnFollower(role), wearerName) { r, f, p, name ->
