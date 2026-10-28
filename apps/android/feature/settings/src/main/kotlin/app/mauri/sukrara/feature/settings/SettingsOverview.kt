@@ -19,6 +19,8 @@ import app.mauri.sukrara.designsystem.banner.BannerSlot
 import app.mauri.sukrara.designsystem.haptics.rememberHaptics
 import app.mauri.sukrara.designsystem.rows.NavigationRow
 import app.mauri.sukrara.designsystem.rows.SettingsGroup
+import app.mauri.sukrara.feature.settings.follower.SettingsFromState
+import app.mauri.sukrara.feature.settings.follower.settingsFromLabel
 import kotlinx.coroutines.launch
 import app.mauri.sukrara.core.designsystem.R as DsR
 
@@ -51,6 +53,8 @@ fun SettingsOverviewContent(
     appsShared: Set<AppOutput> = emptySet(),
     clinicBanner: Boolean = false,
     closedTips: Int = 0,
+    /** A follower's *Settings from* (null on the wearer's phone: no row). */
+    settingsFrom: SettingsFromState? = null,
     onBack: () -> Unit,
 ) {
     val snackbar = remember { SnackbarHostState() }
@@ -100,6 +104,13 @@ fun SettingsOverviewContent(
             )
         }
         SettingsGroup {
+            if (settingsFrom != null) {
+                NavigationRow(
+                    stringResource(R.string.st_from_title),
+                    { actions.open(SettingsRoute.SettingsFrom) },
+                    summary = settingsFromLabel(settingsFrom),
+                )
+            }
             NavigationRow(stringResource(R.string.st_ranges_title), {
                 actions.open(SettingsRoute.Ranges)
             }, summary = stringResource(R.string.st_overview_ranges))

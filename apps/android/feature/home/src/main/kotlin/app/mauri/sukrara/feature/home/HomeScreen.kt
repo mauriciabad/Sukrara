@@ -7,6 +7,8 @@ import android.text.format.DateUtils
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -16,6 +18,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AssistChip
+import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExtendedFloatingActionButton
@@ -23,6 +27,7 @@ import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
@@ -38,15 +43,16 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.liveRegion
@@ -54,18 +60,24 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import app.mauri.sukrara.alerts.MuteLine
+import app.mauri.sukrara.core.model.AlertQuietSide
 import app.mauri.sukrara.core.model.AlertRequirement
-import app.mauri.sukrara.core.model.AlertUiState
 import app.mauri.sukrara.core.model.Role
 import app.mauri.sukrara.core.model.SensorState
 import app.mauri.sukrara.core.model.Treatment
 import app.mauri.sukrara.core.model.TreatmentKind
+import app.mauri.sukrara.designsystem.alerts.MuteAllState
 import app.mauri.sukrara.designsystem.alerts.MuteText
+import app.mauri.sukrara.designsystem.alerts.QuietExits
+import app.mauri.sukrara.designsystem.alerts.alertA11yActions
 import app.mauri.sukrara.designsystem.alerts.rememberAlertWords
 import app.mauri.sukrara.designsystem.avatar.AvatarImage
 import app.mauri.sukrara.designsystem.banner.Banner
 import app.mauri.sukrara.designsystem.banner.BannerSeverity
 import app.mauri.sukrara.designsystem.banner.BannerSlot
+import app.mauri.sukrara.designsystem.dialog.NumberDialog
+import app.mauri.sukrara.designsystem.dialog.NumberInput
 import app.mauri.sukrara.designsystem.haptics.rememberHaptics
 import app.mauri.sukrara.designsystem.motion.Reveal
 import app.mauri.sukrara.designsystem.motion.Swap
@@ -75,9 +87,11 @@ import app.mauri.sukrara.feature.home.banners.BannerKind
 import app.mauri.sukrara.graph.CardWords
 import app.mauri.sukrara.graph.Clock
 import app.mauri.sukrara.graph.TreatmentMarks
+import app.mauri.sukrara.settings.SettingsSpec
 import kotlinx.coroutines.launch
 import java.time.Duration
 import java.time.Instant
+import kotlin.math.roundToInt
 import app.mauri.sukrara.core.designsystem.R as DsR
 
 /** The home screen: [onAction] routes what home asks for (setup, sensor, settings, add treatment, …) in `:app`. */
@@ -97,8 +111,7 @@ fun HomeScreen(
                 onDismiss = viewModel::dismiss,
                 onRestore = viewModel::restore,
                 onFix = viewModel::fix,
-                onUnmute = viewModel::unmute,
-                onEndQuiet = viewModel::endQuiet,
+                onAlert = viewModel::alert,
                 onDelete = viewModel::delete,
                 onUndo = viewModel::undoDelete,
                 onUndoGone = viewModel::undoShown,
@@ -115,9 +128,8 @@ data class HomeCallbacks(
     /** Undo on the "Tip closed" snackbar. */
     val onRestore: (BannerKind) -> Unit = {},
     val onFix: (AlertRequirement) -> Unit = {},
-    val onUnmute: () -> Unit = {},
-    /** Ends the quiet of the low ([lowSide]) or the high side ("Unmute", "Alert me anyway"). */
-    val onEndQuiet: (lowSide: Boolean) -> Unit = {},
+    /** Mute alerts, Unmute, a side's Alert me anyway / Remind as usual / Change to (the alert runtime). */
+    val onAlert: (HomeAlertAction) -> Unit = {},
     val onDelete: (Treatment) -> Unit = {},
     val onUndo: () -> Unit = {},
     val onUndoGone: () -> Unit = {},
@@ -146,6 +158,8 @@ fun HomeContent(
         }
     }
     val follower = state.glucose.role == Role.Follower
+    // Mute alerts' lengths: from the home control, its Change time, the quiet sheet and the card's TalkBack action
+    var muteDialog by rememberSaveable { mutableStateOf(false) }
     val scroll = rememberScrollState()
     val scope = rememberCoroutineScope()
     val closedText = stringResource(R.string.home_tip_closed)
@@ -211,12 +225,9 @@ fun HomeContent(
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             // glucose first: the card (or, before any reading, why there is none) is always at the top
-            GlucoseSection(state, callbacks, safetyBanner)
+            GlucoseSection(state, callbacks, safetyBanner) { muteDialog = true }
             BannerSlot(infoBanner)
-            MuteStrip(state.glucose.alerts.takeIf { state.mutedUntil != null }, state.now) {
-                haptics.confirm()
-                callbacks.onUnmute()
-            }
+            MuteControl(state, callbacks.onAlert) { muteDialog = true }
             Treatments(state.treatments, state.readOnly, state.marks, state.now, { callbacks.onAction(HomeAction.OpenClinicUpload) }) {
                 haptics.confirm()
                 callbacks.onDelete(it)
@@ -225,6 +236,9 @@ fun HomeContent(
             // room for the floating button over the last row
             Spacer(Modifier.height(88.dp))
         }
+    }
+    if (muteDialog) {
+        MuteAllDialog(onClose = { muteDialog = false }) { callbacks.onAlert(HomeAlertAction.MuteAll(it)) }
     }
 }
 
@@ -328,9 +342,10 @@ private fun GlucoseSection(
     state: HomeUiState,
     callbacks: HomeCallbacks,
     safetyBanner: Banner?,
+    onMuteAll: () -> Unit,
 ) {
     val resources = LocalContext.current.resources
-    val unmuteLabel = stringResource(R.string.home_a11y_unmute)
+    val canMute = state.glucose.role != null
     Swap(state.reason?.takeIf { it.fullPage }) { fullPage ->
         if (fullPage != null) {
             Column {
@@ -341,7 +356,15 @@ private fun GlucoseSection(
         } else {
             Column {
                 val pill = pillAction(state)
-                var sheet by remember { mutableStateOf<PillAction?>(null) }
+                var sheet by remember { mutableStateOf<QuietTarget?>(null) }
+                val a11y =
+                    alertA11yActions(
+                        state.glucose.alerts,
+                        muted = state.mutedUntil != null,
+                        onExit = { q, e -> callbacks.onAlert(HomeAlertAction.exit(q, e)) },
+                        onUnmuteAll = { callbacks.onAlert(HomeAlertAction.UnmuteAll) },
+                        onMuteAll = onMuteAll,
+                    )
                 PanelCard(
                     glucose = state.glucose,
                     history = state.history,
@@ -350,34 +373,28 @@ private fun GlucoseSection(
                     config = state.config,
                     description = cardDescription(state, resources),
                     modifier = Modifier.padding(horizontal = 16.dp),
-                    actions =
-                        if (state.mutedUntil != null) {
-                            listOf(CustomAccessibilityAction(unmuteLabel) { callbacks.onUnmute().let { true } })
-                        } else {
-                            emptyList()
-                        },
+                    actions = if (canMute) a11y else emptyList(),
                     pill = pill,
                     pillWords = pillWords(state, resources),
                     onPill = { action ->
                         when (action) {
                             is PillAction.Treat -> callbacks.onAction(HomeAction.Treat(carbs = action.carbs))
                             PillAction.ReplaceSensor -> callbacks.onAction(HomeAction.PairSensor)
-                            is PillAction.Quiet, PillAction.MuteAll -> sheet = action
+                            is PillAction.Quiet, PillAction.MuteAll -> sheet = QuietTarget.of(action)
                             PillAction.None -> Unit
                         }
                     },
                 )
+                QuietChips(QuietTarget.chips(state.glucose.alerts, pill), state.now) { sheet = it }
                 sheet?.let { shown ->
                     QuietSheet(
-                        action = shown,
+                        target = shown,
+                        alerts = state.glucose.alerts,
+                        muted = state.mutedUntil != null,
+                        now = state.now,
                         onDismiss = { sheet = null },
-                        onEnd = {
-                            sheet = null
-                            when (shown) {
-                                is PillAction.Quiet -> callbacks.onEndQuiet(shown.lowSide)
-                                else -> callbacks.onUnmute()
-                            }
-                        },
+                        onAlert = callbacks.onAlert,
+                        onChangeMute = onMuteAll,
                         onSettings = {
                             sheet = null
                             callbacks.onAction(HomeAction.OpenAlertSettings)
@@ -738,35 +755,87 @@ private fun requirementText(requirement: AlertRequirement): String =
     )
 
 /**
- * Mute alerts is on ([alerts] null = off): its line ([MuteText], "Alerts muted · 1 h 12 min left") and the way out
- * (Unmute), in the neutral secondary colours, never red.
+ * Home's *Mute alerts* control (anyone with a role: alerts ring on this phone): an outlined *Mute alerts* button that
+ * opens the lengths ([onChange]) while alerts ring; while Mute alerts is on, its state counting down with *Unmute* and
+ * *Change time* ([MuteAllState]), in the neutral secondary colours, never red.
  */
 @Composable
-private fun MuteStrip(
-    alerts: AlertUiState?,
-    now: Instant,
-    onUnmute: () -> Unit,
+private fun MuteControl(
+    state: HomeUiState,
+    onAlert: (HomeAlertAction) -> Unit,
+    onChange: () -> Unit,
 ) {
-    val words = rememberAlertWords()
-    Reveal(alerts != null) {
-        val line = alerts?.let { MuteText.muteAll(it, now, words) } ?: return@Reveal
-        Surface(
-            Modifier.fillMaxWidth().padding(horizontal = 16.dp),
-            shape = MaterialTheme.shapes.large,
-            color = MaterialTheme.colorScheme.secondaryContainer,
-            contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
-        ) {
-            Row(Modifier.padding(start = 16.dp, end = 8.dp, top = 8.dp, bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                Icon(painterResource(R.drawable.home_ic_notifications_off), contentDescription = null, modifier = Modifier.size(20.dp))
-                Text(
-                    line,
-                    style = MaterialTheme.typography.titleSmall,
-                    modifier = Modifier.weight(1f).padding(horizontal = 12.dp),
+    if (state.glucose.role == null) return
+    Swap(state.mutedUntil != null, modifier = Modifier.padding(horizontal = 16.dp)) { muted ->
+        if (muted) {
+            MuteAllState(state.glucose.alerts, state.now, onUnmute = { onAlert(HomeAlertAction.UnmuteAll) }, onChange = onChange)
+        } else {
+            OutlinedButton(onClick = onChange, modifier = Modifier.fillMaxWidth().testTag("mute-alerts")) {
+                Icon(
+                    painterResource(DsR.drawable.ds_ic_notifications_off),
+                    contentDescription = null,
+                    modifier = Modifier.padding(end = 8.dp).size(18.dp),
                 )
-                Button(onClick = onUnmute) { Text(stringResource(R.string.home_unmute)) }
+                Text(stringResource(R.string.home_mute_alerts))
             }
         }
     }
+}
+
+/**
+ * The quiet states the card's pill doesn't show (the other side, a fast-change alert, reminders slowed down), one chip
+ * each with its line counting down; a tap opens that side's ways out.
+ */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun QuietChips(
+    quiet: List<AlertQuietSide>,
+    now: Instant,
+    onOpen: (QuietTarget) -> Unit,
+) {
+    val words = rememberAlertWords()
+    Reveal(quiet.isNotEmpty()) {
+        FlowRow(
+            Modifier.padding(start = 16.dp, end = 16.dp, top = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            for (q in quiet) {
+                val line = MuteText.side(q, now, words) ?: continue
+                val side = QuietExits.side(q) ?: continue
+                AssistChip(
+                    onClick = { onOpen(QuietTarget(side)) },
+                    label = { Text(line) },
+                    leadingIcon = {
+                        Icon(
+                            painterResource(DsR.drawable.ds_ic_notifications_off),
+                            contentDescription = null,
+                            modifier = Modifier.size(AssistChipDefaults.IconSize),
+                        )
+                    },
+                )
+            }
+        }
+    }
+}
+
+/**
+ * Mute alerts' lengths: THE number input with the schema's spec ("For 30 min" … "For 8 h", "Until you turn it off",
+ * Custom), worded by [MuteText]; [onChoose] gets the minutes (null = until turned off).
+ */
+@Composable
+private fun MuteAllDialog(
+    onClose: () -> Unit,
+    onChoose: (Int?) -> Unit,
+) {
+    val words = rememberAlertWords()
+    val spec = SettingsSpec.MUTE_ALL
+    NumberDialog(
+        stringResource(R.string.home_mute_alerts),
+        NumberInput(spec),
+        spec.default,
+        { m -> MuteText.line(if (m <= 0.0) MuteLine.ChoiceForever else MuteLine.Choice(m.roundToInt()), words) },
+        onClose,
+    ) { m -> onChoose(if (m <= 0.0) null else m.roundToInt()) }
 }
 
 @Composable

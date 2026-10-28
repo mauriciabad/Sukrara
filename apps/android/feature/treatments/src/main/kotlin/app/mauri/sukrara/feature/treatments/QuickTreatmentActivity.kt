@@ -66,6 +66,9 @@ class QuickTreatmentActivity : ComponentActivity() {
     private var countdown by mutableStateOf<LockCountdown?>(null)
     private var now by mutableLongStateOf(0L)
     private var warnings by mutableIntStateOf(0)
+
+    /** The one *Closes in 10 seconds* was due (TalkBack hears it once, politely). */
+    private var announced by mutableStateOf(false)
     private var unlocking = false
     private var form = TreatmentFormState()
 
@@ -221,7 +224,7 @@ class QuickTreatmentActivity : ComponentActivity() {
         val seconds by remember(cd) { derivedStateOf { cd.wholeSeconds(now) } }
         val spoken by remember(cd) { derivedStateOf { cd.spokenSeconds(now) } }
         val reduced = LocalReducedMotion.current
-        return LockInfo(seconds, ::unlock, spoken, { cd.fraction(now, stepped = reduced) }, warnings)
+        return LockInfo(seconds, ::unlock, spoken, { cd.fraction(now, stepped = reduced) }, warnings, announced)
     }
 
     private suspend fun runCountdown(cd: LockCountdown) {
@@ -235,6 +238,7 @@ class QuickTreatmentActivity : ComponentActivity() {
                 warnings++
                 if (form.hasInput) window.decorView.performHapticFeedback(HapticFeedbackConstants.SEGMENT_TICK)
             }
+            if (!announced && cd.announceDue(now)) announced = true
             if (cd.expired(now)) {
                 // nothing is saved; a toast only if something had been typed (no haptic: from a pocket it means nothing)
                 if (form.hasInput) Toast.makeText(this, R.string.treatment_lock_not_saved, Toast.LENGTH_SHORT).show()
@@ -259,6 +263,7 @@ class QuickTreatmentActivity : ComponentActivity() {
         val full = LockCountdown.duration(seconds, recommended.toLong(), a11y.isTouchExplorationEnabled)
         val left = carriedMs?.coerceAtMost(full) ?: full
         carriedMs = null
+        announced = false
         countdown = LockCountdown(full, start - (full - left)).also { if (left < full) it.firstFrame(start - (full - left)) }
     }
 

@@ -16,7 +16,6 @@
     <string name="home_a11y_range_very_high">muy alta</string>
     <string name="home_a11y_just_now">ahora mismo</string>
     <string name="home_a11y_chart">Gráfica de las últimas %1$d horas: %2$d%% en rango</string>
-    <string name="home_a11y_unmute">Reactivar alertas</string>
 
     <string name="reason_setup_title">Sukrara aún no está configurada</string>
     <string name="reason_setup_body">Elige si este móvil lleva el sensor o sigue a alguien que lo lleva.</string>
@@ -134,8 +133,8 @@
     <string name="home_chart_zoom_out">Alejar</string>
     <string name="home_pill_replace_sensor">Vincular sensor nuevo</string>
     <string name="home_pill_alert_options">Opciones de alertas</string>
-    <string name="home_quiet_lows">Alertas de bajas</string>
-    <string name="home_quiet_highs">Alertas de altas</string>
+    <string name="home_quiet_side">Alertas %1$s</string>
+    <string name="home_mute_alerts">Silenciar alertas</string>
     <string name="home_quiet_all">Todas las alertas</string>
     <string name="home_quiet_taken">En silencio tras tu tratamiento, para que no suenen mientras hace efecto.</string>
     <string name="home_quiet_muted">Las silenciaste en este teléfono.</string>

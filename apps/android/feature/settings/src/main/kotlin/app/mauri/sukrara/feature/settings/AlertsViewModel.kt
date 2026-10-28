@@ -10,6 +10,7 @@ import app.mauri.sukrara.alerts.AlertSettings
 import app.mauri.sukrara.alerts.QuietRule
 import app.mauri.sukrara.core.model.AlertQuietSide
 import app.mauri.sukrara.core.model.AlertUiState
+import app.mauri.sukrara.designsystem.alerts.QuietExit
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
@@ -134,6 +135,27 @@ class AlertsViewModel(
 
     fun remindAsUsual(kind: AlertKind) {
         viewModelScope.launch { deps.alertControls.remindAsUsual(kind.wire) }
+    }
+
+    /** A quiet side's way out under Active now. */
+    fun quietExit(
+        q: AlertQuietSide,
+        exit: QuietExit,
+    ) {
+        viewModelScope.launch {
+            when (exit) {
+                QuietExit.Unmute, QuietExit.AlertAnyway -> deps.alertControls.unmute(q.kind)
+                QuietExit.RemindAsUsual -> deps.alertControls.remindAsUsual(q.kind)
+            }
+        }
+    }
+
+    /** A muted side's new length (*Change to*), from now. */
+    fun muteSide(
+        kind: String,
+        minutes: Int,
+    ) {
+        viewModelScope.launch { deps.alertControls.mute(kind, minutes) }
     }
 
     private companion object {

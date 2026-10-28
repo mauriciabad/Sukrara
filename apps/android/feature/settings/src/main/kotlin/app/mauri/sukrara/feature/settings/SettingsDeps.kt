@@ -13,6 +13,7 @@ import app.mauri.sukrara.core.model.PensPort
 import app.mauri.sukrara.core.model.SensorState
 import app.mauri.sukrara.core.model.SystemAccessPort
 import app.mauri.sukrara.core.model.storage.SettingsRepository
+import app.mauri.sukrara.feature.settings.follower.SettingsFromPort
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
 
@@ -76,6 +77,9 @@ interface SettingsDeps {
 
     /** An alert's sound preview and *Send a test alert* (the alert runtime's notifier); nothing in screenshots. */
     val alertPlayback: AlertPlayback get() = AlertPlayback.None
+
+    /** A follower's *Settings from* (Settings › Settings from); nothing on the wearer's phone. */
+    val settingsFrom: SettingsFromPort get() = SettingsFromPort.None
 }
 
 /**

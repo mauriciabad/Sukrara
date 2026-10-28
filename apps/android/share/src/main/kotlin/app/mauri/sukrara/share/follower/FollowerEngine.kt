@@ -11,6 +11,7 @@ import app.mauri.sukrara.core.model.SensorState
 import app.mauri.sukrara.core.model.SourceId
 import app.mauri.sukrara.core.model.SourceStatus
 import app.mauri.sukrara.core.model.storage.ReadingsRepository
+import app.mauri.sukrara.core.model.storage.StateStore
 import app.mauri.sukrara.core.model.storage.TreatmentDelivery
 import app.mauri.sukrara.core.model.storage.TreatmentRecord
 import app.mauri.sukrara.core.model.storage.TreatmentsRepository
@@ -24,6 +25,7 @@ import app.mauri.sukrara.protocol.event.EventFactory
 import app.mauri.sukrara.protocol.event.Profile
 import app.mauri.sukrara.protocol.event.Rumor
 import app.mauri.sukrara.protocol.event.SensorLife
+import app.mauri.sukrara.protocol.event.SettingsCodec
 import app.mauri.sukrara.protocol.event.SettingsPayload
 import app.mauri.sukrara.protocol.event.TreatmentCodec
 import app.mauri.sukrara.protocol.event.WireReading
@@ -64,6 +66,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.channelFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.emitAll
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
@@ -134,6 +137,11 @@ class FollowerEngine(
     private val joinTimeoutMs: Long = JOIN_TIMEOUT_MS,
     /** The Bluetooth path to the wearer's phone (null: relays only). */
     private val nearbyTransports: NearbyTransportFactory? = null,
+    /**
+     * A plain (not secret) copy of the wearer's newest mirrored settings, so a Keystore that can't open the record at
+     * start still gives the alert runtime and the card the wearer's settings instead of this phone's own.
+     */
+    private val settingsCache: StateStore<WearerSettingsCache>? = null,
 ) : ReadingSource {
     private val serial = dispatcher.limitedParallelism(1)
     private val lock = Mutex()
@@ -209,6 +217,14 @@ class FollowerEngine(
         if (loaded && _state.value !is FollowState.Unreadable) return
         loaded = true
         val l = store.load()
+        when (l) {
+            FollowerStore.Load.Missing -> setSettings(null)
+
+            // the record can't be read now: the wearer's settings from the plain copy until it can
+            is FollowerStore.Load.Unreadable, FollowerStore.Load.Damaged -> latestSettings.value = cachedSettings()
+
+            is FollowerStore.Load.Loaded -> setSettings(l.record.settings)
+        }
         loadedOnce.complete(Unit)
         when (l) {
             FollowerStore.Load.Missing -> {
@@ -295,8 +311,10 @@ class FollowerEngine(
     /**
      * *Find phones nearby* (setup's join step): while collected, scans for wearers' phones, reads each one's INFO
      * without writing anything else (no identity yet: every phone is "unknown", B§6) and lists those offering *Pair
-     * nearby*; each phone is looked at again every [NEARBY_RECHECK_S]. Nothing is trusted: joining sends a request the
-     * wearer still allows with the typed code.
+     * nearby*. A phone offering is looked at again every [NEARBY_OFFER_RECHECK_S] and leaves the list once it stops
+     * (its next INFO without an offer, or [NEARBY_OFFER_DROP_S] without an answer); a phone offering nothing is left
+     * for [NEARBY_IDLE_S] (it may open pairing in a moment). Nothing is trusted: joining sends a request the wearer
+     * still allows with the typed code.
      */
     fun findNearby(): Flow<NearbySearch> =
         channelFlow {
@@ -306,7 +324,7 @@ class FollowerEngine(
                 return@channelFlow
             }
             // by token (a phone's address rotates), with when it was last seen: a phone that stopped offering or went
-            // out of range leaves the list after two checks
+            // out of range leaves the list after a missed check
             val offers = MutableStateFlow<Map<String, Pair<NearbyOffer, Long>>>(emptyMap())
             val ticks =
                 flow {
@@ -323,8 +341,8 @@ class FollowerEngine(
                         val p = e.pairing
                         val others = offers.value.filterValues { it.first.phone != e.phone }
                         offers.value = if (p != null) others + (p.token to (NearbyOffer(e.phone, p) to now())) else others
-                        // on to the next phone; this one is looked at again later
-                        nb.leave(e.phone, NEARBY_RECHECK_S)
+                        // on to the next phone; this one is looked at again soon if it offers, else in a minute
+                        nb.leave(e.phone, if (p != null) NEARBY_OFFER_RECHECK_S else NEARBY_IDLE_S)
                     }
                 }
                 combine(nb.status, offers, ticks) { status, o, _ ->
@@ -333,7 +351,7 @@ class FollowerEngine(
                         status,
                         o.values
                             .filter { (offer, seen) ->
-                                offer.pairing.expiry > t && t - seen <= 2 * NEARBY_RECHECK_S
+                                offer.pairing.expiry > t && t - seen <= NEARBY_OFFER_DROP_S
                             }.map { it.first },
                     )
                 }.collect { send(it) }
@@ -369,7 +387,7 @@ class FollowerEngine(
             if (!store.save(r)) return@locked JoinResult.KeyStoreFailed
             loaded = true
             treatmentCreatedAt.clear()
-            latestSettings.value = null
+            setSettings(null)
             adopt(r)
             // attached already (a follow that had ended): reconnect with the new key
             sink?.let { out ->
@@ -407,7 +425,7 @@ class FollowerEngine(
             if (deleted) {
                 record = null
                 follower = null
-                latestSettings.value = null
+                setSettings(null)
                 _sensor.value = SensorState.None
                 _status.value = SourceStatus.NotStarted
                 _state.value = FollowState.NotFollowing
@@ -700,7 +718,7 @@ class FollowerEngine(
 
                     is Item.Settings -> {
                         next = next.copy(settings = item.settings)
-                        latestSettings.value = item.settings
+                        setSettings(item.settings)
                     }
 
                     Item.Revoked -> {
@@ -878,6 +896,25 @@ class FollowerEngine(
         sink?.launch { nb.send(ev) }
     }
 
+    /** The wearer's mirrored settings now, and in the plain copy (none = forgotten: not following any more). */
+    private suspend fun setSettings(p: SettingsPayload?) {
+        latestSettings.value = p
+        val text = p?.let(SettingsCodec::encode)
+        val cache = settingsCache ?: return
+        runCatching { cache.update { if (it.payload == text) it else WearerSettingsCache(text) } }
+            .onFailure { if (it is CancellationException) throw it }
+    }
+
+    private suspend fun cachedSettings(): SettingsPayload? =
+        runCatching {
+            settingsCache
+                ?.data
+                ?.first()
+                ?.payload
+                ?.let(SettingsCodec::decode)
+        }.onFailure { if (it is CancellationException) throw it }
+            .getOrNull()
+
     /** The record in memory at once; on disk when what it trusts changed, or every [PERSIST_EVERY] otherwise. */
     private suspend fun commit(r: FollowerRecord, force: Boolean) {
         record = r
@@ -927,8 +964,14 @@ class FollowerEngine(
         /** B§6: another wearer's phone is avoided for 10 minutes. */
         const val LEAVE_OTHER_PHONE_S = 600L
 
-        /** *Find phones nearby*: each phone's INFO is read again after this long. */
-        const val NEARBY_RECHECK_S = 15L
+        /** *Find phones nearby*: a phone offering *Pair nearby* is read again after this long. */
+        const val NEARBY_OFFER_RECHECK_S = 5L
+
+        /** An offer not confirmed for this long (the phone stopped advertising or went away) leaves the list. */
+        const val NEARBY_OFFER_DROP_S = 12L
+
+        /** A phone offering nothing (it may open pairing in a moment) is read again after a minute. */
+        const val NEARBY_IDLE_S = 60L
 
         const val INBOX = "inbox"
         const val ROSTER = "roster"
