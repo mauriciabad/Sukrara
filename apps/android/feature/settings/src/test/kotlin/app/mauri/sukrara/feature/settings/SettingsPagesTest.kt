@@ -41,6 +41,17 @@ class SettingsPagesTest {
             "graph.side",
             "graph.columnCrown",
             "graph.gridHours",
+            "graph.hours.place",
+            "graph.slots",
+            "graph.ringRange",
+            "graph.ringOrder",
+            "graph.marks",
+            "graph.lines",
+            "graph.lastPlace",
+            "graph.lastElse",
+            "graph.sensorTime.place",
+            // Settings › Lock screen
+            "lock.treatmentTime",
             "alerts.on",
             "alerts.kind.on",
             "alerts.threshold.very_low",
@@ -89,15 +100,6 @@ class SettingsPagesTest {
     /** Not on a settings page, or internal format / state with no row. */
     private val pending =
         setOf(
-            "graph.hours.place",
-            "graph.slots",
-            "graph.ringRange",
-            "graph.ringOrder",
-            "graph.marks",
-            "graph.lines",
-            "graph.lastPlace",
-            "graph.lastElse",
-            "graph.sensorTime.place",
             "follower.settingsFrom",
             "alerts.source",
             "alerts.v",
@@ -109,7 +111,6 @@ class SettingsPagesTest {
             "lock.widget",
             "lock.background",
             "lock.appearance",
-            "lock.treatmentTime",
             // mmol/L in these pages: issue c17 (thresholds and ranges stay mg/dL here)
             "general.unit",
         )

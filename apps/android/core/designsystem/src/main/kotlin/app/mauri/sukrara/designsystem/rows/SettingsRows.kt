@@ -10,10 +10,13 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -26,6 +29,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -39,6 +43,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
@@ -60,10 +65,19 @@ private val RowPadding = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
 fun SettingsGroup(
     modifier: Modifier = Modifier,
     title: String? = null,
+    /** Beside the title (a section's Reset icon), end-aligned. */
+    titleAction: (@Composable () -> Unit)? = null,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     Column(modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)) {
-        if (title != null) SettingsHeader(title)
+        if (title != null && titleAction != null) {
+            Row(verticalAlignment = Alignment.Bottom) {
+                SettingsHeader(title, Modifier.weight(1f))
+                titleAction()
+            }
+        } else if (title != null) {
+            SettingsHeader(title)
+        }
         Column(Modifier.clip(GroupShape), verticalArrangement = Arrangement.spacedBy(2.dp), content = content)
     }
 }
@@ -142,6 +156,44 @@ fun SwitchRow(
     ) {
         Spacer(Modifier.width(16.dp))
         Switch(checked = checked, onCheckedChange = null, enabled = enabled)
+    }
+}
+
+/**
+ * Two targets in one row (AOSP's primary switch preference): the row opens [onClick]'s page, the switch after the
+ * divider turns the thing on or off. TalkBack reads them as two nodes: a button and a switch.
+ */
+@Composable
+fun SplitSwitchRow(
+    title: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    summary: String? = null,
+    @DrawableRes icon: Int? = null,
+    enabled: Boolean = true,
+    switchEnabled: Boolean = enabled,
+) {
+    val haptics = rememberHaptics()
+    Row(
+        modifier.fillMaxWidth().height(IntrinsicSize.Min).background(MaterialTheme.colorScheme.surfaceBright),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        RowFrame(title, summary, icon, enabled, Modifier.weight(1f).clickable(enabled, role = Role.Button, onClick = onClick))
+        VerticalDivider(Modifier.padding(vertical = 14.dp), color = MaterialTheme.colorScheme.outlineVariant)
+        Box(
+            Modifier
+                .fillMaxHeight()
+                .toggleable(checked, switchEnabled, Role.Switch) {
+                    haptics.toggle(it)
+                    onCheckedChange(it)
+                }.semantics { contentDescription = title }
+                .padding(horizontal = 16.dp),
+            contentAlignment = Alignment.Center,
+        ) {
+            Switch(checked = checked, onCheckedChange = null, enabled = switchEnabled)
+        }
     }
 }
 

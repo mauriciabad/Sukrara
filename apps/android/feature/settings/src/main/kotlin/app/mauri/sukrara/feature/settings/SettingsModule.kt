@@ -30,6 +30,7 @@ class SettingsModule(
     dispatchers: DispatcherProvider,
     clock: Clock,
     sensor: Flow<SensorState>,
+    alertPlayback: AlertPlayback,
 ) {
     val deps: SettingsDeps =
         object : SettingsDeps {
@@ -43,6 +44,7 @@ class SettingsModule(
             override val releases: ReleasesSource by lazy { GitHubReleases(http, dispatchers.io) }
             override val clock = clock
             override val sensor = sensor
+            override val alertPlayback = alertPlayback
         }
 
     /** When the alert thresholds were confirmed (null = never): home's Finish-setup card asks until they are. */

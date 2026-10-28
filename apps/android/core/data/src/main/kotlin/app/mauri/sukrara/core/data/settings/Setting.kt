@@ -69,6 +69,40 @@ object SchemaSettings {
         }
     }
 
+    /**
+     * One place's key of a per-place number setting (`graph.hours.place`: the schema's comma list holds one key per
+     * place, in the order of its `places.android`). [index] = the place's position in that list.
+     */
+    fun numberAt(
+        id: String,
+        index: Int,
+    ): Setting<Double> {
+        val info = androidInfo(id, "number")
+        val format: NumberSpec = SettingsSpec.NUMBERS.getValue(checkNotNull(info.number) { "$id has no number format" })
+        val (store, key) = placeKey(info, index)
+        return Setting(id, store, key, format.default, doublePreferencesKey(key), format::coerce)
+    }
+
+    /** One place's key of a per-place bool setting (`graph.sensorTime.place`), like [numberAt]. */
+    fun boolAt(
+        id: String,
+        index: Int,
+        default: Boolean,
+    ): Setting<Boolean> {
+        val (store, key) = placeKey(androidInfo(id, "bool"), index)
+        return Setting(id, store, key, default, booleanPreferencesKey(key)) { it }
+    }
+
+    private fun placeKey(
+        info: SettingInfo,
+        index: Int,
+    ): Pair<String, String> {
+        val (store, keys) = info.android.split(":", limit = 2)
+        val key = keys.split(',').getOrNull(index)
+        requireNotNull(key) { "'${info.id}' has no key for place $index ($keys)" }
+        return store to key
+    }
+
     private fun androidInfo(
         id: String,
         type: String?,

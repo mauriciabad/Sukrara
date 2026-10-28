@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.feature.settings
 
+import app.mauri.sukrara.alerts.AlertKind
 import app.mauri.sukrara.alerts.AlertSettings
 import app.mauri.sukrara.core.model.AlertControls
 import app.mauri.sukrara.core.model.AlertReadinessSource
@@ -42,6 +43,67 @@ interface SettingsDeps {
 
     /** The wearer's sensor as the hub knows it (Settings › Sensor end shows its end). */
     val sensor: Flow<SensorState>
+
+    /** An alert's sound preview and *Send a test alert* (the alert runtime's notifier); nothing in screenshots. */
+    val alertPlayback: AlertPlayback get() = AlertPlayback.None
+}
+
+/**
+ * Hearing an alert from its settings page, only on the person's tap: [play] its sound for a pack (with its vibration
+ * when [vibrate]) on the volume it rings on, [stop] it, [sendTest] the real notification on its channel labelled as
+ * a test (no alert state changes), and the kind's notification channel ([channelId]) for Android's settings.
+ */
+interface AlertPlayback {
+    fun play(
+        kind: AlertKind,
+        pack: String,
+        alarm: Boolean,
+        vibrate: Boolean,
+    )
+
+    fun stop()
+
+    /** Android's settings silence this alert (its channel's sound off or importance too low). */
+    fun silenced(
+        kind: AlertKind,
+        alarm: Boolean,
+    ): Boolean
+
+    fun sendTest(
+        kind: AlertKind,
+        settings: AlertSettings,
+    )
+
+    fun channelId(
+        kind: AlertKind,
+        alarm: Boolean,
+    ): String?
+
+    object None : AlertPlayback {
+        override fun play(
+            kind: AlertKind,
+            pack: String,
+            alarm: Boolean,
+            vibrate: Boolean,
+        ) = Unit
+
+        override fun stop() = Unit
+
+        override fun silenced(
+            kind: AlertKind,
+            alarm: Boolean,
+        ) = false
+
+        override fun sendTest(
+            kind: AlertKind,
+            settings: AlertSettings,
+        ) = Unit
+
+        override fun channelId(
+            kind: AlertKind,
+            alarm: Boolean,
+        ): String? = null
+    }
 }
 
 /** Reads and changes the alert settings; [update] applies a change to the stored value (never to a stale copy). */
