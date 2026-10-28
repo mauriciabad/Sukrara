@@ -10,17 +10,22 @@ import app.mauri.sukrara.core.model.SourceStatus
 import app.mauri.sukrara.core.model.Treatment
 import app.mauri.sukrara.core.model.TreatmentKind
 import app.mauri.sukrara.core.model.TreatmentOrigin
+import app.mauri.sukrara.core.model.storage.SecretUnreadableException
+import app.mauri.sukrara.core.model.storage.SecureStore
 import app.mauri.sukrara.core.model.storage.TreatmentDelivery
 import app.mauri.sukrara.core.model.storage.TreatmentRecord
 import app.mauri.sukrara.core.testing.FakeClock
 import app.mauri.sukrara.core.testing.InMemoryReadingsRepository
 import app.mauri.sukrara.core.testing.InMemorySecureStore
+import app.mauri.sukrara.core.testing.InMemoryStateStore
 import app.mauri.sukrara.core.testing.InMemoryTreatmentsRepository
 import app.mauri.sukrara.protocol.SignedEvent
 import app.mauri.sukrara.protocol.Wire
 import app.mauri.sukrara.protocol.event.Profile
 import app.mauri.sukrara.protocol.event.Rumor
 import app.mauri.sukrara.protocol.event.RumorCodec
+import app.mauri.sukrara.protocol.event.SettingsCodec
+import app.mauri.sukrara.protocol.event.SettingsPayload
 import app.mauri.sukrara.protocol.follow.FollowStatus
 import app.mauri.sukrara.share.FakeRelayTransport
 import app.mauri.sukrara.share.OwnerFixtures
@@ -35,12 +40,15 @@ import app.mauri.sukrara.share.owner.usecase.HandleInbox
 import app.mauri.sukrara.share.owner.usecase.PublishReadings
 import app.mauri.sukrara.share.owner.usecase.RemoveFollower
 import app.mauri.sukrara.share.owner.usecase.SetWriter
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
@@ -65,19 +73,24 @@ class FollowerEngineTest {
     private val created = CreateInvite(ctx)(wearer0, "Phone", NOW)
     private val inviteWrap = created.step.publish.first { it.kind == Wire.KIND_WRAP }
 
-    private fun TestScope.engine(timeoutMs: Long = 25_000) =
-        FollowerEngine(
-            crypto,
-            FollowerStore(secure, crypto),
-            { _, _ -> if (lookupFirst) lookup.also { lookupFirst = false } else relay },
-            readings,
-            treatments,
-            clock,
-            StandardTestDispatcher(testScheduler),
-            setLink = { links += it },
-            onNotice = { n, _ -> notices += n },
-            joinTimeoutMs = timeoutMs,
-        )
+    private val settingsCache = InMemoryStateStore(WearerSettingsCache())
+
+    private fun TestScope.engine(
+        timeoutMs: Long = 25_000,
+        secureStore: SecureStore = secure,
+    ) = FollowerEngine(
+        crypto,
+        FollowerStore(secureStore, crypto),
+        { _, _ -> if (lookupFirst) lookup.also { lookupFirst = false } else relay },
+        readings,
+        treatments,
+        clock,
+        StandardTestDispatcher(testScheduler),
+        setLink = { links += it },
+        onNotice = { n, _ -> notices += n },
+        joinTimeoutMs = timeoutMs,
+        settingsCache = settingsCache,
+    )
 
     private var lookupFirst = true
 
@@ -315,6 +328,37 @@ class FollowerEngineTest {
                         .revealHex(),
                 ),
             )
+        }
+
+    @Test fun aRecordTheKeystoreCantOpenStillGivesTheWearersLastSettings() =
+        runTest {
+            val payload = SettingsPayload(NOW, JsonObject(mapOf("low" to JsonPrimitive(80))), JsonObject(emptyMap()))
+            settingsCache.update { WearerSettingsCache(SettingsCodec.encode(payload)) }
+            val locked =
+                object : SecureStore {
+                    override suspend fun read(
+                        name: String,
+                    ): ByteArray = throw SecretUnreadableException(name, transient = true, cause = IllegalStateException("locked"))
+
+                    override suspend fun write(
+                        name: String,
+                        bytes: ByteArray,
+                    ) = Unit
+
+                    override suspend fun delete(name: String) = Unit
+                }
+            val e = engine(secureStore = locked)
+            e.load()
+            assertEquals(payload, e.wearerSettings.first())
+        }
+
+    @Test fun notFollowingForgetsTheWearersSettings() =
+        runTest {
+            settingsCache.update { WearerSettingsCache("{}") }
+            val e = engine()
+            e.load()
+            assertNull(e.wearerSettings.first())
+            assertNull(settingsCache.data.first().payload)
         }
 
     @Test fun missingHoursOnlyWhileTheStreamIsLive() {
