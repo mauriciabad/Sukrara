@@ -86,7 +86,7 @@
     <string name="sh_share_try_again">Reintentar</string>
     <string name="sh_share_failed">No se ha podido crear la invitación. Revisa internet y que compartir esté configurado.</string>
     <string name="sh_share_qr_label">Código QR de la invitación. El enlace está debajo.</string>
-    <string name="sh_share_scan">Pídele que instale Sukrara, elija \"Sigo a alguien\" y escanee este código, o envíale el enlace.</string>
+    <string name="sh_share_scan">Envíale el enlace o deja que escanee este código con Sukrara para Mac. Seguir desde un teléfono Android llegará en una versión posterior.</string>
     <string name="sh_share_note">Este enlace funciona una vez, hasta el %1$s. Envíalo solo a %2$s: quien lo abra primero puede pedir seguirte, y tú decides. No contiene ninguna clave de tu glucosa.</string>
     <string name="sh_share_note_unnamed">Este enlace funciona una vez, hasta el %1$s. Envíalo solo a la persona que invitas: quien lo abra primero puede pedir seguirte, y tú decides. No contiene ninguna clave de tu glucosa.</string>
     <string name="sh_share_send">Enviar enlace</string>
@@ -125,4 +125,174 @@
         <item quantity="many">%1$d seguidores</item>
         <item quantity="other">%1$d seguidores</item>
     </plurals>
+    <!-- Avatar shape -->
+    <string name="sh_avatar_shape_cube">Cubo</string>
+    <!-- Avatar shape -->
+    <string name="sh_avatar_shape_drop">Gota</string>
+    <!-- Avatar shape -->
+    <string name="sh_avatar_shape_dots">Puntos</string>
+    <!-- Avatar shape -->
+    <string name="sh_avatar_shape_rings">Anillos</string>
+    <!-- Avatar shape: the name's first letter -->
+    <string name="sh_avatar_shape_letter">Letra</string>
+    <!-- Avatar colour (TalkBack) -->
+    <string name="sh_avatar_colour_teal">Verde azulado</string>
+    <!-- Avatar colour (TalkBack) -->
+    <string name="sh_avatar_colour_lime">Lima</string>
+    <!-- Avatar colour (TalkBack) -->
+    <string name="sh_avatar_colour_coral">Coral</string>
+    <!-- Avatar colour (TalkBack) -->
+    <string name="sh_avatar_colour_purple">Morado</string>
+    <!-- Avatar colour (TalkBack) -->
+    <string name="sh_avatar_colour_amber">Ámbar</string>
+    <!-- Avatar colour (TalkBack) -->
+    <string name="sh_avatar_colour_sky">Azul cielo</string>
+    <!-- Avatar colour (TalkBack) -->
+    <string name="sh_avatar_colour_pink">Rosa</string>
+    <!-- Avatar colour (TalkBack) -->
+    <string name="sh_avatar_colour_grey">Gris</string>
+    <!-- Button: a new random picture -->
+    <string name="sh_avatar_shuffle">Otra al azar</string>
+    <!-- Button: show the picture options -->
+    <string name="sh_avatar_customize">Personalizar</string>
+    <!-- Button: hide the picture options -->
+    <string name="sh_avatar_done">Listo</string>
+    <!-- Button: rotate the picture's colours -->
+    <string name="sh_avatar_turn_colours">Girar los colores</string>
+    <!-- Page title: your name and picture as followers see them -->
+    <string name="sh_profile_title">Cómo te ven</string>
+    <!-- Field: the person's name -->
+    <string name="sh_profile_name">Tu nombre</string>
+    <!-- Note under the profile editor -->
+    <string name="sh_profile_privacy">Solo las personas con las que compartes ven tu nombre y tu imagen. Viajan cifrados y nunca se publican.</string>
+    <!-- How you appear: when followers see the change -->
+    <string name="sh_profile_followers_note">Tus seguidores verán el cambio la próxima vez que su app se conecte.</string>
+    <!-- How you appear: save refused -->
+    <string name="sh_profile_save_failed">No se pudo guardar: compartir está en pausa mientras otra app comparte como tú. Tus cambios siguen aquí.</string>
+    <!-- Button: save the profile -->
+    <string name="sh_profile_save">Guardar</string>
+    <!-- Profile row without a name -->
+    <string name="sh_profile_add_name">Añade tu nombre</string>
+    <!-- Profile row summary; %1$s = "2 followers" -->
+    <string name="sh_profile_row_summary">%1$s · Cómo te ven</string>
+    <!-- Approve, leaked link: field for the code on the follower's phone -->
+    <string name="sh_approve_type_code">Código de su teléfono</string>
+    <!-- Approve: typed code differs -->
+    <string name="sh_approve_code_wrong">Ese no es el código de su teléfono.</string>
+    <!-- Approve: Allow didn't work -->
+    <string name="sh_approve_failed">No se pudo dar acceso: la invitación caducó o ya se usó. Envía una nueva.</string>
+    <!-- Approve: decide later (the request keeps waiting) -->
+    <string name="sh_approve_later">Más tarde</string>
+    <!-- Approve: the invite card's heading -->
+    <string name="sh_approve_your_invite">Tu invitación</string>
+    <!-- Approve: invite without a label -->
+    <string name="sh_approve_no_label">Invitación sin nombre</string>
+    <!-- Approve: the name looks like the invite's label (a hint) -->
+    <string name="sh_approve_label_matches">El nombre coincide</string>
+    <!-- Approve: the name differs from the invite's label -->
+    <string name="sh_approve_label_differs">Otro nombre</string>
+    <!-- Approve: %1$s = invite time, %2$s = request time -->
+    <string name="sh_approve_sent_asked">Enviada %1$s · pedida %2$s</string>
+    <!-- Approve: %1$s = request time -->
+    <string name="sh_approve_asked">Pedida %1$s</string>
+    <!-- Backup page title / row -->
+    <string name="sh_backup_title">Copia de seguridad</string>
+    <!-- Backup row: backed up -->
+    <string name="sh_backup_row_done">Hecha</string>
+    <!-- Backup row: not backed up -->
+    <string name="sh_backup_row_missing">Sin copia: con un teléfono nuevo perderías a tus seguidores</string>
+    <!-- Follower row: may add entries -->
+    <string name="sh_followers_can_add">Puede añadir entradas</string>
+    <!-- Follower row: only sees -->
+    <string name="sh_followers_sees_only">Solo ve</string>
+    <!-- Button: show removed followers -->
+    <string name="sh_followers_removed_show">Eliminados</string>
+    <!-- Button: fold removed followers -->
+    <string name="sh_followers_removed_hide">Ver menos</string>
+    <!-- Group title: removed followers -->
+    <string name="sh_followers_removed">Eliminados</string>
+    <!-- Removed follower; %1$s = date -->
+    <string name="sh_followers_removed_at">Eliminado el %1$s</string>
+    <!-- Switch: follower may add entries -->
+    <string name="sh_followers_writer">Puede añadir entradas</string>
+    <!-- Switch summary -->
+    <string name="sh_followers_writer_summary">Las comidas, la insulina y las notas que añada aparecen en tu registro.</string>
+    <!-- Writer switch refused -->
+    <string name="sh_followers_writer_refused">No se pudo cambiar: compartir está en pausa mientras otra app comparte como tú.</string>
+    <!-- Backup intro, backed up -->
+    <string name="sh_backup_intro_saved">Tu identidad para compartir está guardada fuera de este teléfono. En un teléfono nuevo, restáurala y tus seguidores te seguirán viendo.</string>
+    <!-- Backup intro, not backed up -->
+    <string name="sh_backup_intro_missing">Tu identidad para compartir solo existe en este teléfono. Si lo pierdes, todos necesitarían una nueva invitación.</string>
+    <!-- Row: save to password manager -->
+    <string name="sh_backup_save">Guardar en el gestor de contraseñas</string>
+    <!-- Row: save again -->
+    <string name="sh_backup_save_again">Volver a guardar en el gestor de contraseñas</string>
+    <!-- Saved; %1$s = date -->
+    <string name="sh_backup_saved_at">Guardada el %1$s</string>
+    <!-- Row summary -->
+    <string name="sh_backup_recommended">Recomendado: restaura en un teléfono nuevo con un toque</string>
+    <!-- Row / dialog: recovery code -->
+    <string name="sh_recovery_title">Código de recuperación</string>
+    <!-- Row summary -->
+    <string name="sh_recovery_summary">Un código protegido con tu contraseña, para guardarlo en un lugar seguro</string>
+    <!-- Recovery code kept; %1$s = date -->
+    <string name="sh_recovery_kept_at">Copiado el %1$s</string>
+    <!-- Row: the encrypted backup on relays -->
+    <string name="sh_backup_relays">Lista de seguidores en los relays</string>
+    <!-- %1$s = date -->
+    <string name="sh_backup_relays_updated">Actualizada el %1$s (cifrada)</string>
+    <!-- Not yet on relays -->
+    <string name="sh_backup_relays_not_yet">Aún no se ha subido: se sube cuando el teléfono tiene conexión</string>
+    <!-- Save result -->
+    <string name="sh_backup_saved">Guardada en tu gestor de contraseñas.</string>
+    <!-- Save result -->
+    <string name="sh_backup_cancelled">No se guardó: cerraste el gestor de contraseñas.</string>
+    <!-- Save result -->
+    <string name="sh_backup_failed">Tu gestor de contraseñas no pudo guardarla. Inténtalo de nuevo o crea un código de recuperación.</string>
+    <!-- Save result -->
+    <string name="sh_backup_no_identity">Aún no hay identidad para compartir que guardar.</string>
+    <!-- Backup footer -->
+    <string name="sh_backup_footer">Los relays solo guardan tu lista de seguidores, cifrada. Sin la entrada del gestor de contraseñas o el código de recuperación nadie puede restaurarla, ni siquiera tú.</string>
+    <!-- Recovery dialog text -->
+    <string name="sh_recovery_text">Elige una contraseña. El código solo funciona con ella; guárdalos por separado.</string>
+    <!-- Field -->
+    <string name="sh_recovery_password">Contraseña</string>
+    <!-- %1$d = minimum length -->
+    <string name="sh_recovery_password_rule">Al menos %1$d caracteres</string>
+    <!-- Recovery code being made -->
+    <string name="sh_recovery_working">Creando el código…</string>
+    <!-- Recovery code failed -->
+    <string name="sh_recovery_failed">No se pudo crear el código. Inténtalo de nuevo.</string>
+    <!-- Under the shown code -->
+    <string name="sh_recovery_keep">Guárdalo en un lugar seguro. Quien tenga el código y la contraseña puede compartir como tú.</string>
+    <!-- Button -->
+    <string name="sh_recovery_create">Crear código</string>
+    <!-- Button -->
+    <string name="sh_recovery_copy_close">Copiar y cerrar</string>
+    <!-- Sharing paused (another app shares as you) -->
+    <string name="sh_paused_title">Compartir está en pausa</string>
+    <!-- Sharing paused body -->
+    <string name="sh_paused_body">Otra app está compartiendo como tú. Ajustes › Compartir explica cómo solucionarlo.</string>
+    <!-- Button: restore from the password manager -->
+    <string name="sh_restore_manager">Restaurar desde el gestor de contraseñas</string>
+    <!-- No saved identity -->
+    <string name="sh_restore_manager_none">Tu gestor de contraseñas no tiene ninguna identidad de Sukrara guardada en esta cuenta.</string>
+    <!-- Password manager error -->
+    <string name="sh_restore_manager_failed">Tu gestor de contraseñas no respondió. Inténtalo de nuevo o pega el código de recuperación.</string>
+    <!-- Start fresh needs a name -->
+    <string name="sh_fresh_needs_name">Añade tu nombre para empezar.</string>
+    <!-- Page title: an invite link opened on this phone -->
+    <string name="sh_invite_here_page">Invitación</string>
+    <!-- Invite opened on an Android phone -->
+    <string name="sh_invite_here_title">Abre esta invitación en un Mac</string>
+    <!-- Why it can not be used here -->
+    <string name="sh_invite_here_body">Seguir desde un teléfono Android llegará en una versión posterior. Abre el enlace en Sukrara para Mac para seguir. Mientras tanto, la invitación sigue sin usar.</string>
+    <!-- Button: copy the invite link -->
+    <string name="sh_invite_here_copy">Copiar enlace</string>
+    <!-- Allow didnt happen; %1$s = name -->
+    <string name="sh_approve_refused_title">%1$s no tiene acceso</string>
+    <!-- Allow refused while another app shares as you -->
+    <string name="sh_approve_refused_paused">Compartir está en pausa mientras otra app comparte como tú. Soluciónalo en Ajustes › Compartir y envía una nueva invitación.</string>
+    <!-- The password manager returned something else -->
+    <string name="sh_restore_manager_not_identity">Esa contraseña guardada no es una identidad de Sukrara. Elige la entrada «Sukrara · npub…» o pega el código de recuperación.</string>
 </resources>

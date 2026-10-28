@@ -229,6 +229,7 @@ class AppGraph(
                 widgets.presence.placed.value
             },
             treatmentLog = { treatments.log },
+            sharing = { shareOwner.ownerEngine.state },
         )
     }
 

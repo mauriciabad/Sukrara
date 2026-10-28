@@ -130,4 +130,13 @@
     <string name="home_quiet_anyway">Avisarme igualmente</string>
     <string name="home_quiet_settings">Ajustes de alertas</string>
     <string name="home_pair_new_sensor">Vincular sensor nuevo</string>
+    <!-- Top bar button: share with someone (a new invite) -->
+    <string name="home_share">Compartir con alguien</string>
+    <!-- Wearer's row without a name yet -->
+    <string name="home_add_your_name">Añade tu nombre</string>
+    <!-- Wearer's row: how many follow -->
+    <plurals name="home_followers">
+        <item quantity="one">%1$d seguidor</item>
+        <item quantity="other">%1$d seguidores</item>
+    </plurals>
 </resources>

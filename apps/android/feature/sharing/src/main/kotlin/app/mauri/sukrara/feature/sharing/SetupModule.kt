@@ -19,6 +19,7 @@ import app.mauri.sukrara.feature.sharing.setup.SetupFacts
 import app.mauri.sukrara.feature.sharing.setup.SetupMachine
 import app.mauri.sukrara.feature.sharing.setup.SetupRecord
 import app.mauri.sukrara.feature.sharing.setup.ThresholdField
+import app.mauri.sukrara.feature.sharing.share.LaterRequests
 import app.mauri.sukrara.share.owner.OwnerShareState
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -87,6 +88,9 @@ class SetupModule(
         alertSettings.save(merged)
         settings.set(THRESHOLDS_CONFIRMED_AT, clock.now().toString())
     }
+
+    /** Access requests put off with Later in the approve dialog (process memory). */
+    val laterRequests = LaterRequests()
 
     /** Home and setup call this on resume: permissions change in the system's settings. */
     fun refresh() {

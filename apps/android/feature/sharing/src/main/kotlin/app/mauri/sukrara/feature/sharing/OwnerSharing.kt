@@ -3,6 +3,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.feature.sharing
 
+import app.mauri.sukrara.protocol.event.Profile
+import app.mauri.sukrara.share.owner.ApproveResult
 import app.mauri.sukrara.share.owner.OwnerEngine
 import app.mauri.sukrara.share.owner.OwnerShareState
 import app.mauri.sukrara.share.owner.usecase.CreateInvite
@@ -20,8 +22,26 @@ data class Invite(val link: String, val label: String, val expiresAt: Long)
 interface OwnerSharing {
     val state: StateFlow<OwnerShareState>
 
-    /** A new identity ("Start fresh", confirmed first). False when one exists or can't be read. */
-    suspend fun startFresh(): Boolean
+    /** A new identity ("Start fresh", confirmed first) with how the wearer appears. False when one exists or can't be read. */
+    suspend fun startFresh(profile: Profile): Boolean
+
+    /** "How you appear" (name + picture) for followers. False without an identity or while another app shares as it. */
+    suspend fun setProfile(profile: Profile): Boolean
+
+    /** "Can add entries" for an active follower; false when refused (not a follower any more, another app shares as you). */
+    suspend fun setWriter(follower: String, allowed: Boolean): Boolean
+
+    /** A recovery code (the identity encrypted with [password]); null without an identity. Slow (scrypt): off the main thread. */
+    suspend fun exportRecovery(password: String): String?
+
+    /** The wearer kept the recovery code: no more "Not backed up". */
+    suspend fun recoverySaved()
+
+    /**
+     * Hands the identity to the phone's password manager: [save] gets the entry's name and the secret and says whether
+     * the password manager took it. The secret never leaves this call.
+     */
+    suspend fun saveToPasswordManager(save: suspend (id: String, secret: String) -> Boolean): Boolean
 
     /** Restore from a recovery code; the UI calls it only when the [app.mauri.sukrara.feature.sharing.setup.RestoreGate] is open. */
     suspend fun restore(
@@ -31,7 +51,11 @@ interface OwnerSharing {
 
     suspend fun createInvite(label: String): Invite?
 
-    suspend fun approve(follower: String)
+    /**
+     * Allow, and what happened (expired or used invite / no longer waiting, another app shares as you, or a leaked link
+     * without the right [typedCode] from the follower's phone).
+     */
+    suspend fun approve(follower: String, typedCode: String? = null): ApproveResult
 
     suspend fun deny(follower: String)
 
@@ -50,7 +74,24 @@ class EngineOwnerSharing(
     /** The app starts the engine for a wearer (`followRole`); setup only reads its state. */
     override val state: StateFlow<OwnerShareState> get() = engine.state
 
-    override suspend fun startFresh(): Boolean = engine.createIdentity(scope, profile = null)
+    override suspend fun startFresh(profile: Profile): Boolean = engine.createIdentity(scope, profile)
+
+    override suspend fun setProfile(profile: Profile): Boolean = engine.setProfile(profile)
+
+    /** Refused only while another app shares as you; a repeated tap (nothing to change) is fine. */
+    override suspend fun setWriter(follower: String, allowed: Boolean): Boolean {
+        engine.setWriter(follower, allowed)
+        return engine.state.value !is OwnerShareState.AnotherAppSharingAsYou
+    }
+
+    override suspend fun exportRecovery(password: String): String? = engine.exportRecovery(password)
+
+    override suspend fun recoverySaved() {
+        engine.markRecoverySaved()
+    }
+
+    override suspend fun saveToPasswordManager(save: suspend (id: String, secret: String) -> Boolean): Boolean =
+        engine.saveToPasswordManager(save)
 
     override suspend fun restore(
         code: String,
@@ -62,9 +103,7 @@ class EngineOwnerSharing(
         return engine.createInvite(label)?.let { Invite(it, label.trim(), at + CreateInvite.TTL) }
     }
 
-    override suspend fun approve(follower: String) {
-        engine.approve(follower)
-    }
+    override suspend fun approve(follower: String, typedCode: String?): ApproveResult = engine.approve(follower, typedCode)
 
     override suspend fun deny(follower: String) {
         engine.deny(follower)

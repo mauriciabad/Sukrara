@@ -25,6 +25,7 @@ import app.mauri.sukrara.designsystem.theme.SukraraTheme
 import app.mauri.sukrara.feature.home.Samples.NOW
 import app.mauri.sukrara.feature.home.banners.BannerKind
 import app.mauri.sukrara.graph.CardSurface
+import app.mauri.sukrara.protocol.event.Avatar
 import com.github.takahirom.roborazzi.captureRoboImage
 import org.junit.Rule
 import org.junit.Test
@@ -101,6 +102,10 @@ class HomeGallery {
             "alerts-unreliable" to ui(Samples.wearer(), banner = BannerKind.AlertsUnreliable),
             "finish-setup" to ui(Samples.wearer(), banner = BannerKind.FinishSetup),
             "data-problem" to ui(Samples.wearer(), banner = BannerKind.DataProblem, problems = 1),
+            "profile-not-backed-up" to
+                ui(Samples.wearer(), banner = BannerKind.NotBackedUp)
+                    .copy(profile = HomeProfile("Núria", Avatar.v1(0, "drop", 45, 3), followers = 2)),
+            "profile-no-name" to ui(Samples.wearer()).copy(profile = HomeProfile("", null, followers = 0)),
         )
     }
 

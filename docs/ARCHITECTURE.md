@@ -66,6 +66,13 @@ applies them.
   identity step the sensor already runs and a reset would pause alerts), the alert channel ids.
 - `SetupModule` is composed by `AppGraph` (`SharingDeps.setup`) over `shareOwner`'s engine (started for a wearer by
   `followRole`); screens get callbacks for other features (the sensor flow) instead of depending on them.
+- `share/` (share screen, Settings › Sharing, `ApproveHost` — the approve dialog the app draws over its navigation,
+  `LaterRequests` in `SetupModule` — `ProfilePage`, `BackupPage`, `InviteHereScreen`), `followers/`, `profile/`
+  (`ProfileEditor`), `backup/` (`BackupScreen`, `PasswordManager` = Credential Manager). All actions go through
+  `SharingViewModel` → `OwnerSharing`; the identity secret reaches only `PasswordManager.save` (inside
+  `OwnerEngine.saveToPasswordManager`) and the recovery dialog (secure window, never saved state).
+- Pictures: `:core:designsystem` `avatar/AvatarDrawing` (pure v1 geometry, tested against
+  `contracts/protocol/identity/avatar-v1.json`) + `AvatarImage` (Compose Canvas); every face in the app goes through it.
 
 ### Card, widgets and UI
 
@@ -368,7 +375,7 @@ TTLs, JSON field names and number forms, invite link `https://sukrara.mauri.app/
 - `owner/` — `OwnerState` (typed state, `@Serializable`, redacted) in `OwnerIdentityStore` (SecureStore
   `identity.owner`; unreadable ≠ missing). Use-cases in `owner/usecase` are pure `(state, input, now) → Step(state,
   events)`: `CreateIdentity`, `RestoreIdentity` (+ `restoreAllowed` gate), `ExportRecovery`, `CreateInvite`,
-  `HandleInbox`, `ApproveRequest`, `DenyRequest`, `RemoveFollower`, `Rotate`, `PublishReadings`,
+  `HandleInbox`, `ApproveRequest`, `DenyRequest`, `RemoveFollower`, `SetWriter`, `SetProfile`, `Rotate`, `PublishReadings`,
   `IdentityConflictDetector`; control events (deliveries, notices, roster, backup) wait in `pendingControl` until a
   relay answers OK, so a rotation interrupted by a crash still reaches every follower. `OwnerEngine` runs them on one
   serial dispatcher, persists before publishing and exposes `StateFlow<OwnerShareState>`; `ShareOwnerModule` (A4)

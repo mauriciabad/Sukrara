@@ -19,8 +19,14 @@ import app.mauri.sukrara.core.model.AlertReadiness
 import app.mauri.sukrara.core.model.AlertRequirement
 import app.mauri.sukrara.core.model.Role
 import app.mauri.sukrara.designsystem.theme.SukraraTheme
+import app.mauri.sukrara.feature.sharing.backup.BackupScreen
+import app.mauri.sukrara.feature.sharing.backup.SaveOutcome
 import app.mauri.sukrara.feature.sharing.conflict.IdentityConflictScreen
+import app.mauri.sukrara.feature.sharing.followers.FollowerDialog
+import app.mauri.sukrara.feature.sharing.followers.FollowersActions
 import app.mauri.sukrara.feature.sharing.followers.FollowersPage
+import app.mauri.sukrara.feature.sharing.profile.ProfileSave
+import app.mauri.sukrara.feature.sharing.profile.ProfileScreen
 import app.mauri.sukrara.feature.sharing.setup.AlertThresholds
 import app.mauri.sukrara.feature.sharing.setup.RestoreGate
 import app.mauri.sukrara.feature.sharing.setup.RestoreUi
@@ -31,9 +37,14 @@ import app.mauri.sukrara.feature.sharing.setup.SetupRecord
 import app.mauri.sukrara.feature.sharing.setup.SetupStep
 import app.mauri.sukrara.feature.sharing.setup.SetupUi
 import app.mauri.sukrara.feature.sharing.setup.ThresholdField
+import app.mauri.sukrara.feature.sharing.share.ApproveDialog
+import app.mauri.sukrara.feature.sharing.share.ApproveRefusedDialog
 import app.mauri.sukrara.feature.sharing.share.InviteUi
 import app.mauri.sukrara.feature.sharing.share.ShareScreen
+import app.mauri.sukrara.protocol.event.Avatar
+import app.mauri.sukrara.protocol.event.Profile
 import app.mauri.sukrara.protocol.owner.IdentityCheck
+import app.mauri.sukrara.share.owner.ApproveResult
 import app.mauri.sukrara.share.owner.FollowerRecord
 import app.mauri.sukrara.share.owner.OwnerShareState
 import app.mauri.sukrara.share.owner.PendingRequest
@@ -102,10 +113,33 @@ class SharingScreenshotTest {
         )
     private val followers =
         listOf(
-            FollowerRecord("k1", "Anna", since = 1_761_000_000),
+            FollowerRecord("k1", "Anna", since = 1_761_000_000, avatarJson = Avatar.v1(1, "dots", 45, 7).toString()),
             FollowerRecord("k2", "MacBook", since = 1_759_000_000),
+            FollowerRecord("k4", "Old phone", since = 1_750_000_000, revoked = 1_755_000_000),
         )
-    private val request = PendingRequest("k3", "Dad", "t", "4821", at = 1_761_500_000, label = "Dad's phone")
+    private val request =
+        PendingRequest(
+            "k3",
+            "Dad",
+            "t",
+            "4821",
+            at = 1_761_500_000,
+            avatarJson = Avatar.v1(4, "cube", 90, 1).toString(),
+            label = "Dad's phone",
+            inviteSentAt = 1_761_499_000,
+        )
+    private val me = Profile("Núria", Avatar.v1(0, "drop", 45, 3))
+    private val sharing =
+        OwnerShareState.Sharing(
+            1,
+            followers,
+            listOf(request),
+            emptyMap(),
+            backupPublishedAt = 1_761_400_000,
+            recoveryExportedAt = 0,
+            profile = me,
+            writers = setOf("k1"),
+        )
 
     private fun scenes(): List<Pair<String, @Composable () -> Unit>> {
         // the app passes Settings' threshold rows; this module only sees their slot
@@ -151,8 +185,37 @@ class SharingScreenshotTest {
                     {},
                 )
             },
-            "followers" to { FollowersPage(followers, listOf(request), {}, {}, {}) },
-            "followers-empty" to { FollowersPage(emptyList(), emptyList(), {}, {}, {}) },
+            "followers" to { FollowersPage(sharing, FollowersActions()) },
+            "followers-empty" to {
+                FollowersPage(OwnerShareState.Sharing(1, emptyList(), emptyList(), emptyMap(), 0, 0), FollowersActions())
+            },
+            "follower-dialog" to {
+                FollowerDialog(followers[0], writer = true, refused = false, onWriter = {}, onRemove = {}, onClose = {})
+            },
+            "approve" to
+                { ApproveDialog(request, working = false, onAllow = {}, onDeny = {}, onLater = {}, time = ::utcTime) },
+            "approve-leaked" to {
+                ApproveDialog(
+                    request.copy(others = 2),
+                    working = false,
+                    onAllow = {},
+                    onDeny = {},
+                    onLater = {},
+                    time = ::utcTime,
+                )
+            },
+            "approve-refused" to { ApproveRefusedDialog(request, ApproveResult.Gone, {}) },
+            "profile" to { ProfileScreen(me, ProfileSave.Idle, {}, {}) },
+            "profile-failed" to { ProfileScreen(Profile("", null), ProfileSave.Failed, {}, {}) },
+            "backup-missing" to { BackupScreen(sharing, { SaveOutcome.Saved }, { null }, {}) },
+            "backup-done" to {
+                BackupScreen(
+                    sharing.copy(passwordManagerSavedAt = 1_761_450_000, recoveryExportedAt = 1_761_460_000),
+                    { SaveOutcome.Saved },
+                    { null },
+                    {},
+                )
+            },
         )
     }
 
@@ -178,3 +241,11 @@ class SharingScreenshotTest {
         }
     }
 }
+
+/** Fixed-zone times for the goldens. */
+private fun utcTime(epochS: Long): String =
+    java.time.Instant
+        .ofEpochSecond(epochS)
+        .atZone(java.time.ZoneOffset.UTC)
+        .toLocalTime()
+        .toString()

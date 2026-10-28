@@ -68,8 +68,11 @@ The full catalog, with every rule and number, is [docs/FEATURES.md](docs/FEATURE
 - **First-run setup** in a calm, fixed order: role (confirmed) → what alerts need → sensor → confirm your alert
   thresholds → your followers (restore once this phone has your sensor, or start fresh) → home. Any
   step can wait; home's *Finish setup* banner brings it back.
-- **Sharing screens**: invite one person (QR that springs in, link to send or copy, works once for 24 h), allow or deny
-  their request after comparing a 4-digit code, see and remove followers (confirmed), and a clear screen when another
+- **Sharing screens**: *How you appear* (your name and a generated picture, on home's top bar), invite one person (QR
+  that springs in, link to send or copy, works once for 24 h), allow or deny their request after comparing a 4-digit
+  code (the dialog shows over any screen, with their picture and the invite they used), see followers with their
+  pictures, let one *add entries*, remove them (confirmed; removed ones fold away), **Backup** to your password manager
+  or a recovery code (home says *Not backed up* until then; setup restores from either), and a clear screen when another
   device is sharing as you.
 - English and Spanish (Spain) everywhere.
 
