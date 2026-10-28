@@ -68,7 +68,7 @@ extension GlucoseCard {
         style.unit = unit
         let layout = draw(
             ctx, size: size, readings: data.readings, marks: data.marks, now: data.now, style,
-            GraphPalette.of(dark: false), surface: surface, part: .all, alerts: data.alerts)
+            GraphPalette.of(dark: false), surface: surface, part: .all, metricsOf: data.metrics, alerts: data.alerts)
         return layout.first("value.pill")?.box
     }
 }

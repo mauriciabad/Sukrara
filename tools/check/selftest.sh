@@ -59,6 +59,10 @@ case_ "a hand-written defaults key fails" fail settings apps/macos/Sources/Sukra
 let v = UserDefaults.standard.integer(forKey: \"graphHours\")"
 case_ "a cleartext URL in app Kotlin fails" fail cleartext apps/android/integrations/src/main/kotlin/app/mauri/sukrara/N.kt "$HDR
 val u = \"http://example.org\""
+case_ "a cleartext URL in Mac Swift fails" fail cleartext apps/macos/Sources/SukraraShare/N.swift "$HDR
+let u = URL(string: \"http://example.org\")"
+case_ "a new URLSession in Mac Swift fails" fail cleartext apps/macos/Sources/SukraraApp/N.swift "$HDR
+let s = URLSession(configuration: .ephemeral)"
 case_ "an image outside the allowed folders fails" fail images apps/android/x/shot.png 'not really a png'
 case_ "an image in the frozen PoC passes" pass "" poc/spikes/brand/assets/x/icon.png 'not really a png'
 case_ "an nsec in app code fails" fail secrets apps/android/x/src/main/kotlin/K.kt "$HDR

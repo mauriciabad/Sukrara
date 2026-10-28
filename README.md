@@ -132,6 +132,9 @@ The full catalog, with every rule and number, is [docs/FEATURES.md](docs/FEATURE
   treatments arrive end-to-end encrypted. Choose the name the wearer sees for this Mac and its generated picture
   (*How you appear*); the wearer's picture shows in Following and the nearby dialog. A setup window walks Welcome → Follow → Alerts → Notifications → Open at
   login.
+- **Juggluco on this network** (off by default): while the Mac follows nobody, it reads glucose from Juggluco's web
+  server on the home network (found automatically, or by its address; optional API secret in the Keychain), with the
+  same card, rings and alerts. Plain http, to home-network addresses only.
 - **Alerts** with sound packs and the same rules and timeline scenarios as Android; mute, change the time, a custom
   length, Alert Me Anyway, Remind Less and unmute from the panel; Send Test Alert.
 - **Treatments**: add rapid / long / carbs / note with *When?* (a time or minutes ago) and the quiet line, see the last
@@ -148,7 +151,7 @@ The full catalog, with every rule and number, is [docs/FEATURES.md](docs/FEATURE
 - VoiceOver reads the value as one sentence with the range in words.
 
 **Not included**: the LSPosed lock-screen widget, Dexcom / Aidex / SmartGuide (untested) sensors, the pen list and dose review, the sensor-end
-calendar event, and the Mac's Juggluco-over-Wi-Fi source.
+calendar event.
 
 **Garmin watch:** switch on *Settings › Share with apps › xDrip+ server*; watch faces and data fields made for xDrip+
 read it through Garmin Connect. While **Juggluco** is Sukrara's source, Juggluco keeps its own server and feeds the

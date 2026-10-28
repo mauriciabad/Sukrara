@@ -325,6 +325,7 @@ the app (Settings › Sharing shows the same state). Invite link on a wearer pho
 - Card pixels come only from `GlucoseCard` (Android) / `GlucoseCard` in the `SukraraGraph` library (Mac, `apps/macos/Sources/SukraraGraph`): a surface chooses its size, its place's settings and the part (`CardPart`: whole card, value + slots, value, slots, chart), nothing else. The app panel is drawn by the card too (header + chart); its motion is paint only (the number rolls digit by digit, the arrow turns, the colour fades). Text and icon places take the value, the trend mark and the freshness steps from `GlucoseCard.face` (the card's `Freshness.look` with the sensor's state), so a warming-up sensor shows its time left in the SystemUI text (`42m`), *Warming up* on the Quick Settings tile and in the screen-reader words, and no root status-bar icons until the first reading (they exist only as numbers). The trend as text is one mapping per platform: the glucose notification's title and the Mac menu bar write the face's `arrowText` (the ring when the value is struck, as the card), the alert notification text (Android) and alert titles (Mac) write `TrendAngle.text` of the reading the alert fired on (`TrendAngle.symbol`: Nightscout's ±1 / 2 / 3 mg/dL/min bands; `○` without a trend), pinned with the drawn arrow's angle by `contracts/graph/trend` (Android `TrendFixtureTest` + `LiveNotificationContentTest`, Mac `TrendFixtureTests` + `MenubarTitleTests`; the Android alert text calls `TrendAngle.text` directly and has no test of its own). The drawn arrow still turns continuously, so between about −1 and −0.3 it already tilts down while the text says →.
 - Guards: `tools/check` (card-surface, card-api, card-text) and the cross-surface tests (Android `CardLayoutTest` + `FreshnessFixtureTest`, Mac `GraphTests` in `apps/macos`: `LayoutTests` + the fixture suites, `swift test`) render every registered surface through its real code with the scenes of `contracts/graph/layout` and fail when two surfaces lay out the same input differently, or Android and the Mac disagree (`layout/expect.json`). Android: the widget surfaces render through their real style (`widgetCardStyle`); until the other surfaces' own code lands, `CardLayoutTest` renders each remaining registered card surface's shape (its parts and sizes from surfaces.json, its place's settings) through `GlucoseCard.draw` and checks every rule plus every shared answer it produces against `expect.json` (never rewritten by the test); the real entry paths replace the stand-ins as the surfaces arrive.
 
+- Mac: the slots' 7 / 14 / 30-day numbers are counted once per new reading over the source's whole stored history (`SlotNumbers` in `CardData.slots`, loaded when monitoring starts) and every surface looks them up: the menu bar, the panel and the widgets (in their snapshot) show the same rings, and they don't change when the panel opens. A window the drawn readings cover (24 h) is counted from them. The Glucose Report and its CSV export use the same stored history. Android: `MetricsCache` over the stored days.
 - Mac: every surface reaches the card through four entry points over one input (`CardData`: readings, treatments, sensor, the alert decision, now): `GlucoseCard.image` / `draw` (the menubar card, the widgets), `face` (the menu bar title) and `accessibilityLabel` (VoiceOver, the same sentence as Android's `A11y`, English or Spanish by the system language: "112 milligrams per decilitre, falling, in range, 2 min ago" — the range in words, never by colour alone: very low / low / in range / high / very high / extremely high at the user's bounds; *old reading* when struck; *below 40* / *above 400* past the sensor's limits — then the badge's sentence (none without a shown value), then on a surface with a chart its summary *Last 12 hours: 82% in range, 3% below, 15% above*; the menu bar title says the value sentence only; the badge and sensor sentences are still English on the Mac). Each takes the unit explicitly: the value is written in mg/dL or mmol/L by the setting (never the region); the chart's axis and range lines stay mg/dL on both platforms for now. A surface's style is decided in one place (`CardSurface.style`), so the tests render exactly what the surfaces show. The badge, the last-treatment slot and the mute lines come from the alert engine's decision (`CardAlerts`), never re-derived by the renderer; a mute that has run out by the time a picture is drawn (an old widget snapshot) shows no badge rather than "0m left". The widget gets the whole input as a versioned `WidgetSnapshot` in the App Group; another version reads as none (the widget's own empty state, never a guessed value).
 
 ## Freshness (every glucose surface)
@@ -1263,10 +1264,47 @@ page.
 - Changing the language (the phone's, or Sukrara's own per-app language) renames the notification channels and groups (the person's channel settings stay) and redraws the glucose notification at once; the next alert is worded in the new language (Android: `App.onConfigurationChanged` → `MonitorModule.onLocaleChanged`). Widgets follow on their next redraw.
 - Alert rules and their timeline scenarios stay in English: the engine reports the kind and what was logged, and the notification and the settings pages word them. The log and the debug dump stay in English.
 
+## Juggluco on this network (Mac)
+
+- Settings › General › *Source*: the switch *Juggluco on this network* (schema `source.jugglucoLan`, off by default), an
+  *Address* field (`source.jugglucoAddress`; blank = *Find it automatically*; Return or closing the pane saves it) and
+  an *API secret* field (`source.jugglucoSecret`, kept in the Keychain, never in the defaults). The footer says where
+  to turn Juggluco's server on (Settings › Web server, *Local only* off) and that it is plain http on the home network:
+  readings travel unencrypted between the phone and the Mac. Dev, fixture and snapshot runs have no source (the
+  switch is dimmed: *Not available in this run*); `ServicesPlan.lan`.
+- `SukraraShare/Lan`: with no address it sweeps the Mac's up, non-loopback IPv4 networks of at most /22 in the home
+  ranges (10/8, 172.16/12, 192.168/16; never 169.254 or a public network, never the Mac itself), 64 probes at a time,
+  for `/api/v1/status.json` saying `juggluco` on :17580. The probes carry no secret; a set secret goes only to hosts
+  that refused for want of one. A typed address must be such an IPv4 address (with an optional `:port`); anything
+  else (a name, a public address) is refused and never contacted. Then the history
+  (`/api/v1/entries.json?interval=0`, `count` = the minutes since the newest stored reading, 180 to 1600; rate = `delta` / 5, none when `direction` is
+  empty) and the live stream (`/x/live`, `glucose` events), header `api-secret: sha1hex(secret)`. A value that isn't a
+  measurement (0, negative, above 1000, NaN) or from the future is dropped; below 40 / above 400 becomes LO / HI;
+  entries written by Sukrara are refused (that server isn't Juggluco). Readings go into their own 31-day store
+  (`juggluco/readings.csv`), apart from a followed wearer's. Reconnects with backoff 5 s → 60 s; a sweep that found
+  nothing runs again every minute (a sweep that found only a Juggluco asking for another secret says so); the found address is swept for again after three failed connections; a wake or the network coming back tries again at once. macOS asks
+  once for Local Network access (`NSLocalNetworkUsageDescription`).
+- The readings feed the card, the rings, the widgets, the report and the alerts exactly as a followed wearer's do
+  (this Mac's own alert rules, no mirroring). Following someone always wins: while following, the source is paused
+  and never mixed with the wearer's readings (two people's values must never be interleaved).
+- Monitoring starts at the first successful connection; from then on a lost Juggluco keeps monitoring and the no-data
+  alert rings if it doesn't come back. Before that, the panel says why nothing is shown (*looking for Juggluco on this
+  network*, *Juggluco wasn't found on this network*, *can't reach Juggluco at …*, *Juggluco refused the API secret*,
+  *… isn't an address on your home network*, *Waiting for the first reading from Juggluco*).
+- Tests: `JugglucoLanTests` (formats, address ranges, the sweep, the secret only to the host that asked, a dropped
+  stream) and `AppModelSourceTests` over a fake network (`FakeLanHTTP`); nothing touches a real network.
+
+**States and exits** (Settings › General › Source): *Off* → turn the switch on. *Looking…* → found or not found by
+itself; switch off. *Not found* → *Try Again*, type the address, or switch off. *Reading Juggluco at …* → switch off.
+*Can't reach Juggluco at …* (retrying) → comes back by itself, *Try Again*, fix the address, switch off; the no-data
+alert covers a long gap. *Juggluco refused the API secret* → type the secret, *Try Again*, switch off. *Not a
+home-network address* → fix or clear the address, switch off. *Paused while following …* → stop following
+(Settings › Following) or switch off. Every row is reachable with VoiceOver (the state line reads as one element).
+
 ## Not included
 
 - Android settings pages: the sent / stored statistics rows, battery-lab knobs, mmol/L in the settings pages (thresholds and ranges are shown and typed in mg/dL; schema `general.unit` is set elsewhere). Reason: only what daily use needs; the defaults are the owner's own values.
-- Mac: Juggluco over Wi-Fi (LAN source and subnet discovery) and the Nostr v1 `cgmnostr:` follow link (v1 links carried plaintext secrets and had no UI). Follow the wearer with a protocol v2 invite instead.
+- Mac: the Nostr v1 `cgmnostr:` follow link (v1 links carried plaintext secrets and had no UI). Follow the wearer with a protocol v2 invite instead.
 - Sensors: the Libre 3 experiment preferences (minimal subscription set, connection priority, screen-off skip). Reason: no hardware to test them, the owner uses a Libre 3.
 - Planned (issues filed): the rest of insulin pens (see its section), the calendar event. The sections above that describe them are the behaviour to build. Reason: what daily use needs comes first.
 

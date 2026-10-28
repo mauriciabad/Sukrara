@@ -20,6 +20,8 @@ final class AppServices: ServiceStarting {
     private(set) var sounds: SoundLibrary?
     /// The follower runtime (relays, and Bluetooth when the plan allows it). Created here, started by `AppModel`.
     private(set) var follower: FollowerRuntime?
+    /// Juggluco on the home network: created idle, switched on and off by `AppModel` from the person's setting.
+    private(set) var lan: JugglucoLanSource?
     /// Hands the card to the widgets (App Group file + timeline reloads). Fed by `AppModel` on every change.
     private(set) var widget: WidgetFeed?
     private let makeWidget: () -> WidgetFeed
@@ -140,6 +142,11 @@ final class AppServices: ServiceStarting {
             widget = makeWidget()
         case .ble:
             break  // Bluetooth runs inside the follower runtime (`relays`)
+        case .lan:
+            lan = JugglucoLanSource(
+                http: URLSessionLanHTTP(),
+                store: ReadingsFileStore(
+                    directory: plan.data.paths.appSupport.appending(path: "juggluco", directoryHint: .isDirectory)))
         }
     }
 
@@ -152,7 +159,7 @@ final class AppServices: ServiceStarting {
         #endif
         return AppModel(
             plan: plan, clock: clock, alerts: alerts, updates: updates, loginItem: loginItem, follower: follower,
-            widget: widget)
+            widget: widget, lan: lan)
     }
 }
 

@@ -88,6 +88,28 @@
             let following = follow(
                 .following(wearer: "Marta", lastReading: Date().addingTimeInterval(-180), canWrite: true))
             let settings = SettingsModel(store: store, follow: following, version: "0.12.0")
+            // Juggluco on this network: on, in each state (its own defaults: the switch is on there)
+            let lanStore = DefaultsSettingsStore(defaults: UserDefaults(suiteName: suite + ".lan")!)
+            lanStore.set(true, for: MacSettings.jugglucoLan)
+            let lanStates: [(String, LanState, String?)] = [
+                ("looking", .looking, nil), ("notfound", .notFound, nil),
+                ("connected", .connected("192.168.1.23"), nil),
+                ("secret", .unauthorized("192.168.1.23"), nil), ("paused", .off, "Marta"),
+            ]
+            for (name, state, paused) in lanStates {
+                let m = SettingsModel(store: lanStore, follow: follow(.notFollowing), version: "0.12.0")
+                m.juggluco.available = { true }
+                m.juggluco.state = { state }
+                m.juggluco.pausedFor = { paused }
+                out.append(
+                    (
+                        "settings-general-juggluco-\(name)",
+                        AnyView(
+                            SettingsView(
+                                model: m, loginItem: nil, updateResult: nil, checkForUpdates: {}, openFollow: {}
+                            ).frame(width: 560, height: 820))
+                    ))
+            }
             out.append(
                 (
                     "settings-general",

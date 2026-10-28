@@ -121,6 +121,9 @@ import Testing
         let wanted = ServicesPlan(ble: false, relays: true, alerts: true, widgetFeed: false, notifications: true)
         #expect(ServicesPlan.all.limited(by: wanted) == wanted)
         #expect(ServicesPlan.none.limited(by: .all) == .none)
+        // Juggluco on the home network: possible in the installed app only (it connects only once switched on)
+        #expect(ServicesPlan.all.allows(.lan) && !ServicesPlan.none.allows(.lan))
+        #expect(!ServicesPlan.all.limited(by: wanted).lan)
     }
 }
 
