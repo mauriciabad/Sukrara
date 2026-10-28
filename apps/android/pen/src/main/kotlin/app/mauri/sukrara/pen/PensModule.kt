@@ -46,6 +46,8 @@ class PensModule(
     private val roleSource: Flow<Role?>,
     val scope: CoroutineScope,
     ports: PenNotificationPorts,
+    /** Emits whenever the treatment log changes (an entry edited or deleted elsewhere): *Doses read* follows it. */
+    val logChanges: Flow<Any> = kotlinx.coroutines.flow.flowOf(Unit),
 ) {
     private val hasNfc = context.packageManager.hasSystemFeature(PackageManager.FEATURE_NFC)
     private val log = log
@@ -161,6 +163,54 @@ class PensModule(
 
     /** NFC is off (the pens page offers Android's NFC settings). */
     fun nfcOff(): Boolean = hasNfc && NfcAdapter.getDefaultAdapter(context)?.isEnabled == false
+
+    /** Debug builds only (`DebugFakes`): the emulator shows the taps-blocked state. */
+    val fakeTagsBlocked = kotlinx.coroutines.flow.MutableStateFlow(false)
+
+    /**
+     * Android lets the user block an app's tag intents (Settings › Apps › Sukrara, or Android muting them until
+     * allowed): then no pen tap reaches Sukrara. Checked again whenever a screen comes back.
+     */
+    fun tagsBlocked(): Boolean =
+        fakeTagsBlocked.value ||
+            (hasNfc && runCatching { NfcAdapter.getDefaultAdapter(context)?.isTagIntentAllowed == false }.getOrDefault(false))
+
+    fun taps() =
+        app.mauri.sukrara.core.model.PenTaps(
+            blocked = tagsBlocked(),
+            nfcOff = nfcOff(),
+            notifyBlocked = runCatching { notices.readBlocked() }.getOrDefault(false),
+        )
+
+    /** Home's banner: reading On on the wearer's phone, and Android blocks the taps (re-read on every resume). */
+    suspend fun tapsBlockedWhileOn(): Boolean = availableNow() && reading() == PenReading.On && tagsBlocked()
+
+    /** Home banner's *Turn off*: pen reading off (Settings › Insulin pens turns it on again). */
+    suspend fun turnOff() = settings.set(Reading, PenReading.Off.value)
+
+    /** Every pen entry of the log as the engine sees it (tombstones included). */
+    suspend fun penEntries() = log.all().map(PenRecords::entry)
+
+    /** Settings › Insulin pens over this module. */
+    val port: app.mauri.sukrara.core.model.PensPort by lazy { PensPortImpl(context, this) }
+
+    /**
+     * The treatment dialog's *Already logged by your pen?*: a live pen entry of either insulin within the match window
+     * of the typed time, read from the (synced) log on any role, so a follower typing into the wearer's log is warned
+     * too. The typed kind first; a pen set to the other kind still counts (a long pen left on the default *rapid*).
+     */
+    val duplicates =
+        app.mauri.sukrara.core.model.PenDuplicates { kind, at ->
+            val entries = penEntries()
+            val window = (settings.flow(Match).first() * 60).toLong()
+            val e =
+                PenEngine.near(entries, kind, at, window = window)
+                    ?: PenEngine.near(entries, if (kind == "long") "rapid" else "long", at, window = window)
+            e?.let {
+                app.mauri.sukrara.core.model
+                    .PenNearEntry(it.id, it.a, it.t)
+            }
+        }
 
     private suspend fun schedule(l: Ledger) {
         val wake = PenEngine.nextWake(l, rules()) ?: return

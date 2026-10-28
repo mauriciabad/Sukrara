@@ -146,9 +146,11 @@ class AndroidNearbyCentral(
         }
     }
 
-    override fun leave(seconds: Long) =
+    override fun leave(phone: String, seconds: Long) =
         post {
-            device?.let { skip[it] = now() + seconds * 1000 }
+            skip[phone] = now() + seconds * 1000
+            // the link may have moved on to another phone (ours) since that INFO: leave only that phone
+            if (device != phone) return@post
             drop()
             if (_status.value is NearbyStatus.Connected) _status.value = NearbyStatus.Searching
             retryIn(RESCAN_MS)
@@ -335,7 +337,7 @@ class AndroidNearbyCentral(
                         _status.value = NearbyStatus.Connected(1)
                         failures = 0
                     }
-                    channel.trySend(NearbyEvent.Info(e.owner))
+                    device?.let { channel.trySend(NearbyEvent.Info(e.owner, it)) }
                 }
 
                 is NearbyLink.Effect.Sent -> {

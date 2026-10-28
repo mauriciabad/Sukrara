@@ -9,10 +9,12 @@ import app.mauri.sukrara.core.model.AlertControls
 import app.mauri.sukrara.core.model.AlertReadinessSource
 import app.mauri.sukrara.core.model.AlertUiState
 import app.mauri.sukrara.core.model.Clock
+import app.mauri.sukrara.core.model.PensPort
 import app.mauri.sukrara.core.model.SensorState
 import app.mauri.sukrara.core.model.SystemAccessPort
 import app.mauri.sukrara.core.model.storage.SettingsRepository
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flowOf
 
 /**
  * What the settings pages need from the rest of the app (features never depend on `:app` or on each other). The app
@@ -45,6 +47,9 @@ interface SettingsDeps {
     /** Whether this phone reads insulin pens (the wearer's phone with NFC): Settings shows *Insulin pens* only then. */
     fun pensAvailable(): Boolean = false
 
+    /** The pens, their pages and Android's tap state (null on a phone that doesn't read pens). */
+    val pens: PensPort? get() = null
+
     /** Root for Sukrara and the System UI module (Settings › Status bar, "With root"). */
     val systemAccess: SystemAccessPort
 
@@ -53,6 +58,12 @@ interface SettingsDeps {
 
     /** Which outputs Share with apps has on (the overview row's summary). */
     val appsShared: Flow<Set<AppOutput>>
+
+    /** The wearer's data doesn't go to their clinic yet and the banner wasn't dismissed (the same memory as home's). */
+    val clinicBanner: Flow<Boolean> get() = flowOf(false)
+
+    /** *Share your data with your clinic*: Dismiss (on home too). */
+    fun dismissClinicBanner() {}
 
     /** An alert's sound preview and *Send a test alert* (the alert runtime's notifier); nothing in screenshots. */
     val alertPlayback: AlertPlayback get() = AlertPlayback.None

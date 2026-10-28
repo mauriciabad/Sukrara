@@ -24,7 +24,11 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -39,8 +43,10 @@ import androidx.compose.runtime.withFrameMillis
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.lifecycleScope
+import app.mauri.sukrara.core.model.PenNearEntry
 import app.mauri.sukrara.designsystem.motion.LocalReducedMotion
 import app.mauri.sukrara.designsystem.theme.SukraraTheme
 import kotlinx.coroutines.launch
@@ -132,6 +138,9 @@ class QuickTreatmentActivity : ComponentActivity() {
                         // the card swallows taps so they don't reach the scrim
                         modifier = Modifier.pointerInput(Unit) { detectTapGestures { } },
                     )
+                    duplicate?.let { d ->
+                        PenDuplicateDialog(d.second, onCancel = { cancelDuplicate() }, onLog = { store(d.first, d.third) })
+                    }
                 }
             }
         }
@@ -163,12 +172,36 @@ class QuickTreatmentActivity : ComponentActivity() {
         super.onDestroy()
     }
 
+    /** A typed insulin dose a pen already logged: the entries and time waiting for *Log anyway*. */
+    private var duplicate by mutableStateOf<Triple<List<NewEntry>, PenNearEntry, java.time.Instant?>?>(null)
+
     private fun save(
         entries: List<NewEntry>,
         at: java.time.Instant?,
     ) {
         if (saved) return
         saved = true
+        lifecycleScope.launch {
+            val d = module.penDuplicate(entries, at)
+            if (d != null) {
+                duplicate = Triple(entries, d.second, at)
+            } else {
+                store(entries, at)
+            }
+        }
+    }
+
+    /** *Cancel* on *Already logged by your pen?*: back to the form, nothing saved. */
+    private fun cancelDuplicate() {
+        duplicate = null
+        saved = false
+    }
+
+    private fun store(
+        entries: List<NewEntry>,
+        at: java.time.Instant?,
+    ) {
+        duplicate = null
         if (module.save(entries, at)) {
             val pending =
                 module.sync.writer.value
@@ -287,4 +320,33 @@ class QuickTreatmentActivity : ComponentActivity() {
     private companion object {
         const val KEY_LEFT = "lock_left_ms"
     }
+}
+
+/**
+ * *Already logged by your pen?*: a pen entry of insulin is this close to the typed dose. *Cancel* goes back to the form;
+ * *Log anyway* saves what was typed (a second injection is the person's call).
+ */
+@Composable
+private fun PenDuplicateDialog(
+    pen: PenNearEntry,
+    onCancel: () -> Unit,
+    onLog: () -> Unit,
+) {
+    val amount = (if (pen.units % 1.0 == 0.0) "${pen.units.toLong()}" else String.format(java.util.Locale.ROOT, "%.1f", pen.units)) + "u"
+    AlertDialog(
+        onDismissRequest = onCancel,
+        title = { Text(stringResource(R.string.treatment_pen_duplicate_title)) },
+        text = {
+            Text(
+                stringResource(
+                    R.string.treatment_pen_duplicate_text,
+                    amount,
+                    app.mauri.sukrara.graph.Clock
+                        .time(pen.t),
+                ),
+            )
+        },
+        confirmButton = { TextButton(onClick = onLog) { Text(stringResource(R.string.treatment_pen_duplicate_log)) } },
+        dismissButton = { Button(onClick = onCancel) { Text(stringResource(R.string.treatment_cancel)) } },
+    )
 }

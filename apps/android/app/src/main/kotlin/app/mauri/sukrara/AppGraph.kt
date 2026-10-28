@@ -13,11 +13,13 @@ import app.mauri.sukrara.core.data.settings.SchemaSettings
 import app.mauri.sukrara.core.model.Clock
 import app.mauri.sukrara.core.model.DefaultDispatchers
 import app.mauri.sukrara.core.model.DispatcherProvider
+import app.mauri.sukrara.core.model.PenDuplicates
 import app.mauri.sukrara.core.model.ReadingSource
 import app.mauri.sukrara.core.model.Role
 import app.mauri.sukrara.core.model.SystemClock
 import app.mauri.sukrara.core.model.Treatment
 import app.mauri.sukrara.core.model.storage.TreatmentRecord
+import app.mauri.sukrara.feature.home.banners.BannerKind
 import app.mauri.sukrara.feature.sensor.SensorUiModule
 import app.mauri.sukrara.feature.settings.AlertPlayback
 import app.mauri.sukrara.feature.settings.AlertSettingsStore
@@ -45,6 +47,7 @@ import app.mauri.sukrara.monitor.hub.MonitorRecord
 import app.mauri.sukrara.monitor.notify.Channels
 import app.mauri.sukrara.monitor.notify.NotificationGroups
 import app.mauri.sukrara.monitor.notify.NotificationIds
+import app.mauri.sukrara.monitor.notify.SharingLine
 import app.mauri.sukrara.monitor.sensorend.SensorEndMemory
 import app.mauri.sukrara.monitor.service.StartReason
 import app.mauri.sukrara.pen.PenLog
@@ -61,6 +64,7 @@ import app.mauri.sukrara.share.FollowerModule
 import app.mauri.sukrara.share.ShareOwnerModule
 import app.mauri.sukrara.share.follower.FollowState
 import app.mauri.sukrara.share.follower.FollowerNotifications
+import app.mauri.sukrara.share.owner.OwnerShareState
 import app.mauri.sukrara.share.owner.followRole
 import app.mauri.sukrara.share.owner.requests.AndroidRequestNotifications
 import app.mauri.sukrara.widgets.WidgetPlacements
@@ -137,7 +141,7 @@ class AppGraph(
         )
     }
 
-    val monitor by lazy {
+    val monitor: MonitorModule by lazy {
         MonitorModule(
             context = app,
             scope = scope,
@@ -157,6 +161,16 @@ class AppGraph(
             settings = data.settings,
             treatments = recentTreatments(),
             graphConfig = graphConfig,
+            // cold: the owner engine is built when the service first draws the notification
+            sharing =
+                flow {
+                    val owner = shareOwner.ownerEngine
+                    emitAll(
+                        combine(owner.state, owner.nearbyLinks) { s, links ->
+                            (s as? OwnerShareState.Sharing)?.let { SharingLine(it.followers.count { f -> f.active }, links.size) }
+                        },
+                    )
+                }.distinctUntilChanged(),
         )
     }
 
@@ -206,6 +220,12 @@ class AppGraph(
             sensor = monitor.hub.state.map { it.sensor },
             systemAccess = monitor.systemAccess,
             pensAvailable = { pens.available() },
+            pens = { pens.port.takeIf { pens.available() } },
+            clinicBanner =
+                combine(integrations.clinicUploadSet, home.bannerMemory.data) { set, memory ->
+                    set == false && !memory.dismissed(BannerKind.ShareWithClinic, clock.now())
+                },
+            dismissClinicBanner = { scope.launch { home.bannerMemory.update { it.dismiss(BannerKind.ShareWithClinic, clock.now()) } } },
             alertPlayback =
                 object : AlertPlayback {
                     override fun play(
@@ -352,6 +372,9 @@ class AppGraph(
             },
             treatmentLog = { treatments.log },
             sharing = { shareOwner.ownerEngine.state },
+            penTapsBlocked = { pens.tapsBlockedWhileOn() },
+            clinicUploadSet = { integrations.clinicUploadSet },
+            clinicMarks = { integrations.libreView.entryMarks.map { m -> m?.let(::LibreViewMarks) } },
         )
     }
 
@@ -412,6 +435,8 @@ class AppGraph(
             data.settings,
             scope,
             hints = AppAlertHints(alerts.store.settings.stateIn(scope, SharingStarted.Eagerly, null), home.glucose, clock),
+            // read when the dialog saves (the pens module is built on first use, after this one)
+            penDuplicates = PenDuplicates { kind, at -> pens.duplicates.near(kind, at) },
         )
     }
 
@@ -436,6 +461,7 @@ class AppGraph(
         PensModule(
             context = app,
             store = data.typedStore("pens", Ledger.serializer(), Ledger(), whenCorrupt = Ledger()),
+            logChanges = data.treatments.between(Instant.EPOCH, Instant.parse("2200-01-01T00:00:00Z")),
             log =
                 object : PenLog {
                     override suspend fun all() = data.treatments.changedSince(Instant.EPOCH)

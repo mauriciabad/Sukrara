@@ -19,15 +19,10 @@ public enum BleFraming {
     static let maxAttribute = 512
     static let minPayload = 14
 
-    /// Splits `payload` for an ATT `mtu` (an attribute value is at most 512 bytes even with MTU 517).
+    /// Splits `payload` for an ATT `mtu` (an attribute value is at most 512 bytes even with MTU 517). Every frame fits
+    /// one ATT Write Request / notification (`mtu − 3` bytes): never a long (prepared) write.
     public static func frames(msgId: UInt16, payload: Data, mtu: Int) -> [Data] {
-        frames(msgId: msgId, payload: payload, perFrame: min(mtu - 3, maxAttribute) - header)
-    }
-
-    /// Splits `payload` into frames carrying `perFrame` payload bytes each (CoreBluetooth reports the writable length
-    /// directly: `maximumWriteValueLength − 6`).
-    public static func frames(msgId: UInt16, payload: Data, perFrame: Int) -> [Data] {
-        let per = max(perFrame, minPayload)
+        let per = max(min(mtu - 3, maxAttribute) - header, minPayload)
         let bytes = [UInt8](payload)
         let count = max(1, (bytes.count + per - 1) / per)
         precondition(count <= Int(UInt16.max), "BLE message too large")
@@ -143,9 +138,11 @@ public struct BleInfo: Equatable, Sendable {
         case unknown
     }
 
+    /// B§6 "Which owner": once we know `sid`, only `m` over one of our nonces proves it (`i` is public while any
+    /// wearer pairs, so a copied `i` never does); before `sid`, `i` = our identity says ours.
     public func owner(identity ours: String?, sid: String?, nonces: [String]) -> Owner {
-        if let ours, let identity { return identity == ours ? .ours : .other }
-        guard let sid else { return .unknown }
+        if let ours, let identity, identity != ours { return .other }
+        guard let sid else { return ours != nil && identity != nil ? .ours : .unknown }
         guard let nonce, nonces.contains(nonce), m == BleMessage.infoM(sid: sid, nonce: nonce) else { return .other }
         return .ours
     }

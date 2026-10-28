@@ -9,7 +9,8 @@ import os
 /// What the Bluetooth path reports.
 public enum NearbyEvent: Equatable, Sendable {
     case event(SignedEvent)
-    case info(BleInfo, BleInfo.Owner)
+    /// A phone's INFO; `phone` names the connection it came on, so leaving it never hits a phone connected since.
+    case info(BleInfo, BleInfo.Owner, phone: UUID)
     case state(NearbyState)
 }
 
@@ -32,8 +33,8 @@ public protocol NearbyTransport: Sendable {
     func update(identity: NearbyLink.Identity) async
     /// Writes an event to the wearer's phone; false when there is no verified phone or the write failed.
     func send(_ event: SignedEvent) async -> Bool
-    /// Leaves the current phone for `seconds` (another wearer's phone, or nothing to pair with).
-    func leave(for seconds: Double) async
+    /// Avoids `phone` (an `.info` phone) for `seconds`, dropping it if it's still the one connected.
+    func leave(phone: UUID, for seconds: Double) async
 }
 
 /// CoreBluetooth central for the share service (B§2). The actor runs on the serial queue CoreBluetooth calls back on
@@ -101,7 +102,15 @@ public actor NearbyCentral: NearbyTransport {
         continuation.finish()
     }
 
-    public func update(identity: NearbyLink.Identity) { link.identity = identity }
+    /// A new key (first one, new epoch): HELLO again so the phone answers an INFO we can check now and our proof names
+    /// this Mac (B§5), as Android does.
+    public func update(identity: NearbyLink.Identity) {
+        guard link.identity != identity else { return }
+        link.identity = identity
+        guard link.isConnected else { return }
+        lastHello = Date()
+        apply(link.hello(nonce: Self.nonce()))
+    }
 
     public func send(_ event: SignedEvent) async -> Bool {
         nextToken += 1
@@ -112,10 +121,15 @@ public actor NearbyCentral: NearbyTransport {
         }
     }
 
-    public func leave(for seconds: Double) {
+    public func leave(phone: UUID, for seconds: Double) {
+        skip[phone] = Date().addingTimeInterval(seconds)
+        // the link may have moved on to another phone (ours) since that INFO: drop only that phone
+        if let peripheral, peripheral.identifier == phone { manager?.cancelPeripheralConnection(peripheral) }
+    }
+
+    fileprivate func leaveCurrent(for seconds: Double) {
         guard let peripheral else { return }
-        skip[peripheral.identifier] = Date().addingTimeInterval(seconds)
-        manager?.cancelPeripheralConnection(peripheral)
+        leave(phone: peripheral.identifier, for: seconds)
     }
 
     // MARK: - CoreBluetooth (entered on `queue` through `Proxy`)
@@ -160,7 +174,7 @@ public actor NearbyCentral: NearbyTransport {
 
     fileprivate func discoveredServices(_ p: CBPeripheral) {
         guard let service = p.services?.first(where: { $0.uuid == Self.service }) else {
-            return leave(for: Self.skipAfterTimeout)
+            return leaveCurrent(for: Self.skipAfterTimeout)
         }
         p.discoverCharacteristics([Self.rx, Self.tx], for: service)
     }
@@ -168,7 +182,7 @@ public actor NearbyCentral: NearbyTransport {
     fileprivate func discoveredCharacteristics(_ p: CBPeripheral, _ service: CBService) {
         rxCharacteristic = service.characteristics?.first { $0.uuid == Self.rx }
         guard rxCharacteristic != nil, let tx = service.characteristics?.first(where: { $0.uuid == Self.tx }) else {
-            return leave(for: Self.skipAfterTimeout)
+            return leaveCurrent(for: Self.skipAfterTimeout)
         }
         p.setNotifyValue(true, for: tx)
     }
@@ -179,8 +193,14 @@ public actor NearbyCentral: NearbyTransport {
         lastHello = Date()
         apply(
             link.connected(
-                perFrame: p.maximumWriteValueLength(for: .withResponse) - BleFraming.header, nonce: Self.nonce()))
+                mtu: Self.attMtu(writeWithoutResponse: p.maximumWriteValueLength(for: .withoutResponse)),
+                nonce: Self.nonce()))
     }
+
+    /// The ATT MTU from CoreBluetooth's `.withoutResponse` length (= MTU − 3, what one Write Request carries). The
+    /// `.withResponse` length is always 512: CoreBluetooth then sends a long (prepared) write whenever the MTU is
+    /// smaller, which B§4.1 framing never needs.
+    public static func attMtu(writeWithoutResponse length: Int) -> Int { min(length, BleFraming.maxAttribute) + 3 }
 
     fileprivate func received(_ c: CBCharacteristic) {
         guard c.uuid == Self.tx, let value = c.value else { return }
@@ -208,7 +228,7 @@ public actor NearbyCentral: NearbyTransport {
     private func connectTimedOut(_ id: UUID) {
         guard let peripheral, peripheral.identifier == id, !link.isConnected else { return }
         Self.log.info("nearby connect timed out; skipping that phone for 60 s")
-        leave(for: Self.skipAfterTimeout)
+        leaveCurrent(for: Self.skipAfterTimeout)
         disconnected(peripheral)
     }
 
@@ -241,7 +261,7 @@ public actor NearbyCentral: NearbyTransport {
             case .info(let info, let owner):
                 // "Connected" only once the phone proved it's our wearer's (never someone else's phone).
                 if owner == .ours, let connectedName { continuation.yield(.state(.connected(phone: connectedName))) }
-                continuation.yield(.info(info, owner))
+                if let peripheral { continuation.yield(.info(info, owner, phone: peripheral.identifier)) }
             case .sent(let token, let ok): sends.removeValue(forKey: token)?.resume(returning: ok)
             }
         }
@@ -311,7 +331,7 @@ public actor NearbyCentral: NearbyTransport {
         }
 
         func peripheral(_ peripheral: CBPeripheral, didModifyServices invalidatedServices: [CBService]) {
-            owner?.assumeIsolated { $0.leave(for: 0) }
+            owner?.assumeIsolated { $0.leaveCurrent(for: 0) }
         }
     }
 }

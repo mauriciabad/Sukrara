@@ -102,6 +102,16 @@
     <string name="monitor_notif_reading_at">Reading at %1$s</string>
     <string name="monitor_notif_no_readings_since">No readings since %1$s</string>
     <string name="monitor_notif_waiting">Waiting for glucose…</string>
+    <!-- the glucose notification's sub text on a wearer that shares: active followers; %d = how many [CHAR LIMIT=20] -->
+    <plurals name="monitor_sub_followers">
+        <item quantity="one">%d follower</item>
+        <item quantity="other">%d followers</item>
+    </plurals>
+    <!-- appended as " · 1 nearby": follower devices connected over Bluetooth now; %d = how many [CHAR LIMIT=16] -->
+    <plurals name="monitor_sub_nearby">
+        <item quantity="one">%d nearby</item>
+        <item quantity="other">%d nearby</item>
+    </plurals>
     <string name="monitor_notif_not_monitoring">Not monitoring: no sensor yet</string>
     <string name="monitor_notif_sensor_ended">Sensor ended</string>
     <!-- %1$s = the time it will be ready ("14:05") -->

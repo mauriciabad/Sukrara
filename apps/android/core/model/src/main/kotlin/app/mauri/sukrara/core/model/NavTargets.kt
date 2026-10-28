@@ -16,4 +16,8 @@ object NavTargets {
 
     /** The new-sensor / sensor setup flow. */
     const val ACTION_SENSOR_SETUP = "app.mauri.sukrara.action.SENSOR_SETUP"
+
+    /** Settings › Insulin pens › one pen ([EXTRA_PEN_SERIAL]); without the extra, the pens page. */
+    const val ACTION_PEN_PAGE = "app.mauri.sukrara.action.PEN_PAGE"
+    const val EXTRA_PEN_SERIAL = "app.mauri.sukrara.extra.PEN_SERIAL"
 }

@@ -30,7 +30,14 @@ data class NotificationPrefs(
     val promotionAllowed: Boolean = false,
     val numberIcon: Boolean = true,
     val cardKey: Any? = null,
+    val sharing: SharingLine? = null,
 )
+
+/**
+ * The wearer's sharing as the glucose notification's sub text says it ("2 followers · 1 nearby"): [followers] = active
+ * followers, [nearby] = follower devices connected over Bluetooth now. Null = no sharing identity on this phone.
+ */
+data class SharingLine(val followers: Int, val nearby: Int)
 
 /**
  * What the glucose notification shows, decided from the hub state and [NotificationPrefs] alone. Equal contents = the
@@ -59,6 +66,8 @@ data class LiveNotificationContent(
     val mgdl: Int? = null,
     /** [NotificationPrefs.cardKey] while [layout] is [Layout.CARD]. */
     val cardKey: Any? = null,
+    /** The sub text on a wearer with followers ([NotificationPrefs.sharing]); null on a follower or with none. */
+    val sharing: SharingLine? = null,
 ) {
     /** [TREND] = the renderer's arrow for [trendRate]; [NUMBER] = the value itself; the others are the states' icons. */
     enum class Icon { TREND, NO_TREND, NUMBER, NO_READINGS, SENSOR_ENDED, APP }
@@ -100,6 +109,16 @@ data class LiveNotificationContent(
             prefs: NotificationPrefs = NotificationPrefs(),
         ): LiveNotificationContent {
             if (state.notMonitoring == NotMonitoringReason.SetupIncomplete) return notMonitoring(state)
+            val sharing = prefs.sharing.takeIf { state.role == Role.Wearer && it != null && (it.followers > 0 || it.nearby > 0) }
+            return content(state, now, face, prefs).copy(sharing = sharing)
+        }
+
+        private fun content(
+            state: GlucoseState,
+            now: Instant,
+            face: (GlucoseState, Instant) -> GlucoseLook,
+            prefs: NotificationPrefs,
+        ): LiveNotificationContent {
             val look = face(state, now)
             val detail = detail(state)
             return when (look.state) {

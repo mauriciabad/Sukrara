@@ -16,6 +16,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
+import app.mauri.sukrara.core.model.NavTargets
 import app.mauri.sukrara.designsystem.theme.SukraraTheme
 import app.mauri.sukrara.monitor.service.StartReason
 import kotlinx.coroutines.launch
@@ -27,17 +28,29 @@ class MainActivity : ComponentActivity() {
     /** A request to open the new-sensor flow, until the navigation has opened it. */
     private var openNewSensor by mutableStateOf(false)
 
+    /** The pen whose page a pen read card asked for, until the navigation has opened it. */
+    private var openPen by mutableStateOf<String?>(null)
+
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
         if (savedInstanceState == null) {
             deepLink = intent?.data
             openNewSensor = opensNewSensor(intent?.action)
+            openPen = penPage(intent)
         }
         val graph = graph
         setContent {
             SukraraTheme {
-                SukraraNavigation(graph, deepLink, openNewSensor, { openNewSensor = false }, Modifier.fillMaxSize())
+                SukraraNavigation(
+                    graph,
+                    deepLink,
+                    openNewSensor,
+                    { openNewSensor = false },
+                    Modifier.fillMaxSize(),
+                    openPen = openPen,
+                    onPenShow = { openPen = null },
+                )
             }
         }
     }
@@ -46,6 +59,7 @@ class MainActivity : ComponentActivity() {
         super.onNewIntent(intent)
         deepLink = intent.data
         if (opensNewSensor(intent.action)) openNewSensor = true
+        penPage(intent)?.let { openPen = it }
     }
 
     override fun onResume() {
@@ -60,3 +74,7 @@ class MainActivity : ComponentActivity() {
         }
     }
 }
+
+/** The pen page a pen read card's *Check it* asks for (only the wearer's phone has pens; Settings checks again). */
+private fun penPage(i: Intent?): String? =
+    i?.takeIf { it.action == NavTargets.ACTION_PEN_PAGE }?.getStringExtra(NavTargets.EXTRA_PEN_SERIAL)?.takeIf { it.isNotBlank() }

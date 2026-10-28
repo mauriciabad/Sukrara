@@ -106,6 +106,10 @@ class HomeGallery {
                 ui(Samples.wearer(), banner = BannerKind.NotBackedUp)
                     .copy(profile = HomeProfile("Núria", Avatar.v1(0, "drop", 45, 3), followers = 2)),
             "profile-no-name" to ui(Samples.wearer()).copy(profile = HomeProfile("", null, followers = 0)),
+            "clinic-banner" to ui(Samples.wearer(), banner = BannerKind.ShareWithClinic),
+            "libreview-marks" to
+                ui(Samples.wearer(), withTreatments = true).copy(marks = mapOf("a" to UploadMark.Uploaded, "b" to UploadMark.Pending)),
+            "libreview-stopped" to ui(Samples.wearer(), withTreatments = true).copy(marks = mapOf("a" to UploadMark.Stopped)),
         )
     }
 

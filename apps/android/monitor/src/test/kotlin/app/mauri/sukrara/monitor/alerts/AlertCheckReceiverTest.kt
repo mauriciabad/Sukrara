@@ -38,6 +38,30 @@ class AlertCheckReceiverTest {
             assertEquals(listOf("show no_data", "resume no_data"), rig.presenter.log)
         }
 
+    /**
+     * A follower whose service died: the wearer's phone went quiet (no relay, no Bluetooth). Every alarm wake-up is a
+     * fresh process with only the saved record, and "no data" for the wearer still posts once, on time (SPEC §3: a
+     * follower checks `no_data` locally with its own settings, also when it mirrors the wearer).
+     */
+    @Test fun followerServiceDeadNoDataPostsOnceOnTime() =
+        runTest {
+            val first = rig.reading(118)
+            rig.runtime().onState(rig.followerState(latest = first))
+            assertTrue(rig.presenter.log.isEmpty())
+            var headless = rig.runtime()
+            var wakeUps = 0
+            while (rig.presenter.log.isEmpty() && wakeUps++ < 20) {
+                rig.clock.instant = Instant.ofEpochSecond(requireNotNull(rig.alarm.at))
+                headless = rig.runtime() // a fresh process per wake-up
+                headless.tick()
+            }
+            assertEquals(listOf("show no_data"), rig.presenter.log)
+            assertEquals(listOf("Ana"), rig.presenter.who)
+            assertEquals(first.t.epochSecond + 20 * 60, rig.clock.now().epochSecond)
+            headless.tick()
+            assertEquals(listOf("show no_data"), rig.presenter.log)
+        }
+
     @Test fun theServiceAndTheReceiverShareOneRuntimeSoNothingPostsTwice() =
         runTest {
             val runtime = rig.runtime()
