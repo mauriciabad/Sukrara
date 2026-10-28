@@ -1,6 +1,6 @@
-# Sukrara V1 architecture
+# Sukrara architecture
 
-How Sukrara V1 is built. Each part is filled in by the work that builds it; the rules are in
+How the Sukrara apps are built. The rules are in
 [`CLAUDE.md`](../CLAUDE.md), the day-to-day know-how in [`DEVELOPMENT.md`](DEVELOPMENT.md), what the apps do in
 [`FEATURES.md`](FEATURES.md).
 
@@ -10,34 +10,24 @@ How Sukrara V1 is built. Each part is filled in by the work that builds it; the 
 |---|---|
 | `apps/android/` | the Android app (Gradle root: own `settings.gradle.kts`, wrapper, `build-logic/`) |
 | `apps/macos/` | the Mac app (SwiftPM root: `Package.swift`, `Sources/`, `Tests/`, `Bundle/`) |
-| `contracts/` | what both apps agree on and are tested against: alert spec + scenarios, graph fixtures + surface registry, settings schema, protocols + vectors, treatment / export / pen fixtures ([README](../contracts/README.md)) |
-| `assets/brand/` | icons and brand art for both apps and the docs |
-| `poc/` | the frozen showcase PoC (0.11.x) and its investigations; buildable, never changed |
+| `contracts/` | what every app agrees on and is tested against: alert spec + scenarios, graph fixtures + surface registry, settings schema, protocols + vectors, treatment / export / pen fixtures ([README](../contracts/README.md)) |
+| `assets/brand/` | icons and brand art for the apps and the docs |
+| `poc/` | the frozen research PoC and its investigations; buildable, never changed |
 | `tools/` | `check/` (the rules as checks), `hooks/`, `settings/gen.py`, `release/`, `install.sh` |
-| `VERSION` | the one version source (`0.90.0` → versionCode / CFBundleVersion 90000) |
+| `VERSION` | the one version source (`0.12.0` → versionCode / CFBundleVersion 12000) |
 
 ## Identity and storage
 
 - Android `app.mauri.sukrara`; Mac `app.mauri.sukrara`, widget `app.mauri.sukrara.widget`, App Group
-  `QWUV9H4A3G.app.mauri.sukrara`. V1 installs next to the PoC (`app.mauri.sukrara.poc`) and reads none of its data.
+  `QWUV9H4A3G.app.mauri.sukrara`.
 - Settings: [`contracts/settings/settings.json`](../contracts/settings/settings.json) → generated `SettingsSpec`
   (Android Preferences DataStore files by area, Mac UserDefaults). Every persisted format carries a version.
 
 ## Android (`apps/android`)
 
-### Build
-<!-- Chunk 02: Gradle / AGP / Kotlin versions, convention plugins, signing, native core guard. -->
-
-### Modules
-<!-- Chunk 02: the module graph and what each module owns. -->
-
-### State and dependency injection
-<!-- Chunks 02 / 10: AppGraph, GlucoseHub, dispatchers, error policy. -->
-
 ### Services, alerts and notifications
-<!-- Chunks 10 / 11: MonitoringService, alert runtime, channel registry. -->
 
-**Alerts (chunk 11, `:monitor` `monitor/alerts/`).** The rules are `:core:alerts` (`AlertMachine`); the runtime only
+**Alerts (`:monitor` `monitor/alerts/`).** The rules are `:core:alerts` (`AlertMachine`); the runtime only
 applies them.
 - `AlertRuntime` — the one owner of the machine per process, behind one `Mutex`. Inputs: hub state (role, latest
   reading, `monitoringStartedAt`, sensor), alert settings (store `alerts`, key `alerts`, SPEC §3 JSON via
@@ -62,14 +52,7 @@ applies them.
 - `AlertsModule` (A4) wires it; the Application implements `AlertsHost` so receivers and the provider reach it; the
   monitoring service calls `attach(scope)`.
 
-### Sensor
-<!-- Chunks 12 / 18: GattLink, Libre 3, pairing store, new-sensor flow. -->
-
-### Sharing
-<!-- Chunks 06 / 13 / 24 / 25: protocol, owner / follower engines, nearby share, first-run setup. -->
-
 ### Card, widgets and UI
-<!-- Chunks 08 / 16 / 17 / 20: the one renderer, home, settings, widgets. -->
 
 **Widgets: `:widgets`** (Glance). `WidgetsModule` (one line in `AppGraph`; the `Application` is its `WidgetsHost`)
 combines the hub's state, treatments, `GraphConfig`, per-placement `WidgetOverrides` and monitor's freshness ticks in
@@ -91,7 +74,7 @@ the `api` names in `contracts/graph/surfaces/surfaces.json`).
   the surface and its place's `GraphConfig` (built by the settings repository from the schema keys; `GraphConfig`
   is a plain data class, not a JSON blob). The renderer depends only on `:core:model` and the generated
   `SettingsSpec` (`:core:data`): no `:core:alerts`, no `:monitor`.
-- **Status from outside.** The alert runtime (chunk 11) maps its alert status to `CardStatus` (None / Needed /
+- **Status from outside.** The alert runtime maps its alert status to `CardStatus` (None / Needed /
   Taken / Paused / Muted) and supplies the `MuteRule` (when a treatment's mute ends, from the alert settings). The
   renderer only draws them (badge, last-treatment slot, mute lines).
 - **Words.** `CardWords.of(resources)` once per `Resources` (en + es strings of the module); durations through the one
@@ -101,9 +84,6 @@ the `api` names in `contracts/graph/surfaces/surfaces.json`).
   (contracts/settings/durations.json, en + es), `A11ySentenceTest`, `CardLayoutTest` (contracts/graph/layout rules
   and `expect.json` over stand-ins for the registered card surfaces until their code lands) and the Roborazzi
   goldens in `core/graph/src/test/snapshots` (synthetic data, UTC, en-US).
-
-### Integrations and pens
-<!-- Chunks 19 / 26. -->
 
 ## Mac (`apps/macos`)
 
@@ -126,13 +106,13 @@ Tests: CoreTests GraphTests AlertsTests ShareTests AppTests ─► SukraraTestin
 
 ### The widget extension: built by SwiftPM, wrapped by `Bundle/bundle.sh`
 
-Decision (chunk 03, within the first 20 minutes): **SwiftPM executable target + bundle script**, no Xcode project.
+Decision: **SwiftPM executable target + bundle script**, no Xcode project.
 `SukraraWidget` is linked with `-application-extension -e _NSExtensionMain -u _main`: Xcode links extensions with
 Foundation's `_NSExtensionMain` entry point (the Swift `main` traps in ExtensionFoundation, docs/13), and `-u _main`
 keeps the `@main` WidgetBundle, which nothing else references, from being dead-stripped in release builds
 (xtool-org/xtool#313). Checked on the release binary: `LC_MAIN` points at the `_NSExtensionMain` stub, the widget's
 code and kinds are present, `pluginkit -a` registers `app.mauri.sukrara.widget` and chronod adds it ("Added
-extensions: … app.mauri.sukrara.widget, version: 90000"). chronod purges dev copies outside an Applications folder,
+extensions: … app.mauri.sukrara.widget, version: 12000"). chronod purges dev copies outside an Applications folder,
 so the live widget gallery is checked after `tools/install.sh mac`. Fallback if it ever stops loading: the PoC's
 proven raw `swiftc` command (poc/spikes/menubar/bundle.sh), same flags.
 
@@ -142,7 +122,7 @@ proven raw `swiftc` command (poc/spikes/menubar/bundle.sh), same flags.
 identity of team QWUV9H4A3G (hardened runtime; the app is not sandboxed, the widget is; both share the App Group).
 `--unsigned` signs ad hoc for CI. `Bundle/dmg.sh` makes the dmg and zip.
 
-### Ids and paths (V1, no migration from the PoC)
+### Ids and paths
 
 All in `SukraraCore` (`SukraraIDs`, `SukraraPaths`): bundle `app.mauri.sukrara`, widget `app.mauri.sukrara.widget`,
 App Group `QWUV9H4A3G.app.mauri.sukrara` (Info key `SukraraAppGroup`), Keychain service `app.mauri.sukrara`, defaults =
@@ -151,7 +131,7 @@ the standard domain with schema keys, URL scheme `sukrara`, widget kinds `app.ma
 `~/Library/Sounds/app.mauri.sukrara.<name>.caf`, App Group snapshot `glucose.json` (path only from
 `SukraraPaths.appGroupSnapshot()`, i.e. the system's group container).
 
-### Launch gate (replaces the PoC's LaunchGuard source grep)
+### Launch gate
 
 `SukraraApp/Launch/LaunchMode.swift`, pure and covered by `AppTests/LaunchModeTests`:
 
@@ -166,33 +146,6 @@ the standard domain with schema keys, URL scheme `sukrara`, widget kinds `app.ma
 - `ServicesPlan` is an **upper limit**: the app ANDs it with the user's settings (`limited(by:)`) and starts services
   only through `ServicesPlan.start(using: some ServiceStarting)`. The app's `ServiceStarting` is the only code that
   creates a Bluetooth central, relay pool, alert engine, widget feed or notification request.
-
-### Mac interfaces (what later chunks implement)
-
-```swift
-// SukraraCore
-public struct Reading: Sendable, Codable, Hashable { var t: Date; var mgdl: Int; var rate: Double? } // rate mg/dL/min; JSON t = epoch ms
-public protocol Clock: Sendable { var now: Date { get } }                       // SystemClock; FakeClock in tests
-public protocol ReadingsStoring: Sendable { func load(since: Date) async throws -> [Reading]; func merge(_: [Reading]) async throws }
-public protocol TreatmentStoring: Sendable { func load() async throws -> TreatmentLog; func save(_: TreatmentLog) async throws }
-public protocol SecretStoring: Sendable { func read(account:) throws -> Data?; func write(_:account:) throws; func delete(account:) throws }
-public protocol SettingsStoring: Sendable { func value<V>(_: SettingSpec<V>) -> V; func set<V>(_: V, for: SettingSpec<V>) }
-public struct SettingSpec<Value: SettingValue> { let key: String; let defaultValue: Value } // gen.py emits instances
-public struct GlucoseSnapshot: Codable { var v: Int; var readings: [Reading] }   // placeholder, chunk 14 owns it
-public struct TreatmentLog: Codable { var v: Int }                              // placeholder, treatments chunk owns it
-// SukraraShare
-public struct SignedEvent; public struct RelayFilter { func matches(_:) -> Bool }      // see "Mac share" below
-public protocol RelayTransport: Sendable { func subscribe(_: String, _: RelayFilter) async; func close(_: String) async
-    func publish(_: SignedEvent) async; var inbound: AsyncStream<RelayInbound> { get } }  // RelayPool; FakeRelay in tests
-public enum LinkState { case notLinked }                                        // chunk 15 adds states
-// SukraraAlerts
-public struct AlertUIState { var isAlerting: Bool }                             // chunk 05 replaces
-// SukraraGraph
-public enum GlucoseCard { static let noValueText = "—"; static func face(_: GlucoseSnapshot?) -> String } // chunk 14: renderer + freshness
-// SukraraApp
-@Observable public final class AppModel { let plan: LaunchPlan; var glucose: GlucoseSnapshot?; var alerts: AlertUIState
-    var link: LinkState; var statusTitle: String; var notMonitoringReason: String? }
-```
 
 Test fixtures: `Contracts.url("alerts/scenarios")` (`SukraraTesting`) resolves `SUKRARA_CONTRACTS` or walks up from
 the test source to `contracts/`.
@@ -217,7 +170,7 @@ NostrCrypto (protocol) ◄── NostrSDKCrypto     RelayTransport (protocol) �
   strings are the OGS vector codes shared with Android's `StreamFollower`. `FollowerState` (`v` 1) holds F, the read
   keys, roster, writer-scope records (creator, held `(u, o)` per treatment id), settings `u`, sensor/roster ordering
   and recent alert keys: everything trust depends on, so a restart can't be used to slip a forged entry in. It is
-  stored by chunk 15 in the Keychain (service `app.mauri.sukrara`, account `follower`). Readings/treatments go out as
+  stored in the Keychain (service `app.mauri.sukrara`, account `follower`). Readings/treatments go out as
   deltas to 15's stores. Unfollow = discard the state.
 - **Relay/** — `RelayPool` actor: socket per `wss://` relay, jittered backoff 2 s→5 min, subscriptions (deduped by
   filter) and a 1 h outbox re-sent on reconnect, NIP-42 AUTH as the pool's key (F, or the invite key for an invite
@@ -268,7 +221,7 @@ WidgetFeed (SukraraApp) ── glucose.json in the App Group + WidgetReloadPolic
 ## Mac alerts (`apps/macos/Sources/SukraraAlerts`)
 
 The alert rules of [`contracts/alerts/SPEC.md`](../contracts/alerts/SPEC.md) as a pure Swift 6 library (functional
-core); the app shell (chunk 21) owns notifications, sounds, timers and storage.
+core); the app shell owns notifications, sounds, timers and storage.
 
 - `AlertEngine` — a `Sendable` value type: `mutating func handle(_ input: AlertInput, at: Date, using: inout RNG) ->
   [AlertEffect]`. No I/O, no clock, no globals; firing ids come from the passed generator (the convenience overload
@@ -292,7 +245,7 @@ core); the app shell (chunk 21) owns notifications, sounds, timers and storage.
   `EpisodesRestoreTests`, `EngineTests` (safety invariants, effect order, clock jumps, deterministic ids),
   `MuteCopyTests`.
 
-## Android sensor (`apps/android/sensor`, chunk 12)
+## Android sensor (`apps/android/sensor`)
 
 The wearer's glucose input. `SensorModule` builds it; the hub reads `SourceManager` as its one `ReadingSource`
 (`:core:model`).
@@ -308,15 +261,14 @@ The wearer's glucose input. `SensorModule` builds it; the hub reads `SourceManag
   without it shows *Libre 3 core missing* and release builds refuse to build (`verifyNativeCore`).
 - **Storage**: the whole pairing (address, start, PIN, authorization, ended) is one SecureStore entry `sensor`
   (Keystore alias `sukrara.sensor`): one atomic write; unreadable → `PairingLoad.Corrupt` → *scan the sensor again*.
-  Receiver IDs (V1's own, the LibreView account's + email) in the typed DataStore `receiver-ids.json`. No password or
+  Receiver IDs (Sukrara's own, the LibreView account's + email) in the typed DataStore `receiver-ids.json`. No password or
   token is stored.
 - **Takeover and receiver IDs** (verified from code and docs/02; device test pending): a Libre 3 is bound for life to
   the receiver ID it was started with; NFC takeover (`A8`) succeeds only with that ID and a wrong one changes nothing
-  (`B1`). V1 starts sensors only with the LibreView account's ID (nothing sent without it) and tries account → own ID
-  for a takeover (nothing sent without the account ID). A showcase-started sensor (showcase ≥ 2026-10-18 starts with
-  the same account ID) is taken over by V1 signed in to the same account, and can be taken back by the showcase. A
-  takeover gives a new BLE PIN, so V1 pairs afresh and the previous owner's Bluetooth session fails; if the sensor is
-  taken away from V1, 3 rejected authorizations in a row stop the link with *another app has the sensor*.
+  (`B1`). Sukrara starts sensors only with the LibreView account's ID (nothing sent without it) and tries account →
+  own ID for a takeover (nothing sent without the account ID), so a sensor started by another app on the same account
+  can be taken over, and taken back by that app. A takeover gives a new BLE PIN, so Sukrara pairs afresh and the
+  previous owner's Bluetooth session fails; if the sensor is taken away from Sukrara, 3 rejected authorizations in a row stop the link with *another app has the sensor*.
 - **Juggluco**: `juggluco/JugglucoSource` reads `http://127.0.0.1:17580` (loopback, allow-listed): history, then SSE.
 
 ## Android storage (`apps/android/core/data`)
@@ -353,11 +305,10 @@ are never deleted by an error path. A damaged database is copied aside (with its
 
 Nostr protocol v2 + identity ([`contracts/protocol`](../contracts/protocol/)) as one pure-JVM module: no Android, no
 I/O, no clock (time is a parameter), no nostr-sdk. The wire formats are the PoC's byte for byte (kinds, tag order,
-TTLs, JSON field names and number forms, invite link `https://sukrara.mauri.app/join#…`, BLE framing), so a restored
-identity keeps working with followers on Sukrara 0.11 (Android and Mac).
+TTLs, JSON field names and number forms, invite link `https://sukrara.mauri.app/join#…`, BLE framing).
 
 - **Crypto seam**: `NostrCrypto` (sign / verify, NIP-44 v2, NIP-59 gift wraps, nsec / npub, NIP-49). `:share`
-  implements it with `org.nostrdevkit:nostr-sdk` (AAR, chunk 13). The module's tests use the JVM build of the same
+  implements it with `org.nostrdevkit:nostr-sdk` (AAR). The module's tests use the JVM build of the same
   library (`nostr-sdk-jvm`, test classpath only). `testFixtures` ships `NostrCryptoContractTest` (OGS vectors: every
   event verifies / decrypts, wraps open to their rumor and its `created_at`, a rumor whose author isn't the seal signer
   is refused, NIP-49 and nsec round trips, the BLE HELLO proof); every implementation subclasses it. The PoC's
@@ -365,7 +316,7 @@ identity keeps working with followers on Sukrara 0.11 (Android and Mac).
   over the JCA's HMAC, pinned by RFC 5869 case 1 and `identity/vectors.json`.
 - **Keys**: `PublicKeyHex`, `SecretKey` (redacted `toString`, hex only via `revealHex()`), `KeyPair`, `Derive.inviteKey`.
 - **Events** (`event/`): payload codecs per family (`ReadingsCodec` live / sensor / chunk, `AlertCodec`,
-  `TreatmentCodec` + `WriterScope`, `SettingsCodec`, `RosterCodec`, `BackupCodec` — reads what the showcase writes,
+  `TreatmentCodec` + `WriterScope`, `SettingsCodec`, `RosterCodec`, `BackupCodec`,
   `RumorCodec` for 30500 / 30501 / 30502, `Profile` / `Avatar`) and `EventFactory`, which signs every event the
   wearer and writers publish. Decoders throw only `InvalidPayload`; health payloads redact `toString`.
 - **Follower acceptance** (`follow/StreamFollower`): the transport-independent judge for relays and Bluetooth: verdict
@@ -396,7 +347,7 @@ identity keeps working with followers on Sukrara 0.11 (Android and Mac).
   pings every 60 s), backoff 2 s → 5 min × jitter, subscriptions + a 1-hour outbox re-sent after reconnects (a newer
   live / addressable event replaces the older), NIP-42 AUTH as the identity. nostr-sdk's Client isn't used: one relay
   behaviour on both platforms, and the pool is unit-tested against fake sockets. Tests use `FakeRelayTransport`.
-- `owner/` — `OwnerState` (V1 typed state, `@Serializable`, redacted) in `OwnerIdentityStore` (SecureStore
+- `owner/` — `OwnerState` (typed state, `@Serializable`, redacted) in `OwnerIdentityStore` (SecureStore
   `identity.owner`; unreadable ≠ missing). Use-cases in `owner/usecase` are pure `(state, input, now) → Step(state,
   events)`: `CreateIdentity`, `RestoreIdentity` (+ `restoreAllowed` gate), `ExportRecovery`, `CreateInvite`,
   `HandleInbox`, `ApproveRequest`, `DenyRequest`, `RemoveFollower`, `Rotate`, `PublishReadings`,
@@ -407,12 +358,12 @@ identity keeps working with followers on Sukrara 0.11 (Android and Mac).
 
 ## Contracts and tests
 
-Both apps' tests read `contracts/` (Android: the `sukrara.contracts` system property from the convention plugin;
-Mac: `Contracts.url(…)`). A contract change lands with both implementations (`tools/check` parity groups, CI runs
-both apps). Alert scenario expectations change only with the owner's OK.
+Every app's tests read `contracts/` (Android: the `sukrara.contracts` system property from the convention plugin;
+Mac: `Contracts.url(…)`). A contract change lands with every implementation (`tools/check` parity groups, CI runs
+every app). Alert scenario expectations change only with the owner's OK.
 
 ## Release
 
-`VERSION` → both apps. Android: `tools/release/android-release.sh` (assembleRelease with the release key +
+`VERSION` → every app. Android: `tools/release/android-release.sh` (assembleRelease with the release key +
 `verify-apk.sh`); Mac: `tools/release/mac-release.sh` (bundle + dmg + `verify-app.sh`). 0.x versions are GitHub
-prereleases; both apps' update checks include prereleases only on a prerelease build.
+prereleases; every app's update check include prereleases only on a prerelease build.

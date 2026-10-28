@@ -1,6 +1,6 @@
 {
     "v": 1,
-    "about": "A3 owner-side identity conflict (contracts/protocol/sync/README.md). Throwaway keys.",
+    "about": "Owner-side identity conflict (contracts/protocol/sync/README.md). Throwaway keys.",
     "keys": {
         "I": {
             "sec": "49c56efe45711db397cc7aae0bf6b5a0de5f2bbe65e4272f2acd29f514111409",
@@ -105,7 +105,7 @@
             "content": "AlBmvzcdMn9N0x6UM6HbfOsEDvOAQUnpcLrBfJcacIZHxu+fd63QJa8nDEDytQvDvuIDxfEkGjg/6ucIv4oxVoAZtT47BBEmPyrw/PIfHthsHpYUpw929c3bPL4f9NPGaGduLkBlhyw9afH7RiQWyz+U05pHI2RR2cSYtx5vXDFMmFFy+YJtc1uusZJUOJFBeP/gTkulbTvrWbzID3F/OjLdZXUIqm+nyyvQ3433jEynICmt3IGgq492adRyEnUDr2ZP",
             "sig": "ab80fd3c32927bb95e10134c13671c8d5a2dacfc59851598dcc431312430ed941cf050989c5b7ddf1c6bd394c135c685389e1e72a8faf91e7c96e1bfb81d536d"
         },
-        "showcase-roster": {
+        "other-device-roster": {
             "id": "c0eebd3fe868abc8858b7c6bfbfd31e6dc5aaa69dacc4a06f8c1a1ee47c31dd2",
             "pubkey": "cf4e0f449b84d73112efdb97730e0aff75b213b2ef9e0947177a0c1f9139e972",
             "created_at": 1792087210,
@@ -203,7 +203,7 @@
             "content": "AjgrCy8xgCQgji/GNGE1zedJO2a2SZMkOuFU7u0mfJ379lx0PG5r0qHm87ewqr9vFF+dDU9zlVpasaSfBTCkgykNe3xJedDRHfYVPdpF6WZfHxuqSvtzCSQ8n4LBUAKD9UMysu7xFZchcl0ihgpmSZ718liisRdD5p3GW9xjqWlnTx2miwBHzYgJ4ewynjEAk93vu7IAjZtYdFmqeDBWFinoEI5aIca+ZkZm0Ntzm7LqmjncYGZ7yazpxDlg9NsSn1ulvu+s3uqdYq7W2RrJnN2sENJ/T3TAWvB+shPDccfJKeJO3NqUzOKwfCnPkkN4IR3DyEQlZ4rqlUAdCEYqppXFob+QOSZ9m/vc4cqQYtj+3mQWQtSGmoIFqpcjhA3AJjF8",
             "sig": "60c7e1f06ff9bf81f3d3be63d0cfa0202e2212ee81f51f25d81099c6a018331cba6f08b7ff7414ce9c9ea7689a8b946f3341fb1f05dc5e7359ef1a7130df3645"
         },
-        "showcase-backup": {
+        "other-device-backup": {
             "id": "e24a2eb593540ac5ae324bf5c680f87c2a8b0cd418878b8b294055bb05de7cce",
             "pubkey": "cf4e0f449b84d73112efdb97730e0aff75b213b2ef9e0947177a0c1f9139e972",
             "created_at": 1792087230,
@@ -258,7 +258,7 @@
             "expect": "fine"
         },
         {
-            "event": "showcase-roster",
+            "event": "other-device-roster",
             "expect": "conflict:RosterFromOtherDevice"
         },
         {
@@ -278,7 +278,7 @@
             "expect": "fine"
         },
         {
-            "event": "showcase-backup",
+            "event": "other-device-backup",
             "expect": "conflict:BackupFromElsewhere"
         },
         {

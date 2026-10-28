@@ -248,7 +248,7 @@ of it and it imports no GPL code. In this repository the same files keep their G
 
 What is done (2026-10-19):
 1. **The standalone repository is prepared locally**, not pushed, in
-   `/Users/blue/Projects/cgm-reading-mac-spike/tmp/open-glucose-stream/` (git-ignored here), committed and tagged
+   `/Users/blue/Projects/sukrara/tmp/open-glucose-stream/` (git-ignored here), committed and tagged
    `draft-3`. It contains:
    - `poc/spec/` from `poc/spec/draft3`, with links into this repository pinned to a commit;
    - `test-vectors/`;
