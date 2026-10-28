@@ -137,8 +137,10 @@ internal class G6Driver(
     fun onGlucose(g: G6Messages.Glucose) {
         val epoch = txEpoch ?: return log("glucose before the transmitter's clock: not used")
         when (Dexcom.state(g.state)) {
+            // the session is over, not the transmitter: it lives on for the next session the Dexcom app starts
             Dexcom.State.Ended -> {
-                return ended("algorithm state ${g.state}")
+                events.onSensorEnded(pairing.label)
+                return events.onStatus(LinkStatus.NoSession)
             }
 
             Dexcom.State.Stopped -> {

@@ -55,7 +55,7 @@ internal class SensorScanner(
     companion object {
         const val WINDOW_MS = 30_000L
         const val PAUSE_MS = 60_000L
-        const val NOT_FOUND_WINDOWS = 10
+        const val NOT_FOUND_WINDOWS = 5
     }
 
     /** The matching device, or null when scanning can't go on (Bluetooth off, permission missing): the status says why. */

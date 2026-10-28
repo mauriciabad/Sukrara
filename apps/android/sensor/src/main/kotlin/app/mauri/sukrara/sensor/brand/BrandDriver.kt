@@ -151,7 +151,7 @@ internal abstract class BrandDriver(
         /** A reading this far ahead of the phone's clock (s) is still accepted (clock skew); further is dropped. */
         const val FUTURE_SLACK_S = 60L
 
-        /** A newly derived session start within this of the known one (s) is the same session. */
-        const val START_JITTER_S = 120L
+        /** A newly derived session start within this of the known one (s) is the same session (below [FUTURE_SLACK_S]). */
+        const val START_JITTER_S = 30L
     }
 }

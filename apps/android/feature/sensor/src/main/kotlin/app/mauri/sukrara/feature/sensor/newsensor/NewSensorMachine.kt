@@ -420,11 +420,27 @@ object NewSensorMachine {
                 else -> return step
             }
         return when (detail) {
-            SensorStatus.BluetoothPermissionMissing -> NewSensorStep.BleFailed(serial, BleFailure.PermissionMissing)
-            is SensorStatus.OwnedByAnotherApp -> NewSensorStep.TakeoverFailed
-            SensorStatus.Ended -> if (step is NewSensorStep.WarmingUp) NewSensorStep.NfcFailed(NfcFailure.SensorEnded) else step
-            is SensorStatus.Direct -> if (detail.key != serial) step else afterLink(step, serial, detail.profile, detail.link, state, now)
-            else -> step
+            SensorStatus.BluetoothPermissionMissing -> {
+                NewSensorStep.BleFailed(serial, BleFailure.PermissionMissing)
+            }
+
+            is SensorStatus.OwnedByAnotherApp -> {
+                NewSensorStep.TakeoverFailed
+            }
+
+            // a scanned family's pairing is new, so an end while connecting is this sensor's
+            SensorStatus.Ended -> {
+                val scanned = step is NewSensorStep.ConnectingBle && step.profile.needsScan
+                if (step is NewSensorStep.WarmingUp || scanned) NewSensorStep.NfcFailed(NfcFailure.SensorEnded) else step
+            }
+
+            is SensorStatus.Direct -> {
+                if (detail.key != serial) step else afterLink(step, serial, detail.profile, detail.link, state, now)
+            }
+
+            else -> {
+                step
+            }
         }
     }
 

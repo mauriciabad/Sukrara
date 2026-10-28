@@ -48,6 +48,9 @@ internal object CgmService {
         /** Status bit 3: sensor malfunction. */
         val sensorMalfunction get() = status and 0x08 != 0
 
+        /** A value the sensor itself flags as unreliable: malfunction, general device fault, temperature out of range. */
+        val faulty get() = status and (0x08 or 0x20) != 0 || calTemp and (0x10 or 0x20) != 0
+
         /** Warning bit 6 (annunciation bit 22): lower than the device can process ("LO"). */
         val belowRange get() = warning and 0x40 != 0
 

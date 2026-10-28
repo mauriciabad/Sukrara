@@ -87,14 +87,14 @@ class AidexXDriverTest {
         d.onRead(AidexX.DATA, trace["session-read"])
         assertEquals("write F002 ${trace["cmd-start-time"].hex()}", link.ops.last())
         d.onNotification(AidexX.DATA, trace["rx-start-time"])
-        assertEquals("write F002 ${trace["cmd-glucose"].hex()}", link.ops.last())
+        assertEquals(listOf("write F002 ${trace["cmd-glucose"].hex()}", "schedule ${AidexXDriver.POLL_MS}"), link.ops.takeLast(2))
         d.onNotification(AidexX.DATA, trace["rx-glucose"])
         assertEquals(listOf(92), events.readings.map { it.mgdl })
         assertEquals(nowS, events.readings.single().epochSec)
         assertEquals(listOf(nowS - 21600 * 60L), events.starts)
         assertEquals("schedule ${AidexXDriver.POLL_MS}", link.ops.last())
         link.pending!!.run()
-        assertEquals("write F002 ${trace["cmd-glucose"].hex()}", link.ops.last())
+        assertEquals(listOf("write F002 ${trace["cmd-glucose"].hex()}", "schedule ${AidexXDriver.POLL_MS}"), link.ops.takeLast(2))
     }
 
     /**

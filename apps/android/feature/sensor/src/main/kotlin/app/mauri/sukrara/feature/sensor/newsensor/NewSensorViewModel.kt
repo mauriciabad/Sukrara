@@ -72,6 +72,8 @@ class NewSensorViewModel(
     initial: NewSensorState = NewSensorState(),
 ) : ViewModel() {
     private val _state = MutableStateFlow(initial)
+
+    @Volatile private var saving = false
     val state: StateFlow<NewSensorState> = _state.asStateFlow()
 
     private val _effects = Channel<NewSensorEffect>(Channel.BUFFERED)
@@ -112,10 +114,19 @@ class NewSensorViewModel(
     /** "Pair" on a scanned family's setup: saved in [appScope] (leaving the screen mustn't lose a half-saved pairing). */
     fun onPair() {
         val step = _state.value.step as? NewSensorStep.SensorSetupStep ?: return
-        if (!step.canPair) return
+        if (!step.canPair || saving) return
+        saving = true // one pairing per tap: a double tap must not save two
         appScope.launch {
-            val key = port.pairScanned(step.profile, step.id)
-            send(NewSensorEvent.PairedScanned(key))
+            try {
+                val key = port.pairScanned(step.profile, step.id)
+                send(NewSensorEvent.PairedScanned(key))
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                // storage failed: nothing was paired; the setup stays, Pair can be tapped again
+            } finally {
+                saving = false
+            }
         }
     }
 
@@ -124,7 +135,8 @@ class NewSensorViewModel(
     fun onRetry() {
         val step = _state.value.step
         send(NewSensorEvent.Retry)
-        if (step is NewSensorStep.BleFailed) port.retryLink()
+        // a wrong id / refused / failed PIN goes back to the setup: reconnecting would only repeat it
+        if (step is NewSensorStep.BleFailed && !step.cause.needsSetup) port.retryLink()
     }
 
     fun onUseJuggluco() {

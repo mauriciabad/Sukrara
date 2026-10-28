@@ -105,6 +105,11 @@ internal class AidexXDriver(
     private fun ask(opcode: Int) {
         val s = session ?: return
         link?.writeNoResponse(AidexX.DATA, AidexX.command(s, iv, opcode))
+        // the next ask is armed now: a lost write or reply never stops the polling
+        if (opcode == AidexX.OP_GLUCOSE) {
+            link?.cancel(poll)
+            link?.schedule(POLL_MS, poll)
+        }
     }
 
     private fun reply(encrypted: ByteArray) {
@@ -118,8 +123,6 @@ internal class AidexXDriver(
 
             AidexX.OP_GLUCOSE -> {
                 AidexX.Glucose.parseReply(plain)?.let { onGlucose(it) }
-                link?.cancel(poll)
-                link?.schedule(POLL_MS, poll)
             }
         }
     }

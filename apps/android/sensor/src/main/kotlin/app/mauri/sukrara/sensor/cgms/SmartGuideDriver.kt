@@ -121,6 +121,7 @@ internal class SmartGuideDriver(
                     },
                 ),
             )
+        if (a.faulty) return events.onStatus(LinkStatus.NoValue(NoValueReason.SensorError))
         lastOffset = maxOf(lastOffset, m.offsetMinutes)
         reading(start + m.offsetMinutes * 60L, mgdl, m.trendMgdlPerMin)
     }

@@ -155,6 +155,18 @@ class G6DriverTest {
         assertTrue(events.starts.isEmpty())
     }
 
+    /** A session's end is not the transmitter's: nothing is persisted as ended, the next session is read. */
+    @Test
+    fun aSessionEndIsNotTheTransmittersEnd() {
+        val events = BrandEvents()
+        val link = BrandLink()
+        val d = streaming(events, link)
+        d.onGlucose(G6Messages.Glucose(sequence = 7, timeSeconds = 99_990, mgdl = 0, state = 15, trend = null))
+        assertEquals(LinkStatus.NoSession, events.last())
+        assertTrue(events.ended.isEmpty())
+        assertEquals(0, link.closed)
+    }
+
     @Test
     fun matchesItsOwnTransmitterName() {
         val d = driver(BrandEvents())

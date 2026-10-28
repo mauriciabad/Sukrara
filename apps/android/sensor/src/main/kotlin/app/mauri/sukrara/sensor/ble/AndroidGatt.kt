@@ -117,7 +117,8 @@ internal class AndroidGatt(private val context: Context) : GattConnector {
                     context.registerReceiver(r, IntentFilter(BluetoothDevice.ACTION_BOND_STATE_CHANGED), Context.RECEIVER_EXPORTED)
                     bondReceiver = r
                 }
-                return device.createBond()
+                // already bonding (the device asked first, or the PIN dialog is still up): the broadcast settles it
+                return device.bondState == BluetoothDevice.BOND_BONDING || device.createBond()
             }
 
             override fun close() {
