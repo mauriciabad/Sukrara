@@ -214,7 +214,13 @@ System back on the first step leaves setup (home shows "Not monitoring: setup in
 ## Following (Android)
 
 - **Join** (setup, after *I follow someone*): the *Follow someone* step takes the wearer's invite link (pasted, or filled
-  in when the link was opened on this phone) and an optional name the wearer sees. *Join* looks up the invite on the
+  in when the link was opened on this phone, or read from their QR code) and an optional name the wearer sees.
+  *Scan QR code* opens the back camera inline (CameraX frames decoded on the phone by zxing-cpp: nothing recorded or
+  sent; only a Sukrara invite link is taken, any other QR code is ignored); the first invite read fills the link with a
+  confirm haptic and *Invite read. Add your name if you like and tap Join.* (spoken by TalkBack). *From a picture* reads
+  it from a screenshot through the photo picker (no storage permission); a picture without one says so. The camera is
+  asked for only on *Scan QR code*: refused once → why it's needed with *Allow camera* / *Cancel*; refused for good →
+  *Open settings* / *Cancel* (back from settings with it allowed, scanning starts); no camera → says so with *Cancel*. *Join* looks up the invite on the
   default relays (AUTH as the invite key, up to ~25 s while the wearer's phone may still be publishing it) and opens it;
   errors say what to do (*not a Sukrara invite link*, *not found — ask for a new link*, *expired*, *doesn't match its
   link*, *no internet*, *already follows someone*, *couldn't save the key*). Joined: a new follower key goes to the
@@ -248,10 +254,12 @@ System back on the first step leaves setup (home shows "Not monitoring: setup in
 - **Invite links** opened on a phone with no role or a follower that follows no one open setup's join step with the link;
   on a wearer phone (or one already following) they open *This phone shares its own readings* with *Copy link*.
 - **Bluetooth**: the Following page's *Bluetooth:* line and its exits (see *Sharing over Bluetooth*).
-- Not included yet: scanning the invite QR code (camera / picture), the *Settings from* page (the follower's alert
-  runtime uses the wearer's mirrored alert settings as `AlertMirror` decides), joining with *Find phones nearby*.
+- Not included yet: the *Settings from* page (the follower's alert
+  runtime uses the wearer's mirrored alert settings as `AlertMirror` decides).
 
 **States and exits**: Role step → *I follow someone* → join step (Back → role step). Join step: typing (Join, Back),
+scanning (*Cancel*, or an invite read → the link filled), camera explained (*Allow camera* / *Cancel*), camera off
+(*Open settings* / *Cancel*), no camera (*Cancel*), picture without an invite (the note; pick again or paste),
 looking up (spinner, the fields locked), failed (the reason; edit the link to clear it, Join again), waiting (code,
 *Continue*). Following page: waiting (code, *Stop following*), following (*Stop following*), ended — declined / invite
 used / removed (*Join with a new link* → join step, *Stop following*), key unreadable (*Stop following*), damaged (*Stop
@@ -1182,6 +1190,6 @@ page.
 - Android settings pages: settings export / import / reset, settings search, the follower's *Settings from* page, relay / epoch / statistics / log pages, battery-lab knobs, mmol/L in the settings pages (thresholds and ranges are shown and typed in mg/dL; schema `general.unit` is set elsewhere), and icons on every row. Reason: only what daily use needs; the defaults are the owner's own values.
 - Mac: Juggluco over Wi-Fi (LAN source and subnet discovery) and the Nostr v1 `cgmnostr:` follow link (v1 links carried plaintext secrets and had no UI). Follow the wearer with a protocol v2 invite instead.
 - Sensors: the Libre 3 experiment preferences (minimal subscription set, connection priority, screen-off skip). Reason: no hardware to test them, the owner uses a Libre 3.
-- Planned (issues filed): scanning an invite's QR code on Android and the follower's *Settings from* page, the Nightscout API on the home network (`apps.nightscoutLan`), Health Connect and broadcasts, the rest of insulin pens (see its section), the calendar event. The sections above that describe them are the behaviour to build. Reason: what daily use needs comes first.
+- Planned (issues filed): the Android follower's *Settings from* page, the Nightscout API on the home network (`apps.nightscoutLan`), Health Connect and broadcasts, the rest of insulin pens (see its section), the calendar event. The sections above that describe them are the behaviour to build. Reason: what daily use needs comes first.
 
 **States and exits**: none (these features aren't in the app).

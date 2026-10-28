@@ -85,7 +85,7 @@
     <string name="sh_share_try_again">Reintentar</string>
     <string name="sh_share_failed">No se ha podido crear la invitación. Revisa internet y que compartir esté configurado.</string>
     <string name="sh_share_qr_label">Código QR de la invitación. El enlace está debajo.</string>
-    <string name="sh_share_scan">Envíale el enlace: lo abre en Sukrara en su teléfono o Mac. Sukrara para Mac también puede escanear este código.</string>
+    <string name="sh_share_scan">Envíale el enlace: lo abre en Sukrara en su teléfono o Mac. Sukrara en otro teléfono o en un Mac también puede escanear este código.</string>
     <string name="sh_share_note">Este enlace funciona una vez, hasta el %1$s. Envíalo solo a %2$s: quien lo abra primero puede pedir seguirte, y tú decides. No contiene ninguna clave de tu glucosa.</string>
     <string name="sh_share_note_unnamed">Este enlace funciona una vez, hasta el %1$s. Envíalo solo a la persona que invitas: quien lo abra primero puede pedir seguirte, y tú decides. No contiene ninguna clave de tu glucosa.</string>
     <string name="sh_share_send">Enviar enlace</string>
@@ -295,7 +295,7 @@
     <!-- The password manager returned something else -->
     <string name="sh_restore_manager_not_identity">Esa contraseña guardada no es una identidad de Sukrara. Elige la entrada «Sukrara · npub…» o pega el código de recuperación.</string>
     <string name="sh_join_title">Seguir a alguien</string>
-    <string name="sh_join_body">Pide a la persona que lleva el sensor que abra Sukrara, toque Compartir y te envíe el enlace de invitación. Pégalo aquí.</string>
+    <string name="sh_join_body">Pide a la persona que lleva el sensor que abra Sukrara, toque Compartir y te envíe el enlace de invitación. Pégalo aquí o escanea el código QR de su teléfono.</string>
     <string name="sh_join_link">Enlace de invitación</string>
     <string name="sh_join_name">Tu nombre</string>
     <string name="sh_join_name_hint">Para que sepa quién lo pide. Opcional.</string>
@@ -369,4 +369,16 @@
     <string name="sh_find_nearby_found">Toca a la persona que quieres seguir. Sigue buscando más…</string>
     <string name="sh_find_nearby_ask">Pedir seguirle</string>
     <string name="sh_find_nearby_stop">Dejar de buscar</string>
+    <string name="sh_scan_qr">Escanear código QR</string>
+    <string name="sh_scan_picture">Desde una imagen</string>
+    <string name="sh_scan_point">Apunta la cámara al código QR de su teléfono. Se lee en este teléfono: no se graba ni se envía nada.</string>
+    <string name="sh_scan_preview">Vista de la cámara para el código QR</string>
+    <string name="sh_scan_cancel">Cancelar</string>
+    <string name="sh_scan_allow">Permitir cámara</string>
+    <string name="sh_scan_settings">Abrir ajustes</string>
+    <string name="sh_scan_camera_why">Sukrara necesita la cámara para leer el código QR. No se graba ni se envía nada. También puedes pegar el enlace o elegir una imagen del código.</string>
+    <string name="sh_scan_camera_off">El acceso a la cámara está desactivado para Sukrara. Actívalo en los ajustes de la app, o pega el enlace o elige una imagen del código.</string>
+    <string name="sh_scan_no_camera">No se pudo abrir ninguna cámara en este dispositivo. Pega el enlace o elige una imagen del código.</string>
+    <string name="sh_scan_read">Invitación leída. Añade tu nombre si quieres y toca Unirme.</string>
+    <string name="sh_scan_picture_none">No hay ningún código QR de invitación de Sukrara en esa imagen. Prueba con una captura más nítida o pega el enlace.</string>
 </resources>

@@ -95,7 +95,8 @@ The full catalog, with every rule and number, is [docs/FEATURES.md](docs/FEATURE
   internet (on by default, *Share over Bluetooth*); Settings › Sharing lists the devices connected now, says when
   Bluetooth is off or the Nearby devices permission is missing, and offers the fix; the live notification says
   *2 followers · 1 nearby*.
-- **Follow someone from an Android phone**: paste (or open) the wearer's invite link, or find their phone nearby over
+- **Follow someone from an Android phone**: paste (or open) the wearer's invite link, scan their QR code (camera or a
+  picture of it, read on the phone), or find their phone nearby over
   Bluetooth while they have *Pair nearby* on (Settings › Sharing; they type the code your phone shows), wait for them to allow you (with
   the 4-digit code they may ask for), then their readings, sensor, entries and alerts arrive over the relays and drive
   home, widgets, the live notification and your own alerts (including *no data*); near their phone they also arrive over
@@ -134,7 +135,7 @@ The full catalog, with every rule and number, is [docs/FEATURES.md](docs/FEATURE
 - VoiceOver reads the value as one sentence with the range in words.
 
 **Not included**: the LSPosed lock-screen widget, Dexcom / Aidex / SmartGuide (untested) sensors, the Nightscout API on the home network, Health Connect and broadcasts, the pen list and dose review, the sensor-end
-calendar event, settings export / import, scanning an invite's QR code on Android and the Android
+calendar event, settings export / import, the Android
 follower's *Settings from* page, *Pair nearby* (joining over Bluetooth without a link), and the Mac's Juggluco-over-Wi-Fi source.
 
 **Garmin watch:** switch on *Settings › Share with apps › xDrip+ server*; watch faces and data fields made for xDrip+

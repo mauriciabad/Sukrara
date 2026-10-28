@@ -34,6 +34,11 @@ dependencies {
     implementation(libs.kotlinx.serialization.json)
     // invite QR code
     implementation(libs.zxing.core)
+    // reading the invite QR on the join step: CameraX frames decoded on the phone (zxing-cpp, no Play Services)
+    implementation(libs.androidx.camera.camera2)
+    implementation(libs.androidx.camera.lifecycle)
+    implementation(libs.androidx.camera.view)
+    implementation(libs.zxing.cpp)
     // the identity to / from the phone's password manager (Backup, restore)
     implementation(libs.androidx.credentials)
     testImplementation(project(":core:testing"))

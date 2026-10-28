@@ -39,7 +39,8 @@ import app.mauri.sukrara.share.follower.FollowState
 import app.mauri.sukrara.share.follower.JoinResult
 
 /**
- * The follower's join step: paste the wearer's invite link (an invite opened on this phone fills it in), with the name
+ * The follower's join step: paste the wearer's invite link (an invite opened on this phone fills it in; [ScanInvite]
+ * reads it from their QR code, live or from a picture), with the name
  * the wearer will see; then "waiting for Ana" with the 4-digit code the wearer may ask for. A follow that ended
  * (declined, the invite used by another phone, access removed) says so and asks for a new link here. Back returns to the
  * role (this phone wears the sensor after all).
@@ -113,6 +114,13 @@ internal fun ColumnScope.JoinStep(
         enabled = !busy,
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri, imeAction = ImeAction.Next),
         modifier = Modifier.fillMaxWidth(),
+    )
+    ScanInvite(
+        enabled = !busy,
+        onInvite = {
+            link = it
+            actions.clearJoinError()
+        },
     )
     OutlinedTextField(
         value = name,
