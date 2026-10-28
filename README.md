@@ -43,10 +43,15 @@ The full catalog, with every rule and number, is [docs/FEATURES.md](docs/FEATURE
   there's no value it says why and what to do.
 - A **live notification** that is also a **Live Update chip** next to the clock (Android 16 QPR2+), with the same
   freshness steps as the card: from 5 min the number is struck through, from 20 min it's gone. Tap → *Add treatment*.
+  Without the chip it is a card in your range's colour with the graph, its icon the number itself (Settings › Status
+  bar); on Android 17 the Live Update expands to the value styled by range.
 - **Alerts**: very low, low, high, very high, rising / falling fast and no data; each on its own channel,
   "like an alarm" ones pass Do Not Disturb. *Mute…*, *Remind less*, *Unmute* and *Change time* on the notification,
   in the app and with TalkBack; *Mute all* with a visible strip to undo it. The no-data check runs from an exact alarm,
-  independent of the monitoring service. A *Sensor ends in 6 h* warning before the sensor's end.
+  independent of the monitoring service.
+- **Sensor end**: reminders you set (up to six, 0–3 days before at a time; earlier at the first unlock; one the
+  evening before a night-time end), a live countdown in the sensor's last hours, a warm-up countdown with *Sensor
+  ready*, and *Sensor ended* with *Replace sensor* (Settings › Sensor end).
 - **Monitoring** in one foreground service that comes back by itself (boot, update, a 15 min health check); before the
   first reading every surface says *Not monitoring: no sensor yet* and no no-data alarm is armed.
 - **Treatments**: a quick dialog for rapid / long insulin, carbs and a note (from the notification, the Quick
@@ -76,16 +81,19 @@ The full catalog, with every rule and number, is [docs/FEATURES.md](docs/FEATURE
   login.
 - **Alerts** with sound packs and the same rules and timeline scenarios as Android; mute and unmute from the menu.
 - **Treatments**: add rapid / long / carbs / note, see the phone's entries, delete your own with undo.
-- **Settings**: General (following, unit, open at login, update check) and Alerts (per alert, quiet times, sounds,
-  ranges); it can mirror the wearer's alert settings.
+- **Settings** in five panes: General (*Settings from* Wearer / Default / Custom, unit, open at login, update check,
+  Quit), Graph (time shown per place, treatments on the graph, lines, ranges, sensor countdown and time left), Rings
+  (rings and numbers, ring order you drag, last treatment), Alerts (per alert, quiet times, sounds) and Following.
+- The card shows the wearer's treatments on the chart with their mute lines, the last treatment beside the value and
+  a pill that counts down while a treatment quiets the alert; the widgets too.
 - **Desktop widgets** (Glucose, Glucose graph, Glucose + graph) with the same card; they age by themselves (struck
   through at 5 min, the graph dimmed with the reading's time, no value at 20 min) and a tap opens Add treatment.
 - VoiceOver reads the value as one sentence with the range in words.
 
 **Not included**: the root status-bar
 icons and the LSPosed lock-screen widget, Dexcom / Aidex / SmartGuide (untested) sensors, Garmin via the local xDrip+
-server, Nightscout / Tidepool / LibreView uploads, Health Connect and broadcasts, insulin pens, the full sensor
-reminders page and calendar event, the glucose report and CSV export, settings export / import, following on
+server, Nightscout / Tidepool / LibreView uploads, Health Connect and broadcasts, insulin pens, the sensor-end
+calendar event, the glucose report and CSV export, settings export / import, following on
 Android and Bluetooth sharing from the phone, and the Mac's Juggluco-over-Wi-Fi source.
 
 **Garmin watch:** Sukrara has no watch server yet. A watch fed by **Juggluco** keeps working while Juggluco reads the

@@ -151,6 +151,9 @@ object NotificationIds {
     const val MONITORING_STOPPED = 2
     const val SENSOR = 10
     const val SENSOR_COUNTDOWN = 11
+    const val SENSOR_ENDED = 12
+    const val SENSOR_WARMUP = 13
+    const val SENSOR_READY = 14
     const val PEN_RESULTS = 20
     const val PEN_CHECK = 21
     const val REQUESTS = 30

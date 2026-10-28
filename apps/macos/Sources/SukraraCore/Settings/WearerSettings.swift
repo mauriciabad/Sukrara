@@ -32,6 +32,12 @@ public struct WearerSettings: Sendable, Equatable {
         return b
     }
 
+    /// The mirrored text for a schema id (`graph.slots`, `graph.ringOrder`, `graph.lastElse` …: the wire spellings).
+    public func string(_ id: String) -> String? {
+        guard let (_, value) = mirrored(id, kind: nil), case .string(let s) = value else { return nil }
+        return s
+    }
+
     private func mirrored(_ id: String, kind: String?) -> (SettingInfo, JSONValue)? {
         guard let info = SettingsSpec.settings.first(where: { $0.id == id }), info.mirror, let wire = info.wire else {
             return nil

@@ -20,9 +20,22 @@ data class UiText(
 )
 
 /**
- * What the glucose notification shows, decided from the hub state alone. Equal contents = the same notification
- * (the notifier skips re-posting it). The value, trend mark and freshness come from the card's face rule
- * ([face], `GlucoseCard.face` once the renderer lands), never formatted here.
+ * The status-bar settings and what Android allows, as the glucose notification needs them: [chip] = Settings › Status
+ * bar › *Live Update chip*; [promotionAllowed] = Android lets the app post Live Updates now; [numberIcon] = *Number
+ * icon* (the small icon is the value while there's no chip); [cardKey] = everything the custom card draws besides
+ * the hub state (treatments, graph settings, theme, the minute), so equal contents mean the same card.
+ */
+data class NotificationPrefs(
+    val chip: Boolean = true,
+    val promotionAllowed: Boolean = false,
+    val numberIcon: Boolean = true,
+    val cardKey: Any? = null,
+)
+
+/**
+ * What the glucose notification shows, decided from the hub state and [NotificationPrefs] alone. Equal contents = the
+ * same notification (the notifier skips re-posting it). The value, trend mark and freshness come from the card's face
+ * rule ([face], `GlucoseCard.face`), never formatted here.
  */
 data class LiveNotificationContent(
     val title: UiText,
@@ -38,9 +51,28 @@ data class LiveNotificationContent(
     val readingAt: Instant?,
     val tap: Target,
     val actions: List<Action>,
+    /** How a value shows; the states without one are always [Layout.TEXT]. */
+    val layout: Layout = Layout.TEXT,
+    /** The face's decision for the value ([Icon.NUMBER], the card, MetricStyle); null without a value. */
+    val look: GlucoseLook? = null,
+    /** The value's reading (mg/dL), for the card's range colour and the metric's style. */
+    val mgdl: Int? = null,
+    /** [NotificationPrefs.cardKey] while [layout] is [Layout.CARD]. */
+    val cardKey: Any? = null,
 ) {
-    /** [TREND] = the renderer's arrow for [trendRate]; the others are the states' icons. */
-    enum class Icon { TREND, NO_TREND, NO_READINGS, SENSOR_ENDED, APP }
+    /** [TREND] = the renderer's arrow for [trendRate]; [NUMBER] = the value itself; the others are the states' icons. */
+    enum class Icon { TREND, NO_TREND, NUMBER, NO_READINGS, SENSOR_ENDED, APP }
+
+    enum class Layout {
+        /** A promoted Live Update: the chip (arrow + value), MetricStyle expanded on Android 17. */
+        LIVE_UPDATE,
+
+        /** Colorized in the range colour with the renderer's header row and chart (no chip). */
+        CARD,
+
+        /** Title and text only (no value, or nothing better allowed). */
+        TEXT,
+    }
 
     sealed interface Target {
         /** The quick "Add treatment" dialog; Carbs focused while a low is going on. */
@@ -65,6 +97,7 @@ data class LiveNotificationContent(
             state: GlucoseState,
             now: Instant,
             face: (GlucoseState, Instant) -> GlucoseLook,
+            prefs: NotificationPrefs = NotificationPrefs(),
         ): LiveNotificationContent {
             if (state.notMonitoring == NotMonitoringReason.SetupIncomplete) return notMonitoring(state)
             val look = face(state, now)
@@ -114,37 +147,51 @@ data class LiveNotificationContent(
                 }
 
                 GlucoseLook.State.VALUE -> {
-                    value(state, look, now, detail)
+                    value(state, look, detail, prefs)
                 }
             }
         }
 
+        /**
+         * A value: a Live Update when the chip is wanted and allowed, else the colorized card. The chip's arrow is its
+         * icon (the renderer's), never a text arrow too: two arrows could disagree. It can't strike text through: from
+         * 5 min it shows the reading's time (with the ring icon) instead of a bare number that would read as current.
+         * Without the chip the small icon is the number itself when *Number icon* is on.
+         */
         private fun value(
             state: GlucoseState,
             look: GlucoseLook,
-            now: Instant,
             detail: UiText?,
+            prefs: NotificationPrefs,
         ): LiveNotificationContent {
             val reading = state.latest!!
-            // The chip's arrow is its icon (the renderer's), never a text arrow too: two arrows could disagree. It can't
-            // strike text through: from 5 min it shows the reading's time (with the ring icon) instead of a bare number
-            // that would read as current.
+            val live = prefs.chip && prefs.promotionAllowed
             val chip =
-                if (look.strike) {
-                    UiText(R.string.monitor_chip_stale, listOf(reading.t))
-                } else {
-                    UiText(R.string.monitor_chip_value, listOf(look.text!!))
+                when {
+                    !live -> null
+                    look.strike -> UiText(R.string.monitor_chip_stale, listOf(reading.t))
+                    else -> UiText(R.string.monitor_chip_value, listOf(look.text!!))
+                }
+            val icon =
+                when {
+                    !live && prefs.numberIcon -> Icon.NUMBER
+                    look.trend == TrendMark.ARROW -> Icon.TREND
+                    else -> Icon.NO_TREND
                 }
             return LiveNotificationContent(
                 title = UiText(R.string.monitor_notif_value, listOf(look.text!!, look.arrowText!!)),
                 text = if (look.fresh.showTime) UiText(R.string.monitor_notif_reading_at, listOf(reading.t)) else detail,
                 strike = look.strike,
                 chip = chip,
-                icon = if (look.trend == TrendMark.ARROW) Icon.TREND else Icon.NO_TREND,
+                icon = icon,
                 trendRate = look.rate.takeIf { look.trend == TrendMark.ARROW },
                 readingAt = if (look.fresh.showTime) reading.t else null,
                 tap = quickTreatment(state),
                 actions = listOf(OPEN_APP),
+                layout = if (live) Layout.LIVE_UPDATE else Layout.CARD,
+                look = look,
+                mgdl = reading.mgdl,
+                cardKey = if (live) null else prefs.cardKey,
             )
         }
 

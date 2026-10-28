@@ -22,6 +22,7 @@ import app.mauri.sukrara.monitor.R
 import app.mauri.sukrara.monitor.alerts.AlertAlarm
 import app.mauri.sukrara.monitor.notify.Channels
 import app.mauri.sukrara.monitor.notify.NotificationIds
+import app.mauri.sukrara.monitor.sensorend.SensorEndAlarm
 import java.time.Duration
 import java.time.Instant
 
@@ -118,6 +119,21 @@ class AndroidAlarms(
                 set(Wakeup.AlertCheck, SystemClock.elapsedRealtime() + inMs, pi)
             }
         }
+
+    /**
+     * The sensor-end notifier's one alarm ([SENSOR_END_CHECK]): an event (reminder, window start, end) exact and waking
+     * like an alert check, a countdown's progress tick non-waking ([Wakeup.SensorTick]).
+     */
+    fun sensorEnd(clock: Clock): SensorEndAlarm {
+        val exact = alertCheck(SENSOR_END_CHECK, clock)
+        return SensorEndAlarm { at, isExact ->
+            if (at == null || isExact) {
+                exact.set(at)
+            } else {
+                set(Wakeup.SensorTick, at * 1000, alertIntent(SENSOR_END_CHECK))
+            }
+        }
+    }
 
     private fun set(
         wakeup: Wakeup,

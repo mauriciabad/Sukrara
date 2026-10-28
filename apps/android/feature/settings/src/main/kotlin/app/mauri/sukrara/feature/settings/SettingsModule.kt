@@ -8,6 +8,7 @@ import app.mauri.sukrara.core.model.AlertReadinessSource
 import app.mauri.sukrara.core.model.AlertUiState
 import app.mauri.sukrara.core.model.Clock
 import app.mauri.sukrara.core.model.DispatcherProvider
+import app.mauri.sukrara.core.model.SensorState
 import app.mauri.sukrara.core.model.storage.SettingsRepository
 import kotlinx.coroutines.flow.Flow
 import okhttp3.OkHttpClient
@@ -28,6 +29,7 @@ class SettingsModule(
     http: OkHttpClient,
     dispatchers: DispatcherProvider,
     clock: Clock,
+    sensor: Flow<SensorState>,
 ) {
     val deps: SettingsDeps =
         object : SettingsDeps {
@@ -40,6 +42,7 @@ class SettingsModule(
             override val prerelease = prerelease
             override val releases: ReleasesSource by lazy { GitHubReleases(http, dispatchers.io) }
             override val clock = clock
+            override val sensor = sensor
         }
 
     /** When the alert thresholds were confirmed (null = never): home's Finish-setup card asks until they are. */

@@ -84,14 +84,8 @@ abstract class MonitorReceiver : BroadcastReceiver() {
             }
 
             ACTION_GLUCOSE_DISMISSED -> {
-                val now = monitor.clock.now()
-                if (MonitoringService.isRunning) {
-                    monitor.notification.post(
-                        monitor.notification.content(monitor.hubImpl.state.value, now),
-                        now,
-                        force = true,
-                    )
-                }
+                // the service posts it again as it is (a forced post, with its card)
+                if (MonitoringService.isRunning) monitor.repost()
             }
         }
     }
