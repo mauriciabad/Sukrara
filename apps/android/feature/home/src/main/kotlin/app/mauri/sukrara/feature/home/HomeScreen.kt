@@ -1,4 +1,4 @@
-// Sukrara — https://github.com/mauriciabad/Sukrara
+// Sukrara — https://github.com/mauriciabad/sukrara
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.feature.home
@@ -249,7 +249,7 @@ private fun GlucoseSection(
         if (fullPage != null) {
             Column {
                 ReasonPage(fullPage, state.now) { callbacks.onAction(it) }
-                // safety banners show in every state (e.g. the showcase still installed before the first sensor)
+                // safety banners show in every state (e.g. alerts that may not ring before the first sensor)
                 BannerSlot(safetyBanner)
             }
         } else {
@@ -417,11 +417,6 @@ private fun banner(
                 stringResource(R.string.banner_alerts_action), { callbacks.onFix(problem) }, null, severity,
             )
         }
-        BannerKind.TurnOffShowcase ->
-            Banner(
-                kind.name, R.drawable.home_ic_warning, stringResource(R.string.banner_showcase_title), stringResource(R.string.banner_showcase_text),
-                stringResource(R.string.banner_showcase_action), open(HomeAction.OpenShowcaseInfo), null, severity,
-            )
         BannerKind.DataProblem ->
             Banner(
                 kind.name, DsR.drawable.ds_ic_error, stringResource(R.string.banner_data_title),

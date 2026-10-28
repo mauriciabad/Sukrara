@@ -1,10 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Sukrara — https://github.com/mauriciabad/Sukrara
+<!-- Sukrara — https://github.com/mauriciabad/sukrara
      Copyright (C) 2026 Maurici Abad
      SPDX-License-Identifier: GPL-3.0-or-later -->
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
-    <!-- The "Turn off Sukrara Showcase" banner: two apps on one sensor ring every alarm twice (package visibility) -->
-    <queries>
-        <package android:name="app.mauri.sukrara.poc" />
-    </queries>
-</manifest>
+<manifest />

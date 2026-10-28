@@ -1,4 +1,4 @@
-// Sukrara — https://github.com/mauriciabad/Sukrara
+// Sukrara — https://github.com/mauriciabad/sukrara
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.feature.home
@@ -132,6 +132,4 @@ sealed interface HomeAction {
 
     data object OpenClinicUpload : HomeAction
 
-    /** Opens the Sukrara Showcase's app info page so the person can turn it off or uninstall it. */
-    data object OpenShowcaseInfo : HomeAction
 }

@@ -36,7 +36,8 @@ The full catalog, with every rule and number, is [docs/FEATURES.md](docs/FEATURE
   directly or Juggluco, saying first what changes), the LibreView account (email and receiver ID, sign in / out; the
   password is never stored) and *Pair new sensor*.
 - **Home screen**, glucose first: the value, trend arrow and a 6 h chart you can scroll back, the sensor's end date,
-  one banner at a time for what needs you (monitoring stopped, alerts may not ring, damaged saved data, finish setup), and the last 24 h of treatments with delete + undo. Never a bare "---": when
+  one banner at a time for what needs you (monitoring stopped, alerts may not ring,
+  damaged saved data, finish setup), and the last 24 h of treatments with delete + undo. Never a bare "---": when
   there's no value it says why and what to do.
 - A **live notification** that is also a **Live Update chip** next to the clock (Android 16 QPR2+), with the same
   freshness steps as the card: from 5 min the number is struck through, from 20 min it's gone. Tap → *Add treatment*.
@@ -54,7 +55,14 @@ The full catalog, with every rule and number, is [docs/FEATURES.md](docs/FEATURE
   checklist with *Fix* buttons (notifications, alarms, full-screen, battery, Do Not Disturb, Bluetooth), ranges,
   graph basics, sensor, and About with an update check against this repo's releases.
 - **Sharing core**: your sharing identity, restorable from its recovery code so existing followers keep following;
-  readings and alerts go to approved followers over Nostr relays (protocol v2). If another app is publishing as the same identity, Sukrara stops and says so instead of fighting it.
+  readings and alerts go to approved followers over Nostr relays (protocol v2). If another device is publishing as
+  the same identity, Sukrara stops and says so instead of fighting it.
+- **First-run setup** in a calm, fixed order: role (confirmed) → what alerts need → sensor → confirm your alert
+  thresholds → your followers (restore once this phone has your sensor, or start fresh) → home. Any
+  step can wait; home's *Finish setup* banner brings it back.
+- **Sharing screens**: invite one person (QR that springs in, link to send or copy, works once for 24 h), allow or deny
+  their request after comparing a 4-digit code, see and remove followers (confirmed), and a clear screen when another
+  device is sharing as you.
 - English and Spanish (Spain) everywhere.
 
 **Mac (you follow someone, from the menu bar)**
@@ -77,6 +85,9 @@ server, Nightscout / Tidepool / LibreView uploads, Health Connect and broadcasts
 reminders page and calendar event, the glucose report and CSV export, settings export / import, following on
 Android and Bluetooth sharing from the phone, and the Mac's Juggluco-over-Wi-Fi source.
 
+**Garmin watch:** Sukrara has no watch server yet. A watch fed by **Juggluco** keeps working while Juggluco reads the
+sensor: pick Juggluco as Sukrara's source (*Settings › Sensor › Juggluco*).
+
 ## Install
 
 Downloads are on [GitHub releases](https://github.com/mauriciabad/sukrara/releases).
@@ -89,7 +100,8 @@ Downloads are on [GitHub releases](https://github.com/mauriciabad/sukrara/releas
   Open Anyway** ([Apple: open a Mac app from an unknown developer](https://support.apple.com/guide/mac-help/mh40616/mac)).
   Sukrara lives in the menu bar (no Dock icon). Homebrew (`mauriciabad/tap`) installs stable releases only.
 - **From this repo** (the owner's devices): `tools/install.sh phone|mac` builds the release, verifies it and installs
-  it in place. It refuses a dirty tree, unmerged work or failing checks.
+  it in place. It refuses a dirty tree, unmerged work or failing checks. On the Mac it makes Sukrara the `sukrara:`
+  link handler.
 
 ## Repository layout
 

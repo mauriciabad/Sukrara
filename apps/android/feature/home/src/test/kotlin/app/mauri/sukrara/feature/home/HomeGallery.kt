@@ -1,4 +1,4 @@
-// Sukrara — https://github.com/mauriciabad/Sukrara
+// Sukrara — https://github.com/mauriciabad/sukrara
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.feature.home
@@ -83,7 +83,6 @@ class HomeGallery {
             "stale-6min" to ui(Samples.wearer(ageMin = 6)),
             "stale-25min" to ui(Samples.wearer(ageMin = 25)),
             "no-sensor-yet" to ui(Samples.noSensorYet()),
-            "no-sensor-yet-showcase" to ui(Samples.noSensorYet(), banner = BannerKind.TurnOffShowcase),
             "setup-incomplete" to ui(GlucoseState.Initial),
             "warming-up" to ui(Samples.wearer(ageMin = 25, sensor = SensorState.WarmingUp(NOW.plus(Duration.ofMinutes(42))))),
             "sensor-ended" to ui(Samples.wearer(sensor = SensorState.Ended)),
@@ -96,7 +95,6 @@ class HomeGallery {
             "follower" to ui(follower),
             "muted" to ui(Samples.wearer().copy(alerts = AlertUiState(mutedUntil = NOW.plus(Duration.ofMinutes(72))))),
             "alerts-unreliable" to ui(Samples.wearer(), banner = BannerKind.AlertsUnreliable),
-            "showcase-installed" to ui(Samples.wearer(), banner = BannerKind.TurnOffShowcase),
             "finish-setup" to ui(Samples.wearer(), banner = BannerKind.FinishSetup),
             "data-problem" to ui(Samples.wearer(), banner = BannerKind.DataProblem, problems = 1),
         )
@@ -134,12 +132,12 @@ class HomeGallery {
     @Test fun darkLargest() = gallery(dark = true, fontScale = 2f)
 
     @Test @Config(qualifiers = "es")
-    fun spanishInRange() = gallery(dark = true, fontScale = 1f, only = listOf("in-range", "no-sensor-yet", "showcase-installed"), prefix = "es-")
+    fun spanishInRange() = gallery(dark = true, fontScale = 1f, only = listOf("in-range", "no-sensor-yet"), prefix = "es-")
 
     /** A small phone at the largest font: a safety banner must be on screen without scrolling (ux-batch1 F2). */
     @Test @Config(qualifiers = "w360dp-h640dp-xhdpi")
     fun smallPhoneSafetyBanner() =
-        gallery(dark = false, fontScale = 2f, only = listOf("alerts-unreliable", "monitoring-stopped", "showcase-installed"), prefix = "360x640-")
+        gallery(dark = false, fontScale = 2f, only = listOf("alerts-unreliable", "monitoring-stopped"), prefix = "360x640-")
 
     @Test fun dataProblemScreen() {
         compose.setContent {

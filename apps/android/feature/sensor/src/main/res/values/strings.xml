@@ -16,8 +16,8 @@
     <string name="newsensor_nfc_off_text">The sensor is started by holding the phone to it. NFC has to be on for that.</string>
     <string name="newsensor_signin_title">Sign in to LibreView</string>
     <string name="newsensor_signin_text">Sukrara starts the sensor with your LibreView account, like the Libre app does. Then the Libre app can take it back later. Sukrara uploads nothing.</string>
-    <string name="newsensor_official_title">Close the Libre app first</string>
-    <string name="newsensor_official_text">If the Libre app and Sukrara both read the sensor, it can stop working. Close the Libre app (or uninstall it) before you go on.</string>
+    <string name="newsensor_official_title">Stop the Libre app first</string>
+    <string name="newsensor_official_text">If the Libre app and Sukrara both read the sensor, it can stop working. Swiping it away isn\'t enough: force-stop it (App info › Force stop) or uninstall it before you go on.</string>
     <string name="newsensor_bt_permission_title">Allow nearby devices</string>
     <string name="newsensor_bt_permission_text">Sukrara reads the sensor over Bluetooth. It needs the Nearby devices permission for that.</string>
     <string name="newsensor_bt_off_title">Turn on Bluetooth</string>

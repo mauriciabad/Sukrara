@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Makes the given app the default handler of sukrara: links and prints the handler macOS now uses.
 //   swift tools/release/url-handler.swift ~/Applications/Sukrara.app
-// lsregister only registers an app; with the showcase also claiming sukrara:, only this makes V1 the default.
+// lsregister only registers an app; when another app also claims sukrara:, only this makes Sukrara the default.
 import AppKit
 
 let app = URL(fileURLWithPath: CommandLine.arguments.dropFirst().first ?? "")

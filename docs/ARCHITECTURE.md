@@ -52,6 +52,21 @@ applies them.
 - `AlertsModule` (A4) wires it; the Application implements `AlertsHost` so receivers and the provider reach it; the
   monitoring service calls `attach(scope)`.
 
+### Sharing
+
+**First-run setup and wearer sharing screens: `:feature:sharing`** (package `app.mauri.sukrara.feature.sharing`).
+
+- `setup/SetupMachine` (pure): the binding step order, what completes / skips each step, the Finish-setup items.
+  `SetupRecord` persists in the typed store `setup`; the role is a separate store owned by `AppGraph` (`RoleStore`).
+- `setup/RestoreGate` (pure): restore only with a live own-sensor reading (≤ 15 min, Libre 3 / Juggluco).
+- `:monitor`'s `AndroidAlertReadiness` implements `:core:model`'s `AlertReadinessSource` (the checklist setup, home and
+  Settings › Alert reliability show).
+- Ports from the app: `OwnerSharing` (adapter `EngineOwnerSharing` over `:share`'s `OwnerEngine`), `AlertSettingsAccess`
+  (the alert settings store), `RoleStore`, `resetAlerts` (`AlertsModule.reset`, on a role change only — at the
+  identity step the sensor already runs and a reset would pause alerts), the alert channel ids.
+- `SetupModule` is composed by `AppGraph` (`SharingDeps.setup`) over `shareOwner`'s engine (started for a wearer by
+  `followRole`); screens get callbacks for other features (the sensor flow) instead of depending on them.
+
 ### Card, widgets and UI
 
 **Widgets: `:widgets`** (Glance). `WidgetsModule` (one line in `AppGraph`; the `Application` is its `WidgetsHost`)

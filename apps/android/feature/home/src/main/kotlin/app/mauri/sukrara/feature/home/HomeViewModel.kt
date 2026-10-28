@@ -1,4 +1,4 @@
-// Sukrara — https://github.com/mauriciabad/Sukrara
+// Sukrara — https://github.com/mauriciabad/sukrara
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.feature.home
@@ -54,7 +54,7 @@ interface HomeDeps {
     /** The alert checklist; null = not known on this build yet (no warning is claimed either way). */
     val readiness: StateFlow<AlertReadiness?>
 
-    /** Showcase installed, setup progress, backup, widget… (the app re-reads them on resume). */
+    /** Setup progress, backup, widget… (the app re-reads them on resume). */
     val environment: StateFlow<HomeEnvironment>
 
     /** Damaged stored files not acknowledged yet (`DataModule.corruption`). */

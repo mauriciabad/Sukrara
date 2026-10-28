@@ -14,4 +14,17 @@
     <string name="ds_unit_d">days</string>
     <string name="ds_unit_min">min</string>
     <string name="ds_unit_s">s</string>
+    <!-- The alert checklist (AlertRequirement): one name per item for setup, home and Settings › Alert reliability -->
+    <string name="ds_req_notifications">Notifications</string>
+    <string name="ds_req_notifications_why">Without them no alert can show or sound.</string>
+    <string name="ds_req_full_screen">Full-screen alerts</string>
+    <string name="ds_req_full_screen_why">Lets an alarm open over the lock screen.</string>
+    <string name="ds_req_exact_alarm">Alarms and reminders</string>
+    <string name="ds_req_exact_alarm_why">Checks for missing readings on time, even when the phone sleeps.</string>
+    <string name="ds_req_battery">No battery restrictions</string>
+    <string name="ds_req_battery_why">Keeps Sukrara reading the sensor in the background.</string>
+    <string name="ds_req_channel">Alert sound and Do Not Disturb</string>
+    <string name="ds_req_channel_why">The alert categories must keep their sound and may break through Do Not Disturb.</string>
+    <string name="ds_req_bluetooth">Bluetooth</string>
+    <string name="ds_req_bluetooth_why">The sensor sends readings over Bluetooth.</string>
 </resources>

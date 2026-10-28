@@ -145,6 +145,65 @@ Rules: [poc/spikes/alerts/SPEC.md](../poc/spikes/alerts/SPEC.md); timelines: [po
 
 **States and exits**: setup step (Back, Skip, the primary action; closing = *Finish Setup…* in the panel later) · setup done with skipped steps (*Finish now* / *Done*, *Finish Setup…* in the panel) · setup complete but following nobody (*Follow Someone…* in the panel) · following states: not following (*Follow…*), looking up (*Cancel*), waiting for approval (*Cancel*), following (*Stop following…* → confirm / *Cancel*), declined / invite used / revoked / broken (*Follow again…*) · follow error (shown under the field; edit and retry) · nearby offer (*Ask to follow* / *Not now*) · mirrored settings (*Use my own settings* / *Defaults*; back with *Use <wearer>'s settings*) · alert settings unreadable (*Reset alert settings*) · treatment not sent (*Retry*) · deleted treatment (*Undo* for 10 s / ⌘Z). Every control has a VoiceOver label; every window works with the keyboard (Return = primary, Escape = Cancel).
 
+## First-run setup (Android)
+
+Android (`apps/android/feature/sharing` `setup/`): a calm ordered journey from install to home. The order is
+binding: **Welcome → Role → Permissions → Sensor → Alert thresholds → Your followers → home**. "Step N of M" is announced by TalkBack; steps cross-fade with a spring (snaps with reduced
+motion); setup done gives a confirm haptic. Progress is kept in the typed store `setup` (`SetupMachine`, pure;
+`SetupMachineTest`), so setup resumes at the same step after a restart; the role lives in its own store (`role`), so a
+damaged setup file never asks for the role again or turns alerts off.
+
+- **Role**: *I wear the sensor* ("This phone reads your sensor and shares it") / *I follow someone* ("This phone shows
+  someone else's glucose"), confirmed: "One role per install. Changing it later means reinstalling Sukrara." Choosing
+  or changing the role resets the alert runtime first (no phantom no-data alarm), stores it where the hub and the
+  alerts read it (`role`) and starts monitoring (the monitor runs once a sensor source exists). Following on Android isn't in this
+  build: choosing it says "Following on Android comes in a later version. Use Sukrara for Mac to follow." and setup
+  stays on the role step.
+- **Permissions**: THE alert checklist (`graph.alerts.readiness`, the monitor's `AndroidAlertReadiness`: the same
+  instance home's reliability row and Settings › Alert reliability read) with the same names as Settings (one string
+  set, `:core:designsystem` `ds_req_*`): *Notifications*, *Full-screen alerts*, *Alarms and reminders*, *No battery
+  restrictions*, *Alert sound and Do Not Disturb*, *Bluetooth* (wearer only). Each missing item has *Allow*: runtime permissions are asked in context
+  the first time, then the matching system page opens. Re-read on every resume. *Continue anyway* / *Later*.
+- **Sensor**: *Set up sensor* opens the new-sensor flow (Libre 3 start / takeover with the LibreView receiver
+  ID, or Juggluco). Until a reading arrives it says "Not monitoring: no sensor yet. No alert can ring until a reading
+  arrives."; the step completes only with a live reading from this phone's own sensor (≤ 15 min old): "Reading
+  received. Sukrara is monitoring."
+- **Alert thresholds**: the six rows of Settings › Review alert thresholds, in its order and words — *Very low*
+  (Below 55 mg/dL), *Low*, *High* (At or above …), *Very high*, *Extremely high* (300), *No data* (No reading for …),
+  *Off (…)* when the kind is off — from the settings the alert runtime reads, each editable with the number dialog;
+  levels must stay in order (very low < low < high < very high < extremely high). Nothing is saved until *Confirm these alerts*;
+  *Later* leaves them unconfirmed (never silently defaulted).
+- **Your followers**: *Restore from your recovery code* (`ncryptsec` + password or `nsec`, typed as hidden text, never
+  saved state) or *Start fresh*. The warning "Your followers move to this phone: the phone that shared until now stops
+  reaching them. Do this once this phone has your sensor." is always shown, then a numbered checklist that ticks
+  itself: 1 *Sensor running in Sukrara*, 2 *Paste your recovery code*. Restore is enabled only when this phone has a
+  live reading from its own sensor (`RestoreGate`, re-checked just before restoring; `RestoreGateTest`). *Start fresh*
+  is confirmed: "Your followers (and your Mac) will need a new invite. Your old identity can't be brought to this
+  phone later without reinstalling."
+- **Finish setup** (home's banner): names the first skipped step that still matters — *Allow what alerts
+  need*, *Connect your sensor*, *Alerts not confirmed*, *Restore your followers*; its
+  action reopens that step alone (done or *Later* → home); items drop out by themselves when the checklist is complete,
+  a reading arrives, the thresholds are confirmed (also in Settings › Alerts:
+  `alerts.thresholdsConfirmedAt`) or an identity exists. First launch (no role yet) opens setup on top of home.
+
+**States and exits**: every step → *Back* (not into the role once chosen) and its primary action; Permissions,
+Sensor, Alerts and Followers → *Skip* / *Later* (→ the Finish setup banner → reopens the step → completes or *Later*
+again). Role → choose → confirm / *Cancel*; Follower in this build → stays on the role step with the note. Sensor waiting → *Set up sensor* (the new-sensor flow, its own Cancel) / *Later*;
+reading received → *Continue*. Alerts → edit (number dialog *Cancel* / OK) → *Confirm these alerts*, disabled with the
+order message while levels are out of order. Followers → restore disabled (no reading yet: the note says so) / restoring ("Looking for your backup on the relays…") / restore error (inline,
+the code stays, fix and retry; never drops into Start fresh: needs password, wrong password, not a code, relays
+unreachable, no backup, unreadable, another phone still sharing) / restored (followers count) → home; *Start fresh* → confirm
+/ *Cancel*; identity unreadable → note + restore; another app sharing as you → the conflict content (below) / *Later*.
+System back on the first step leaves setup (home shows "Not monitoring: setup incomplete" with *Set up*).
+
+## Following (Android)
+
+Not in this build: the role step says so and keeps the person on it; invite links opened on a wearer
+phone open setup. Follow with Sukrara for Mac meanwhile.
+
+**States and exits**: Role step with *I follow someone* selected → the note "Following on Android comes in a later version" →
+choose *I wear the sensor* or leave setup.
+
 ## Readings and backfill
 
 - Wearer phone (`:sensor` `SourceManager`, the hub's one `ReadingSource`): readings come only from the Libre 3 (one live value a minute plus its 5-minute historic point, 24 h backfill on every connection) or Juggluco (history of 1600 entries at start, 180 after a reconnect, then its live stream; backoff 5 s → 60 s; entries marked `device: Sukrara` are refused so the app never re-reads its own values as fresh). Nothing is invented, repeated as new or extrapolated; values outside 39–501 mg/dL are dropped. Plain `http://` is allowed only to this phone (127.0.0.1 / localhost: Juggluco); every other connection is https / wss (`network_security_config`). The source is the setting `source.source` (Libre 3 directly by default, or Juggluco); a switch, a new pairing, *Try again* or Bluetooth coming back fully closes the old source before the new one starts.
@@ -648,6 +707,16 @@ The wearer's phone shares readings, alerts and the stream's roster with approved
   thrown at the person. Roster and backup are refreshed every 6 days. A relay that sends a message over 1 MiB, or
   more messages than the phone can handle (4096 waiting), loses its socket (status *message too big* / *too many
   messages*) and is retried with the same backoff (Android; the Mac's URLSession caps messages at 1 MiB).
+- **Screens** (`feature/sharing` `share/`, `followers/`, `conflict/`; Settings › Sharing = `SharingScreen`:
+  no identity → *Set up sharing* (setup's followers step), sharing → Followers, conflict → the conflict screen): *Share with someone* (a label only
+  the wearer sees, *Create invite* → the QR springs in with a confirm haptic, the link as selectable text, *Send link* /
+  *Copy*, "works once, until <date>", *They'll see*, *Invite someone else*); the approve dialog (name, the invite's
+  label, the 4-digit code to compare — read digit by digit by TalkBack — a warning when other phones tried the same
+  link, *Allow* with a haptic / *Deny*, dismiss = later); *Followers* (waiting requests → review, followers since <date>
+  → dialog → *Remove* confirmed "They stop seeing your data. To follow again they need a new invite.", empty state →
+  *Share with someone*); *Another app is sharing as you* screen (what
+  happened, whether followers still receive readings, *I turned it off. Retry*,
+  *Close*; it blocks only the sharing area — readings and alerts keep running).
 - **Another app sharing as you**: a newer roster / backup signed by this identity from another device (the
   old phone still running after a restore) blocks roster, backup, rotation and follower changes instead of
   republishing back and forth; readings and alerts continue.

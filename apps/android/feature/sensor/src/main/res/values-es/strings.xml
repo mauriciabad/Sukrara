@@ -15,8 +15,8 @@
     <string name="newsensor_nfc_off_text">El sensor se inicia acercándole el móvil. Para eso el NFC tiene que estar activado.</string>
     <string name="newsensor_signin_title">Inicia sesión en LibreView</string>
     <string name="newsensor_signin_text">Sukrara inicia el sensor con tu cuenta de LibreView, como la app Libre. Así la app Libre puede recuperarlo más tarde. Sukrara no sube nada.</string>
-    <string name="newsensor_official_title">Primero cierra la app Libre</string>
-    <string name="newsensor_official_text">Si la app Libre y Sukrara leen el sensor a la vez, puede dejar de funcionar. Cierra la app Libre (o desinstálala) antes de seguir.</string>
+    <string name="newsensor_official_title">Primero detén la app Libre</string>
+    <string name="newsensor_official_text">Si la app Libre y Sukrara leen el sensor a la vez, puede dejar de funcionar. Deslizarla para cerrarla no basta: fuerza su detención (Información de la app › Forzar detención) o desinstálala antes de seguir.</string>
     <string name="newsensor_bt_permission_title">Permite dispositivos cercanos</string>
     <string name="newsensor_bt_permission_text">Sukrara lee el sensor por Bluetooth. Para eso necesita el permiso de dispositivos cercanos.</string>
     <string name="newsensor_bt_off_title">Activa el Bluetooth</string>

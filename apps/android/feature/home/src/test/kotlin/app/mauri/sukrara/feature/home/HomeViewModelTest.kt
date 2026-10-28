@@ -1,4 +1,4 @@
-// Sukrara — https://github.com/mauriciabad/Sukrara
+// Sukrara — https://github.com/mauriciabad/sukrara
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.feature.home
@@ -174,11 +174,11 @@ class HomeViewModelTest {
     @Test fun `safety banners ignore dismiss`() =
         runTest(dispatcher) {
             val deps = Deps()
-            deps.environment.value = HomeEnvironment(showcaseInstalled = true)
+            deps.dataProblems.value = listOf(DataProblem("settings", "SerializationException", "settings.corrupt-1.json", Samples.NOW))
             val vm = HomeViewModel(deps)
             backgroundScope.launch { vm.state.collect {} }
-            vm.dismiss(BannerKind.TurnOffShowcase)
+            vm.dismiss(BannerKind.DataProblem)
             runCurrent()
-            assertEquals(BannerKind.TurnOffShowcase, vm.state.value.banner)
+            assertEquals(BannerKind.DataProblem, vm.state.value.banner)
         }
 }
