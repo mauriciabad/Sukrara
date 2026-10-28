@@ -317,9 +317,11 @@ build signed with that entitlement; today's builds show it as a normal notificat
   while the phone is unlocked, alarms included.
 - **One sound per app per second** (`NotificationUsageStats` / `AlertRateLimiter`, years old, any category): a second
   sounding notification within 1 s is muted (`MUTE_REASON_RATE_LIMIT`, 4096 on the emulator) and still shows; a newer
-  sound would cut the first one off anyway. When one reading fires several alerts, `AlertRuntime` posts the one that
-  must be heard first (ringing before a silent resume, alarm level, most severe, then level → rate → no data;
-  `AlertRingOrderTest`); the others show quietly.
+  sound would cut the first one off anyway. When one reading fires several alerts, the runtime posts the one that
+  must be heard first (`ringOrder`: alarm level, most severe, then level → rate → no data; `AlertRingOrderTest`); the
+  others show quietly. Only ringing alerts of different groups that follow each other move: a restart's silent re-post,
+  a Clear or a second alert of the same group keeps the engine's order, so nothing replaces or outlives what the engine
+  decided.
 - **Two sounds at once after an app update (2026-10-18, user report).** Measured on the Pixel (`dumpsys audio`,
   `notification_alert` events): every Sukrara update made SystemUI start two players within 0.5 s, the system
   default sound (`USAGE_NOTIFICATION`, LSPosed's "Module update complete" notification, channel

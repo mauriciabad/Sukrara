@@ -104,7 +104,8 @@ object DebugFakes {
     /**
      * `ALERTS [--es kinds low,falling_fast] [--el gapMs 0] [--ez reminder true]`: posts made-up alerts of [kinds] (contract ids) through the
      * real notifier, one after another [gapMs] apart, with the alert settings in use (each kind's alarm, sound,
-     * channel). Outside the alert runtime: their actions change nothing. For checking how Android plays alerts that
+     * channel). Outside the alert runtime: their actions change nothing, and they replace a real alert showing in the
+     * same slot (emulator only). For checking how Android plays alerts that
      * come close together (`adb logcat -b events -s notification_alert`: politeness state and mute reason).
      * `reminder`: plain notifications on the same channels as `CATEGORY_REMINDER` instead (the comparison).
      */
@@ -122,10 +123,13 @@ object DebugFakes {
             val reminder = intent.getBooleanExtra("reminder", false)
             val notifier = graph.alerts.notifier
             val kinds =
-                (intent.getStringExtra("kinds") ?: "low,falling_fast").split(',').map { w ->
-                    AlertKind.entries.first {
-                        it.wire ==
-                            w.trim()
+                (intent.getStringExtra("kinds") ?: "low,falling_fast").split(',').mapNotNull { w ->
+                    AlertKind.entries.firstOrNull { it.wire == w.trim() }.also {
+                        if (it ==
+                            null
+                        ) {
+                            Log.w("SukraraDebug", "ALERTS: no kind $w")
+                        }
                     }
                 }
             kinds.forEachIndexed { i, kind ->
