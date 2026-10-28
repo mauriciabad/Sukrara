@@ -4,6 +4,8 @@
 package app.mauri.sukrara.feature.sharing.share
 
 import android.content.ClipData
+import android.content.ClipDescription
+import android.os.PersistableBundle
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.rememberCoroutineScope
@@ -37,7 +39,12 @@ fun InviteHereScreen(
         action = stringResource(R.string.sh_invite_here_copy),
         onAction = {
             scope.launch {
-                clipboard.setClipEntry(ClipData.newPlainText(label, link).toClipEntry())
+                // a single-use link: kept out of the clipboard preview
+                val clip =
+                    ClipData.newPlainText(label, link).apply {
+                        description.extras = PersistableBundle().apply { putBoolean(ClipDescription.EXTRA_IS_SENSITIVE, true) }
+                    }
+                clipboard.setClipEntry(clip.toClipEntry())
                 haptics.confirm()
             }
         },

@@ -57,6 +57,8 @@ class FollowersActions(
     val share: () -> Unit = {},
     val profile: () -> Unit = {},
     val backup: () -> Unit = {},
+    /** The follower dialog closed (its refusal note goes away). */
+    val closeFollower: () -> Unit = {},
 )
 
 /**
@@ -138,7 +140,10 @@ fun FollowersPage(
             refused = writerRefused == f.key,
             onWriter = { actions.setWriter(f.key, it) },
             onRemove = { actions.remove(f.key) },
-            onClose = { open = null },
+            onClose = {
+                open = null
+                actions.closeFollower()
+            },
         )
     }
 }

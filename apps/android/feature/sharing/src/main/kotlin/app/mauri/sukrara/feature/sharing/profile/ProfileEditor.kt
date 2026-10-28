@@ -126,7 +126,7 @@ fun ProfileEditor(
                             Modifier
                                 .size(48.dp)
                                 .clip(CircleShape)
-                                .border(if (selected) 3.dp else 0.dp, MaterialTheme.colorScheme.onSurface, CircleShape)
+                                .then(if (selected) Modifier.border(3.dp, MaterialTheme.colorScheme.onSurface, CircleShape) else Modifier)
                                 .selectable(selected, role = Role.RadioButton) {
                                     haptics.tick()
                                     onChange(profile.copy(avatar = avatar.withColors(i)))

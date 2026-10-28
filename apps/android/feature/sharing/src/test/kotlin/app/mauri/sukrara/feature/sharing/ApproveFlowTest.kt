@@ -10,6 +10,7 @@ import app.mauri.sukrara.feature.sharing.share.SharingViewModel
 import app.mauri.sukrara.feature.sharing.share.labelMatches
 import app.mauri.sukrara.feature.sharing.share.requestToShow
 import app.mauri.sukrara.feature.sharing.share.shownName
+import app.mauri.sukrara.share.owner.ApproveResult
 import app.mauri.sukrara.share.owner.OwnerShareState
 import app.mauri.sukrara.share.owner.PendingRequest
 import kotlinx.coroutines.Dispatchers
@@ -35,7 +36,7 @@ class ApproveFlowTest {
     fun `allow, deny and remove go to the engine for that follower only`() {
         val fake = FakeOwnerSharing()
         val vm = SharingViewModel(fake)
-        vm.approve("k1")
+        vm.approve(PendingRequest("k1", "A", "t", "1111", at = 1))
         vm.deny("k2")
         vm.remove("k3")
         assertEquals(listOf("approve:k1", "deny:k2", "remove:k3"), fake.calls)
@@ -56,11 +57,14 @@ class ApproveFlowTest {
 
     @Test
     fun `a refused Allow says so, and a second tap while it runs does nothing`() {
-        val fake = FakeOwnerSharing().apply { approveAccepted = false }
+        val fake = FakeOwnerSharing().apply { approveResult = ApproveResult.Gone }
         val vm = SharingViewModel(fake)
-        vm.approve("k1", "1234")
-        assertEquals(ApproveUi("k1", working = false, failed = true), vm.approve.value)
+        val request = PendingRequest("k1", "A", "t", "1234", at = 1, others = 1)
+        vm.approve(request, "1234")
+        assertEquals(ApproveUi(request, working = false, refused = ApproveResult.Gone), vm.approve.value)
         assertEquals(listOf("approve:k1:1234"), fake.calls)
+        vm.approveSeen()
+        assertNull(vm.approve.value)
     }
 
     @Test

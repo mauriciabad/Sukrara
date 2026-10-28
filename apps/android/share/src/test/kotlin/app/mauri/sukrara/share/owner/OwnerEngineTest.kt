@@ -218,9 +218,10 @@ class OwnerEngineTest {
             runCurrent()
             val request = e.pendingRequest(mom.public.hex)!!
             assertEquals(1, request.others)
-            assertFalse(e.approve(mom.public.hex))
-            assertFalse(e.approve(mom.public.hex, typedCode = "0000".takeIf { it != request.code } ?: "1111"))
-            assertTrue(e.approve(mom.public.hex, typedCode = request.code))
+            assertEquals(ApproveResult.NeedsCode, e.approve(mom.public.hex))
+            assertEquals(ApproveResult.NeedsCode, e.approve(mom.public.hex, typedCode = "0000".takeIf { it != request.code } ?: "1111"))
+            assertEquals(ApproveResult.Allowed, e.approve(mom.public.hex, typedCode = request.code))
+            assertEquals(ApproveResult.Gone, e.approve(mom.public.hex, typedCode = request.code))
             e.stop()
         }
 

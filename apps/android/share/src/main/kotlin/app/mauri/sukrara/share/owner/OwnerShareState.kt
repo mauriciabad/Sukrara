@@ -33,9 +33,11 @@ sealed interface OwnerShareState {
         /** Active followers that may add entries ("Can add entries"). */
         val writers: Set<String> = emptySet(),
         val passwordManagerSavedAt: Long = 0,
+        /** When this phone restored the identity (from a code or the password manager, so it exists elsewhere). */
+        val restoredAt: Long = 0,
     ) : OwnerShareState {
-        /** The identity is somewhere besides this phone: the password manager or a recovery code the wearer made. */
-        val backedUp: Boolean get() = passwordManagerSavedAt > 0 || recoveryExportedAt > 0
+        /** The identity is somewhere besides this phone: the password manager, a recovery code kept, or where it came from. */
+        val backedUp: Boolean get() = passwordManagerSavedAt > 0 || recoveryExportedAt > 0 || restoredAt > 0
     }
 
     /**
@@ -48,6 +50,20 @@ sealed interface OwnerShareState {
         val followersReceiving: Boolean,
         val relays: Map<String, RelayStatus>,
     ) : OwnerShareState
+}
+
+/** What an Allow did. */
+enum class ApproveResult {
+    Allowed,
+
+    /** The invite expired or was used, or the request isn't waiting any more: a new invite is needed. */
+    Gone,
+
+    /** Another app shares as this identity: follower changes wait until that is solved. */
+    Paused,
+
+    /** Other phones tried the same link: the code from the follower's phone is needed. */
+    NeedsCode,
 }
 
 /** Bluetooth sharing with nearby followers. Until then a no-op. */

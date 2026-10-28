@@ -344,7 +344,7 @@
     <!-- Row / dialog: recovery code -->
     <string name="sh_recovery_title">Recovery code</string>
     <!-- Row summary -->
-    <string name="sh_recovery_summary">A code protected by your password, to print or keep</string>
+    <string name="sh_recovery_summary">A code protected by your password, to keep somewhere safe</string>
     <!-- Recovery code kept; %1$s = date -->
     <string name="sh_recovery_kept_at">Copied %1$s</string>
     <!-- Row: the encrypted backup on relays -->
@@ -399,4 +399,10 @@
     <string name="sh_invite_here_body">Following from an Android phone comes in a later version. Open the link in Sukrara for Mac to follow. The invite stays unused until then.</string>
     <!-- Button: copy the invite link -->
     <string name="sh_invite_here_copy">Copy link</string>
+    <!-- Allow didnt happen; %1$s = name -->
+    <string name="sh_approve_refused_title">%1$s doesn\'t have access</string>
+    <!-- Allow refused while another app shares as you -->
+    <string name="sh_approve_refused_paused">Sharing is paused while another app shares as you. Fix that in Settings › Sharing, then send a new invite.</string>
+    <!-- The password manager returned something else -->
+    <string name="sh_restore_manager_not_identity">That saved password isn\'t a Sukrara identity. Pick the entry named \"Sukrara · npub…\", or paste the recovery code.</string>
 </resources>

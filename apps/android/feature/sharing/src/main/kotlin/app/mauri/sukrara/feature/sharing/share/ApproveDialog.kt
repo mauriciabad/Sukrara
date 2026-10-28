@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.feature.sharing.share
 
+import android.text.format.DateUtils
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
@@ -36,10 +37,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
-import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -86,7 +85,6 @@ const val ALLOW_ARM_MS = 600L
 fun ApproveDialog(
     request: PendingRequest,
     working: Boolean,
-    failed: Boolean,
     onAllow: (typedCode: String?) -> Unit,
     onDeny: () -> Unit,
     onLater: () -> Unit,
@@ -166,15 +164,6 @@ fun ApproveDialog(
                 }
                 Spacer(Modifier.height(12.dp))
                 Text(stringResource(R.string.sh_approve_they_see), style = MaterialTheme.typography.bodySmall, color = cs.onSurfaceVariant)
-                if (failed) {
-                    Spacer(Modifier.height(8.dp))
-                    Text(
-                        stringResource(R.string.sh_approve_failed),
-                        color = cs.error,
-                        style = MaterialTheme.typography.bodyMedium,
-                        modifier = Modifier.semantics { liveRegion = LiveRegionMode.Assertive },
-                    )
-                }
                 Spacer(Modifier.height(20.dp))
                 // wraps at large font sizes instead of squeezing the buttons
                 FlowRow(
@@ -271,5 +260,10 @@ private fun Pill(
 
 private const val CODE_LEN = 4
 
-/** Hours and minutes in the phone's format (epoch s). */
-fun shortTime(epochS: Long): String = DateFormat.getTimeInstance(DateFormat.SHORT).format(Date(epochS * 1000))
+/** Hours and minutes in the phone's format (epoch s), with the day when it isn't today. */
+fun shortTime(epochS: Long): String {
+    val at = epochS * 1000
+    val today = DateUtils.isToday(at)
+    return (if (today) DateFormat.getTimeInstance(DateFormat.SHORT) else DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT))
+        .format(Date(at))
+}

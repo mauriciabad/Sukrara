@@ -38,11 +38,13 @@ import app.mauri.sukrara.feature.sharing.setup.SetupStep
 import app.mauri.sukrara.feature.sharing.setup.SetupUi
 import app.mauri.sukrara.feature.sharing.setup.ThresholdField
 import app.mauri.sukrara.feature.sharing.share.ApproveDialog
+import app.mauri.sukrara.feature.sharing.share.ApproveRefusedDialog
 import app.mauri.sukrara.feature.sharing.share.InviteUi
 import app.mauri.sukrara.feature.sharing.share.ShareScreen
 import app.mauri.sukrara.protocol.event.Avatar
 import app.mauri.sukrara.protocol.event.Profile
 import app.mauri.sukrara.protocol.owner.IdentityCheck
+import app.mauri.sukrara.share.owner.ApproveResult
 import app.mauri.sukrara.share.owner.FollowerRecord
 import app.mauri.sukrara.share.owner.OwnerShareState
 import app.mauri.sukrara.share.owner.PendingRequest
@@ -191,18 +193,18 @@ class SharingScreenshotTest {
                 FollowerDialog(followers[0], writer = true, refused = false, onWriter = {}, onRemove = {}, onClose = {})
             },
             "approve" to
-                { ApproveDialog(request, working = false, failed = false, onAllow = {}, onDeny = {}, onLater = {}, time = ::utcTime) },
+                { ApproveDialog(request, working = false, onAllow = {}, onDeny = {}, onLater = {}, time = ::utcTime) },
             "approve-leaked" to {
                 ApproveDialog(
                     request.copy(others = 2),
                     working = false,
-                    failed = true,
                     onAllow = {},
                     onDeny = {},
                     onLater = {},
                     time = ::utcTime,
                 )
             },
+            "approve-refused" to { ApproveRefusedDialog(request, ApproveResult.Gone, {}) },
             "profile" to { ProfileScreen(me, ProfileSave.Idle, {}, {}) },
             "profile-failed" to { ProfileScreen(Profile("", null), ProfileSave.Failed, {}, {}) },
             "backup-missing" to { BackupScreen(sharing, { SaveOutcome.Saved }, { null }, {}) },

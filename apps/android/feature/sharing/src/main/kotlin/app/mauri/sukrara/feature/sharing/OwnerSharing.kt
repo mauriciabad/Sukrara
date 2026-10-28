@@ -4,6 +4,7 @@
 package app.mauri.sukrara.feature.sharing
 
 import app.mauri.sukrara.protocol.event.Profile
+import app.mauri.sukrara.share.owner.ApproveResult
 import app.mauri.sukrara.share.owner.OwnerEngine
 import app.mauri.sukrara.share.owner.OwnerShareState
 import app.mauri.sukrara.share.owner.usecase.CreateInvite
@@ -51,10 +52,10 @@ interface OwnerSharing {
     suspend fun createInvite(label: String): Invite?
 
     /**
-     * Allow; false when it didn't work (expired or used invite, no longer waiting, another app shares as you, or a leaked
-     * link without the right [typedCode] from the follower's phone).
+     * Allow, and what happened (expired or used invite / no longer waiting, another app shares as you, or a leaked link
+     * without the right [typedCode] from the follower's phone).
      */
-    suspend fun approve(follower: String, typedCode: String? = null): Boolean
+    suspend fun approve(follower: String, typedCode: String? = null): ApproveResult
 
     suspend fun deny(follower: String)
 
@@ -77,8 +78,11 @@ class EngineOwnerSharing(
 
     override suspend fun setProfile(profile: Profile): Boolean = engine.setProfile(profile)
 
-    override suspend fun setWriter(follower: String, allowed: Boolean): Boolean =
-        engine.setWriter(follower, allowed)?.let { s -> (follower in s.writers) == allowed } ?: false
+    /** Refused only while another app shares as you; a repeated tap (nothing to change) is fine. */
+    override suspend fun setWriter(follower: String, allowed: Boolean): Boolean {
+        engine.setWriter(follower, allowed)
+        return engine.state.value !is OwnerShareState.AnotherAppSharingAsYou
+    }
 
     override suspend fun exportRecovery(password: String): String? = engine.exportRecovery(password)
 
@@ -99,7 +103,7 @@ class EngineOwnerSharing(
         return engine.createInvite(label)?.let { Invite(it, label.trim(), at + CreateInvite.TTL) }
     }
 
-    override suspend fun approve(follower: String, typedCode: String?): Boolean = engine.approve(follower, typedCode)
+    override suspend fun approve(follower: String, typedCode: String?): ApproveResult = engine.approve(follower, typedCode)
 
     override suspend fun deny(follower: String) {
         engine.deny(follower)

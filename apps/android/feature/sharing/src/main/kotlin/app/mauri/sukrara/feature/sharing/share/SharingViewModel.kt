@@ -11,7 +11,9 @@ import app.mauri.sukrara.feature.sharing.Invite
 import app.mauri.sukrara.feature.sharing.OwnerSharing
 import app.mauri.sukrara.feature.sharing.profile.ProfileSave
 import app.mauri.sukrara.protocol.event.Profile
+import app.mauri.sukrara.share.owner.ApproveResult
 import app.mauri.sukrara.share.owner.OwnerShareState
+import app.mauri.sukrara.share.owner.PendingRequest
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -29,8 +31,8 @@ sealed interface InviteUi {
     data object Failed : InviteUi
 }
 
-/** An Allow in progress or refused, for the request [follower]. */
-data class ApproveUi(val follower: String, val working: Boolean, val failed: Boolean)
+/** An Allow in progress ([refused] null) or refused (why), for [request] — kept so the answer shows after it's gone. */
+data class ApproveUi(val request: PendingRequest, val working: Boolean, val refused: ApproveResult? = null)
 
 /**
  * Share screen, approve dialog, followers page, How you appear and Backup: every action goes through [OwnerSharing]
@@ -65,13 +67,23 @@ class SharingViewModel(private val sharing: OwnerSharing) : ViewModel() {
     }
 
     /** Allow, once: a second tap while it runs does nothing (the dialog may already show the next request). */
-    fun approve(follower: String, typedCode: String? = null) {
+    fun approve(request: PendingRequest, typedCode: String? = null) {
         if (_approve.value?.working == true) return
-        _approve.value = ApproveUi(follower, working = true, failed = false)
+        _approve.value = ApproveUi(request, working = true)
         viewModelScope.launch {
-            val ok = sharing.approve(follower, typedCode)
-            _approve.value = if (ok) null else ApproveUi(follower, working = false, failed = true)
+            val result = sharing.approve(request.follower, typedCode)
+            _approve.value = if (result == ApproveResult.Allowed) null else ApproveUi(request, working = false, refused = result)
         }
+    }
+
+    /** The wearer read why an Allow didn't happen. */
+    fun approveSeen() {
+        if (_approve.value?.working != true) _approve.value = null
+    }
+
+    /** The follower dialog closed: a refusal note shouldn't come back with it. */
+    fun writerSeen() {
+        _writerRefused.value = null
     }
 
     fun deny(follower: String) {

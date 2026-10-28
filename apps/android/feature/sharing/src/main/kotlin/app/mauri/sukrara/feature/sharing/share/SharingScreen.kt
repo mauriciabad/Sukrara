@@ -71,6 +71,7 @@ fun SharingScreen(
                         share = onShare,
                         profile = onProfile,
                         backup = onBackup,
+                        closeFollower = viewModel::writerSeen,
                     ),
                     writerRefused = writerRefused,
                 )

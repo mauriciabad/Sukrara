@@ -13,7 +13,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
@@ -60,7 +59,7 @@ enum class SaveOutcome { Saved, Cancelled, Failed, NoIdentity }
 
 /**
  * Backup: the sharing identity somewhere besides this phone, so a new phone keeps the followers. Save to the password
- * manager (recommended; the system's sheet asks first), a recovery code for people who want a printable sheet, and
+ * manager (recommended; the system's sheet asks first), a recovery code for people who keep their own copy, and
  * whether the relays hold the encrypted follower list. Leaving needs nothing: an unsaved code is simply not a backup.
  */
 @Composable
@@ -192,7 +191,8 @@ fun RecoveryDialog(
                     }
                     if (failed) Text(stringResource(R.string.sh_recovery_failed), color = MaterialTheme.colorScheme.error)
                 } else {
-                    SelectionContainer { Text(shown, fontFamily = FontFamily.Monospace, style = MaterialTheme.typography.bodySmall) }
+                    // not selectable: Copy and close is the one copy, marked sensitive
+                    Text(shown, fontFamily = FontFamily.Monospace, style = MaterialTheme.typography.bodySmall)
                     Text(stringResource(R.string.sh_recovery_keep), style = MaterialTheme.typography.bodySmall)
                 }
             }

@@ -4,6 +4,7 @@
 package app.mauri.sukrara.feature.sharing
 
 import app.mauri.sukrara.protocol.event.Profile
+import app.mauri.sukrara.share.owner.ApproveResult
 import app.mauri.sukrara.share.owner.OwnerShareState
 import app.mauri.sukrara.share.owner.usecase.RestoreIdentity
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -63,11 +64,11 @@ class FakeOwnerSharing(
         return invite
     }
 
-    var approveAccepted = true
+    var approveResult = ApproveResult.Allowed
 
-    override suspend fun approve(follower: String, typedCode: String?): Boolean {
+    override suspend fun approve(follower: String, typedCode: String?): ApproveResult {
         calls += "approve:$follower" + (typedCode?.let { ":$it" } ?: "")
-        return approveAccepted
+        return approveResult
     }
 
     override suspend fun deny(follower: String) {

@@ -696,7 +696,8 @@ The wearer's phone shares readings, alerts and the stream's roster with approved
   counts as backed up once the password manager took it or a code was copied (a restore counts too); until then home
   shows *Not backed up* (dismissable, back after a while).
 - **Restore** (switching phones): *Restore from password manager* (only once the restore gate is open: the secret is
-  never fetched before; an `ncryptsec` fills the code field and asks for its password) or the pasted code → the newest
+  never fetched before; an `ncryptsec` fills the code field and asks for its password; a saved password that isn't
+  an `nsec` / `ncryptsec` is never used, it says so) or the pasted code → the newest
   owner backup on the relays →
   followers, invites, writers and profile come back; this phone gets a new device key and a new epoch, every follower
   gets the new read key before the new roster, so existing followers (Mac included) keep following without doing
@@ -710,7 +711,8 @@ The wearer's phone shares readings, alerts and the stream's roster with approved
   10:05*, the 4-digit code to compare (read digit by digit by TalkBack), *Later* / *Deny* / *Allow*. Allow is armed
   600 ms after the dialog appears and works once per tap. When other phones also tried the same link the wearer types
   the code shown on the follower's phone instead (the engine refuses Allow without it). An Allow that didn't happen
-  says *Couldn't give access*.
+  says why in a dialog over the app (*Couldn't give access*: the invite expired or was used — send a new one; or
+  sharing is paused while another app shares as you).
 - **Readings**: live event per new reading (< 10 min old), hour chunks of the last 25 h (current hour at most every
   5 min), all of the last 24 h again on start, approval and rotation. **Alerts** go out at once.
 - **Access request notification** (channel *Access requests*, Sukrara's info group): *Ana wants to see your glucose ·

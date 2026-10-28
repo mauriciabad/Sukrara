@@ -89,6 +89,8 @@ data class OwnerState(
     val recoveryExportedAt: Long = 0,
     /** When the identity was handed to the phone's password manager (Credential Manager); 0 = never. */
     val passwordManagerSavedAt: Long = 0,
+    /** When this phone restored the identity from a code or the password manager; 0 = created here. */
+    val restoredAt: Long = 0,
     val conflict: ConflictRecord? = null,
     val pendingControl: List<PendingControl> = emptyList(),
     /** When the whole treatment log (last 30 days) went out last (republished at least weekly: 30-day expiry). */

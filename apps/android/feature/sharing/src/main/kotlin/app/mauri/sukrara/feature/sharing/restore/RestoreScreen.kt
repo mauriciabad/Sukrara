@@ -129,8 +129,18 @@ private fun ColumnScope.RestoreForm(
             scope.launch {
                 when (val got = PasswordManager.get(activity)) {
                     is PasswordManager.Got.Secret -> {
-                        code = got.text
-                        if (!got.text.trim().startsWith("ncryptsec")) actions.restore(got.text, null)
+                        val text = got.text.trim()
+                        when {
+                            // another app's password saved for Sukrara (an account sign-in): never sent anywhere
+                            !text.startsWith("nsec1") && !text.startsWith("ncryptsec1") -> {
+                                managerError = R.string.sh_restore_manager_not_identity
+                            }
+
+                            else -> {
+                                code = text
+                                if (text.startsWith("nsec1")) actions.restore(text, null)
+                            }
+                        }
                     }
 
                     PasswordManager.Got.NoneSaved -> {
