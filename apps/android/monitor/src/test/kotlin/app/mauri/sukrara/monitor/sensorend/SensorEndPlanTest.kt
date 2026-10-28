@@ -181,7 +181,15 @@ class SensorEndPlanTest {
     @Test
     fun `warm-up to active with a start derived differently is the same sensor`() {
         val now = t("2026-03-01T20:00")
-        val warm = SensorEndMemory(start = now - 3600, end = now - 3600 + 15 * 86_400, warmupEnd = now, lastReminder = now, warmupShown = true, config = 7)
+        val warm =
+            SensorEndMemory(
+                start = now - 3600,
+                end = now - 3600 + 15 * 86_400,
+                warmupEnd = now,
+                lastReminder = now,
+                warmupShown = true,
+                config = 7,
+            )
         // the sensor says 14 days: its derived start is a day off, its end matches within hours
         val active = SensorEndPlan.remember(warm, warm.start + 86_400 + 60, warm.end + 60, now + 86_400, 7, now)
         assertTrue(active.warmupShown)

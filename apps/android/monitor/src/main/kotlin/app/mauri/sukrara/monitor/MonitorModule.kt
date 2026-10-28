@@ -24,6 +24,8 @@ import app.mauri.sukrara.monitor.service.AndroidStoppedNotice
 import app.mauri.sukrara.monitor.service.FreshnessTicker
 import app.mauri.sukrara.monitor.service.HealthCheck
 import app.mauri.sukrara.monitor.service.MonitorStarter
+import app.mauri.sukrara.monitor.systemui.RootStatusBar
+import app.mauri.sukrara.monitor.systemui.SystemAccess
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.Flow
@@ -112,12 +114,31 @@ class MonitorModule(
         screenOn.tryEmit(Unit)
     }
 
+    /** Root for Sukrara and the System UI module (Settings › Status bar, the home restart card). */
+    val systemAccess = SystemAccess(dispatchers.io)
+
+    /** The value in the status bar with root: system icons and the System UI module's state. */
+    val rootStatusBar =
+        RootStatusBar(
+            context = context,
+            scope = scope,
+            clock = clock,
+            access = systemAccess,
+            hub = hubImpl.state,
+            settings = settings,
+            graphConfig = graphConfig,
+            freshnessTicks = freshnessTicks,
+            repostNotification = ::repost,
+        )
+
     /** Channels and the hub's inputs; call from `AppGraph.ready()` (after storage is ready, off the main thread). */
     suspend fun ready() {
         Channels.create(context)
         hubImpl.start()
         // starters must see the real role from disk, not the initial "setup not done"
         hubImpl.awaitInputs()
+        systemAccess.start()
+        rootStatusBar.start()
     }
 
     internal fun onFreshnessStep() {

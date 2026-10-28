@@ -13,6 +13,13 @@
     <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
     <uses-permission android:name="android.permission.VIBRATE" />
 
+    <!-- Only this app may feed the System UI module (systemui/RootStatusBar → systemui/SystemUiHook): System UI's
+         receiver requires it of the sender. -->
+    <permission
+        android:name="${applicationId}.permission.SYSTEMUI_STATE"
+        android:protectionLevel="signature" />
+    <uses-permission android:name="${applicationId}.permission.SYSTEMUI_STATE" />
+
     <application>
         <!-- the one monitoring service of both roles; connectedDevice (not dataSync: capped at 6 h a day) -->
         <service
@@ -50,5 +57,15 @@
             android:exported="true"
             android:grantUriPermissions="false"
             tools:ignore="ExportedContentProvider" />
+        <!-- Also an LSPosed module (libxposed API 102, scope System UI: resources/META-INF/xposed). System UI with the
+             module loaded says hello when it (re)starts; only System UI (STATUS_BAR_SERVICE) can send it. -->
+        <receiver
+            android:name=".systemui.HookHelloReceiver"
+            android:exported="true"
+            android:permission="android.permission.STATUS_BAR_SERVICE">
+            <intent-filter>
+                <action android:name="${applicationId}.SYSTEMUI_HELLO" />
+            </intent-filter>
+        </receiver>
     </application>
 </manifest>
