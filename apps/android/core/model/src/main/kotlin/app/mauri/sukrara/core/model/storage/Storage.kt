@@ -123,4 +123,10 @@ interface TreatmentsRepository {
 
     /** Every record changed after [since], tombstones included (sync). */
     suspend fun changedSince(since: Instant): List<TreatmentRecord>
+
+    /** Stores [record] whatever is stored (the wearer's own entry over a writer's copy, a delivery mark). */
+    suspend fun replace(record: TreatmentRecord)
+
+    /** Removes every entry (a follower stopped following: the wearer's log goes with it). */
+    suspend fun deleteAll()
 }

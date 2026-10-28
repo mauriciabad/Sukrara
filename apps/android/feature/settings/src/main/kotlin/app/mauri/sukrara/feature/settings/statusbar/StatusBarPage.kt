@@ -13,6 +13,9 @@ import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import app.mauri.sukrara.core.data.settings.SurfaceSettings
+import app.mauri.sukrara.core.model.SystemAccessPort
+import app.mauri.sukrara.core.model.SystemAccessState
+import app.mauri.sukrara.core.model.storage.SettingSpec
 import app.mauri.sukrara.core.model.storage.SettingsRepository
 import app.mauri.sukrara.designsystem.rows.FooterText
 import app.mauri.sukrara.designsystem.rows.NavigationRow
@@ -20,13 +23,15 @@ import app.mauri.sukrara.designsystem.rows.SettingsGroup
 import app.mauri.sukrara.designsystem.rows.SwitchRow
 import app.mauri.sukrara.feature.settings.R
 import app.mauri.sukrara.feature.settings.SettingsPage
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
-/** Settings › Status bar: the glucose notification's Live Update chip and number icon. */
+/** Settings › Status bar: the glucose notification's Live Update chip and number icon; with root, the value itself. */
 data class StatusBarPrefs(
     val chip: Boolean,
     val numberIcon: Boolean,
@@ -34,7 +39,71 @@ data class StatusBarPrefs(
 
 class StatusBarViewModel(
     private val settings: SettingsRepository,
+    private val systemAccess: SystemAccessPort,
 ) : ViewModel() {
+    val root: StateFlow<RootSettings?> =
+        combine(
+            settings.flow(SurfaceSettings.RootValue),
+            settings.flow(SurfaceSettings.RootPosition),
+            settings.flow(SurfaceSettings.RootColor),
+            settings.flow(SurfaceSettings.HideNotificationIcon),
+            ::RootSettings,
+        ).stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    val access: StateFlow<SystemAccessState> get() = systemAccess.state
+
+    /** A root / LSPosed action is running; [problem] = why the last one failed (shown in the banner). */
+    val busy = MutableStateFlow(false)
+    val problem = MutableStateFlow<String?>(null)
+
+    val actions =
+        RootActions(
+            setOn = { on ->
+                set(SurfaceSettings.RootValue, on)
+                // turning it on is the moment to ask for root
+                if (on) viewModelScope.launch { runCatching { systemAccess.checkRoot() } }
+            },
+            setPosition = { set(SurfaceSettings.RootPosition, it) },
+            setColor = { set(SurfaceSettings.RootColor, it) },
+            setHideIcon = { set(SurfaceSettings.HideNotificationIcon, it) },
+            checkRoot = {
+                run {
+                    systemAccess.checkRoot()
+                    null
+                }
+            },
+            requestScope = { run { systemAccess.requestScope() } },
+            restart = { run { systemAccess.restartSystemUi() } },
+        )
+
+    /**
+     * Back on the page: ask LSPosed again, and root only while the value is on (`su` shows KernelSU's / Magisk's
+     * prompt; someone who never turned it on isn't asked).
+     */
+    fun refresh() {
+        viewModelScope.launch {
+            if (settings.flow(SurfaceSettings.RootValue).first()) runCatching { systemAccess.checkRoot() }
+        }
+        systemAccess.refresh()
+    }
+
+    private fun <T> set(
+        spec: SettingSpec<T>,
+        value: T,
+    ) {
+        viewModelScope.launch { settings.set(spec, value) }
+    }
+
+    private fun run(action: suspend () -> String?) {
+        if (busy.value) return
+        busy.value = true
+        problem.value = null
+        viewModelScope.launch {
+            problem.value = runCatching { action() }.getOrElse { it.javaClass.simpleName }
+            busy.value = false
+        }
+    }
+
     val prefs: StateFlow<StatusBarPrefs?> =
         combine(settings.flow(SurfaceSettings.StatusChip), settings.flow(SurfaceSettings.NumberIcon), ::StatusBarPrefs)
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
@@ -75,6 +144,7 @@ fun StatusBarContent(
     onNumberIcon: (Boolean) -> Unit,
     onAllowLiveUpdates: () -> Unit,
     onBack: () -> Unit,
+    rootSection: @Composable () -> Unit = {},
 ) {
     SettingsPage(stringResource(R.string.st_statusbar_title), onBack) {
         SettingsGroup {
@@ -104,5 +174,6 @@ fun StatusBarContent(
             )
         }
         FooterText(stringResource(R.string.st_statusbar_footer))
+        rootSection()
     }
 }

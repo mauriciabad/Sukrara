@@ -22,7 +22,6 @@
     <string name="sh_setup_role_wearer_means">Este móvil lee tu sensor y lo comparte.</string>
     <string name="sh_setup_role_follower">Sigo a alguien</string>
     <string name="sh_setup_role_follower_means">Este móvil muestra la glucosa de otra persona.</string>
-    <string name="sh_setup_role_follower_later">Seguir desde Android llegará en una versión posterior. Usa Sukrara para Mac para seguir.</string>
     <string name="sh_setup_role_confirm_title">¿%1$s?</string>
     <string name="sh_setup_role_confirm_text">Un papel por instalación. Para cambiarlo después hay que reinstalar Sukrara.</string>
     <string name="sh_setup_role_confirm">Confirmar</string>
@@ -86,7 +85,7 @@
     <string name="sh_share_try_again">Reintentar</string>
     <string name="sh_share_failed">No se ha podido crear la invitación. Revisa internet y que compartir esté configurado.</string>
     <string name="sh_share_qr_label">Código QR de la invitación. El enlace está debajo.</string>
-    <string name="sh_share_scan">Envíale el enlace o deja que escanee este código con Sukrara para Mac. Seguir desde un teléfono Android llegará en una versión posterior.</string>
+    <string name="sh_share_scan">Envíale el enlace: lo abre en Sukrara en su teléfono o Mac. Sukrara para Mac también puede escanear este código.</string>
     <string name="sh_share_note">Este enlace funciona una vez, hasta el %1$s. Envíalo solo a %2$s: quien lo abra primero puede pedir seguirte, y tú decides. No contiene ninguna clave de tu glucosa.</string>
     <string name="sh_share_note_unnamed">Este enlace funciona una vez, hasta el %1$s. Envíalo solo a la persona que invitas: quien lo abra primero puede pedir seguirte, y tú decides. No contiene ninguna clave de tu glucosa.</string>
     <string name="sh_share_send">Enviar enlace</string>
@@ -284,9 +283,9 @@
     <!-- Page title: an invite link opened on this phone -->
     <string name="sh_invite_here_page">Invitación</string>
     <!-- Invite opened on an Android phone -->
-    <string name="sh_invite_here_title">Abre esta invitación en un Mac</string>
+    <string name="sh_invite_here_title">Este teléfono comparte sus propias lecturas</string>
     <!-- Why it can not be used here -->
-    <string name="sh_invite_here_body">Seguir desde un teléfono Android llegará en una versión posterior. Abre el enlace en Sukrara para Mac para seguir. Mientras tanto, la invitación sigue sin usar.</string>
+    <string name="sh_invite_here_body">Esta invitación es para el teléfono o Mac que va a seguir. Envía el enlace a ese dispositivo; la invitación sigue sin usar hasta entonces.</string>
     <!-- Button: copy the invite link -->
     <string name="sh_invite_here_copy">Copiar enlace</string>
     <!-- Allow didnt happen; %1$s = name -->
@@ -295,4 +294,43 @@
     <string name="sh_approve_refused_paused">Compartir está en pausa mientras otra app comparte como tú. Soluciónalo en Ajustes › Compartir y envía una nueva invitación.</string>
     <!-- The password manager returned something else -->
     <string name="sh_restore_manager_not_identity">Esa contraseña guardada no es una identidad de Sukrara. Elige la entrada «Sukrara · npub…» o pega el código de recuperación.</string>
+    <string name="sh_join_title">Seguir a alguien</string>
+    <string name="sh_join_body">Pide a la persona que lleva el sensor que abra Sukrara, toque Compartir y te envíe el enlace de invitación. Pégalo aquí.</string>
+    <string name="sh_join_link">Enlace de invitación</string>
+    <string name="sh_join_name">Tu nombre</string>
+    <string name="sh_join_name_hint">Para que sepa quién lo pide. Opcional.</string>
+    <string name="sh_join_action">Unirme</string>
+    <string name="sh_join_looking">Buscando la invitación…</string>
+    <string name="sh_join_someone">la persona que te invitó</string>
+    <string name="sh_join_waiting">Esperando a que %1$s te dé acceso</string>
+    <string name="sh_join_active">Sigues a %1$s</string>
+    <string name="sh_join_code_hint">Si te pide un código, dile:</string>
+    <string name="sh_join_waiting_note">%1$s recibe una notificación para darte acceso. Sus lecturas aparecerán en inicio en cuanto lo haga; mientras, puedes seguir con la configuración.</string>
+    <string name="sh_join_declined">%1$s no te ha dado acceso. Pídele un enlace nuevo y pégalo aquí.</string>
+    <string name="sh_join_used">Otro teléfono usó antes esta invitación de %1$s. Pídele un enlace nuevo y pégalo aquí.</string>
+    <string name="sh_join_revoked">%1$s ha dejado de compartir contigo. Pega un enlace nuevo para volver a seguirle.</string>
+    <string name="sh_join_err_invalid">No es un enlace de invitación de Sukrara. Empieza por https://sukrara.mauri.app/join#</string>
+    <string name="sh_join_err_not_found">No se ha encontrado esta invitación. Puede que la hayan cancelado: pide un enlace nuevo.</string>
+    <string name="sh_join_err_offline">No hay conexión a internet. Revisa la conexión y vuelve a intentarlo.</string>
+    <string name="sh_join_err_expired">Esta invitación ha caducado. Pide un enlace nuevo.</string>
+    <string name="sh_join_err_wrong">Esta invitación no coincide con su enlace. Pide un enlace nuevo.</string>
+    <string name="sh_join_err_already">Este teléfono ya sigue a alguien. Deja de seguirle primero en Ajustes › Compartir.</string>
+    <string name="sh_join_err_store">No se ha podido guardar la clave en este teléfono. Vuelve a intentarlo.</string>
+    <string name="sh_following_title">Siguiendo</string>
+    <string name="sh_following_waiting">Esperando a que %1$s te dé acceso</string>
+    <string name="sh_following_active">Sigues a %1$s</string>
+    <string name="sh_following_code">Si te pide un código: %1$s</string>
+    <string name="sh_following_last_heard">Última lectura recibida %1$s</string>
+    <string name="sh_following_never">Aún no ha llegado ninguna lectura</string>
+    <string name="sh_following_can_write">Puedes añadir entradas a su registro</string>
+    <string name="sh_following_cannot_write">Solo esa persona puede añadir entradas a su registro</string>
+    <string name="sh_following_relays">Conectado a %1$d de %2$d relays</string>
+    <string name="sh_following_relays_off">Sin conexión (la monitorización no está en marcha)</string>
+    <string name="sh_following_stop">Dejar de seguir</string>
+    <string name="sh_following_stop_title">¿Dejar de seguir a %1$s?</string>
+    <string name="sh_following_stop_text">Sus lecturas, entradas y alertas se borran de este teléfono. Para volver a seguirle necesitas un enlace de invitación nuevo.</string>
+    <string name="sh_following_stop_failed">No se ha podido borrar la clave de este teléfono. Vuelve a intentarlo.</string>
+    <string name="sh_following_unreadable">Este teléfono no puede abrir ahora la clave de seguidor. Sukrara sigue intentándolo; sus lecturas guardadas y las alertas se mantienen. Si no se recupera, deja de seguir y vuelve a unirte.</string>
+    <string name="sh_following_damaged">La clave de seguidor de este teléfono está dañada. Deja de seguir y vuelve a unirte con un enlace nuevo.</string>
+    <string name="sh_following_join_again">Unirme con un enlace nuevo</string>
 </resources>

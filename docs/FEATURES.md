@@ -206,14 +206,49 @@ System back on the first step leaves setup (home shows "Not monitoring: setup in
 
 ## Following (Android)
 
-Not in this build: the role step says so and keeps the person on it. An invite link opened on an Android phone (any
-role, also during first-run setup) opens *Open this invite on a Mac*: following from an Android phone comes later, open
-the link in Sukrara for Mac; *Copy link*; the invite stays unused. The share screen tells the wearer the same ("Send
-them the link, or let them scan this code, in Sukrara for Mac").
+- **Join** (setup, after *I follow someone*): the *Follow someone* step takes the wearer's invite link (pasted, or filled
+  in when the link was opened on this phone) and an optional name the wearer sees. *Join* looks up the invite on the
+  default relays (AUTH as the invite key, up to ~25 s while the wearer's phone may still be publishing it) and opens it;
+  errors say what to do (*not a Sukrara invite link*, *not found — ask for a new link*, *expired*, *doesn't match its
+  link*, *no internet*, *already follows someone*, *couldn't save the key*). Joined: a new follower key goes to the
+  SecureStore, any previous follow's readings and entries are wiped, the alert state and "monitoring since" are reset,
+  monitoring starts and sends the access request (gift wrap to the identity, 7 d; again on every connect while it waits).
+  The step then shows *Waiting for Ana to allow you* with her picture and the 4-digit code she may ask for; *Continue*
+  goes on to permissions and alerts. Back on the join step returns to the role step.
+- **The stream** (`:share` `FollowerEngine`, connected exactly while the monitoring service runs it as the follower's
+  reading source): subscriptions as the Mac follower (inbox; once approved: roster, hour chunks with a 13 h – 7 d
+  backfill, live + alert events, mirrored settings, treatments), every event judged by `StreamFollower` (the acceptance
+  rules of PROTOCOL-v2, pinned by the sync fixtures: only the wearer's identity and roster devices are believed).
+  Readings go to the hub (home, widgets, the live notification and alerts follow them), the wearer's sensor to the hub's
+  sensor state, entries to the treatment log, `alert` events and the mirrored alert settings to the follower's own
+  alert runtime (its mute stays on this phone). A missed rotation sends a rekey request (≤ 1 per epoch per 5 min); after
+  the chunk backfill, missing hours of the last 12 are asked for (≤ 1 per 30 min, only while the stream is live). A
+  roster or key with other relays reconnects there. The record (key, read keys, roster, marks) is saved when what it
+  trusts changes, else every 5 min.
+- **No data**: the follower's `no_data` alarm is the same alarm-driven runtime as the wearer's (it runs with the service
+  dead and restarts it), armed by the first reading that arrives; a follow that ends (declined, invite used, removed)
+  disarms it, so nothing rings for a stream that won't come. A follower key the Keystore can't open now is never treated
+  as "not following": the service keeps running the source, retries 5 s doubling to 5 min, and the stored readings keep
+  alerting.
+- **Entries**: a follower the wearer lets *add entries* writes in the treatment log as its follower key; each entry is
+  *pending* until a relay accepts it (resent on every connect), then delivered.
+- **Notifications** (info channel *Requests*): *Invite already used*, *Ana didn't allow you*, *You no longer follow Ana*;
+  a tap opens the app.
+- **Following page** (Settings › Sharing on a follower): picture and name, *Waiting for Ana to allow you* with the code
+  or *You follow Ana*, when the last reading arrived, whether this phone may add entries, the relay connection, and
+  *Stop following* (confirmed: the key, readings and entries leave the phone, the alert state resets, the role is cleared
+  and setup opens). A follow that ended says why with *Join with a new link*.
+- **Invite links** opened on a phone with no role or a follower that follows no one open setup's join step with the link;
+  on a wearer phone (or one already following) they open *This phone shares its own readings* with *Copy link*.
+- Not included yet: scanning the invite QR code (camera / picture), the *Settings from* page (the follower's alert
+  runtime uses the wearer's mirrored alert settings as `AlertMirror` decides), Bluetooth from the wearer's phone.
 
-**States and exits**: Role step with *I follow someone* selected → the note "Following on Android comes in a later version" →
-choose *I wear the sensor* or leave setup. *Open this invite on a Mac* → *Copy link* (stays) or Back (returns to what was
-open, setup included).
+**States and exits**: Role step → *I follow someone* → join step (Back → role step). Join step: typing (Join, Back),
+looking up (spinner, the fields locked), failed (the reason; edit the link to clear it, Join again), waiting (code,
+*Continue*). Following page: waiting (code, *Stop following*), following (*Stop following*), ended — declined / invite
+used / removed (*Join with a new link* → join step, *Stop following*), key unreadable (*Stop following*), damaged (*Stop
+following*). Stop following → confirm dialog (Cancel / *Stop following*) → setup's role step. Notifications → tap opens
+the app (Settings › Sharing shows the same state). Invite link on a wearer phone → *Copy link* or Back.
 
 ## Readings and backfill
 
@@ -477,9 +512,9 @@ Android, wearer and follower homes (`widgets/WidgetPresence.kt`, `ui/WidgetBanne
 
 ## Restart-System-UI card
 
-Android, wearer and follower homes (`ui/SystemUiBanner.kt`, `features/SystemAccess`, tests `SystemAccessTest`; 2026-10-21) and, as a SettingsBanner, Settings → Status bar / Lock screen. LSPosed marks System UI STALE after **every** Sukrara install (the module is the app), yet System UI keeps running the old code fine; a restart only matters when the code System UI runs changed. Each build carries a fingerprint of that code (`BuildConfig.HOOK_CODE`: SHA-256 of `hook/`, `graph/` and every file a `hook/` file names, computed by Gradle) and records it per versionCode on the phone. Decision (`SystemAccess.decide`): not in scope → *System UI not in scope*; in scope but not running or FAILED → restart; UP_TO_DATE or RELOADING → fine; STALE from a build with the same fingerprint → fine; another or unknown fingerprint (a build from before the record, a rebuild with the same versionCode) → restart. Home shows the card only while a module feature is on (lock screen widget, or the status-bar value with its colour, hidden notification icon or a module placement; `usesModule`): the restart icon, *Restart System UI*, a close button, one line (*The status bar and lock screen still use the previous version*) and the pill *Restart*; the whole card does the same. The action is always the root restart of System UI, never a reboot (LSPosed loads a module when System UI's process starts; System UI is persistent, so after the kill Android starts it again within ~2 s): `su -c 'kill $(pidof com.android.systemui)'`, not `am crash` (crashes count towards rescue mode). That `su` call is the root request when Sukrara isn't granted yet (waits up to 30 s for the prompt); if it fails, *Couldn't restart System UI: <reason from su>* shows on the card in the error colour (`RootStatusBar.restartError`, `SystemUiRestartTest`). Then it asks LSPosed every second for up to 20 s until System UI runs the module again. The card never depends on a root check (0.11.37's home never ran one, so it showed a "restart your phone" line and no pill). Close hides it until the state or the build changes. Mac: none.
+Android (`apps/android/monitor` `systemui/SystemAccess`, `SystemUiTest`): Settings → Status bar shows the restart as its access card; the home card is not included yet (issue). Which code System UI runs comes from the module itself: its hello (when System UI starts, and when the app first sends its state) carries `HookCode.VERSION`, a fingerprint of the `systemui` package that `HookCodeTest` keeps in step with the code; an install with the same System UI code asks for nothing. Decision (`SystemAccess.decide`): the hello's code = this build's → fine; another code → *Sukrara was updated: System UI still runs the previous module…*; no hello: LSPosed (libxposed service, advisory) says the module is missing (*LSPosed module off*), System UI isn't in scope (*System UI not in scope* + *Add System UI*, LSPosed's own prompt) or it is in scope but not loaded (*Restart System UI*). The action is always the root restart of System UI, never a reboot: `su -c 'kill $(pidof com.android.systemui)'` (not `am crash`, which counts towards rescue mode), waiting up to 30 s for the root prompt; a failure shows *Couldn't do it: <reason>* in the error colour; then it follows LSPosed for up to 20 s. Root missing shows *Root needed* with *Check again*. Module steps show only while the value is on. Mac: none.
 
-**States and exits**: *shown* (System UI runs older module code while a module feature is on) → *Restart* (or the whole card); *restarting* (waits up to 20 s for LSPosed) → it leaves when System UI runs the module; *failed* (*Couldn't restart System UI: …* in the error colour) → *Restart* again or Close; *Closed* → hidden until the state or the build changes, then it comes back; *Undo* in the snackbar right after, or Settings → *Show closed tips*, brings it back at once ([Closed tips](#closed-tips)).
+**States and exits**: *Root needed* → grant root in KernelSU / Magisk, then *Check again* (or come back to the page: it checks on resume); *LSPosed module off* → enable the module in LSPosed (the card leaves on resume); *System UI not in scope* → *Add System UI*; *Restart System UI* → the button (*One moment…* while it runs) → the card leaves when System UI says hello with this code; *failed* → the reason in the error colour, the button again. Turning *Value in the status bar* off hides the module steps. All in Settings, reachable with TalkBack (the card is a polite live region).
 
 ## Closed tips
 
@@ -496,12 +531,14 @@ Android, both roles (round f33, the user: closed tips never came back; `features
 ## Data export
 
 - Settings → Export data (wearer and follower; Mac: Glucose Report › Report › *Export CSV…*): readings and treatments of a period as one CSV in LibreView's "Glucose Data" layout (the file Tidepool Uploader's LibreView import reads) plus four columns at the end: `Time (ISO 8601)` with the offset, `Trend (mg/dL/min)`, `Entered By`, `Primed Insulin (units)` (a pen entry's priming, `0.0` when it had none, empty for typed entries; the insulin column holds only the injected units).
-- Line 1 `Glucose Data,Generated on,<UTC> UTC,Generated by,Sukrara`, line 2 the 22 column names, then one row per entry oldest first (readings before treatments at the same time), CRLF line ends, UTF-8, RFC 4180 quoting; a note that starts with `= + - @` (or tab / CR) gets a leading `'` so spreadsheets show it as text.
+- Line 1 `Glucose Data,Generated on,<UTC> UTC,Generated by,Sukrara`, line 2 the 23 column names, then one row per entry oldest first (readings before treatments at the same time), CRLF line ends, UTF-8, RFC 4180 quoting; a note that starts with `= + - @` (or tab / CR) gets a leading `'` so spreadsheets show it as text.
 - Readings: Record Type 0, `Historic Glucose mg/dL` whole numbers (mmol/L one decimal at 18.0182 when asked; the apps are mg/dL only), at most one row per 5 minutes (a reading ≥ 280 s after the last row), trend one decimal when the reading has one. Treatments: rapid → type 4 + `Rapid-Acting Insulin (units)`, long → type 4 + `Long-Acting Insulin (units)` (one decimal), carbs → type 5 + `Carbohydrates (grams)` (whole), note → type 6; the note text in `Notes`; deleted entries skipped.
 - `Device` is `Sukrara`; `Serial Number` is the current sensor's serial for rows inside its wear time, else empty (followers and the Mac don't know serials). `Device Timestamp` is local `yyyy-MM-dd HH:mm` (year first, no offset); the ISO column keeps the repeated hour apart when the clocks go back.
 - No person's name anywhere: the file is `sukrara-glucose-<first day>-to-<last day>.csv`, `Generated by` is `Sukrara`, `Entered By` is the device kind (`phone`, `mac`, `follower`).
-- Android period: This sensor (only when a sensor is known), Last 7 / 14 / 30 days, All time (from the oldest reading or live entry on the phone; `Export.ALL`, `ExportPeriodTest`) (default 14, not saved); Settings → Share with apps links to Export data too; the page shows how many readings and treatments the file will have. *Save file* opens the system file picker (create document, `text/csv`); *Share* writes the file to the app's cache (`cache/export/`, replaced each time) and opens the share sheet with a read grant for that file only. Only data already on the phone: the wearer's 31-day store and treatment log, a follower's received readings and treatments.
+- Android (`:integrations` `GlucoseCsv`, `Exporter`, `ExportPage`; `GlucoseCsvTest` over `contracts/export`): Settings → Share with apps → *Export data* (both roles). Period: This sensor (only when a sensor is known), Last 7 / 14 / 30 days, Everything on this phone (from the oldest reading or live entry) (default 14 days, not saved); the page shows how many readings and entries the file will have ("Counting…" until then). *Save file* opens the system file picker (create document, `text/csv`); *Share* writes the file to `cache/export/` (emptied before every share and at app start) and opens the share sheet with a read grant for that one file. Only data already on the phone: the wearer's readings and treatment log, a follower's received readings and entries (the page says it is the followed person's data, not theirs). Always mg/dL.
 - Mac: the same periods as Android (`GlucoseCsv.Period`, in the order of the schema's `exportPeriod` options): This sensor (only when the wearer's sensor start is known, `SensorStore`; until its end), Last 7 / 14 / 30 days, All time (from the oldest reading or treatment the Mac holds: its 31-day readings store and its treatment log), as a *Period* pop-up in the save panel's accessory view (HIG File management: an accessory view with options in the Save dialog); it starts on the report's period (14 days when the report shows 1 day) and the file name follows the period. `-exportselftest` checks the ranges.
+
+**States and exits**: *choosing a period* → the period dialog (Cancel keeps the old one). *Counting* → the buttons are disabled until the counts show. *Saving* → the system file picker (its Cancel writes nothing); "File saved" or "Couldn't write the file". *Sharing* → the share sheet (Back cancels; the cached copy is deleted on the next share or app start). Back leaves the page; nothing is kept.
 
 ## Settings
 - Followers' *Settings from* (round f28; schema `follower.settingsFrom`, Android `WearerSettings`, Mac `WearerSettings`): **Wearer** (default), **Default** or **Custom**. It decides the settings marked `"mirror": true` in `poc/spikes/settings/settings.json`: the six graph ranges, time shown (default), rings beside the value (count, slots, centre count, order, rewards), time in range beside the graph, crown at 100 %, lines across the graph, vertical lines, last-treatment place and fallback, the sensor countdown hours, each alert's on / threshold / remind every (not *No data*) and the three quiet rules. *Wearer* = the wearer's own values from its settings event (PROTOCOL-v2 "Settings"; the defaults until the first one arrives; newest `u` wins); *Default* = the schema's defaults; *Custom* = this device's own. Everything else stays per device in every mode: sounds, like an alarm, the notification's Mute / Remind less, Mute all, *No data*, the alerts main switch, time shown and sensor time left per place. The alert source follows it: *Wearer* mirrors the wearer's alert events, *Default* / *Custom* run the rules on this device (SPEC §3 `source`). Android: `GraphSettings.state`, `Alerts.settings` and `SensorLife.countdown` are the effective values; `GraphSettings.own`, `Alerts.own`, `SensorLife.ownCountdown` this phone's (what settings export writes); *Copy the wearer's settings* / *Reset to default* overwrite only the mirrored fields of the own ones (`WearerSettings.copyWearerToCustom`, `resetCustomToDefault`). Tests: `WearerSettingsTest`, Mac `-v2selftest`.
@@ -540,7 +577,8 @@ Android, both roles (round f33, the user: closed tips never came back; `features
 
 ## Root status bar (system icons)
 
-- *Value in the status bar* with a `slot:` placement (Settings → Status bar → Placement: *With the system icons* = leftmost, *After the VPN icon* / *Bluetooth icon*, *Before the mobile signal* (the default, 2026-10-23: left of the more permanent mobile / Wi-Fi / battery, right of vibrate, Do Not Disturb, VPN…), *After the mobile signal* / *Wi-Fi icon*) shows the reading as Android system icons, set by the root helper (`status/SlotDaemon`, `IStatusBarService.setIcon`): two slots, `glucose` (the number, `sb_n…` / struck `sb_s…` / `sb_lo` / `sb_hi`) and `glucose_trend` (the arrow every 5°, the ring, `sb_t…`); no readings / sensor ended = one icon in the trend slot (number slot removed); warming up = none. SystemUI draws and tints them; with the LSPosed module they get the range colour.
+- Android (`apps/android/monitor` `systemui/`; Settings → Status bar → *With root*): *Value in the status bar* (off by default; only someone who turns it on is asked for root) with a `slot:` placement (Placement: *With the system icons* = leftmost, *After the VPN icon* / *Bluetooth icon*, *Before the mobile signal* (the default: left of the more permanent mobile / Wi-Fi / battery), *After the mobile signal* / *Wi-Fi icon*) shows the reading as Android system icons, set by the root slot daemon (`SlotDaemon`, run with `su` through `app_process`, `IStatusBarService.setIcon`): two slots of its own, `sukrara_glucose` (the number, `sb_n…` / struck `sb_s…` / `sb_lo` / `sb_hi`) and `sukrara_glucose_trend` (the arrow every 5°, double from ±3, the ring, `sb_t…`); no readings / sensor ended = one icon in the trend slot (number slot removed); warming up = none. What they show is `GlucoseCard.face` for `status-icons` (`SlotIcons`, `SystemUiTest`). SystemUI draws and tints them; with the LSPosed module they get the range colour (out of range only; struck values keep SystemUI's tint). Their TalkBack text starts with *Sukrara glucose* (English: System UI reads it to recognise them), never matching another app's icons. The daemon never leaves a stale value: it clears its slots when it starts, when the app lets go or dies (EOF), when it crashes, and after 10 min without a word from the app (the app pings every minute and sends every reading and freshness step); it accepts only its own slots. The app talks to it on one background thread with timeouts (30 s for the root prompt, 5 s per reply), newest state only. A failed start (root refused, no answer) is retried after 5 min, doubling to 30 min (at once after a settings change or a System UI hello). The value never vanishes from the bar: while a `slot:` placement's icons aren't on screen (no root, the daemon failed) the module draws the text after the clock instead, and Sukrara's notification icon is hidden only while the value shows (text or icons). *Value in the status bar* stays switchable while on, so it can be turned off after root was revoked; root is asked only when it is turned on (and on the page while it is on).
+- The LSPosed module (`SystemUiHook`, libxposed API 102, `META-INF/xposed`, scope System UI) draws the value as text after / before the clock or left of the system icons (the clock's font, tint and fading; range colour when on; the card's arrow or ring; struck at half strength from 5 min; the "no readings" icon from 20 min; the flag once ended; a warm-up's time left), keeps our icons ordered, coloured and first in line, and hides Sukrara's notification icon (*Hide Sukrara's notification icon*, on by default; the app re-posts its notification after the module's hello so it applies at once). It re-renders every 30 s by itself. It is fed by a broadcast only the app can send (signature permission + the sender's identity checked) with every value clamped. Safety: the whole entry and every hook catch everything (PROTECTIVE hooks; a failing piece turns itself off), at most 40 log lines a minute, kill switch `adb shell setprop debug.sukrara.systemui_off 1` (or `settings put global sukrara_systemui_off 1`) then restart System UI.
 - **Glucose wins the space (LSPosed module, 2026-10-22).** Android 17 lays the icons out right to left and turns the first one that doesn't fit, and everything left of it, into one overflow dot; ours are external icons, so they were the leftmost and the number went first, leaving a lone arrow when vibrate / hotspot icons appeared. The module hooks SystemUI's `EllipsizingRow` measurement (`hook/SystemUiHook.hookIconFit`, logic in `hook/IconFit`, `IconFitTest`): SystemUI's own fit runs with our icons first in line, then the shown icons go back to their on-screen order. Other icons fold into SystemUI's dot (from the left, in SystemUI's order) before ours; number and arrow are one unit: both shown, or both inside the one dot (never one without the other) when even the pair alone doesn't fit. The placement only decides where they sit. Our icons are recognised by their TalkBack text (`RootStatusBar.isOurDescription`). If SystemUI's code doesn't match, the hook logs `icon fit … failed` and SystemUI's own behaviour stays.
 - *Before the mobile signal* (`slot:<mobile`): right before the mobile icon; with mobile hidden (no SIM, Wi-Fi only), where it would be: after the last shown icon ranked before mobile in `config_statusBarIcons` (`IconFit.insertBefore`). On the user's Pixel that order is … speakerphone … vpn, bluetooth … mute, volume (vibrate), zen … hotspot, stacked_mobile, mobile, wifi, airplane, battery, so the pair lands after vibrate and never between mobile and Wi-Fi. Same on the lock screen status bar (the same icon list).
 - **Without the module** (root only, or the module not in System UI's scope / not loaded, per `SystemAccess`): every `slot:` placement still shows the icons, as plain system icons first among them (SystemUI's own position, no priority, gap or order fixes); the Settings rows say so (*Before the mobile signal needs the LSPosed module. For now, it shows first among the system icons.*) and those placements stay selectable in the dialog with that line under them. The clock / left-of-icons placements show nothing without it, so they stay disabled with *Needs the Sukrara LSPosed module*. No root: the switch is unavailable, as before.
@@ -817,18 +855,32 @@ past the other app's event; blocks again if it's still running) or *Help*.
 
 ## Share with apps on this phone (investigation 22)
 
-- Settings → Share with apps → *Apps on this phone* (wearer only): every installed app that declares a receiver for `com.eveningoutpost.dexdrip.BgEstimate`, `com.librelink.app.ThirdPartyIntegration.GLUCOSE_READING` / `SENSOR_ACTIVATE` or `glucodata.Minute` (manifest `<queries>`, `queryBroadcastReceivers`), by label with its own icon, each with a switch. **All off by default**; no app found → "No app on this phone listens for glucose broadcasts. Garmin watches read the xDrip+ server below." No switch per format: an allowed app gets every action it declares. While the wearer's sensor family is untested (`SensorProfile.verified` false) nothing is broadcast and the group's first line says *Paused: <family> support is untested* (investigation 23; a closed loop must never take untested data).
-- Apps that read the local xDrip+ server instead of broadcasts are listed in the same group when installed: Garmin Connect (`com.garmin.android.apps.connectmobile`) and Connect IQ (`com.garmin.connectiq`), each with its real icon, "Reads your glucose through the xDrip+ server" and a switch that **is** the xDrip+ server switch (same state, both places change together). The xDrip+ server row adds "read by Garmin Connect" when one is installed.
-- App and service icons (every role and page): installed apps show their real icon loaded like AOSP Settings' app lists (IconDrawableFactory: unbadged icon, launcher shadow under adaptive icons, work-profile badge) at 32 dp, unclipped, in the 40 dp icon slot; legacy square icons are shown as they are. Services show their own app icon: Juggluco, xDrip+ and Health Connect from the installed app (bundled copy when not installed), LibreView, Nightscout (API switch and upload row) and Tidepool from bundled adaptive icons; feature rows keep 24 dp symbols.
-- One explicit copy per allowed package (`setPackage`, `FLAG_INCLUDE_STOPPED_PACKAGES | FLAG_RECEIVER_FOREGROUND`), on each new live reading, at most one per 55 s and never the same or an older reading twice (Juggluco's throttle). Backfilled history is not broadcast.
-- Only the wearer's phone reading the sensor itself sends them: never a follower (AAPS must not take someone else's readings as a local sensor), and not in Juggluco mode (Juggluco broadcasts itself; the switches are greyed with "Only while Sukrara reads the sensor itself").
-- xDrip+ `BgEstimate`: `BgEstimate` double mg/dL, `Time` long ms, `BgSlopeName` (`DoubleUp`…`DoubleDown` at ±3.5 / ±2 / ±1 mg/dL/min, `""` unknown), `BgSlope` double mg/dL per ms (left out when unknown), `SensorStartedAt` long ms (left out when unknown), `SourceInfo` **`Libre3`** (AAPS → `LIBRE_3`, advanced filtering), `SourceDesc` `Sukrara`. Never a Dexcom label or the Dexcom BYODA intent.
-- LibreLink `GLUCOSE_READING`: `glucose` double, `timestamp` long ms, `bleManager{sensorSerial}`, `sas{currentSensor{sensorStartTime}}`. `SENSOR_ACTIVATE` (`sensor{sensorStartTime}`, `bleManager{sensorSerial}`) once per new sensor serial, before the reading.
-- `glucodata.Minute`: `.SerialNumber`, `.mgdl` int, `.glucose` float (mg/dL), `.Rate` float mg/dL/min, `.Alarm` 0, `.Time` long ms.
-- *Health Connect* switch (wearer only, off by default): turning it on opens Health Connect's own permission sheet (WRITE_BLOOD_GLUCOSE); refused → stays off with "Off · needs access in Health Connect". On → the stored history (≤ 30 days) is written once, then every reading and every backfill. Off → stops writing; records already there stay.
-- Records: `BloodGlucoseRecord`, specimen interstitial fluid, relation to meal and meal type unknown, recording method automatically recorded, device Abbott "FreeStyle Libre 3" (type unknown: Health Connect has no CGM type), mmol/L = mg/dL ÷ 18. `clientRecordId` = `sukrara-glucose-<epoch minute>`, version 1: writing the same minute again updates the record instead of adding one (no duplicates).
-- Overview summary of Share with apps: `LibreView · 2 apps · Health Connect · Tidepool · xDrip+ · Nightscout` (only what is on).
-- The phone's Nightscout API serves long-acting insulin as a `Note` with the dose only in `notes` (`Long-acting insulin 14u`), never an `insulin` field, so Nightscout clients that sum `insulin` (IOB) don't count it as a bolus. Rapid insulin stays a `Correction Bolus` with `insulin`, carbs a `Carb Correction`; entries use `NONE` when there is no trend and UTC `dateString`.
+- Settings → *Share with apps* (both roles; `:integrations` `AppsPage`): the overview row's summary names what is on
+  ("Nightscout upload · xDrip+ server"), or "Nightscout, Garmin watches, a file for your clinic" while nothing is.
+- *Nightscout* group (wearer only): *Nightscout upload* with its status line ([Nightscout upload](#nightscout-upload-docs25)).
+- *Watches* group: *xDrip+ server* switch, **off by default** (schema `apps.xdrip`). On, it listens on
+  `127.0.0.1:17580` only (`LocalHttpServer`: loopback, 4 workers + 8 queued, 8 KiB request head, 5 s per connection,
+  GET / HEAD only, only for the host 127.0.0.1 / localhost and without CORS headers so a web page can't read it;
+  anything more is closed, never a new thread; a failing request can't stop the app). Summary: "On ·
+  127.0.0.1:17580 · last asked 2 min ago" ("not asked yet"), plus "read by Garmin Connect" when Garmin Connect or
+  Connect IQ is installed (manifest `<queries>`). Port taken by another app → "Another app uses port 17580 · turn its
+  server off, then this one off and on" (no retry loop). While Juggluco is the sensor source the port is Juggluco's:
+  the server stays down and the row says "Juggluco is the source, so Juggluco serves the watch" (our Juggluco source
+  refuses entries that say `device: Sukrara`, so it can never read its own answers). Any app on this phone can read the
+  last 24 h of glucose from it while it is on; the switch and the footer say so.
+- Answers are Juggluco's server byte for byte (`XdripEndpoint`, `LocalHttpServerTest`): `/sgv.json`,
+  `/api/v1/entries[/sgv].json`, `/api/v1/entries` (`count` (floats cut at the dot), `interval` with 10 % slack,
+  `brief_mode`, `sensor` → `sensor_status` "dd-mm-yy HH:MM (Xd Yh)"), `/pebble`, `/status.json`; readings from the
+  phone's store, newest first, ≥ 270 s apart by default, `_id` `<serial>#<minute>`, `device` `Sukrara`, 5-minute
+  `delta` from the sensor's rate (else the slope), `direction` from ±1 / 2 / 3 mg/dL/min. "Last asked" lives in memory
+  only: no request log.
+- *Files* group: *Export data* ([Data export](#data-export)).
+- Not included yet: broadcasts to apps on this phone (xDrip+ `BgEstimate`, LibreLink, glucodata), Health Connect, the
+  phone's Nightscout read API on :17581, LibreView and Tidepool uploads (see *Not included*).
+
+**States and exits**: *xDrip+ server off* (default) → switch on. *On / listening* → switch off stops it at once.
+*Port in use* → turn the other app's server off, then the switch off and on. *Left to Juggluco* → change the source in
+Settings › Sensor, or switch the server off. *Nightscout upload* states are on its page. Back leaves the page.
 
 ## Insulin pens (docs/29)
 
@@ -857,15 +909,49 @@ past the other app's event; blocks again if it's still running) or *Help*.
 
 ## Nightscout upload (docs/25)
 
-- Settings → Share with apps → *Nightscout* group → *Nightscout upload* (wearer only; Android only, the Mac doesn't upload). **Off by default**; the row reads "Not set up", "Off · <host>" or "Uploading to <host>", and Share with apps' summary includes `Nightscout upload` while it uploads.
-- *Site* opens a dialog: address, *Access token (recommended)* or *API secret*, the token / secret field (empty keeps the saved one), *Test* ("Connected · Nightscout <version>", "The site refused the token or secret", "Could not reach it · …") and *Save*. The token or secret is kept in a Keystore-encrypted file and never shown again.
-- Addresses: `https://` always; `http://` only for this phone (`localhost`, `127.x`, `::1`) and the home network (`10/8`, `172.16/12`, `192.168/16`, `169.254/16`, `fe80::/10`, `fc00::/7`, `.local`), decided on the literal host; home-network http shows "Not encrypted: anyone on this network can read what is sent…" in the dialog and under the site row. Anything else: "Use https:// (http:// only on your home network)".
-- *Upload to my Nightscout* main switch (enabled once a site is saved), *Status* (the shared upload status line: "Up to date · last upload <date time>", "Waiting for the first upload", "Will retry · <reason>"; plus "Set up the site first", "The site refused the token or secret: change it", "Paused: another app (<device>) is uploading to this site" with *Upload anyway*).
-- *What to send*: *Glucose readings* ("Every reading, the last 30 days included"), *Insulin, carbs & notes* ("Edits and deletions are uploaded too"), *Sensor changes*, *Phone battery*; all on. *Advanced*: *API* (v1 recommended; v3 only with an access token) and *Remove this site* (forgets the site, the credential and what was sent; the site keeps its data).
-- What goes up: every reading (`sgv`, integer `date`, UTC `dateString` as stored, the phone's `utcOffset`, `direction` from the trend thresholds or `NONE`, 5-minute `delta`, `noise` 1, `device`/`app` `Sukrara`, Nightscout's own v5 identifier); rapid insulin as `Correction Bolus`, carbs as `Carb Correction`, notes as `Note`, long-acting as a `Note` with the dose only in `notes` (no `insulin`, so IOB isn't inflated), each with the entry's id as identifier; a new sensor as both `Sensor Change` and `Sensor Start`; the phone battery as devicestatus `uploader.battery` when it changes or every 30 min.
-- When: right after each reading, when an entry or the sensor changes, and every 5 minutes. API v1 sends readings 500 per request; v3 one per request, at most 240 per cycle (newest first). No duplicates: the site dedupes a reading by time and an entry by its identifier; an edited entry replaces its document (moved in time: deleted and created again), a deleted one is deleted for good.
-- Catch-up: what the site lacks is worked out from the phone's own store every cycle, so an outage or late sensor history fills in; on the first run, after failures and every 6 h the phone compares with the site and re-sends minutes the site lost. Failures retry after 30 s doubling to 15 min (or the site's Retry-After); a refused token / secret stops uploading until it's changed.
-- Another uploader: entries from another device on the site in the last 30 minutes pause the readings (entries still go up) until *Upload anyway*. Upload only: nothing is read back from Nightscout.
+- Settings → Share with apps → *Nightscout* → *Nightscout upload* (wearer only; Android only, the Mac doesn't upload;
+  `:integrations` `NightscoutUploader`, `NightscoutPage`; `NightscoutUploaderTest` against MockWebServer). **Off by
+  default**; the Share with apps row shows the status line and the overview summary includes `Nightscout upload` while
+  it is on.
+- *Site* opens a dialog: address, *Access token* or *API secret*, the token / secret field (empty keeps the saved one of
+  the same kind for the same address: a saved token is never sent to a new address), *Test* (read-only: the site's status with that credential; "Connected · Nightscout <version>", "The
+  site refused this token or secret", "Couldn't reach the site (…)") and *Save*. The token or secret lives only in the
+  Keystore-encrypted secure store (`nightscout`), never in settings, logs or backups, and is never shown again.
+- Addresses: `https://` with a certificate from a public authority (user-installed / private CAs aren't trusted, so a
+  self-signed home server fails *Test* with a TLS error); `http://` only to this phone (`localhost`, `127.0.0.1`),
+  the only cleartext the network security config allows. Any other `http://`, home network included, shows "Use
+  https://: Sukrara sends your data only encrypted" (issue filed: a home-network `http://` site needs a network-config
+  and local-network-permission decision). A redirect is never followed (it could carry the secret elsewhere): it shows as
+  a retry with "redirected, check the address".
+- *Upload to my Nightscout* (enabled once a site is saved; a follower phone sees "Only the phone that wears the sensor
+  uploads"), *Status* ("Last upload 3 min ago · 12 items", "On · nothing sent yet", "Trying again soon · <reason>",
+  "The site refused the token or secret: change it" — tapping it opens the site dialog —, "Paused: another app
+  (<device>) uploads to this site" with *Upload anyway*).
+- *What to send*: *Glucose readings* (every reading, the last 30 days included), *Insulin, carbs and notes* (edits and
+  deletions too), *Sensor changes*, *Phone battery*; all on, disabled while the upload is off. *Advanced*: *API* (v1
+  recommended; v3 only with an access token, a secret keeps v1) and *Remove this site* (confirmation; forgets the site,
+  the credential and what was sent; the site keeps its data).
+- What goes up: only readings this phone took from its own sensor (Libre 3 or Juggluco; never a followed person's or
+  test data): `sgv`, integer `date`, `dateString` (local on v1, UTC on v3), `utcOffset`, `direction` or `NONE`, 5-minute
+  `delta`, `noise` 1, `app` `Sukrara`, `device` this install's own name `Sukrara-<6 hex>` (chosen when the site is set,
+  so another app or another install is never mistaken for this one), Nightscout's v5 identifier; rapid insulin as
+  `Correction Bolus`, carbs as `Carb Correction`, notes as `Note`, long-acting as a `Note` with the dose only in `notes`;
+  a new sensor as `Sensor Change` + `Sensor Start`; the battery as devicestatus when it changes or every 30 min.
+- When: a cycle at start, after each new reading, entry change or setting change, and every 5 minutes (never in the
+  reading path). v1 sends 500 readings per request; v3 one per request, at most 240 per cycle.
+- Catch-up and duplicates: what the site lacks is planned from the phone's store every cycle; on the first run, after
+  failures and every 6 h the phone compares with the site's readings: minutes the site lost are sent again, minutes
+  within 2 min of another uploader's reading count as covered (a backfill never doubles someone else's data), and
+  another device's readings in the last 30 min **pause everything** (readings, entries, sensor, battery) until *Upload
+  anyway*. Failures retry after 30 s doubling to 15 min (±20 %, or the site's Retry-After); 401 / 403 stops until the
+  token is changed. Upload only: nothing is read back except those reading dates.
+
+**States and exits**: *Not set up* → *Site* → dialog (Cancel keeps nothing). *Off* (default) → main switch. *On ·
+nothing sent yet / last upload* → main switch off, *Remove this site*. *Trying again* → retries by itself; switch off to
+stop. *Token refused* → the status row or *Site* opens the dialog; saving a new token resumes. *Paused (another
+uploader)* → *Upload anyway*, or switch off. *Follower phone* → the switch is disabled with the reason. Back leaves the
+page.
+
 ## Languages
 
 - English (default) and Spanish (Spain) everywhere, settings pages included (every page, alert page, dialog, search and the alerts page's "lately" list); the phone's language picks one, or Settings → Apps → Sukrara → Language (per-app language, Android 13+).
@@ -883,6 +969,6 @@ past the other app's event; blocks again if it's still running) or *Help*.
 - Android settings pages: settings export / import / reset, settings search, the follower's *Settings from* page, relay / epoch / statistics / log pages, battery-lab knobs, mmol/L in the settings pages (thresholds and ranges are shown and typed in mg/dL; schema `general.unit` is set elsewhere),, the ▶ beside each sound in the Sound dialog (the alert's page has *Play sound*) and icons on every row. Reason: only what daily use needs; the defaults are the owner's own values.
 - Mac: Juggluco over Wi-Fi (LAN source and subnet discovery) and the Nostr v1 `cgmnostr:` follow link (v1 links carried plaintext secrets and had no UI). Follow the wearer with a protocol v2 invite instead.
 - Sensors: the untested-sensor banner and its *Send feedback* (the families themselves are read, see *Sensor life*); the Libre 3 experiment preferences (minimal subscription set, connection priority, screen-off skip). Reason: no hardware to test them, the owner uses a Libre 3.
-- Planned (issues filed): the Android follower role (join flow, follower home and Following page), the glucose report card, LibreView / Nightscout / Tidepool uploads, the local xDrip+ (Garmin) and Nightscout servers, Health Connect and broadcasts, insulin pens, the calendar event, CSV export, Bluetooth sharing from the phone. The sections above that describe them are the behaviour to build. Reason: what daily use needs comes first.
+- Planned (issues filed): scanning an invite's QR code on Android and the follower's *Settings from* page, the glucose report card, LibreView / Tidepool uploads, the phone's Nightscout read API, Health Connect and broadcasts, insulin pens, the calendar event, Bluetooth sharing from the phone. The sections above that describe them are the behaviour to build. Reason: what daily use needs comes first.
 
 **States and exits**: none (these features aren't in the app).

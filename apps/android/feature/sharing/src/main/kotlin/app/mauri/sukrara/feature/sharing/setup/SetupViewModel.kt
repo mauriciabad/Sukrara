@@ -12,7 +12,11 @@ import app.mauri.sukrara.alerts.AlertSettings
 import app.mauri.sukrara.core.model.AlertReadiness
 import app.mauri.sukrara.core.model.Role
 import app.mauri.sukrara.feature.sharing.SetupModule
+import app.mauri.sukrara.feature.sharing.following
+import app.mauri.sukrara.protocol.event.Avatar
 import app.mauri.sukrara.protocol.event.Profile
+import app.mauri.sukrara.share.follower.FollowState
+import app.mauri.sukrara.share.follower.JoinResult
 import app.mauri.sukrara.share.owner.OwnerShareState
 import app.mauri.sukrara.share.owner.usecase.RestoreIdentity
 import kotlinx.coroutines.CancellationException
@@ -24,6 +28,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import java.security.SecureRandom
 
 /** The restore form's state. The code and password never live here (screen-local, not saved). */
 sealed interface RestoreUi {
@@ -36,6 +41,16 @@ sealed interface RestoreUi {
     data class Failed(val result: RestoreIdentity.Result) : RestoreUi
 
     data class Restored(val followers: Int) : RestoreUi
+}
+
+/** The join step's own state (the link itself stays in the screen, never logged). */
+sealed interface JoinUi {
+    data object Idle : JoinUi
+
+    /** Looking for the invite on the relays (up to ~25 s). */
+    data object Busy : JoinUi
+
+    data class Failed(val result: JoinResult) : JoinUi
 }
 
 /** Everything one setup screen shows. [step] null = setup is over: go home. */
@@ -51,6 +66,10 @@ data class SetupUi(
     val gate: RestoreGate,
     val share: OwnerShareState,
     val restore: RestoreUi,
+    val follow: FollowState = FollowState.NotFollowing,
+    val join: JoinUi = JoinUi.Idle,
+    /** An invite link opened on this phone: the join step's field starts with it. */
+    val invite: String? = null,
     val busy: Boolean,
     /** Opened from the Finish-setup card: one step, then home. */
     val single: Boolean,
@@ -68,6 +87,7 @@ class SetupViewModel(
 ) : ViewModel() {
     private val shown = MutableStateFlow<SetupStep?>(null)
     private val restore = MutableStateFlow<RestoreUi>(RestoreUi.Idle)
+    private val joining = MutableStateFlow<JoinUi>(JoinUi.Idle)
     private val busy = MutableStateFlow(false)
     private val single = MutableStateFlow(false)
 
@@ -85,16 +105,16 @@ class SetupViewModel(
             m.setupStore.data,
             m.roles.role,
             m.hub.state,
-            m.sharing.state,
+            combine(m.sharing.state, m.follower.state, ::Pair),
             combine(m.alertSettings.settings, m.alertsConfirmedAt, ::Pair),
         ) {
             record,
             role,
             glucose,
-            share,
+            (share, follow),
             (alerts, confirmedAt),
             ->
-            Inputs(record, role, glucose, share, alerts, confirmedAt != null)
+            Inputs(record, role, glucose, share, follow, alerts, confirmedAt != null)
         }
 
     val ui: StateFlow<SetupUi?> =
@@ -104,7 +124,8 @@ class SetupViewModel(
             m.readiness.readiness,
             shown,
             combine(restore, busy, single, editing, ready, ::Locals),
-        ) { i, readiness, override, l ->
+            combine(joining, m.pendingInvite, ::Pair),
+        ) { i, readiness, override, l, (join, invite) ->
             if (!l.ready) return@combine null
             // opened on one step: nothing until this flow itself sees the reopened record (no early "setup is over")
             if (openedOn != null && !seenOpen) {
@@ -115,7 +136,7 @@ class SetupViewModel(
             val facts =
                 SetupFacts(
                     role = i.role,
-                    followerAvailable = m.followerAvailable,
+                    following = i.follow.following,
                     ownSensorLive = RestoreGate.ownSensorLive(i.glucose, now),
                     hasIdentity = i.share is OwnerShareState.Sharing || i.share is OwnerShareState.AnotherAppSharingAsYou,
                     alertsConfirmed = i.alertsConfirmed,
@@ -139,9 +160,13 @@ class SetupViewModel(
                 gate = RestoreGate.evaluate(facts.ownSensorLive),
                 share = i.share,
                 restore = l.restore,
+                follow = i.follow,
+                join = join,
+                invite = invite,
                 busy = l.busy,
                 single = l.single,
-                canBack = !l.single && at > 0 && !(facts.role != null && steps[at - 1] == SetupStep.Role),
+                // the join step goes back to the role (a phone that wears the sensor after all)
+                canBack = !l.single && at > 0 && (step == SetupStep.Join || !(facts.role != null && steps[at - 1] == SetupStep.Role)),
             )
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
@@ -226,6 +251,42 @@ class SetupViewModel(
             m.roles.set(chosen.value)
             m.startMonitoring()
         }
+
+    /** Joins with [link] as [name] (with a new picture); then monitoring starts, which sends the request. */
+    fun join(
+        link: String,
+        name: String,
+    ) {
+        if (joining.value == JoinUi.Busy) return
+        viewModelScope.launch {
+            joining.value = JoinUi.Busy
+            val me =
+                name
+                    .trim()
+                    .take(Profile.MAX_NAME)
+                    .takeIf { it.isNotEmpty() }
+                    ?.let { Profile(it, Avatar.random(SecureRandom())) }
+            val result =
+                try {
+                    m.follower.join(link, me)
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (_: Exception) {
+                    JoinResult.Offline
+                }
+            joining.value = if (result == JoinResult.Joined) JoinUi.Idle else JoinUi.Failed(result)
+            if (result == JoinResult.Joined) m.pendingInvite.value = null
+        }
+    }
+
+    fun clearJoinError() {
+        if (joining.value is JoinUi.Failed) joining.value = JoinUi.Idle
+    }
+
+    fun completeJoin() {
+        val facts = ui.value?.facts ?: return
+        record { SetupMachine.completeJoin(it, facts) }
+    }
 
     fun completePermissions() = record(SetupMachine::completePermissions)
 
@@ -330,6 +391,7 @@ class SetupViewModel(
         val role: Role?,
         val glucose: app.mauri.sukrara.core.model.GlucoseState,
         val share: OwnerShareState,
+        val follow: FollowState,
         val alerts: AlertSettings,
         val alertsConfirmed: Boolean,
     )

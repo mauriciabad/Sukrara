@@ -52,6 +52,16 @@ applies them.
 - `AlertsModule` (A4) wires it; the Application implements `AlertsHost` so receivers and the provider reach it; the
   monitoring service calls `attach(scope)`.
 
+**Root status bar (`:monitor` `monitor/systemui/`).** `RootStatusBar` (built by `MonitorModule`, started in `ready()`)
+follows the hub, `SurfaceSettings.Root*`, the ranges and the freshness ticks; conflated on one background thread it
+(1) sends `HookState` to System UI (`${applicationId}.SYSTEMUI_STATE`, signature permission `…permission.SYSTEMUI_STATE`,
+sender identity shared) and (2) drives `SlotDaemon` (`su` + `app_process`, line protocol `DaemonProtocol`, own slots
+`sukrara_glucose*`, drawables `sb_*` from `tools/android/gen-slot-drawables.swift`, kept by `res/raw/keep_status_icons.xml`
+and `consumer-rules.pro`). `SystemUiHook` is the LSPosed module in the same APK (`src/main/resources/META-INF/xposed`,
+libxposed API `compileOnly`); its pure parts are `HookText`, `IconFit`, `SlotIcons`. Its hello reaches
+`HookHelloReceiver` (permission `STATUS_BAR_SERVICE`: only System UI). `SystemAccess` (root via `su`, LSPosed via the
+libxposed service, the hello's `HookCode.VERSION`) implements `:core:model`'s `SystemAccessPort` for Settings › Status bar.
+
 ### Sharing
 
 **First-run setup and wearer sharing screens: `:feature:sharing`** (package `app.mauri.sukrara.feature.sharing`).
@@ -386,6 +396,24 @@ TTLs, JSON field names and number forms, invite link `https://sukrara.mauri.app/
   relay answers OK, so a rotation interrupted by a crash still reaches every follower. `OwnerEngine` runs them on one
   serial dispatcher, persists before publishing and exposes `StateFlow<OwnerShareState>`; `ShareOwnerModule` (A4)
   builds it for `AppGraph`.
+
+## Android integrations (`apps/android/integrations`)
+
+`IntegrationsModule` (built by `AppGraph.integrations`; `load()` + `start(scope)` in `ready`) owns everything that
+sends the person's data to other apps; its pages (`AppsPage`, `NightscoutPage`, `ExportPage`) are content the app wraps
+in the settings page frame (`AppsRoute`, `NightscoutUploadRoute`, `ExportRoute`).
+- `upload/` — the shared upload design: no outbox (the readings / treatments stores are the queue; each uploader keeps
+  what the service has), `UploadLoop` (one cycle per kick or 5 min, on IO, never in the reading path), `UploadBackoff`,
+  `SentRanges`, one `UploadStatus` for every page.
+- `nightscout/` — `NsSite` (https, or http to loopback only), `NsClient` (the app's OkHttp without redirects; v1 / v3;
+  token → JWT), `NsDocs`, `NightscoutQueue` (pure plan + reconcile: covered minutes, another-uploader pause),
+  `NightscoutUploader` (settings JSON `apps.nightscoutUpload`, credential only in SecureStore `nightscout`, state in the
+  typed store `nightscout-upload`, device `Sukrara-<6 hex>` per site).
+- `localserver/` — `LocalHttpServer` (127.0.0.1, fixed pool, bounded head and deadline), `XdripEndpoint` (Juggluco's
+  JSON, pure), `XdripServer` (follows `apps.xdrip` and the sensor source; readings from the store, "last asked" in
+  memory).
+- `export/` — `GlucoseCsv` (`contracts/export`), `Exporter` (period → stores), `ExportViewModel` (SAF save, FileProvider
+  `${applicationId}.export` share from `cache/export/`).
 
 ## Contracts and tests
 
