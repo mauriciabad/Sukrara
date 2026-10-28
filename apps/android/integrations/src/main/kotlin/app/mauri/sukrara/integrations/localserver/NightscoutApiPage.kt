@@ -12,6 +12,7 @@ import android.content.Context
 import android.content.ContextWrapper
 import android.content.Intent
 import android.net.Uri
+import android.os.Build
 import android.os.PersistableBundle
 import android.provider.Settings
 import android.view.WindowManager
@@ -185,7 +186,9 @@ fun NightscoutApiPage(
                 viewModel::hideSecret,
                 viewModel::renewSecret,
                 setLan = { on ->
+                    // the permission exists from Android 17; older Android grants local network access already
                     if (on &&
+                        Build.VERSION.SDK_INT >= LanWatcher.LOCAL_NETWORK_SDK &&
                         !viewModel.localNetworkAllowed()
                     ) {
                         ask.launch(Manifest.permission.ACCESS_LOCAL_NETWORK)
