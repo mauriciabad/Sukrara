@@ -27,6 +27,7 @@ import app.mauri.sukrara.integrations.libreview.LvReadings
 import app.mauri.sukrara.integrations.libreview.LvState
 import app.mauri.sukrara.integrations.localserver.NightscoutApiServer
 import app.mauri.sukrara.integrations.localserver.NightscoutApiViewModel
+import app.mauri.sukrara.integrations.localserver.NsApiState
 import app.mauri.sukrara.integrations.localserver.XdripServer
 import app.mauri.sukrara.integrations.nightscout.NightscoutUploader
 import app.mauri.sukrara.integrations.nightscout.NightscoutViewModel
@@ -130,16 +131,16 @@ class IntegrationsModule(
             log,
         )
 
-    val nightscoutApi = NightscoutApiServer(settings, secure, readings, treatments, clock, dispatchers.io)
+    val nightscoutApi = NightscoutApiServer(settings, secure, readings, treatments, role, clock, dispatchers.io)
 
     val summary: Flow<AppsSummary> =
-        combine(nightscout.page, xdrip.on, libreView.page, nightscoutApi.on, tidepool.status) { ns, x, lv, api, tp ->
+        combine(nightscout.page, xdrip.on, libreView.page, nightscoutApi.state, tidepool.status) { ns, x, lv, api, tp ->
             AppsSummary(
                 ns.status != UploadStatus.Off,
                 x,
                 lv.status != UploadStatus.Off && lv.status != UploadStatus.Setup,
-                api,
-                tp != UploadStatus.Off && tp != UploadStatus.Setup,
+                api is NsApiState.Listening,
+                tp != UploadStatus.Off && tp != UploadStatus.Setup && tp != UploadStatus.AuthFailed,
             )
         }
 

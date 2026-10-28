@@ -21,7 +21,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
-import app.mauri.sukrara.core.model.storage.SecretUnreadableException
 import app.mauri.sukrara.designsystem.rows.DangerRow
 import app.mauri.sukrara.designsystem.rows.FooterText
 import app.mauri.sukrara.designsystem.rows.InfoRow
@@ -31,6 +30,7 @@ import app.mauri.sukrara.designsystem.rows.SwitchRow
 import app.mauri.sukrara.integrations.R
 import app.mauri.sukrara.integrations.ui.IntroText
 import app.mauri.sukrara.integrations.ui.ago
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -78,7 +78,9 @@ class NightscoutApiViewModel(
             secret.value =
                 try {
                     server.secret()?.let { SecretView.Shown(it) } ?: SecretView.Hidden
-                } catch (e: SecretUnreadableException) {
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
                     SecretView.Unreadable
                 }
         }
@@ -89,7 +91,16 @@ class NightscoutApiViewModel(
     }
 
     fun renewSecret() {
-        viewModelScope.launch { secret.value = SecretView.Shown(server.renewSecret()) }
+        viewModelScope.launch {
+            secret.value =
+                try {
+                    SecretView.Shown(server.renewSecret())
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    SecretView.Unreadable
+                }
+        }
     }
 
     override fun onCleared() {
@@ -216,8 +227,11 @@ fun nsApiStatusText(
 private fun SecureWindow() {
     val activity = LocalContext.current.activity() ?: return
     DisposableEffect(activity) {
-        activity.window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
-        onDispose { activity.window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE) }
+        val flag = WindowManager.LayoutParams.FLAG_SECURE
+        // only clear what this added: another screen may have set it too
+        val added = activity.window.attributes.flags and flag == 0
+        if (added) activity.window.addFlags(flag)
+        onDispose { if (added) activity.window.clearFlags(flag) }
     }
 }
 

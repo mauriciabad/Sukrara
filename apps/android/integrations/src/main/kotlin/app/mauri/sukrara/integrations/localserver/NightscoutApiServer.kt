@@ -6,24 +6,30 @@ package app.mauri.sukrara.integrations.localserver
 import app.mauri.sukrara.core.data.settings.SchemaSettings
 import app.mauri.sukrara.core.model.Clock
 import app.mauri.sukrara.core.model.Reading
+import app.mauri.sukrara.core.model.Role
 import app.mauri.sukrara.core.model.Treatment
 import app.mauri.sukrara.core.model.storage.ReadingsRepository
-import app.mauri.sukrara.core.model.storage.SecretUnreadableException
 import app.mauri.sukrara.core.model.storage.SecureStore
 import app.mauri.sukrara.core.model.storage.SettingsRepository
 import app.mauri.sukrara.core.model.storage.TreatmentsRepository
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
@@ -59,6 +65,8 @@ class NightscoutApiServer(
     private val secure: SecureStore,
     private val readings: ReadingsRepository,
     private val treatments: TreatmentsRepository,
+    /** The phone's role: only that role's readings are served (never another person's left from an earlier role). */
+    private val role: Flow<Role?>,
     private val clock: Clock,
     private val io: CoroutineDispatcher,
     private val port: Int = NightscoutApi.PORT,
@@ -88,12 +96,31 @@ class NightscoutApiServer(
     @OptIn(ExperimentalCoroutinesApi::class)
     fun start(scope: CoroutineScope) {
         scope.launch { on.distinctUntilChanged().collect { apply(it) } }
+        // the stores are read only while the API is on (off by default: nobody pays for it)
         scope.launch {
-            hourly(WINDOW).flatMapLatest { from -> readings.window(from) }.collect { recent = it.asReversed() }
+            combine(on.distinctUntilChanged(), role) { o, r -> if (o) r else null }
+                .distinctUntilChanged()
+                .flatMapLatest { r ->
+                    if (r == null) {
+                        flowOf(emptyList())
+                    } else {
+                        hourly(WINDOW).flatMapLatest { from -> readings.window(from) }.map { list ->
+                            list.filter { it.source in NightscoutApi.sources(r) }.asReversed()
+                        }
+                    }
+                }.catch { emit(emptyList()) }
+                .collect { recent = it }
         }
         scope.launch {
-            hourly(TREATMENTS_WINDOW)
-                .flatMapLatest { from -> treatments.between(from, from + Duration.ofDays(3650)) }
+            on
+                .distinctUntilChanged()
+                .flatMapLatest { o ->
+                    if (!o) {
+                        flowOf(emptyList())
+                    } else {
+                        hourly(TREATMENTS_WINDOW).flatMapLatest { from -> treatments.between(from, from + Duration.ofDays(3650)) }
+                    }
+                }.catch { emit(emptyList()) }
                 .collect { recentTreatments = it }
         }
     }
@@ -118,7 +145,10 @@ class NightscoutApiServer(
                 val s =
                     try {
                         readOrMakeSecret()
-                    } catch (e: SecretUnreadableException) {
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        // unreadable, or the Keystore refused the write: never a crash (alerts run in this process)
                         null
                     }
                 if (s == null) {
@@ -148,18 +178,18 @@ class NightscoutApiServer(
     suspend fun secret(): String? = withContext(io) { secure.read(SECRET)?.let { String(it, Charsets.UTF_8) } }
 
     /** *New secret*: apps that use the old one stop reading. Also the way out of [NsApiState.SecretUnreadable]. */
-    suspend fun renewSecret(): String {
-        val made = newSecret()
-        withContext(io) {
+    suspend fun renewSecret(): String =
+        withContext(NonCancellable + io) {
+            // leaving the page mid-way never leaves the store and the server with different secrets
+            val made = newSecret()
             secure.write(SECRET, made.toByteArray(Charsets.UTF_8))
+            lock.withLock {
+                if (_state.value != NsApiState.Off) secret = made
+            }
+            // re-apply: a server that couldn't read its secret starts now
+            apply(on.first())
+            made
         }
-        lock.withLock {
-            if (_state.value != NsApiState.Off) secret = made
-        }
-        // re-apply: a server that couldn't read its secret starts now
-        apply(on.first())
-        return made
-    }
 
     /** Stops listening (the switch stays as it is). */
     fun stop() = server.stop()

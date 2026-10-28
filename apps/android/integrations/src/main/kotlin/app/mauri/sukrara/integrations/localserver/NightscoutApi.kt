@@ -4,6 +4,7 @@
 package app.mauri.sukrara.integrations.localserver
 
 import app.mauri.sukrara.core.model.Reading
+import app.mauri.sukrara.core.model.Role
 import app.mauri.sukrara.core.model.SourceId
 import app.mauri.sukrara.core.model.Treatment
 import app.mauri.sukrara.integrations.nightscout.NsDocs
@@ -47,6 +48,13 @@ object NightscoutApi {
 
     private const val VERSION = "15.0.8"
 
+    /** The sources served for [role]: the wearer's own sensor, or the followed person's feed. */
+    fun sources(role: Role): Set<SourceId> =
+        when (role) {
+            Role.Wearer -> SourceId.Wearer
+            Role.Follower -> setOf(SourceId.Relay, SourceId.Nearby)
+        }
+
     fun route(
         req: HttpRequest,
         secret: String,
@@ -65,8 +73,7 @@ object NightscoutApi {
             "api/v1/entries/current" -> ok(JsonArray(served.take(1).map { entry(it, served) }).toString())
             "api/v1/treatments" -> ok(treatments(q, s))
             "api/v1/verifyauth" -> ok(VERIFIED)
-            "api/v2/properties" -> ok(properties(served))
-            else -> ok("[]")
+            else -> if (path.startsWith("api/v2/properties")) ok(properties(served)) else ok("[]")
         }
     }
 
@@ -184,10 +191,29 @@ object NightscoutApi {
     ): Double? {
         if (r.isLo || r.isHi) return null
         r.rateMgdlPerMin?.let { return it * 5 }
-        val prev = all.firstOrNull { it.t.epochSecond <= r.t.epochSecond - 120 } ?: return null
+        val prev = previous(r, all) ?: return null
         val dt = r.t.epochSecond - prev.t.epochSecond
         if (dt > 15 * 60 || prev.isLo || prev.isHi) return null
         return (r.mgdl - prev.mgdl) * 300.0 / dt
+    }
+
+    /**
+     * The newest reading at least 2 min before [r] in the newest-first [all], searched from [r]'s own place (binary
+     * search on time), so a 7-day answer stays linear.
+     */
+    private fun previous(
+        r: Reading,
+        all: List<Reading>,
+    ): Reading? {
+        val limit = r.t.epochSecond - 120
+        var lo = 0
+        var hi = all.size
+        // first index whose time is <= limit (times descend along the list)
+        while (lo < hi) {
+            val mid = (lo + hi) ushr 1
+            if (all[mid].t.epochSecond <= limit) hi = mid else lo = mid + 1
+        }
+        return all.getOrNull(lo)
     }
 
     /** `bgnow` and `delta` only: no insulin / carbs on board, pump or loop data (this phone has none of it). */

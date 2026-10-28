@@ -5,6 +5,7 @@ package app.mauri.sukrara.integrations.localserver
 
 import app.mauri.sukrara.core.model.GlucoseRange
 import app.mauri.sukrara.core.model.Reading
+import app.mauri.sukrara.core.model.Role
 import app.mauri.sukrara.core.model.SourceId
 import app.mauri.sukrara.core.model.Treatment
 import app.mauri.sukrara.core.model.TreatmentKind
@@ -21,6 +22,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import kotlinx.serialization.json.Json
@@ -176,6 +178,16 @@ class NightscoutApiTest {
         val props = Json.parseToJsonElement(call("api/v2/properties").body).jsonObject
         assertEquals(100, props["bgnow"]!!.jsonObject["last"]!!.jsonPrimitive.int)
         assertNull(props["iob"])
+        // the list form clients use answers the same object
+        val listed = Json.parseToJsonElement(call("api/v2/properties/bgnow,delta,direction").body)
+        assertTrue(listed is JsonObject)
+    }
+
+    @Test
+    fun `each role serves only its own person's readings`() {
+        assertTrue(SourceId.Libre3 in NightscoutApi.sources(Role.Wearer))
+        assertFalse(SourceId.Relay in NightscoutApi.sources(Role.Wearer))
+        assertEquals(setOf(SourceId.Relay, SourceId.Nearby), NightscoutApi.sources(Role.Follower))
     }
 
     private class Unreadable : SecureStore {
@@ -195,6 +207,7 @@ class NightscoutApiTest {
             secure,
             InMemoryReadingsRepository(),
             InMemoryTreatmentsRepository(),
+            flowOf(Role.Wearer),
             FakeClock(now),
             Dispatchers.IO,
             port = 0,

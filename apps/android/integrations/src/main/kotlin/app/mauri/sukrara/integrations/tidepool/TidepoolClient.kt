@@ -47,7 +47,12 @@ class TpSignedOut : Exception("signed out")
 class TpFailure(
     val code: Int,
     why: String,
-) : Exception(why)
+    /** The request's path without the user id (a 404 there says which thing is gone). */
+    val path: String = "",
+) : Exception(why) {
+    /** Tidepool no longer has this install's upload record (deleted by the person): a new one is made next time. */
+    val dataSetGone: Boolean get() = code == 404 && (path.startsWith("/v1/data_sets/") || path.startsWith("/v1/datasets/"))
+}
 
 /**
  * Tidepool's public API. Blocking: call on IO.
@@ -63,6 +68,7 @@ class TidepoolClient(
     baseUrl: String = API,
 ) {
     companion object {
+        private const val MISSING = "\u0000missing"
         const val API = "https://api.tidepool.org"
         private const val TOKEN_HEADER = "X-Tidepool-Session-Token"
         private val JSON = "application/json".toMediaType()
@@ -168,12 +174,11 @@ class TidepoolClient(
             ?.jsonPrimitive
             ?.contentOrNull ?: throw TpFailure(0, "no note id")
 
+    /** Edits a note; false when Tidepool doesn't have it anymore (removed on the web). */
     fun editNote(
         id: String,
         body: JsonObject,
-    ) {
-        authed("PUT", "/message/edit/$id", body.toString())
-    }
+    ): Boolean = authed("PUT", "/message/edit/$id", body.toString(), okMissing = true, missing = MISSING) != MISSING
 
     /** Removes a note; one that is gone already counts as removed. */
     fun removeNote(id: String) {
@@ -192,6 +197,7 @@ class TidepoolClient(
         path: String,
         body: String?,
         okMissing: Boolean = false,
+        missing: String = "",
     ): String {
         var s = session ?: throw TpSignedOut()
         var r = http(method, path, body, token = s.token)
@@ -199,11 +205,12 @@ class TidepoolClient(
             s = refresh()
             r = http(method, path, body, token = s.token)
         }
-        if (r.code == 401 || r.code == 403) throw TpSignedOut()
-        if (okMissing && r.code == 404) return ""
+        // only a token Tidepool refuses after a refresh ends the session; a 403 is a refusal of this request
+        if (r.code == 401) throw TpSignedOut()
+        if (okMissing && r.code == 404) return missing
         if (r.code !in 200..299) {
             val where = path.substringBefore('?').replace(s.userId, "{user}")
-            throw TpFailure(r.code, "$method $where: HTTP ${r.code}")
+            throw TpFailure(r.code, "$method $where: HTTP ${r.code}", where)
         }
         return r.body
     }

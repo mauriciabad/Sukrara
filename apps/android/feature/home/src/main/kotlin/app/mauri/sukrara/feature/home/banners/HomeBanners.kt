@@ -76,8 +76,11 @@ data class BannerMemory(
      */
     val closed: Int get() = BannerKind.entries.count { it != BannerKind.FinishSetup && it.name in dismissedAtMs }
 
-    /** Settings › *Show closed tips*: every closed tip can show again (each still only when it applies). */
-    fun restoreAll(): BannerMemory = BannerMemory()
+    /**
+     * Settings › *Show closed tips*: every closed tip can show again (each still only when it applies); Finish setup's
+     * "Later" keeps its day.
+     */
+    fun restoreAll(): BannerMemory = BannerMemory(dismissedAtMs.filterKeys { it == BannerKind.FinishSetup.name })
 }
 
 /** "Later" on Finish setup: it comes back after a day until setup is done. */

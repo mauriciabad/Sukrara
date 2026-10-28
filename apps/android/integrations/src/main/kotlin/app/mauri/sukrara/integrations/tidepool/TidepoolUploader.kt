@@ -6,6 +6,7 @@ package app.mauri.sukrara.integrations.tidepool
 import app.mauri.sukrara.core.data.settings.SchemaSettings
 import app.mauri.sukrara.core.model.Clock
 import app.mauri.sukrara.core.model.Role
+import app.mauri.sukrara.core.model.SourceId
 import app.mauri.sukrara.core.model.storage.ReadingsRepository
 import app.mauri.sukrara.core.model.storage.SecretUnreadableException
 import app.mauri.sukrara.core.model.storage.SecureStore
@@ -260,7 +261,10 @@ class TidepoolUploader(
         val windowStart = Instant.ofEpochSecond(maxOf(rs.from, nowS - TidepoolQueue.WINDOW_S))
         val full = nowMs - fullScanMs >= FULL_SCAN_EVERY_MS
         val start = if (full) windowStart else maxOf(windowStart, clock.now() - RECENT)
-        val rd = if (s.glucose) readings.range(start, clock.now() + Duration.ofMinutes(1)) else emptyList()
+        // only this role's readings: never the person followed earlier (or one's own readings while following)
+        val own = if (r == Role.Wearer) SourceId.Wearer else setOf(SourceId.Relay, SourceId.Nearby)
+        val rd =
+            if (s.glucose) readings.range(start, clock.now() + Duration.ofMinutes(1)).filter { it.source in own } else emptyList()
         if (full) fullScanMs = nowMs
         val records = if (s.treatments) treatments.changedSince(windowStart - Duration.ofDays(1)) else emptyList()
         val plan = TidepoolQueue.plan(rd, records, rs, s.glucose, s.treatments, notes = true, nowS = nowS)
@@ -286,7 +290,7 @@ class TidepoolUploader(
             store.update {
                 // the upload record was deleted on Tidepool: a new one is made next time
                 val cur = it.role(r)
-                val kept = if (e.code == 404) cur.copy(dataSet = "") else cur
+                val kept = if (e.dataSetGone) cur.copy(dataSet = "") else cur
                 TidepoolQueue.failed(it.withRole(r, kept), nowMs, e.message ?: "HTTP ${e.code}")
             }
         } finally {
@@ -325,8 +329,15 @@ class TidepoolUploader(
             client.addData(ds, chunk.mapNotNull { TidepoolData.treatment(it, zone, st.deviceId, version) })
         }
         for (t in plan.noteDeletes) st.notes[t.id]?.let { client.removeNote(it) }
-        for (t in plan.noteEdits) st.notes[t.id]?.let { client.editNote(it, TidepoolData.noteEdit(t)) }
         val userId = client.session?.userId ?: throw TpSignedOut()
+        for (t in plan.noteEdits) {
+            val id = st.notes[t.id] ?: continue
+            // removed on Tidepool's web page: it goes up again as a new note (never a retry loop on the edit)
+            if (!client.editNote(id, TidepoolData.noteEdit(t))) {
+                val made = client.sendNote(TidepoolData.note(t, userId))
+                keep(TidepoolQueue.applied(st, TidepoolQueue.Plan(noteCreates = listOf(t)), mapOf(t.id to made), nowS))
+            }
+        }
         for (t in plan.noteCreates) {
             val id = client.sendNote(TidepoolData.note(t, userId))
             keep(TidepoolQueue.applied(st, TidepoolQueue.Plan(noteCreates = listOf(t)), mapOf(t.id to id), nowS))

@@ -962,7 +962,9 @@ devices*; *Stop following* ends Bluetooth with the relays. Every state works wit
   no insulin / carbs on board or pump data), `devicestatus` / `profile` / `food` → `[]`, `api/v3/*` → 404 so clients
   fall back to v1. Readings of the last 7 days, newest first; each entry's `device` says where it came from:
   `Sukrara · FreeStyle Libre 3`, `Sukrara · Juggluco`, `Sukrara · Dexcom G7 (untested)` (and the other untested
-  families), `Sukrara (following)` for a followed person's readings; a reading from any other source is never served.
+  families), `Sukrara (following)` for a followed person's readings; a reading from any other source, or another role's
+  (a wearer never serves readings left from following someone, and the other way round), is never served. The stores
+  are read only while the API is on; a secure-store failure shows *The API secret can't be read* instead of a crash.
   LO / HI go out as 39 / 401 with direction `NONE`, and no slope is taken across them. The page: the switch with
   "On · http://127.0.0.1:17581 · last asked 2 min ago", *Show API secret* (screenshots blocked while it shows; tap to
   copy, marked sensitive for the clipboard preview; the xDrip+ address `http://<secret>@127.0.0.1:17581` and the
@@ -1007,7 +1009,9 @@ Android (`apps/android/pen`: `opennov/` reader, `engine/PenEngine`, `Pens` runti
   30 days included, each tagged with its sensor model; untested families are labelled) and *Insulin, carbs and notes*
   (edits and deletes follow; a note on its own becomes a Tidepool note), each unavailable while the upload is off.
 - Wearer: uploads its own readings and entries. Follower: *Upload the person you follow*, **off by default**; until it
-  is on nothing is sent.
+  is on nothing is sent. Only the role's own readings go up (the wearer's sensor sources, or the followed person's
+  feed), never ones left from the other role. A note removed on Tidepool's web page and then edited here goes up again
+  as a new note; a 403 is a failed request (retried), not a sign-out.
 - One upload record per account, install and role (found again by device id, made when missing; if Tidepool deleted
   it, a new one is made). Every datum has an origin id, so sending it again replaces it (no duplicates); an edited
   entry is sent again, a deleted one deleted. Every 5 minutes and at once on an entry or setting change; failures retry
