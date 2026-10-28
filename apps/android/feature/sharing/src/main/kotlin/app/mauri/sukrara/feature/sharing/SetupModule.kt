@@ -96,7 +96,7 @@ class SetupModule(
 
     fun phoneNow(): PhoneFacts {
         readiness.refresh()
-        return PhoneFacts(showcase.installed().also { showcaseInstalled.value = it }, readiness.readiness.value)
+        return PhoneFacts(showcase.installed().also { showcaseInstalled.value = it })
     }
 
     /** Home calls this on resume: re-reads the checklist and whether the Showcase is still installed. */

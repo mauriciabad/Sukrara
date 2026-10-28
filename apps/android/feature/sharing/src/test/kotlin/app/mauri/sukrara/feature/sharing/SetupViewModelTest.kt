@@ -59,6 +59,7 @@ class SetupViewModelTest {
     private val record = InMemoryStateStore(SetupRecord())
     private val events = mutableListOf<String>()
     private val settings = InMemorySettingsRepository()
+    private val readiness = FakeReadiness()
 
     private fun vm(): SetupViewModel {
         val module =
@@ -72,7 +73,7 @@ class SetupViewModelTest {
                 settings,
                 resetAlerts = { events += "reset" },
                 startMonitoring = { events += "start" },
-                readiness = FakeReadiness(),
+                readiness = readiness,
                 clock = clock,
             )
         return SetupViewModel(module)
@@ -94,6 +95,18 @@ class SetupViewModelTest {
             vm.chooseRole(Role.Wearer)
             assertEquals(listOf("reset", "role:Wearer", "start"), events)
             assertEquals(SetupStep.Permissions, vm.ui.first { it?.step == SetupStep.Permissions }!!.step)
+        }
+
+    @Test
+    fun `the checklist follows the live readiness, not a copy taken on resume`() =
+        runTest {
+            roles.role.value = Role.Wearer
+            val vm = vm()
+            vm.ui.launchIn(backgroundScope)
+            assertTrue(vm.ui.first { it != null }!!.readiness.ready)
+            // the monitor answers later (its own dispatcher): setup must show it without another resume
+            readiness.readiness.value = AlertReadiness(setOf(AlertRequirement.Bluetooth))
+            assertEquals(setOf(AlertRequirement.Bluetooth), vm.ui.first { it?.readiness?.ready == false }!!.readiness.missing)
         }
 
     @Test
@@ -157,7 +170,7 @@ class SetupViewModelTest {
         }
     }
 
-    /** Setup renders THE alert checklist (the monitor's `AndroidAlertReadiness`); here everything is allowed. */
+    /** Setup renders THE alert checklist (the monitor's `AndroidAlertReadiness`); starts with everything allowed. */
     private class FakeReadiness : AlertReadinessSource {
         override val readiness = MutableStateFlow(AlertReadiness.Ready)
 

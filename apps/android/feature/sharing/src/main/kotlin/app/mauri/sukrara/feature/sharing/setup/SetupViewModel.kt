@@ -79,7 +79,8 @@ class SetupViewModel(private val m: SetupModule) : ViewModel() {
         }
 
     val ui: StateFlow<SetupUi?> =
-        combine(inputs, phone, shown, combine(restore, busy, single, editing, ::Locals)) { i, p, override, l ->
+        // the checklist is THE live flow (the monitor computes it asynchronously): never a copy taken on resume
+        combine(inputs, phone, m.readiness.readiness, shown, combine(restore, busy, single, editing, ::Locals)) { i, p, readiness, override, l ->
             val now = m.clock.now()
             val facts =
                 SetupFacts(
@@ -104,7 +105,7 @@ class SetupViewModel(private val m: SetupModule) : ViewModel() {
                 count = steps.size,
                 facts = facts,
                 record = i.record,
-                readiness = p.readiness,
+                readiness = readiness,
                 alerts = AlertThresholds(l.editing ?: i.alerts),
                 gate = RestoreGate.evaluate(facts.ownSensorLive, facts.showcaseInstalled, i.record.showcaseSharingOffConfirmed),
                 share = i.share,
@@ -260,8 +261,9 @@ class SetupViewModel(private val m: SetupModule) : ViewModel() {
                 if (!single.value) shown.update { null }
             } catch (e: CancellationException) {
                 throw e
-            } catch (_: Exception) {
-                // nothing to log without health data: the screen stays on the step and the person can try again
+            } catch (e: Exception) {
+                // the class only (no message: it could carry a code or a value); the screen stays on the step to retry
+                android.util.Log.w("Sukrara.setup", "setup action failed: ${e.javaClass.simpleName}")
             } finally {
                 busy.value = false
             }
@@ -292,5 +294,4 @@ class SetupViewModel(private val m: SetupModule) : ViewModel() {
 /** The phone facts read synchronously on resume. */
 data class PhoneFacts(
     val showcaseInstalled: Boolean,
-    val readiness: AlertReadiness,
 )
