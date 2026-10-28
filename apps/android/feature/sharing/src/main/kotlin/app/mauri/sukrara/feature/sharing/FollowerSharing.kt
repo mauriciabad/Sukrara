@@ -8,8 +8,12 @@ import app.mauri.sukrara.protocol.follow.FollowStatus
 import app.mauri.sukrara.share.ble.NearbyStatus
 import app.mauri.sukrara.share.follower.FollowState
 import app.mauri.sukrara.share.follower.JoinResult
+import app.mauri.sukrara.share.follower.NearbyOffer
+import app.mauri.sukrara.share.follower.NearbySearch
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.flowOf
 
 /**
  * What setup and the Following page do with the follower role (the `FollowerEngine`); a port so screens and view
@@ -33,6 +37,15 @@ interface FollowerSharing {
 
     /** Bluetooth turned on / Nearby devices allowed: look again. */
     fun refreshNearby() = Unit
+
+    /** *Find phones nearby* (join step): while collected, the phones in Bluetooth range offering *Pair nearby*. */
+    fun findNearby(): Flow<NearbySearch> = flowOf(NearbySearch(NearbyStatus.Unsupported, emptyList()))
+
+    /** Asks the wearer whose phone made [offer] for access as [me] (no link, no relay lookup). */
+    suspend fun joinNearby(
+        offer: NearbyOffer,
+        me: Profile?,
+    ): JoinResult = JoinResult.NotFound
 
     companion object {
         /** Not following anyone (screenshot tests, a wearer). */

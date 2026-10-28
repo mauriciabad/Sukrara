@@ -81,8 +81,8 @@ class FakeNearbyTransport(var identity: NearbyLink.Identity) : NearbyTransport {
 
     fun deliver(event: SignedEvent) = channel.trySend(NearbyEvent.Event(event))
 
-    fun info(owner: BleMessages.Owner, phone: String = "wearer") {
+    fun info(owner: BleMessages.Owner, phone: String = "wearer", pairing: BleMessages.Pairing? = null) {
         if (owner == BleMessages.Owner.Ours) status.value = NearbyStatus.Connected(1)
-        channel.trySend(NearbyEvent.Info(owner, phone))
+        channel.trySend(NearbyEvent.Info(owner, phone, pairing))
     }
 }

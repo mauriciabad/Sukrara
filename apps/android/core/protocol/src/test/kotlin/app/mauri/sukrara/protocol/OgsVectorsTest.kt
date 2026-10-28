@@ -130,6 +130,10 @@ class OgsVectorsTest {
             )
         assertEquals(ble.getValue("info_pairing"), json(BleMessages.info(v.sid, nonce, pairing, v.now)))
         assertEquals(ble.getValue("info"), json(BleMessages.info(v.sid, nonce, pairing, pairing.expiry)))
+        // the follower reads the offer back (Find phones nearby); expired or absent = none
+        assertEquals(pairing.copy(relays = Wire.secureRelays(pairing.relays)), BleMessages.pairing(pair, v.now))
+        assertEquals(null, BleMessages.pairing(pair, pairing.expiry))
+        assertEquals(null, BleMessages.pairing((ble.getValue("info") as JsonArray)[1].jsonObject, v.now))
         assertEquals(ble.getValue("hello"), json(BleMessages.hello(nonce, null)))
         val hello = BleMessages.parse(BleMessages.hello(nonce, null))!!
         assertEquals("HELLO", hello.type)

@@ -468,4 +468,15 @@
     <string name="sh_nearby_device_name">%1$s · %2$s</string>
     <string name="sh_nearby_device_connected">Connected over Bluetooth</string>
     <string name="sh_following_nearby">Bluetooth: %1$s</string>
+    <string name="sh_pair_nearby">Pair nearby</string>
+    <string name="sh_pair_nearby_off">For 10 minutes, a phone nearby can ask to follow you without a link. You type the code shown on their phone.</string>
+    <string name="sh_pair_nearby_on">Open · closes in %1$s. On their phone: Find phones nearby, when joining.</string>
+    <string name="sh_approve_nearby">Asked with Pair nearby: any phone in Bluetooth range could ask. Type the code shown on their phone.</string>
+    <string name="sh_approve_invite_nearby">Pair nearby</string>
+    <string name="sh_find_nearby">Find phones nearby</string>
+    <string name="sh_find_nearby_hint">No link? If they\'re next to you, ask them to turn on Pair nearby (Settings › Sharing) and find their phone over Bluetooth.</string>
+    <string name="sh_find_nearby_looking">Looking for phones with Pair nearby on…</string>
+    <string name="sh_find_nearby_found">Tap the person you want to follow. Still looking for more…</string>
+    <string name="sh_find_nearby_ask">Ask to follow</string>
+    <string name="sh_find_nearby_stop">Stop looking</string>
 </resources>

@@ -37,7 +37,8 @@ class NearbyLink(
 
         data class Event(val event: SignedEvent) : Effect
 
-        data class Info(val owner: BleMessages.Owner) : Effect
+        /** [pairing] = the phone's *Pair nearby* offer, if open (B§7.3). */
+        data class Info(val owner: BleMessages.Owner, val pairing: BleMessages.Pairing? = null) : Effect
 
         /** The message sent with [token] reached the phone (true) or can't be sent (false). */
         data class Sent(val token: Int, val ok: Boolean) : Effect
@@ -103,7 +104,7 @@ class NearbyLink(
                 val body = message.body as? JsonObject ?: return emptyList()
                 val owner = BleMessages.owner(body, identity.identity, identity.sid, sentNonces)
                 verified = owner == BleMessages.Owner.Ours
-                listOf(Effect.Info(owner))
+                listOf(Effect.Info(owner, BleMessages.pairing(body, nowMs() / 1000)))
             }
 
             else -> {

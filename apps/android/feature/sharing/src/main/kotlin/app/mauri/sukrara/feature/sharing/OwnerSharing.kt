@@ -77,6 +77,9 @@ interface OwnerSharing {
 
     /** Look again (Bluetooth turned on, Nearby devices allowed). */
     fun refreshNearby() = Unit
+
+    /** *Pair nearby* (10 min) on, or *Stop*. */
+    suspend fun pairNearby(on: Boolean) = Unit
 }
 
 /** [OwnerSharing] on the engine; [scope] = the app's process scope (the engine's relay work outlives screens). */
@@ -130,13 +133,24 @@ class EngineOwnerSharing(
     }
 
     override val nearby: Flow<NearbyUi> =
-        combine(settings.flow(ShareOwnerModule.NearbySharing), engine.nearbyStatus, engine.nearbyLinks, ::NearbyUi)
+        combine(
+            settings.flow(ShareOwnerModule.NearbySharing),
+            engine.nearbyStatus,
+            engine.nearbyLinks,
+            engine.nearbyPairing,
+        ) { on, status, links, pairing ->
+            NearbyUi(on, status, links, pairing?.expiry)
+        }
 
     override suspend fun setNearby(on: Boolean) {
         settings.set(ShareOwnerModule.NearbySharing, on)
     }
 
     override fun refreshNearby() = engine.refreshNearby()
+
+    override suspend fun pairNearby(on: Boolean) {
+        if (on) engine.openNearbyPairing() else engine.closeNearbyPairing()
+    }
 
     override suspend fun retryConflict() {
         engine.retryConflict()

@@ -902,7 +902,21 @@ past the other app's event; blocks again if it's still running) or *Help*.
   256 KiB a minute → error and disconnect;
   more than 30 messages a minute → dropped), sends one backlog per device per 5 s (a sooner `HELLO` is answered when due),
   and never re-sends an expired event from its backlog.
-- Not included yet: *Pair nearby* / *Find phones nearby* (joining over Bluetooth without a link).
+- **Pair nearby** (Android wearer, Settings › Sharing › Bluetooth, shown while Bluetooth can serve): a switch that opens
+  a single-use invite for 10 minutes (`OwnerEngine.openNearbyPairing`; no link and no invite wrap on the relays, the
+  backup records the token). While open the phone advertises even with no follower and its `INFO` carries `i`, `relays`
+  and `pair` (token, expiry, the wearer's profile; B§7.3); the summary counts down (*Open · closes in 9:41*). It closes
+  at the first request with it, after 10 minutes, or with the switch (*Stop* drops the unclaimed invite). A request made
+  with it is marked nearby: the approve dialog says anyone in Bluetooth range could have asked and Allow needs the code
+  typed from the follower's phone (never compare-only), and its notification has no Allow (*Open Sukrara and type the
+  code*).
+- **Find phones nearby** (Android follower, setup's join step, under the link field): looks over Bluetooth while the list
+  shows (`FollowerEngine.findNearby`): each phone found is connected in turn, sent a `HELLO` without a proof, its `INFO`
+  read and the phone left for 15 s (nothing else is written: with no identity every phone is "unknown", B§6); phones with
+  an open, unexpired `pair` are listed with the wearer's picture and name. A tap joins with that offer (no relay lookup)
+  as the name typed above; the follow's own Bluetooth link then sends the request to the phone whose `INFO` names that
+  identity, and to the relays. The join step shows the match code as for a link. The Mac follower does the same from its
+  follow window.
 - Mac follower: gift wraps (access request, rekey, history request) carry an absolute expiration (7 d; history 1 d); a key
   delivery naming another stream id is rejected; a chunk whose `c`/`d` tags don't match its hour is rejected; a rekey
   request goes out only for an unknown key on an event from the wearer's identity or device.
@@ -912,7 +926,10 @@ back returns and the page looks again); permission missing → *Allow Nearby dev
 stays, and its next tap opens the app's Android settings page); no follower yet → serves once someone follows; unsupported → nothing to do, sharing goes on over the internet. A
 device in *Nearby devices* → its follower dialog (*Close*, *Remove* → confirm → removed and disconnected). Follower:
 the Bluetooth line follows the link by itself; Bluetooth off → *Turn on Bluetooth*; permission missing → *Allow Nearby
-devices*; *Stop following* ends Bluetooth with the relays. Every state works with TalkBack (rows are buttons with text).
+devices*; *Stop following* ends Bluetooth with the relays. *Pair nearby* open → its switch (*Stop*), or it closes by
+itself (first request, 10 minutes); the request it brings → the approve dialog (*Later*, *Deny*, *Allow* with the typed
+code). *Find phones nearby* → *Stop looking*, a phone (asks to follow → waiting with the code), Bluetooth off / permission
+missing → the same fix rows; leaving the join step stops looking. Every state works with TalkBack (rows are buttons with text).
 
 ## Share with apps on this phone (investigation 22)
 
@@ -1088,6 +1105,6 @@ page.
 - Android settings pages: settings export / import / reset, settings search, the follower's *Settings from* page, relay / epoch / statistics / log pages, battery-lab knobs, mmol/L in the settings pages (thresholds and ranges are shown and typed in mg/dL; schema `general.unit` is set elsewhere),, the ▶ beside each sound in the Sound dialog (the alert's page has *Play sound*) and icons on every row. Reason: only what daily use needs; the defaults are the owner's own values.
 - Mac: Juggluco over Wi-Fi (LAN source and subnet discovery) and the Nostr v1 `cgmnostr:` follow link (v1 links carried plaintext secrets and had no UI). Follow the wearer with a protocol v2 invite instead.
 - Sensors: the untested-sensor banner and its *Send feedback* (the families themselves are read, see *Sensor life*); the Libre 3 experiment preferences (minimal subscription set, connection priority, screen-off skip). Reason: no hardware to test them, the owner uses a Libre 3.
-- Planned (issues filed): scanning an invite's QR code on Android and the follower's *Settings from* page, the glucose report card, the Tidepool upload, the phone's Nightscout read API, Health Connect and broadcasts, the rest of insulin pens (see its section), the calendar event, nearby pairing over Bluetooth. The sections above that describe them are the behaviour to build. Reason: what daily use needs comes first.
+- Planned (issues filed): scanning an invite's QR code on Android and the follower's *Settings from* page, the glucose report card, the Tidepool upload, the phone's Nightscout read API, Health Connect and broadcasts, the rest of insulin pens (see its section), the calendar event. The sections above that describe them are the behaviour to build. Reason: what daily use needs comes first.
 
 **States and exits**: none (these features aren't in the app).
