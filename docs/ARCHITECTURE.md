@@ -390,6 +390,15 @@ TTLs, JSON field names and number forms, invite link `https://sukrara.mauri.app/
   relay answers OK, so a rotation interrupted by a crash still reaches every follower. `OwnerEngine` runs them on one
   serial dispatcher, persists before publishing and exposes `StateFlow<OwnerShareState>`; `ShareOwnerModule` (A4)
   builds it for `AppGraph`.
+- `ble/` — Bluetooth share (ogs-ble). Pure protocol cores without android.bluetooth, JVM-tested with fake frames:
+  `NearbyServerCore` (wearer: per-central framing, HELLO → INFO + backlog, identity proof, pushes, B§8 limits) and
+  `NearbyLink` (follower: HELLO + proof, the which-owner gate, one write in flight). Thin adapters run them on one
+  handler thread: `AndroidNearbyServer` (the engine's `OwnerNearby`; GATT server + advertiser, Bluetooth on/off, the
+  `sharing.bleFollowers` switch) and `AndroidNearbyCentral` (the follower engine's `NearbyTransport`; scan, connect,
+  timeouts, backoff). `OwnerEngine.send` keeps the backup and the invite wrap off Bluetooth; `FollowerEngine` runs the
+  transport beside the relays while attached and feeds its events to the same `StreamFollower`. Tests:
+  `NearbyServerCoreTest`, `NearbyLinkTest`, `OwnerNearbyTest`, `FollowerNearbyTest` (fakes `FakeNearbyServer` /
+  `FakeNearbyTransport`).
 
 ## Contracts and tests
 

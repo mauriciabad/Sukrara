@@ -77,6 +77,8 @@ class FakeNearbyTransport(var identity: NearbyLink.Identity) : NearbyTransport {
         left += seconds
     }
 
+    override fun refresh() = Unit
+
     fun deliver(event: SignedEvent) = channel.trySend(NearbyEvent.Event(event))
 
     fun info(owner: BleMessages.Owner) {

@@ -425,6 +425,9 @@ class OwnerEngine(
     /** The Bluetooth server's state (Settings › Sharing). */
     val nearbyStatus: StateFlow<NearbyStatus> get() = nearby.status
 
+    /** Bluetooth turned on or Nearby devices was allowed: the server looks again. */
+    fun refreshNearby() = nearby.refresh()
+
     /** Connected follower devices named by their identity proof. */
     val nearbyLinks: StateFlow<List<NearbyServerCore.Named>> get() = nearby.links
 

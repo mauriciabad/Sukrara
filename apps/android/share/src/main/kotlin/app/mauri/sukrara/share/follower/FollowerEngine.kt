@@ -374,6 +374,11 @@ class FollowerEngine(
             }
         }
 
+    /** Bluetooth turned on / Nearby devices allowed (the Following page): the Bluetooth path looks again. */
+    fun refreshNearby() {
+        nearby?.refresh()
+    }
+
     /** The network came back: reconnect now instead of waiting out the backoff. */
     fun reconnectNow() {
         transport?.reconnectNow()

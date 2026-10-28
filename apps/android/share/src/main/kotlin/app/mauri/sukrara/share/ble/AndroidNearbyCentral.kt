@@ -142,6 +142,8 @@ class AndroidNearbyCentral(
             retryIn(RESCAN_MS)
         }
 
+    override fun refresh() = post { evaluate() }
+
     /** Scan (or keep the link) for what holds now, and say why not in [status]. */
     private fun evaluate() {
         if (stopped) return

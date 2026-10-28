@@ -39,6 +39,9 @@ interface NearbyTransport {
 
     /** Leaves the current phone for [seconds] (another wearer's phone). */
     fun leave(seconds: Long)
+
+    /** Bluetooth turned on / Nearby devices allowed: look again now. */
+    fun refresh()
 }
 
 /** Makes the Bluetooth path for a follow (null = no Bluetooth on this phone). */

@@ -8,6 +8,7 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import app.mauri.sukrara.feature.sharing.Invite
+import app.mauri.sukrara.feature.sharing.NearbyUi
 import app.mauri.sukrara.feature.sharing.OwnerSharing
 import app.mauri.sukrara.feature.sharing.profile.ProfileSave
 import app.mauri.sukrara.protocol.event.Profile
@@ -15,8 +16,10 @@ import app.mauri.sukrara.share.owner.ApproveResult
 import app.mauri.sukrara.share.owner.OwnerShareState
 import app.mauri.sukrara.share.owner.PendingRequest
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 /** The invite being made on the share screen. */
@@ -108,6 +111,15 @@ class SharingViewModel(private val sharing: OwnerSharing) : ViewModel() {
         }
     }
 
+    /** Bluetooth nearby (switch, state, named links) while the sharing page shows. */
+    val nearby: StateFlow<NearbyUi> = sharing.nearby.stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_AFTER_MS), NearbyUi())
+
+    fun setNearby(on: Boolean) {
+        viewModelScope.launch { sharing.setNearby(on) }
+    }
+
+    fun refreshNearby() = sharing.refreshNearby()
+
     fun retryConflict() {
         viewModelScope.launch { sharing.retryConflict() }
     }
@@ -123,6 +135,8 @@ class SharingViewModel(private val sharing: OwnerSharing) : ViewModel() {
     suspend fun saveToPasswordManager(save: suspend (id: String, secret: String) -> Boolean): Boolean = sharing.saveToPasswordManager(save)
 
     companion object {
+        private const val STOP_AFTER_MS = 5_000L
+
         fun factory(sharing: OwnerSharing) = viewModelFactory { initializer { SharingViewModel(sharing) } }
     }
 }
