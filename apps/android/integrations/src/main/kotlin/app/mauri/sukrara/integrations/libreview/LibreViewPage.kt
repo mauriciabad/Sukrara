@@ -15,9 +15,11 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -80,7 +82,7 @@ class LibreViewViewModel(
         viewModelScope.launch { suggested.value = runCatching { accountEmail.first() }.getOrNull().orEmpty() }
     }
 
-    fun actions(close: () -> Unit = {}) =
+    fun actions() =
         LibreViewActions(
             change = { t -> viewModelScope.launch { runCatching { uploader.change(t) } } },
             signIn = { email, password, takeOver ->
@@ -88,7 +90,6 @@ class LibreViewViewModel(
                 viewModelScope.launch {
                     val r = runCatching { uploader.signIn(email, password, takeOver) }.getOrElse { LvSignIn.Failed("not saved") }
                     _signIn.value = LvSignInUi.Done(r)
-                    if (r == LvSignIn.Done) close()
                 }
             },
             signOut = { viewModelScope.launch { runCatching { uploader.signOut() } } },
@@ -123,7 +124,7 @@ fun LibreViewPage(
             signIn,
             suggested,
             viewModel.nowInstant(),
-            viewModel.actions { editing = false },
+            viewModel.actions(),
             editing,
             { v -> editing = v },
             modifier,
@@ -184,7 +185,7 @@ fun LibreViewContent(
     SettingsGroup {
         SwitchRow(
             stringResource(R.string.in_lv_main),
-            s.on && wearer,
+            s.on,
             { v -> actions.change { it.copy(on = v) } },
             // switching off always works (signed out, or no longer the wearer); switching on needs an account
             enabled = s.on || (wearer && state.signedIn),
@@ -261,6 +262,12 @@ private fun SignInDialog(
     var email by rememberSaveable { mutableStateOf(initialEmail) }
     // never in saved state: a rotation asks for it again
     var password by remember { mutableStateOf("") }
+    // a (re)created dialog starts from the fields (after a rotation the password is gone, so no lone Take over)
+    val reset by rememberUpdatedState(actions.reset)
+    LaunchedEffect(Unit) { if (ui !is LvSignInUi.Busy) reset() }
+    // signed in: close (also after the activity was recreated mid sign-in)
+    val close by rememberUpdatedState(onClose)
+    LaunchedEffect(ui) { if (ui is LvSignInUi.Done && ui.result == LvSignIn.Done) close() }
     val busy = ui == LvSignInUi.Busy
     val otherDevice = ui is LvSignInUi.Done && ui.result == LvSignIn.OtherDevice
     val ready = email.isNotBlank() && password.isNotEmpty() && !busy

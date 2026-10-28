@@ -15,8 +15,10 @@ import app.mauri.sukrara.integrations.CurrentSensor
 import app.mauri.sukrara.integrations.upload.UploadBackoff
 import app.mauri.sukrara.integrations.upload.UploadLoop
 import app.mauri.sukrara.integrations.upload.UploadStatus
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.combine
@@ -173,42 +175,47 @@ class LibreViewUploader(
             val answer = withContext(io) { client.signIn(email, password, st.deviceId, takeOver) }
             when (answer) {
                 is LvAuth.SignedIn -> {
-                    secure.write(NAME, json.encodeToString(LvSession.serializer(), answer.session).toByteArray())
-                    signedIn.value = true
-                    val e = email.trim()
-                    val nowS = clock.now().epochSecond
-                    val s = settingsFlow.first()
-                    store.update {
-                        val same = it.email.equals(e, ignoreCase = true)
-                        val base = if (same) it else LvState(deviceId = it.deviceId)
-                        base.copy(
-                            email = e,
-                            authFailed = false,
-                            refused = false,
-                            failures = 0,
-                            nextAttemptMs = 0,
-                            lastError = null,
-                            glucoseFrom =
-                                if (same) {
-                                    it.glucoseFrom
-                                } else if (s.on && s.glucose) {
-                                    nowS
-                                } else {
-                                    0
-                                },
-                            entriesFrom =
-                                if (same) {
-                                    it.entriesFrom
-                                } else if (s.on && s.treatments) {
-                                    nowS
-                                } else {
-                                    0
-                                },
-                        )
+                    withContext(NonCancellable) {
+                        // state first, then the token, both or neither: a token never sits under another account's ledger
+                        val e = email.trim()
+                        val nowS = clock.now().epochSecond
+                        val s = settingsFlow.first()
+                        store.update {
+                            val same = it.email.equals(e, ignoreCase = true)
+                            val base = if (same) it else LvState(deviceId = it.deviceId)
+                            base.copy(
+                                email = e,
+                                // a new sign-in may bring the profile the sensor registration needs
+                                sensors = base.sensors.map { st -> st.copy(refusedRegistration = false) },
+                                authFailed = false,
+                                refused = false,
+                                failures = 0,
+                                nextAttemptMs = 0,
+                                lastError = null,
+                                glucoseFrom =
+                                    if (same) {
+                                        it.glucoseFrom
+                                    } else if (s.on && s.glucose) {
+                                        nowS
+                                    } else {
+                                        0
+                                    },
+                                entriesFrom =
+                                    if (same) {
+                                        it.entriesFrom
+                                    } else if (s.on && s.treatments) {
+                                        nowS
+                                    } else {
+                                        0
+                                    },
+                            )
+                        }
+                        secure.write(NAME, json.encodeToString(LvSession.serializer(), answer.session).toByteArray())
+                        signedIn.value = true
+                        log("libreview: signed in${if (takeOver) " (took over)" else ""}")
+                        loop.kick()
+                        LvSignIn.Done
                     }
-                    log("libreview: signed in${if (takeOver) " (took over)" else ""}")
-                    loop.kick()
-                    LvSignIn.Done
                 }
 
                 LvAuth.OtherDevice -> {
@@ -261,13 +268,24 @@ class LibreViewUploader(
 
     // MARK: the cycle
 
-    internal suspend fun cycle() = mutex.withLock { cycleLocked() }
+    internal suspend fun cycle() =
+        mutex.withLock {
+            try {
+                cycleLocked()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                // an answer we can't read: retried later with backoff, never a tight loop
+                log("libreview cycle: ${e.javaClass.simpleName}")
+                save(failed(store.data.first(), clock.now().toEpochMilli(), e.javaClass.simpleName))
+            }
+        }
 
     private suspend fun cycleLocked() {
         val s = settingsFlow.first()
         if (!s.on || role.first() != Role.Wearer) return
         var state = ensureDevice()
-        if (state.authFailed || state.refused) return
+        if (state.authFailed) return
         val nowMs = clock.now().toEpochMilli()
         val nowS = nowMs / 1000
         if (nowMs < state.nextAttemptMs) return
@@ -289,7 +307,7 @@ class LibreViewUploader(
             } ?: return
 
         val entries =
-            if (s.treatments || state.ledger.isNotEmpty()) {
+            if (!state.refused && (s.treatments || state.ledger.isNotEmpty())) {
                 // a switched-off part still corrects what LibreView already has
                 val records = treatments.changedSince(clock.now() - Duration.ofDays(31))
                 LibreViewQueue
@@ -300,8 +318,9 @@ class LibreViewUploader(
         val batch = if (s.glucose) glucoseBatch(state, nowS) else null
         if (entries.isEmpty() && batch == null) return
 
-        var sensorPart = batch
-        if (batch != null && state.sensors.none { it.serial == batch.serial && it.registered }) {
+        val refusedSensor = batch != null && state.sensors.any { it.serial == batch.serial && it.refusedRegistration }
+        var sensorPart = batch.takeIf { !refusedSensor }
+        if (batch != null && !refusedSensor && state.sensors.none { it.serial == batch.serial && it.registered }) {
             when (val r = withContext(io) { client.putSensor(session, batch.serial) }) {
                 LvPost.Ok -> {
                     state = state.copy(sensors = LibreViewQueue.registered(state.sensors, batch.serial)).also { save(it) }
@@ -318,6 +337,10 @@ class LibreViewUploader(
                 // glucose waits for a sensor LibreView knows; entries still go
                 is LvPost.Rejected -> {
                     log("libreview: sensor not registered (${r.why})")
+                    state =
+                        state
+                            .copy(sensors = LibreViewQueue.registrationRefused(state.sensors, batch.serial), lastError = r.why)
+                            .also { save(it) }
                     sensorPart = null
                 }
             }
@@ -357,7 +380,9 @@ class LibreViewUploader(
 
             is LvPost.Rejected -> {
                 log("libreview: upload refused (${r.why})")
-                save(state.copy(refused = true, lastError = r.why))
+                // refused entries wait for a change (glucose goes on without them); refused glucose backs off
+                save(if (entries.isNotEmpty()) state.copy(refused = true, lastError = r.why) else failed(state, nowMs, r.why))
+                if (entries.isNotEmpty() && sensorPart != null) loop.kick()
             }
         }
     }

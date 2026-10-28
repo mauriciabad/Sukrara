@@ -14,6 +14,8 @@ import kotlinx.serialization.Serializable
 data class LvSent(
     val v: Long,
     val t: Long,
+    /** The kind LibreView has it as (its record number and list depend on it). */
+    val k: String = "",
 )
 
 /** What one sensor already sent: life counts of its 5-minute history, the last current reading, the one-off records. */
@@ -24,6 +26,8 @@ data class LvSensorState(
     val lastCurrent: Int = -1,
     val registered: Boolean = false,
     val startSent: Boolean = false,
+    /** LibreView refused to register it: its glucose waits for the next sign-in. */
+    val refusedRegistration: Boolean = false,
 )
 
 /**
@@ -98,14 +102,30 @@ object LibreViewQueue {
             .filter { it.lv != it.u && !(it.del && it.lv == 0L) }
             .sortedWith(compareBy({ it.t }, { it.id }))
             .take(MAX_ENTRIES)
-            .toList()
+            .flatMap { e ->
+                val had = ledger[e.id]
+                if (had != null && had.k.isNotEmpty() && had.k != e.k) {
+                    // the kind changed: retract it under the kind LibreView has, then send it as new (unless deleted)
+                    listOfNotNull(e.copy(k = had.k, del = true), e.copy(lv = 0L).takeIf { !e.del })
+                } else {
+                    listOf(e)
+                }
+            }.toList()
 
     /** The ledger after LibreView accepted [sent], trimmed to the window. */
     fun sent(
         ledger: Map<String, LvSent>,
         sent: List<LvEntry>,
         nowS: Long,
-    ): Map<String, LvSent> = (ledger + sent.associate { it.id to LvSent(it.u, it.t) }).filterValues { it.t >= nowS - LEDGER_S }
+    ): Map<String, LvSent> =
+        (
+            ledger +
+                sent.groupBy { it.id }.mapValues { (_, es) ->
+                    // a kind change sends a retraction (old kind) and the new version: remember the new one
+                    val e = es.firstOrNull { !it.del } ?: es.first()
+                    LvSent(e.u, e.t, e.k)
+                }
+        ).filterValues { it.t >= nowS - LEDGER_S }
 
     /**
      * The sensor part of the next upload, or null. Only [serial]'s own readings (the source tags each batch with its
@@ -151,6 +171,14 @@ object LibreViewQueue {
                 startSent = old.startSent || s.sendStart,
             )
         return (listOf(updated) + sensors.filter { it.serial != s.serial }).take(2)
+    }
+
+    fun registrationRefused(
+        sensors: List<LvSensorState>,
+        serial: String,
+    ): List<LvSensorState> {
+        val old = sensors.firstOrNull { it.serial == serial } ?: LvSensorState(serial)
+        return (listOf(old.copy(refusedRegistration = true)) + sensors.filter { it.serial != serial }).take(2)
     }
 
     fun registered(

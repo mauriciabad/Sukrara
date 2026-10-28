@@ -107,7 +107,7 @@ class IntegrationsModule(
 
     val summary: Flow<AppsSummary> =
         combine(nightscout.page, xdrip.on, libreView.page) { ns, x, lv ->
-            AppsSummary(ns.status != UploadStatus.Off, x, lv.status != UploadStatus.Off)
+            AppsSummary(ns.status != UploadStatus.Off, x, lv.status != UploadStatus.Off && lv.status != UploadStatus.Setup)
         }
 
     suspend fun load() {

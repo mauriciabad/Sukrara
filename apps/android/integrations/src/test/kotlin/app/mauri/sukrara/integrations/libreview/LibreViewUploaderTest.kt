@@ -54,6 +54,7 @@ class LibreViewUploaderTest {
     /** `/api/measurements` answers: null = ok. */
     private var measurements: MockResponse? = null
     private var redirectConfig = false
+    private var refuseRegistration = false
 
     private lateinit var uploader: LibreViewUploader
 
@@ -90,7 +91,7 @@ class LibreViewUploaderTest {
                         }
 
                         "/api/nisperson" -> {
-                            MockResponse().setBody("""{"status":0}""")
+                            MockResponse().setBody(if (refuseRegistration) """{"status":7,"reason":"no"}""" else """{"status":0}""")
                         }
 
                         "/api/measurements" -> {
@@ -128,8 +129,9 @@ class LibreViewUploaderTest {
         amount: Double = 2.0,
         modified: Instant = clock.now(),
         deleted: Boolean = false,
+        kind: TreatmentKind = TreatmentKind.RapidInsulin,
     ) = TreatmentRecord(
-        Treatment(id, TreatmentKind.RapidInsulin, amount, now - Duration.ofMinutes(minAgo), "", modified, deleted, TreatmentOrigin.Phone),
+        Treatment(id, kind, amount, now - Duration.ofMinutes(minAgo), "", modified, deleted, TreatmentOrigin.Phone),
     )
 
     private fun signedInAndOn() =
@@ -332,5 +334,90 @@ class LibreViewUploaderTest {
             uploader.signOut()
             assertEquals(null, secure.read(LibreViewUploader.NAME))
             assertEquals(UploadStatus.Setup, uploader.page.first().status)
+        }
+
+    @Test
+    fun `a changed kind is retracted under the kind LibreView has`() =
+        runBlocking {
+            signedInAndOn()
+            clock.advance(Duration.ofMinutes(1))
+            treatments.upsertIfNewer(treatment("k", 5, modified = clock.now()))
+            uploader.cycle()
+            val v1 = clock.now().toEpochMilli()
+            clock.advance(Duration.ofMinutes(1))
+            treatments.upsertIfNewer(treatment("k", 5, amount = 4.0, modified = clock.now(), kind = TreatmentKind.LongInsulin))
+            uploader.cycle()
+            val body = uploads().last()
+            assertTrue("\"recordNumber\":${LibreViewPayload.recordNumber("k", "rapid", v1)}" in body)
+            assertTrue("\"recordNumber\":${LibreViewPayload.recordNumber("k", "long", clock.now().toEpochMilli())}" in body)
+            assertEquals(
+                "long",
+                store.data
+                    .first()
+                    .ledger
+                    .getValue("k")
+                    .k,
+            )
+            uploader.cycle()
+            assertEquals(2, uploads().size)
+        }
+
+    @Test
+    fun `a refused sensor registration isn't asked again until the next sign-in`() =
+        runBlocking {
+            signedInAndOn()
+            clock.advance(Duration.ofMinutes(10))
+            val t = clock.now().epochSecond
+            sensor.value = CurrentSensor("3MH000ABCD", now - Duration.ofDays(2), now + Duration.ofDays(12))
+            refuseRegistration = true
+            uploader.buffer(LvReadings("3MH000ABCD", LvGlucose(2880, 123, t), emptyList()))
+            uploader.cycle()
+            uploader.cycle()
+            assertEquals(1, requests.count { it.path == "/api/nisperson" })
+            assertEquals(0, uploads().size)
+            assertTrue(uploader.page.first().status is UploadStatus.Failing)
+            refuseRegistration = false
+            uploader.signIn("me@example.com", "secret-pw", takeOver = false)
+            uploader.cycle()
+            assertEquals(2, requests.count { it.path == "/api/nisperson" })
+            assertEquals(1, uploads().size)
+        }
+
+    @Test
+    fun `refused entries don't hold back glucose`() =
+        runBlocking {
+            signedInAndOn()
+            clock.advance(Duration.ofMinutes(10))
+            val t = clock.now().epochSecond
+            treatments.upsertIfNewer(treatment("a", 5, modified = clock.now()))
+            sensor.value = CurrentSensor("3MH000ABCD", now - Duration.ofDays(2), now + Duration.ofDays(12))
+            uploader.buffer(LvReadings("3MH000ABCD", LvGlucose(2880, 123, t), emptyList()))
+            measurements = MockResponse().setBody("""{"status":5,"reason":"bad"}""")
+            uploader.cycle()
+            measurements = null
+            uploader.cycle()
+            val last = uploads().last()
+            assertTrue("valueInMgPerDl" in last)
+            assertFalse("insulinType" in last)
+        }
+
+    @Test
+    fun `another account starts from nothing`() =
+        runBlocking {
+            signedInAndOn()
+            clock.advance(Duration.ofMinutes(1))
+            treatments.upsertIfNewer(treatment("a", 5, modified = clock.now()))
+            uploader.cycle()
+            assertEquals(
+                1,
+                store.data
+                    .first()
+                    .ledger.size,
+            )
+            val device = store.data.first().deviceId
+            uploader.signIn("other@example.com", "secret-pw", takeOver = false)
+            assertEquals(emptyMap<String, LvSent>(), store.data.first().ledger)
+            assertEquals("other@example.com", store.data.first().email)
+            assertEquals("the device id stays", device, store.data.first().deviceId)
         }
 }

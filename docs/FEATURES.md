@@ -943,8 +943,10 @@ Settings › Sensor, or switch the server off. *Nightscout upload* states are on
 - When: after each new Libre 3 reading, entry change or setting change, and every 5 minutes. At most 100 entries and
   288 readings per upload; a bigger catch-up continues at once. Network or server trouble retries after 30 s doubling
   to 15 min (±20 %); a token LibreView no longer accepts (401 / 403 / `wrongDeviceInToken`) stops until the person
-  signs in again (unlike the contract's re-auth: the password isn't kept); an upload LibreView refuses (`status` ≠ 0)
-  stops until an entry or a setting changes, with the reason in the status. Redirects are never followed.
+  signs in again (unlike the contract's re-auth: the password isn't kept); entries LibreView refuses (`status` ≠ 0)
+  wait until an entry or a setting changes (glucose goes on without them), refused glucose retries with the backoff,
+  a refused sensor registration holds that sensor's glucose until the next sign-in; the reason is in the status. An
+  entry whose kind changed is retracted under the kind LibreView has. Redirects are never followed.
 
 **States and exits**: *Signed out* → *Account* → dialog (*Cancel* keeps nothing). *Another device uploads* → *Take
 over* or *Cancel*. *Off* (default) → main switch. *On · nothing sent yet / last upload* → main switch off, *Sign out*.
