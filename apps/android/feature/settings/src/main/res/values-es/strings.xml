@@ -123,6 +123,17 @@
     <string name="st_apps_summary">Nightscout, relojes Garmin, un archivo para tu clínica</string>
     <string name="st_apps_nightscout">Subir a Nightscout</string>
     <string name="st_apps_xdrip">Servidor xDrip+</string>
+    <string name="st_apps_tidepool">Tidepool</string>
+    <string name="st_apps_nightscout_api">API de Nightscout</string>
+    <string name="st_show_closed_tips">Mostrar consejos cerrados</string>
+    <plurals name="st_closed_tips">
+        <item quantity="one">%1$d consejo cerrado</item>
+        <item quantity="many">%1$d consejos cerrados</item>
+        <item quantity="other">%1$d consejos cerrados</item>
+    </plurals>
+    <string name="st_tip_closed">Consejo cerrado. Mostrar consejos cerrados lo recupera.</string>
+    <string name="st_tips_shown">Los consejos cerrados volverán a aparecer donde corresponda</string>
+    <string name="st_undo">Deshacer</string>
     <string name="st_about_title">Acerca de</string>
     <string name="st_about_version">Versión</string>
     <string name="st_update_checking">Buscando actualizaciones…</string>
@@ -147,6 +158,18 @@
     <string name="st_sensor_current">Sensor actual</string>
     <string name="st_sensor_status">Estado</string>
     <string name="st_sensor_serial">Número de serie</string>
+    <string name="st_sensor_family">Sensor</string>
+    <string name="st_sensor_family_untested">%1$s · sin probar</string>
+    <string name="st_sensor_status_searching">Buscando el sensor: mantén el móvil cerca</string>
+    <string name="st_sensor_status_no_value_calibration">Conectado, sin valor: el sensor pide una calibración. Hazla en la app o el receptor de Dexcom.</string>
+    <string name="st_sensor_status_no_value_temporary">Conectado, sin valor por ahora: un problema pasajero del sensor. Los valores vuelven solos.</string>
+    <string name="st_sensor_status_no_value_error">Conectado, sin valor: el sensor indica un error. Si continúa, cambia el sensor.</string>
+    <string name="st_sensor_status_no_value_missing">Conectado: el sensor no ha enviado ningún valor. Esperando el siguiente.</string>
+    <plurals name="st_sensor_skipped_old">
+        <item quantity="one">Un %2$s anterior cercano ya ha terminado: Sukrara lo ignora y busca el nuevo.</item>
+        <item quantity="many">%1$d sensores %2$s anteriores cercanos ya han terminado: Sukrara los ignora y busca el nuevo.</item>
+        <item quantity="other">%1$d sensores %2$s anteriores cercanos ya han terminado: Sukrara los ignora y busca el nuevo.</item>
+    </plurals>
     <string name="st_sensor_started">Inicio</string>
     <string name="st_sensor_ends">Termina</string>
     <string name="st_sensor_ends_in">%1$s · en %2$s</string>
@@ -378,6 +401,7 @@
     <string name="st_try_title">Pruébala</string>
     <string name="st_play_sound">Reproducir el sonido</string>
     <string name="st_play_vibrate">Con vibración</string>
+    <string name="st_play_option">Reproducir %1$s</string>
     <string name="st_send_test">Enviar una alerta de prueba</string>
     <string name="st_send_test_summary">La notificación real, marcada como prueba · no se envía a quien te sigue</string>
     <string name="st_send_test_sent">Enviada: mira tus notificaciones. Se va sola en 2 min.</string>

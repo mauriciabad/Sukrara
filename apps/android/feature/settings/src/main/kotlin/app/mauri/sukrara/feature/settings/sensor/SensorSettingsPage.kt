@@ -24,6 +24,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
@@ -131,6 +132,17 @@ private fun StateNotice(
         StateStrip(stringResource(R.string.st_sensor_juggluco_unreachable_text), listOfNotNull(openJuggluco.takeIf { open != null }))
         return
     }
+    val skipped = state.family?.skippedOld ?: 0
+    val running = state.state is SensorState.Active || state.state is SensorState.WarmingUp
+    if (running && state.link == SourceLink.Searching && skipped > 0) {
+        val text = pluralStringResource(R.plurals.st_sensor_skipped_old, skipped, skipped, state.family?.label.orEmpty())
+        StateStrip(text, listOf(pair))
+        return
+    }
+    if (running && state.link == SourceLink.NoValueSensorError) {
+        StateStrip(stringResource(R.string.st_sensor_status_no_value_error), listOf(pair))
+        return
+    }
     when (val s = state.state) {
         SensorState.None -> {
             if (state.source == SourceChoice.Libre3Direct) StateStrip(stringResource(R.string.st_sensor_none_text), listOf(pair))
@@ -195,6 +207,12 @@ private fun SensorGroup(
     actions: SensorSettingsActions,
 ) {
     SettingsGroup(title = stringResource(R.string.st_sensor_current)) {
+        state.family?.let { f ->
+            InfoRow(
+                stringResource(R.string.st_sensor_family),
+                summary = if (f.untested) stringResource(R.string.st_sensor_family_untested, f.label) else f.label,
+            )
+        }
         InfoRow(stringResource(R.string.st_sensor_status), summary = statusText(state, zone))
         state.sensor?.let { sensor ->
             InfoRow(stringResource(R.string.st_sensor_serial), summary = sensor.serial)
@@ -272,6 +290,26 @@ private fun statusText(
                             R.string.st_sensor_status_connecting
                         },
                     )
+                }
+
+                SourceLink.Searching -> {
+                    stringResource(R.string.st_sensor_status_searching)
+                }
+
+                SourceLink.NoValueCalibration -> {
+                    stringResource(R.string.st_sensor_status_no_value_calibration)
+                }
+
+                SourceLink.NoValueTemporary -> {
+                    stringResource(R.string.st_sensor_status_no_value_temporary)
+                }
+
+                SourceLink.NoValueSensorError -> {
+                    stringResource(R.string.st_sensor_status_no_value_error)
+                }
+
+                SourceLink.NoValueMissing -> {
+                    stringResource(R.string.st_sensor_status_no_value_missing)
                 }
 
                 SourceLink.Receiving -> {

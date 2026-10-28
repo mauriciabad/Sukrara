@@ -136,6 +136,30 @@ class SensorSettingsTest {
     }
 
     @Test
+    fun `an untested family is named and tagged, its no-value reasons are said`() {
+        show(working.copy(family = SensorFamily("Dexcom G7 / ONE+", untested = true), link = SourceLink.NoValueCalibration))
+        compose.onNodeWithText("Dexcom G7 / ONE+ · untested").assertExists()
+        compose.onNodeWithText("asks for a calibration", substring = true).assertExists()
+        compose.onNodeWithText("Working", substring = true).assertDoesNotExist()
+    }
+
+    @Test
+    fun `a sensor error offers Pair new sensor`() {
+        var paired = 0
+        show(working.copy(link = SourceLink.NoValueSensorError), SensorSettingsActions(pairNewSensor = { paired++ }))
+        compose.onAllNodes(hasText("the sensor reports an error", substring = true)).onFirst().assertExists()
+        compose.onAllNodesWithTextFirst("Pair new sensor").performClick()
+        assertEquals(1, paired)
+    }
+
+    @Test
+    fun `an old sensor skipped while searching is said`() {
+        show(working.copy(family = SensorFamily("Dexcom G7 / ONE+", untested = true, skippedOld = 1), link = SourceLink.Searching))
+        compose.onNodeWithText("An older Dexcom G7 / ONE+ nearby has ended", substring = true).assertExists()
+        compose.onNodeWithText("Looking for the sensor", substring = true).assertExists()
+    }
+
+    @Test
     fun `sign out asks first, Cancel keeps the account`() {
         var signedOut = 0
         show(working, SensorSettingsActions(signOut = { signedOut++ }))

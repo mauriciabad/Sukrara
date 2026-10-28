@@ -11,6 +11,7 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.provider.Settings
+import android.widget.Toast
 import androidx.compose.foundation.layout.Box
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -63,11 +64,16 @@ import app.mauri.sukrara.feature.sharing.share.SharingViewModel
 import app.mauri.sukrara.integrations.AppsPage
 import app.mauri.sukrara.integrations.export.ExportPage
 import app.mauri.sukrara.integrations.libreview.LibreViewPage
+import app.mauri.sukrara.integrations.localserver.NightscoutApiPage
 import app.mauri.sukrara.integrations.nightscout.NightscoutPage
+import app.mauri.sukrara.integrations.tidepool.TidepoolPage
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
+import java.util.concurrent.atomic.AtomicBoolean
 import app.mauri.sukrara.feature.settings.R as SettingsR
 import app.mauri.sukrara.feature.sharing.R as SharingR
 import app.mauri.sukrara.integrations.R as IntegrationsR
@@ -124,6 +130,14 @@ data object ExportRoute : NavKey
 /** Settings › Share with apps › LibreView. */
 @Serializable
 data object LibreViewRoute : NavKey
+
+/** Settings › Share with apps › Tidepool. */
+@Serializable
+data object TidepoolRoute : NavKey
+
+/** Settings › Share with apps › Nightscout API on this phone. */
+@Serializable
+data object NightscoutApiRoute : NavKey
 
 /** One settings page ([SettingsRoute]) on the back stack: [page] names it, [kind] is an alert kind page's contract id. */
 @Serializable
@@ -389,7 +403,19 @@ fun SukraraNavigation(
                                 openNightscout = { backStack.push(NightscoutUploadRoute) },
                                 openExport = { backStack.push(ExportRoute) },
                                 openLibreView = { backStack.push(LibreViewRoute) },
+                                openNightscoutApi = { backStack.push(NightscoutApiRoute) },
+                                openTidepool = { backStack.push(TidepoolRoute) },
                             )
+                        }
+                    }
+                    entry<TidepoolRoute> {
+                        SettingsPage(stringResource(IntegrationsR.string.in_tp_title), { backStack.pop(TidepoolRoute) }) {
+                            TidepoolPage(viewModel(factory = graph.integrations.tidepoolViewModels))
+                        }
+                    }
+                    entry<NightscoutApiRoute> {
+                        SettingsPage(stringResource(IntegrationsR.string.in_nsapi_title), { backStack.pop(NightscoutApiRoute) }) {
+                            NightscoutApiPage(viewModel(factory = graph.integrations.nightscoutApiViewModels), graph.clock::now)
                         }
                     }
                     entry<NightscoutUploadRoute> {
@@ -531,6 +557,26 @@ private fun route(
                 .openTagSettings()
         }
 
+        // the module's state changes by itself once System UI says hello again; a failure is said in a toast
+        HomeAction.RestartSystemUi -> {
+            val graph = context.graph
+            val app = context.applicationContext
+            // one restart at a time: a second tap while it runs would kill System UI again
+            if (restartingSystemUi.compareAndSet(false, true)) {
+                graph.scope.launch {
+                    val problem =
+                        try {
+                            graph.monitor.systemAccess.restartSystemUi()
+                        } finally {
+                            restartingSystemUi.set(false)
+                        } ?: return@launch
+                    withContext(Dispatchers.Main) {
+                        Toast.makeText(app, app.getString(R.string.app_restart_systemui_failed, problem), Toast.LENGTH_LONG).show()
+                    }
+                }
+            }
+        }
+
         HomeAction.TurnOffPens -> {
             val graph = context.graph
             graph.scope.launch {
@@ -540,6 +586,9 @@ private fun route(
         }
     }
 }
+
+/** A *Restart System UI* from home is running. */
+private val restartingSystemUi = AtomicBoolean(false)
 
 /** Starts [intent] (inside this app when it names an action of ours) or runs [otherwise] when nothing handles it. */
 private fun open(

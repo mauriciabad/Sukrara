@@ -124,6 +124,16 @@
     <string name="st_apps_libreview" translatable="false">LibreView</string>
     <string name="st_apps_nightscout">Nightscout upload</string>
     <string name="st_apps_xdrip">xDrip+ server</string>
+    <string name="st_apps_tidepool">Tidepool</string>
+    <string name="st_apps_nightscout_api">Nightscout API</string>
+    <string name="st_show_closed_tips">Show closed tips</string>
+    <plurals name="st_closed_tips">
+        <item quantity="one">%1$d tip closed</item>
+        <item quantity="other">%1$d tips closed</item>
+    </plurals>
+    <string name="st_tip_closed">Tip closed. Show closed tips brings it back.</string>
+    <string name="st_tips_shown">Closed tips will show again where they apply</string>
+    <string name="st_undo">Undo</string>
     <string name="st_about_title">About</string>
     <string name="st_about_version">Version</string>
     <string name="st_update_checking">Checking for updates…</string>
@@ -148,6 +158,17 @@
     <string name="st_sensor_current">Current sensor</string>
     <string name="st_sensor_status">Status</string>
     <string name="st_sensor_serial">Serial number</string>
+    <string name="st_sensor_family">Sensor</string>
+    <string name="st_sensor_family_untested">%1$s · untested</string>
+    <string name="st_sensor_status_searching">Looking for the sensor: keep the phone near it</string>
+    <string name="st_sensor_status_no_value_calibration">Connected, no value: the sensor asks for a calibration. Do it in the Dexcom app or receiver.</string>
+    <string name="st_sensor_status_no_value_temporary">Connected, no value for now: a temporary sensor issue. Values come back by themselves.</string>
+    <string name="st_sensor_status_no_value_error">Connected, no value: the sensor reports an error. If it lasts, replace the sensor.</string>
+    <string name="st_sensor_status_no_value_missing">Connected: the sensor sent no value. Waiting for the next one.</string>
+    <plurals name="st_sensor_skipped_old">
+        <item quantity="one">An older %2$s nearby has ended: Sukrara skips it and looks for your new one.</item>
+        <item quantity="other">%1$d older %2$s sensors nearby have ended: Sukrara skips them and looks for your new one.</item>
+    </plurals>
     <string name="st_sensor_started">Started</string>
     <string name="st_sensor_ends">Ends</string>
     <string name="st_sensor_ends_in">%1$s · in %2$s</string>
@@ -377,6 +398,7 @@
     <string name="st_try_title">Try it</string>
     <string name="st_play_sound">Play sound</string>
     <string name="st_play_vibrate">Play with vibration</string>
+    <string name="st_play_option">Play %1$s</string>
     <string name="st_send_test">Send a test alert</string>
     <string name="st_send_test_summary">The real notification, marked as a test · not sent to followers</string>
     <string name="st_send_test_sent">Sent: check your notifications. It goes away by itself in 2 min.</string>

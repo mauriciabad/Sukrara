@@ -32,6 +32,11 @@ import app.mauri.sukrara.integrations.libreview.LibreViewContent
 import app.mauri.sukrara.integrations.libreview.LvPageState
 import app.mauri.sukrara.integrations.libreview.LvSettings
 import app.mauri.sukrara.integrations.libreview.LvSignInUi
+import app.mauri.sukrara.integrations.localserver.NightscoutApiContent
+import app.mauri.sukrara.integrations.localserver.NsApiActions
+import app.mauri.sukrara.integrations.localserver.NsApiState
+import app.mauri.sukrara.integrations.localserver.NsApiUi
+import app.mauri.sukrara.integrations.localserver.SecretView
 import app.mauri.sukrara.integrations.localserver.XdripState
 import app.mauri.sukrara.integrations.nightscout.NightscoutActions
 import app.mauri.sukrara.integrations.nightscout.NightscoutContent
@@ -87,6 +92,20 @@ class IntegrationsGallery {
             },
             "apps-busy-follower" to
                 { AppsContent(AppsUi(false, true, XdripState.PortBusy, emptyList(), UploadStatus.Off), now, AppsActions()) },
+            "nsapi-off" to { NightscoutApiContent(NsApiUi(false, NsApiState.Off), now, NsApiActions()) },
+            "nsapi-on" to {
+                NightscoutApiContent(NsApiUi(true, NsApiState.Listening(now - Duration.ofMinutes(1))), now, NsApiActions())
+            },
+            "nsapi-secret" to {
+                NightscoutApiContent(
+                    NsApiUi(true, NsApiState.Listening(null), SecretView.Shown("0f1e2d3c4b5a69788796a5b4c3d2e1f0")),
+                    now,
+                    NsApiActions(),
+                )
+            },
+            "nsapi-unreadable" to {
+                NightscoutApiContent(NsApiUi(true, NsApiState.SecretUnreadable, SecretView.Unreadable), now, NsApiActions())
+            },
             "nightscout-off" to {
                 NightscoutContent(NsPageState(NsSettings(), null, UploadStatus.Off), true, NsTestUi.Idle, now, NightscoutActions())
             },

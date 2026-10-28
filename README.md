@@ -32,7 +32,9 @@ The full catalog, with every rule and number, is [docs/FEATURES.md](docs/FEATURE
   Sukrara and Abbott's app. Or read from **Juggluco's local web server** if Juggluco keeps the sensor.
 - **Other sensors, untested**: Dexcom G7 / ONE+ / Stelo (read along with the Dexcom app), Dexcom G6 / ONE, Accu-Chek
   SmartGuide and Aidex X / LinX / GlucoRx. They were never tested with a real sensor: the new sensor screen tags them
-  *Untested* and asks you to confirm before pairing.
+  *Untested* and asks you to confirm before pairing; while you wear one, home asks for feedback (*Send feedback*
+  opens a pre-filled GitHub issue with nothing personal) and Settings › Sensor names the family and why a connected
+  sensor sends no value.
 - **LO / HI** from any sensor show as *LO* / *HI*, never a made-up number, and sound the very low / extremely high
   alert at once (Android and Mac).
 - A guided **new sensor** screen: which sensor, warm-up countdown, every failure handled on the same screen
@@ -102,8 +104,10 @@ The full catalog, with every rule and number, is [docs/FEATURES.md](docs/FEATURE
 - **Share with apps**: upload your Libre 3 glucose and entries to **LibreView** for your clinic (password used once,
   never saved; asks before taking over another uploading device; only from the moment you switch it on; a cloud on each
   entry on home says whether LibreView has it; a home banner suggests it until set up), to your own **Nightscout** site (https, access token kept encrypted; 30-day catch-up,
-  pauses when another app uploads to the same site), an **xDrip+-compatible server** on this phone for **Garmin**
-  watches (off until you switch it on; loopback only), and **Export data** as a LibreView-layout CSV to save or share.
+  pauses when another app uploads to the same site), to **Tidepool** (both roles; a follower only after its own
+  choice; password used once), an **xDrip+-compatible server** on this phone for **Garmin** watches (off until you
+  switch it on; loopback only), a **Nightscout API on this phone** for apps like xDrip+ and GlucoDataHandler (off by
+  default, loopback only, API secret required), and **Export data** as a LibreView-layout CSV to save or share.
 - English and Spanish (Spain) everywhere.
 
 **Mac (you follow someone, from the menu bar)**
@@ -129,7 +133,7 @@ The full catalog, with every rule and number, is [docs/FEATURES.md](docs/FEATURE
   through at 5 min, the graph dimmed with the reading's time, no value at 20 min) and a tap opens Add treatment.
 - VoiceOver reads the value as one sentence with the range in words.
 
-**Not included**: the LSPosed lock-screen widget, Dexcom / Aidex / SmartGuide (untested) sensors, Tidepool upload, the phone's Nightscout read API, Health Connect and broadcasts, the pen list and dose review, the sensor-end
+**Not included**: the LSPosed lock-screen widget, Dexcom / Aidex / SmartGuide (untested) sensors, the Nightscout API on the home network, Health Connect and broadcasts, the pen list and dose review, the sensor-end
 calendar event, settings export / import, scanning an invite's QR code on Android and the Android
 follower's *Settings from* page, *Pair nearby* (joining over Bluetooth without a link), and the Mac's Juggluco-over-Wi-Fi source.
 

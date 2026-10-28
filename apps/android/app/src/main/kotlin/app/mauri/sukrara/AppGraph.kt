@@ -40,6 +40,7 @@ import app.mauri.sukrara.integrations.libreview.LvGlucose
 import app.mauri.sukrara.integrations.libreview.LvReadings
 import app.mauri.sukrara.integrations.libreview.LvState
 import app.mauri.sukrara.integrations.nightscout.NsState
+import app.mauri.sukrara.integrations.tidepool.TpState
 import app.mauri.sukrara.monitor.MonitorModule
 import app.mauri.sukrara.monitor.alerts.AlertRecord
 import app.mauri.sukrara.monitor.alerts.AlertsModule
@@ -60,6 +61,7 @@ import app.mauri.sukrara.sensor.ble.SensorGlucose
 import app.mauri.sukrara.sensor.pairing.PairingLoad
 import app.mauri.sukrara.sensor.pairing.ReceiverIdState
 import app.mauri.sukrara.sensor.source.SensorSourceKind
+import app.mauri.sukrara.sensor.source.SensorStatus
 import app.mauri.sukrara.share.FollowerModule
 import app.mauri.sukrara.share.ShareOwnerModule
 import app.mauri.sukrara.share.follower.FollowState
@@ -226,6 +228,9 @@ class AppGraph(
                     set == false && !memory.dismissed(BannerKind.ShareWithClinic, clock.now())
                 },
             dismissClinicBanner = { scope.launch { home.bannerMemory.update { it.dismiss(BannerKind.ShareWithClinic, clock.now()) } } },
+            restoreClinicBanner = { scope.launch { home.bannerMemory.update { it.restore(BannerKind.ShareWithClinic) } } },
+            closedTips = home.bannerMemory.data.map { it.closed },
+            restoreClosedTips = { scope.launch { home.bannerMemory.update { it.restoreAll() } } },
             alertPlayback =
                 object : AlertPlayback {
                     override fun play(
@@ -258,6 +263,8 @@ class AppGraph(
                         AppOutput.LibreView.takeIf { s.libreView },
                         AppOutput.NightscoutUpload.takeIf { s.nightscoutUpload },
                         AppOutput.XdripServer.takeIf { s.xdripServer },
+                        AppOutput.NightscoutApi.takeIf { s.nightscoutApi },
+                        AppOutput.Tidepool.takeIf { s.tidepool },
                     )
                 },
         )
@@ -273,6 +280,9 @@ class AppGraph(
             nightscoutState = data.typedStore("nightscout-upload", NsState.serializer(), NsState(), whenCorrupt = NsState()),
             // a lost state re-sends nothing old (each part starts again from now) but can't retract versions sent before
             libreViewState = data.typedStore("libreview-upload", LvState.serializer(), LvState(), whenCorrupt = LvState()),
+            // a lost state re-sends what the phone keeps; Tidepool replaces each datum by its origin id (no duplicates)
+            tidepoolState = data.typedStore("tidepool-upload", TpState.serializer(), TpState(), whenCorrupt = TpState()),
+            appVersion = appVersion,
             readings = data.readings,
             treatments = data.treatments,
             sensor =
@@ -375,6 +385,12 @@ class AppGraph(
             penTapsBlocked = { pens.tapsBlockedWhileOn() },
             clinicUploadSet = { integrations.clinicUploadSet },
             clinicMarks = { integrations.libreView.entryMarks.map { m -> m?.let(::LibreViewMarks) } },
+            untestedSensor =
+                sensor.source.detail
+                    .map { d -> (d as? SensorStatus.Direct)?.profile?.takeUnless { it.verified }?.label }
+                    .distinctUntilChanged(),
+            systemAccess = monitor.systemAccess.state,
+            build = BuildConfig.VERSION_CODE.toLong(),
         )
     }
 

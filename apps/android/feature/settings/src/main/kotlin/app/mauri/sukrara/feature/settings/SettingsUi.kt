@@ -29,6 +29,8 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.LargeTopAppBar
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
@@ -64,14 +66,14 @@ fun SettingsPage(
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
     scroll: Boolean = true,
-    snackbar: androidx.compose.material3.SnackbarHostState? = null,
+    snackbar: SnackbarHostState? = null,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val bar = TopAppBarDefaults.exitUntilCollapsedScrollBehavior(rememberTopAppBarState())
     Scaffold(
         modifier = modifier.fillMaxSize().nestedScroll(bar.nestedScrollConnection),
         containerColor = MaterialTheme.colorScheme.surfaceContainer,
-        snackbarHost = { snackbar?.let { androidx.compose.material3.SnackbarHost(it) } },
+        snackbarHost = { snackbar?.let { SnackbarHost(it) } },
         topBar = {
             LargeTopAppBar(
                 title = { Text(title) },
