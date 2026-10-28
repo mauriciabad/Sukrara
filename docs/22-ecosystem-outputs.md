@@ -1,6 +1,6 @@
 # 22 — Sukrara in the diabetes-tech ecosystem: outputs and gaps
 
-*2026-10-18 · investigation report · standalone spike app `spikes/outputs-android` (`dev.spike.outputs`) on a
+*2026-10-18 · investigation report · standalone spike app `poc/spikes/outputs-android` (`dev.spike.outputs`) on a
 dedicated Android 16 emulator, synthetic readings only · source read from the local checkouts in `third_party/`:
 Juggluco `a983788a` (2026-10-09), AndroidAPS `aa16db6419` (2026-10-16), xDrip+ `8532095` (2026-10-16),
 GlucoDataHandler `215b2f0` (2.5, 2026-10-02), cgm-remote-monitor `92d0834`, LoopFollow `4a74b78`, Trio `0b29cd5`,
@@ -108,7 +108,7 @@ The spike's payloads were built from the **receivers**, not from Juggluco. Refs 
 
 ## 3. The spike
 
-`spikes/outputs-android` (Kotlin, minSdk 36, no dependencies). Synthetic readings only: a 3 h sine around 130 mg/dL,
+`poc/spikes/outputs-android` (Kotlin, minSdk 36, no dependencies). Synthetic readings only: a 3 h sine around 130 mg/dL,
 serial `SPIKE0000022`.
 
 | File | What |
@@ -129,9 +129,9 @@ afterwards. Not on the user's phone or the shared emulators. No real sensor.
 
 | Receiver | How | Result |
 |---|---|---|
-| **GlucoDataHandler 2.5** (official GitHub release APK, sha256 `4dd85e81…97ab`) | spike → one broadcast type per run; GDH logcat | xDrip+: `Glucodata received from XDRIP … mgdl=82, Rate=-1.24, SerialNumber=Libre3`. LibreLink: `setSensorStartTime for SPIKE0000022`, `received from LIBRE_PATCHED … mgdl=81 … gdh.sensor_start_time=…`. glucodata: `received from JUGGLUCO … mgdl=79, Rate=-1.10`. Excerpts: [`gdh-emulator.txt`](../spikes/outputs-android/evidence/gdh-emulator.txt) |
+| **GlucoDataHandler 2.5** (official GitHub release APK, sha256 `4dd85e81…97ab`) | spike → one broadcast type per run; GDH logcat | xDrip+: `Glucodata received from XDRIP … mgdl=82, Rate=-1.24, SerialNumber=Libre3`. LibreLink: `setSensorStartTime for SPIKE0000022`, `received from LIBRE_PATCHED … mgdl=81 … gdh.sensor_start_time=…`. glucodata: `received from JUGGLUCO … mgdl=79, Rate=-1.10`. Excerpts: [`gdh-emulator.txt`](../poc/spikes/outputs-android/evidence/gdh-emulator.txt) |
 | GDH UI | 1/min loop for ~8 min | value, trend arrow, delta, graph and status-bar number all from the spike (below) |
-| **AndroidAPS** (`aa16db6419`) | scratch JUnit test inside AAPS's `plugins/source` with AAPS's own `TestBaseWithProfile`, JDK 21 | 3/3 + AAPS's `XdripSourcePluginTest` 3/3. `"Libre3" → LIBRE_3, advancedFiltering=true`; `"Sukrara" → UNKNOWN, advancedFiltering=false`; all 7 trend names parse. [test](../spikes/outputs-android/evidence/SukraraPayloadScratchTest.kt), [result](../spikes/outputs-android/evidence/aaps-unit-test.txt) |
+| **AndroidAPS** (`aa16db6419`) | scratch JUnit test inside AAPS's `plugins/source` with AAPS's own `TestBaseWithProfile`, JDK 21 | 3/3 + AAPS's `XdripSourcePluginTest` 3/3. `"Libre3" → LIBRE_3, advancedFiltering=true`; `"Sukrara" → UNKNOWN, advancedFiltering=false`; all 7 trend names parse. [test](../poc/spikes/outputs-android/evidence/SukraraPayloadScratchTest.kt), [result](../poc/spikes/outputs-android/evidence/aaps-unit-test.txt) |
 | AAPS `DataReceiver` routing | source walkthrough + AAPS's own `DataReceiverTest` (`BgEstimate` → `XdripSourceWorker`) | the action is routed; the worker reads exactly the keys and types `PayloadsTest` pins |
 | xDrip+ | source walkthrough only (`LibreReceiver.java`) | payload matches the required extras; not installed (its collector setup is long and it smooths anyway) |
 | **Health Connect** (platform, Android 16) | `requestPermissions(WRITE_BLOOD_GLUCOSE)` → Health Connect's own sheet; *write the last 3 h* | `36 records written`; Health Connect → Blood glucose lists them as "Outputs spike", *Interstitial fluid* (shown in mmol/L by the emulator locale: 75 mg/dL → 4.167) |
@@ -224,7 +224,7 @@ possible with #2. I did not check the current state of Sugarmate itself.
 
 The plan written before the integration step. What actually went in is under [In Sukrara](#in-sukrara).
 
-**Files** (Android, `spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/`):
+**Files** (Android, `poc/spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/`):
 - `bridge/Broadcasts.kt`: port `Payloads.kt` + `Emitter.kt`. One `send(reading)` that emits `BgEstimate`, `GLUCOSE_READING`
   (+ `SENSOR_ACTIVATE` on a new sensor serial) and `glucodata.Minute` to the **allowed packages only**.
 - `bridge/HealthConnect.kt`: port `HealthWriter.kt`. On enable, backfill the stored history in batches; then one record
@@ -292,7 +292,7 @@ own permission sheet). Followers see neither.
 Health Connect off and on again re-wrote the whole history (1 450 readings) and Health Connect returned **the same
 record ids** as the first time for every minute (`46f552ac-…` for the first minute both times; the ids are
 name-based UUIDs derived from the client record id), and Health Connect → Blood glucose lists one entry per minute.
-Evidence: [`sukrara-gdh-emulator.txt`](../spikes/outputs-android/evidence/sukrara-gdh-emulator.txt).
+Evidence: [`sukrara-gdh-emulator.txt`](../poc/spikes/outputs-android/evidence/sukrara-gdh-emulator.txt).
 
 **Verification** (emulator only, synthetic data):
 
@@ -342,7 +342,7 @@ otherwise), the CSV export's Device column, and LibreView only for the Libre 3 (
 ## Run it
 
 ```sh
-cd spikes/outputs-android
+cd poc/spikes/outputs-android
 export JAVA_HOME=$(brew --prefix openjdk@17)/libexec/openjdk.jdk/Contents/Home ANDROID_HOME=$HOME/Library/Android/sdk
 ./gradlew testDebugUnitTest assembleDebug
 adb -s <emulator> install -r app/build/outputs/apk/debug/app-debug.apk
@@ -358,7 +358,7 @@ AAPS check: copy `evidence/SukraraPayloadScratchTest.kt` into AndroidAPS's
 
 Gap #4, done in the app (Android Settings → Export data, Mac Glucose Report › *Export CSV…*). Behaviour in
 [FEATURES.md](FEATURES.md#data-export); writers `export/GlucoseCsv.kt` and `menubar/…/GlucoseCsv.swift`, both
-checked against the shared cases in [`spikes/export-fixtures`](../spikes/export-fixtures/).
+checked against the shared cases in [`poc/spikes/export-fixtures`](../poc/spikes/export-fixtures/).
 
 **Format: LibreView's "Glucose Data" CSV.** What the community tools read, from source:
 
@@ -373,7 +373,7 @@ checked against the shared cases in [`spikes/export-fixtures`](../spikes/export-
 So one file in that layout, readings and treatments together (LibreView puts them in one file; no zip), plus four
 columns at the end that position-based readers ignore: `Time (ISO 8601)` (with the offset), `Trend (mg/dL/min)`,
 `Entered By`, `Primed Insulin (units)` (investigation 29: a pen entry's primed units, `0.0` without priming, empty for
-typed entries; the insulin columns keep the injected units only). Verified: Tidepool's own driver code (`spikes/export-fixtures/tidepool-check`) reads every fixture and
+typed entries; the insulin columns keep the injected units only). Verified: Tidepool's own driver code (`poc/spikes/export-fixtures/tidepool-check`) reads every fixture and
 the emulator's export into CBG records with the right UTC times, units (mg/dL, and mmol/L) and one device per sensor
 serial. Emulator check (debug build, synthetic data, Android 16): *Save file* wrote
 `sukrara-glucose-2026-10-12-to-2026-10-19.csv` to Downloads (293 five-minute rows, the three test treatments with

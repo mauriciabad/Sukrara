@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Sukrara — https://github.com/mauriciabad/sukrara
+     Copyright (C) 2026 Maurici Abad
+     SPDX-License-Identifier: GPL-3.0-or-later -->
+<resources>
+    <string name="newsensor_screen_title">Sensor nuevo</string>
+    <string name="newsensor_checking_title">Comprobando el móvil…</string>
+    <string name="newsensor_checking_text">Tarda un momento.</string>
+
+    <string name="newsensor_core_missing_title">Esta versión no puede leer un Libre 3</string>
+    <string name="newsensor_core_missing_text">Lee la glucosa desde Juggluco en este móvil.</string>
+    <string name="newsensor_no_nfc_title">Este móvil no tiene NFC</string>
+    <string name="newsensor_no_nfc_text">Un Libre 3 se inicia acercando el móvil por NFC. Puedes leer la glucosa desde Juggluco en este móvil.</string>
+    <string name="newsensor_nfc_off_title">Activa el NFC</string>
+    <string name="newsensor_nfc_off_text">El sensor se inicia acercándole el móvil. Para eso el NFC tiene que estar activado.</string>
+    <string name="newsensor_signin_title">Inicia sesión en LibreView</string>
+    <string name="newsensor_signin_text">Sukrara inicia el sensor con tu cuenta de LibreView, como la app Libre. Así la app Libre puede recuperarlo más tarde. Sukrara no sube nada.</string>
+    <string name="newsensor_official_title">Primero detén la app Libre</string>
+    <string name="newsensor_official_text">Si la app Libre y Sukrara leen el sensor a la vez, puede dejar de funcionar. Deslizarla para cerrarla no basta: fuerza su detención (Información de la app › Forzar detención) o desinstálala antes de seguir.</string>
+    <string name="newsensor_bt_permission_title">Permite dispositivos cercanos</string>
+    <string name="newsensor_bt_permission_text">Sukrara lee el sensor por Bluetooth. Para eso necesita el permiso de dispositivos cercanos.</string>
+    <string name="newsensor_bt_off_title">Activa el Bluetooth</string>
+    <string name="newsensor_bt_off_text">Después de acercar el móvil, el sensor envía la glucosa por Bluetooth.</string>
+    <string name="newsensor_notifications_title">Permite las notificaciones</string>
+    <string name="newsensor_notifications_text">Las alertas de glucosa y el aviso de \"el sensor termina pronto\" necesitan notificaciones. También puedes permitirlas más tarde.</string>
+
+    <string name="newsensor_tap_title">Acerca el móvil al sensor</string>
+    <string name="newsensor_tap_text">Pon la parte de atrás del móvil sobre el sensor y mantenlo hasta que vibre.</string>
+    <string name="newsensor_reading_title">Leyendo el sensor…</string>
+    <string name="newsensor_reading_text">No muevas el móvil del sensor.</string>
+
+    <string name="newsensor_failed_moved_title">No se terminó de leer</string>
+    <string name="newsensor_failed_moved_text">Mantén el móvil sobre el sensor un poco más. Volver a intentarlo es seguro.</string>
+    <string name="newsensor_failed_not_libre3_title">No es un Libre 3</string>
+    <string name="newsensor_failed_not_libre3_text">Sukrara lee sensores FreeStyle Libre 3 y 3 Plus. Para otros sensores, lee la glucosa desde Juggluco.</string>
+    <string name="newsensor_failed_ended_title">Este sensor ha terminado</string>
+    <string name="newsensor_failed_ended_text">Ponte un sensor nuevo y acércale el móvil.</string>
+    <string name="newsensor_takeover_title">Otra app tiene este sensor</string>
+    <string name="newsensor_takeover_other_text">Otra app u otra cuenta de LibreView lo lee. Detenlo allí y vuelve a intentarlo. No ha cambiado nada en el sensor.</string>
+
+    <string name="newsensor_connecting_title">Conectando por Bluetooth…</string>
+    <string name="newsensor_connecting_started_text">El sensor se ha iniciado. Mantén el móvil cerca.</string>
+    <string name="newsensor_connecting_paired_text">El sensor está emparejado. Mantén el móvil cerca.</string>
+    <string name="newsensor_keeps_going">Puedes cerrar esto: Sukrara sigue en segundo plano.</string>
+    <string name="newsensor_ble_off_text">El sensor está emparejado. Sukrara se conecta en cuanto actives el Bluetooth.</string>
+    <string name="newsensor_ble_permission_text">El sensor está emparejado. Sukrara se conecta en cuanto permitas dispositivos cercanos.</string>
+    <string name="newsensor_ble_timeout_title">El sensor aún no responde</string>
+    <string name="newsensor_ble_timeout_text">Mantén el móvil cerca del sensor. Sukrara sigue intentándolo en segundo plano.</string>
+    <string name="newsensor_warming_title">El sensor se está preparando</string>
+    <string name="newsensor_warming_text">Las lecturas de glucosa empiezan cuando esté listo.</string>
+    <string name="newsensor_warming_almost">Casi listo</string>
+    <string name="newsensor_ready_in">Listo en %1$s</string>
+    <string name="newsensor_ready_title">Sensor listo</string>
+    <string name="newsensor_ready_text">Ya llegan las lecturas de glucosa.</string>
+    <string name="newsensor_juggluco_title">Ahora la fuente es Juggluco</string>
+    <string name="newsensor_juggluco_text">Sukrara deja de leer el sensor directamente y lee la glucosa desde Juggluco en este móvil. Puedes cambiarlo en Ajustes › Sensor.</string>
+
+    <string name="newsensor_action_cancel">Cancelar</string>
+    <string name="newsensor_action_close">Cerrar</string>
+    <string name="newsensor_action_done">Hecho</string>
+    <string name="newsensor_action_continue">Continuar</string>
+    <string name="newsensor_action_not_now">Ahora no</string>
+    <string name="newsensor_action_try_again">Volver a intentarlo</string>
+    <string name="newsensor_action_use_juggluco">Usar Juggluco</string>
+    <string name="newsensor_action_sign_in">Iniciar sesión en LibreView</string>
+    <string name="newsensor_action_nfc_settings">Abrir ajustes de NFC</string>
+    <string name="newsensor_action_bt_settings">Abrir ajustes de Bluetooth</string>
+    <string name="newsensor_action_allow">Permitir</string>
+    <string name="newsensor_action_app_settings">Abrir ajustes de la app</string>
+
+    <string name="libreview_title">Cuenta de LibreView</string>
+    <string name="libreview_intro">Sukrara usa tu cuenta de LibreView solo para iniciar sensores con su ID. La contraseña se envía una vez a LibreView y nunca se guarda.</string>
+    <string name="libreview_email">Correo</string>
+    <string name="libreview_password">Contraseña</string>
+    <string name="libreview_show_password">Mostrar contraseña</string>
+    <string name="libreview_hide_password">Ocultar contraseña</string>
+    <string name="libreview_sign_in">Iniciar sesión</string>
+    <string name="libreview_signing_in">Iniciando sesión…</string>
+    <string name="libreview_signed_in_as">Sesión iniciada como %1$s</string>
+    <string name="libreview_sign_out">Cerrar sesión</string>
+    <string name="libreview_sign_out_note">Cerrar sesión no detiene el sensor actual. Para iniciar el siguiente tendrás que volver a iniciar sesión.</string>
+    <string name="libreview_back">Atrás</string>
+    <string name="libreview_error_wrong_password">Correo o contraseña incorrectos.</string>
+    <string name="libreview_error_accept_terms">LibreView tiene condiciones nuevas. Acéptalas en la app LibreView o Libre y vuelve a iniciar sesión.</string>
+    <string name="libreview_error_failed">No se pudo iniciar sesión en LibreView. Revisa la conexión y vuelve a intentarlo.</string>
+</resources>

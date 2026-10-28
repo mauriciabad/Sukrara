@@ -1,0 +1,35 @@
+// Sukrara — https://github.com/mauriciabad/sukrara
+// Copyright (C) 2026 Maurici Abad
+// SPDX-License-Identifier: GPL-3.0-or-later
+
+/// The app identifiers. They must match `Bundle/*.plist.in` and the
+/// entitlements that `Bundle/bundle.sh` writes.
+public enum SukraraIDs {
+    public static let teamID = "QWUV9H4A3G"
+    public static let appBundleID = "app.mauri.sukrara"
+    public static let widgetBundleID = "app.mauri.sukrara.widget"
+    /// macOS team-prefixed App Group: authorised by the Team ID in the signature, no provisioning profile.
+    public static let appGroup = "\(teamID).app.mauri.sukrara"
+    /// Info.plist key carrying the App Group, so app and widget read the same value the bundle was signed with.
+    public static let appGroupInfoKey = "SukraraAppGroup"
+    public static let keychainService = "app.mauri.sukrara"
+    /// The standard defaults domain (= the bundle id); keys come from the settings schema.
+    public static let defaultsDomain = appBundleID
+    public static let urlScheme = "sukrara"
+
+    /// The app links a widget tap opens (Info.plist CFBundleURLTypes; the app routes them in `AppLink`).
+    public enum Link {
+        /// Quick Add treatment (it focuses carbs while low).
+        public static let newTreatment = "\(urlScheme)://treatment/new"
+        /// The menu bar panel (the widget has no data).
+        public static let panel = "\(urlScheme)://open"
+    }
+
+    /// WidgetKit kinds. Renaming one removes the widgets people placed.
+    public enum WidgetKind {
+        public static let value = "app.mauri.sukrara.widget.value"
+        public static let graph = "app.mauri.sukrara.widget.graph"
+        public static let combined = "app.mauri.sukrara.widget.combined"
+        public static let all = [value, graph, combined]
+    }
+}

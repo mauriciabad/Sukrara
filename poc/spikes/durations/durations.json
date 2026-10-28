@@ -1,0 +1,28 @@
+{
+  "_about": [
+    "THE duration formats (round f30; the user, 2026-10-21: \"Showing 60 min and 120 min is long, 1 h and 2 h is better.",
+    "This applies everywhere in the UI\"). One formatter per platform: Android core/Durations.kt, Mac",
+    "spikes/widgets-macos/Shared/Durations.swift; both are tested against this file (DurationsTest, -settingsselftest).",
+    "tools/check rule 'durations' fails on a duration formatted by hand anywhere else.",
+    "text    every duration in words and settings: notifications, sheets, settings presets, history, menus.",
+    "        under 60 min 'N min'; from 60 whole hours 'N h', else 'N h M min' (no days).",
+    "compact the card's convention (renderer: treatment labels, the last-treatment slot, 'Xm left' badges):",
+    "        'Nm', 'Nh', 'Nh Mm'; from 6 h whole hours only; from 48 h whole days.",
+    "whole   one unit, rounded down: minutes, from 60 min hours, from 24 h days (the sensor-life badge, warm-up).",
+    "parse   typed minutes (Mute..., custom values): a number of minutes, or hours with h, or h:mm; null = not a duration.",
+    "Spanish ('es') uses the same unit symbols with spaces (SI style): '1 h 30 min'; Mac is English only."
+  ],
+  "text": [[0, "0 min"], [1, "1 min"], [15, "15 min"], [45, "45 min"], [59, "59 min"], [60, "1 h"], [64, "1 h 4 min"],
+           [90, "1 h 30 min"], [120, "2 h"], [240, "4 h"], [480, "8 h"], [720, "12 h"], [1440, "24 h"]],
+  "compact": [[0, "0m"], [5, "5m"], [59, "59m"], [60, "1h"], [64, "1h 4m"], [90, "1h 30m"], [359, "5h 59m"], [360, "6h"],
+              [400, "6h"], [2879, "47h"], [2880, "2d"]],
+  "whole": [[0, "0m"], [45, "45m"], [59, "59m"], [60, "1h"], [119, "1h"], [1439, "23h"], [1440, "1d"], [20160, "14d"]],
+  "es": {
+    "text": [[45, "45 min"], [60, "1 h"], [90, "1 h 30 min"], [120, "2 h"]],
+    "compact": [[45, "45 min"], [60, "1 h"], [64, "1 h 4 min"], [2880, "2 d"]],
+    "whole": [[45, "45 min"], [60, "1 h"], [1440, "1 d"]]
+  },
+  "parse": [["45", 45], ["45 min", 45], ["45min", 45], ["45 m", 45], [" 30 ", 30], ["1h", 60], ["1 h", 60], ["2 h", 120],
+            ["1h30", 90], ["1 h 30", 90], ["1h 30m", 90], ["1 h 30 min", 90], ["1:30", 90], ["1,5 h", 90], ["1.5h", 90],
+            ["90m", 90], ["0", 0], ["", null], ["abc", null], ["1 d", null], ["-5", null], ["h", null], ["1:75", null]]
+}

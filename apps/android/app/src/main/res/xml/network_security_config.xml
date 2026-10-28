@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Sukrara — https://github.com/mauriciabad/sukrara
+     Copyright (C) 2026 Maurici Abad
+     SPDX-License-Identifier: GPL-3.0-or-later -->
+<!--
+  Cleartext only to this phone: Juggluco's web server listens on 127.0.0.1:17580. Every other client builds
+  https:// / wss:// URLs, and the platform refuses any http:// that slips through. A future home-network Nightscout
+  client widens this here, with its tools/check/allow.json entry (tools/check/allow.json lists each cleartext use).
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="false" />
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="false">127.0.0.1</domain>
+        <domain includeSubdomains="false">localhost</domain>
+    </domain-config>
+</network-security-config>

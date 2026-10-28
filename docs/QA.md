@@ -7,19 +7,12 @@ pictures to the report. Cheapest way first in every section.
 **Data rules for every picture:** synthetic or emulator data only. Never commit the user's real glucose, crop phone
 screenshots so no other apps' notifications show, and keep phone checks read-only (NEXT.md §5).
 
-Automated already (don't repeat by hand): `tools/check/run.sh` (repo rules), Android unit tests
-(`./gradlew :app:testDebugUnitTest`: alert scenarios, graph fixtures, strings parity, stats), Mac self-tests
-(`.build/debug/GlucoseBar -alerts-selftest`, `-graphselftest`, `-exportselftest`). CI runs all of them (`.github/workflows/checks.yml`).
+Automated already (don't repeat by hand): `tools/check/run.sh` (repo rules, `--layout` for the cross-surface card
+tests), Android unit tests (`cd apps/android && ./gradlew check`: alert scenarios, graph fixtures, strings parity,
+Roborazzi goldens), Mac tests (`cd apps/macos && swift test`). CI runs all of them (`.github/workflows/checks.yml`).
 
-Cheap tools:
-
-- **JVM gallery** (no device): `cd spikes/showcase-android && ./gradlew :app:testDebugUnitTest --tests '*GraphGallery*'
-  -Dgallery.out=/tmp/gallery` renders the real card/graph/rings code to PNGs (light + dark, several sizes).
-- **Mac renderer** (no widget host): `spikes/widgets-macos/build.sh render` (every widget family → evidence/) and
-  `render treatments <dir>` (marks, badge, slot sheets); `defaults write app.mauri.sukrara.poc menuPreview <png>` +
-  launching a test build renders the dropdown.
 - **Emulator**: `medium_phone` (wearer, debug build = synthetic glucose) and `small_phone` (follower); at most two at
-  once. DebugReceiver: `adb shell am broadcast -n app.mauri.sukrara.poc/app.mauri.sukrara.features.DebugReceiver
+  once. DebugReceiver: `adb shell am broadcast -n app.mauri.sukrara/.debug.DebugReceiver
   --es alertFeed '204,-0.5'` (a made-up reading through the alert rules), `--es alertTest KIND` (a test alert),
   `--ei previewSgv N` (a status-bar preview), `--es cmd treat …`, `cmd locktest`, `cmd newSensor --es stage …`, see
   docs/10. **These fake commands run only on the emulator's debug build**: the release app never shows a glucose
@@ -54,8 +47,8 @@ Cheap tools:
   --el left <s>`): badge `13d` / `20h` (no ring with an 8 h window) / `5h` with the countdown ring over the main ring,
   legible over every band colour, light and dark; warm-up `42m` + filling ring; ended `Sensor ended` + `Replace sensor` pill on every widget size (3×1 and 2×1 too, also while the last value is fresh; pill/tap opens the Sensor screen on the wearer's phone), checkered flag in the status bar (notification icon, root slots, hook) and the Mac menubar + no-data alert
   quiet. Follower and Mac show the same from the live events. Evidence 2026-10-18:
-  `spikes/showcase-android/evidence/sensor-life-emulator-{13d,20h,5h}.png` (emulator app panel),
-  `sensor-life-gallery-*.png`, `spikes/widgets-macos/evidence/mac-sensor-*.png`.
+  `poc/spikes/showcase-android/evidence/sensor-life-emulator-{13d,20h,5h}.png` (emulator app panel),
+  `sensor-life-gallery-*.png`, `poc/spikes/widgets-macos/evidence/mac-sensor-*.png`.
 
 ## Q3 Android widgets
 
@@ -149,12 +142,12 @@ system-icon placement. Read-only checks; screenshots stay off the repo (health d
 
 ## Q7 Mac widgets
 
-- [ ] `spikes/widgets-macos/build.sh render` before/after for every family.
+- [ ] `poc/spikes/widgets-macos/build.sh render` before/after for every family.
 - [ ] Real widgets only via `tools/install.sh mac` (restarts the widget extension); they update within a minute.
 
 ## Q8 Alerts on a device
 
-- [ ] New/changed rule: a scenario in `spikes/alerts/scenarios` covers it (the checks enforce this).
+- [ ] New/changed rule: a scenario in `contracts/alerts/scenarios` covers it (the checks enforce this).
 - [ ] Emulator: `--es alertFeed` a reading over and under the thresholds; notification text, channel, sound, repeat.
 - [ ] Grouping (Android 16 / 17 emulators, chip on and off): `--es cmd sensorStart --ei agoMin 50` + `--es alertTest
       high`, then `--es cmd backfill` + `--es cmd sensorStart --ez firstReading true` (*Sensor ready*), then `--es
@@ -175,8 +168,23 @@ system-icon placement. Read-only checks; screenshots stay off the repo (health d
 
 ## Q10 Release build
 
-- [ ] `./gradlew :app:assembleRelease` and install on the emulator; open home, widgets, settings (R8 surprises).
-- [ ] The version in `build.gradle.kts` / `bundle.sh` matches what the release notes say.
+### Release smoke (emulator)
+
+`tools/release/android-smoke.sh` (`--final` for the release gate: every WARN becomes a FAIL) does the cheap part on
+its own AVD `release_smoke` (API 37, port 5600; it refuses anything that isn't an emulator): signed release build →
+`verify-apk.sh` → fresh install → the app launches, renders,
+survives an activity recreation (saved state) → 3 min watch + a 3 h clock jump with no alert (no sensor) → the
+app's logcat has no crash and no R8 / JNA / UniFFI / serialization / Room error. Output in `$TMPDIR/sukrara-smoke.*`.
+
+- [ ] The smoke exits 0 (`--final` before a release). Look at its two screenshots.
+- [ ] `verify-apk.sh` FAILs on the debug APK (signer, debuggable, debug receiver, no R8 marker): the checks bite.
+- [ ] A release build without Juggluco (`-Psukrara.juggluco=/nonexistent`) or without the key
+  (`SUKRARA_KEYSTORE=/nonexistent`) stops in `verifyJuggluco` / `verifyReleaseSigning`.
+- [ ] By hand on the emulator release build: open every top-level screen (home, settings, sensor, sharing,
+  treatments) — R8 breaks screens the smoke never opens.
+- [ ] Not checkable on an emulator (phone, by the owner): the Live Update chip on the status bar with a real sensor,
+  the NFC tag chooser and the `https://sukrara.mauri.app/join` App Link.
+- [ ] The version in `VERSION` matches what the release notes say.
 
 ## Q11 Sensor reminders and countdowns
 
@@ -277,7 +285,7 @@ system-icon placement. Read-only checks; screenshots stay off the repo (health d
 - [ ] Follower (`small_phone`): the same page reads "already on this phone" and exports what it received.
 - [ ] Mac: Glucose Report › Report › *Export CSV…*: the save panel suggests the same name for the report's period; the
       file opens in Numbers.
-- [ ] Import check (optional): `spikes/export-fixtures/tidepool-check` runs Tidepool Uploader's LibreView driver on a
+- [ ] Import check (optional): `poc/spikes/export-fixtures/tidepool-check` runs Tidepool Uploader's LibreView driver on a
       file and prints the records it would upload.
 
 ## Q16 Tidepool upload
@@ -305,13 +313,13 @@ the data set's device → delete, or the end-to-end test below). Never switch it
 
 ## Q17 Nightscout upload
 
-Only a local, throwaway Nightscout with synthetic data (`spikes/nightscout-upload/verify/nightscout.sh up`; `down`
+Only a local, throwaway Nightscout with synthetic data (`poc/spikes/nightscout-upload/verify/nightscout.sh up`; `down`
 afterwards). Never a hosted site, never the user's phone.
 
 - [ ] No device first: with the site up, `NS_E2E_URL=http://localhost:1337 NS_E2E_SECRET=… NS_E2E_TOKEN=…
       NS_E2E_READ_TOKEN=… ./gradlew :app:testDebugUnitTest --tests '*NightscoutLiveTest*'` passes (30 days in, a late
       gap filled, 0 gaps / 0 duplicates, treatments, both sensor events, battery, v3 edit + move + delete), then
-      `spikes/nightscout-upload` `cli check` (24/24) and `followers/run.sh` pass against the same site.
+      `poc/spikes/nightscout-upload` `cli check` (24/24) and `followers/run.sh` pass against the same site.
 - [ ] Emulator (wearer, debug = synthetic glucose; `adb reverse tcp:1337 tcp:1337`): Settings → Share with apps →
       Nightscout → *Nightscout upload*: *Not set up*, main switch greyed. A follower has no such row.
 - [ ] Site dialog: `http://my.ns.example` → "Use https:// …"; `http://192.168.1.20:1337` → allowed with the
@@ -330,7 +338,7 @@ afterwards). Never a hosted site, never the user's phone.
 ## Q18 Settings: numbers, Settings from, ring order
 
 Emulator (`medium_phone` wearer, `small_phone` follower; debug = synthetic glucose) and a Mac test build with
-throwaway data. Schema: `spikes/settings/settings.json`; `tools/check/run.sh` covers the rest.
+throwaway data. Schema: `contracts/settings/settings.json`; `tools/check/run.sh` covers the rest.
 
 - [ ] Every number row (Graph: the six ranges, time shown and per place, rings, periods, lines, vertical lines; Alerts:
       thresholds, remind, quiet times, Mute…, Relax, the margin, Mute all custom; Sensor countdown; Nostr / LibreView intervals) opens the
@@ -372,7 +380,7 @@ Every app change (CLAUDE.md *Complete flows*; user, 2026-10-21: "There's no way 
 ## Q21 Insulin pens
 
 Emulator only (debug build, synthetic data: `DebugReceiver --es cmd penRead …`, docs/10 "Insulin pens"); a real pen
-only on the user's phone, by the user. The full checklist is `spikes/novopen-android/PRODUCT.md` §9 (59 rows).
+only on the user's phone, by the user. The full checklist is `poc/spikes/novopen-android/PRODUCT.md` §9 (59 rows).
 
 - [ ] Fresh install (*Ask*): the first tap shows *Log this pen in Sukrara?*; nothing logged; *Turn on* → *New pen
       added · … · 412 earlier doses left out* with *Log 8.5u* + *Set up* (opens the pen's page: Name, Insulin, *Log it*; no separate setup screen); *No* → later taps do nothing, Settings off.

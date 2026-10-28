@@ -17,13 +17,13 @@ chosen candidate into platform-ready files.
 > **Decision (2026-10-16): Sukrara, with the "live" icon.** *Sukr-* (sucre, sugar) + *ara* (Catalan: now),
 > so "your sugar, now". The icon is a sugar cube with a neon live dot. Domain `sukrara.mauri.app`; ids
 > `app.mauri.sukrara` (final) and `app.mauri.sukrara.poc` (showcase); range colours A and SF Pro medium (today's,
-> not changed). Assets: [`spikes/brand/assets/sukrara/`](../spikes/brand/assets/sukrara/README.md).
+> not changed). Assets: [`poc/spikes/brand/assets/sukrara/`](../poc/spikes/brand/assets/sukrara/README.md).
 
-<p><img src="../spikes/brand/assets/sukrara/macos/AppIcon-1024.png" alt="Sukrara app icon" height="96">
-&nbsp; <img src="../spikes/brand/assets/sukrara/web/og.png" alt="Sukrara link preview" height="96"></p>
+<p><img src="../poc/spikes/brand/assets/sukrara/macos/AppIcon-1024.png" alt="Sukrara app icon" height="96">
+&nbsp; <img src="../poc/spikes/brand/assets/sukrara/web/og.png" alt="Sukrara link preview" height="96"></p>
 
 How we got there: six name + icon pairs in round 1 and fourteen "Sucre…" candidates in round 2, three range-colour kits and four menubar number fonts. They're shown in a local gallery
-(`spikes/brand/build/gallery/index.html`) and, on the phone, in a preview app where every candidate is a real
+(`poc/spikes/brand/build/gallery/index.html`) and, on the phone, in a preview app where every candidate is a real
 launcher entry. `brand.py export <id>` turns the chosen one into macOS, Android, Garmin and web assets.
 
 ![The six candidates](img/brand-lineup.png)
@@ -107,7 +107,7 @@ link-preview image:
 
 <img src="img/brand-phone.png" alt="Preview app on the Pixel" width="360" align="right">
 
-`spikes/brand/android` (**Brand preview**, `dev.spike.brandpreview`) puts every candidate in the app drawer under
+`poc/spikes/brand/android` (**Brand preview**, `dev.spike.brandpreview`) puts every candidate in the app drawer under
 its own name, using one `activity-alias` per icon. In the app, each row shows:
 - the launcher icon **as the phone masks it**, from `PackageManager.getActivityIcon`;
 - the **themed icon**: the monochrome layer tinted with the wallpaper's Material You colours (here the user's
@@ -171,7 +171,7 @@ brand.py ── concept = shapes on Android's 108-unit adaptive canvas (one defi
 ## Use it
 
 ```sh
-cd spikes/brand
+cd poc/spikes/brand
 python3 -I brand.py gallery            # build everything, open the gallery
 python3 -I brand.py export vane a      # chosen candidate + range kit → assets/vane/ (commit this)
 cd android && ./gradlew assembleDebug && adb install -r -g app/build/outputs/apk/debug/app-debug.apk
@@ -191,13 +191,13 @@ A `README.md` in the folder says what goes where.
 
 - Name **Sukrara**. Ids: **`app.mauri.sukrara.poc`** for the showcase app, which leaves `app.mauri.sukrara` free
   for the final app so both can be installed side by side. Website: `https://sukrara.mauri.app`.
-- Everything is in `spikes/brand/assets/sukrara/` (its README says what goes where). `brand.json`, `Brand.kt` and
+- Everything is in `poc/spikes/brand/assets/sukrara/` (its README says what goes where). `brand.json`, `Brand.kt` and
   `Brand.swift` carry the name, URL and colours.
 - Copy `assets/sukrara/android/res` into the app and set `android:icon="@mipmap/ic_launcher"`. On the Mac, put
   `AppIcon.icns` in `Contents/Resources` and set `CFBundleIconFile`. Use `ic_stat_sukrara` as the notification
   small icon; on the Mac, `MenubarGlyph` is a template image for menus and "no data yet".
-- The battery spike (`spikes/power`, session *cgm-reading-mac-spike-02*) will measure the showcase app. What it
-  needs from the app (adb/DUMP-protected feature toggles, upload intervals…) is in `spikes/power/README.md`. Message
+- The battery spike (`poc/spikes/power`) will measure the showcase app. What it
+  needs from the app (adb/DUMP-protected feature toggles, upload intervals…) is in `poc/spikes/power/README.md`. Message
   that session when the app is installed on the phone.
 
 ## Open

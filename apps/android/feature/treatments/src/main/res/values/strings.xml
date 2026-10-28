@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Sukrara — https://github.com/mauriciabad/sukrara
+     Copyright (C) 2026 Maurici Abad
+     SPDX-License-Identifier: GPL-3.0-or-later -->
+<resources>
+    <string name="tile_add_treatment">Add treatment</string>
+    <string name="tile_unavailable">Open Sukrara to set up</string>
+    <string name="treatment_title">Add treatment</string>
+    <string name="treatment_rapid">Rapid</string>
+    <string name="treatment_long">Long</string>
+    <string name="treatment_carbs">Carbs</string>
+    <string name="treatment_unit_u">u</string>
+    <string name="treatment_unit_g">g</string>
+    <string name="treatment_note">Note</string>
+    <string name="treatment_limits">Insulin up to %1$du, carbs up to %2$dg, more than 0</string>
+    <string name="treatment_now">Now</string>
+    <string name="treatment_earlier">Earlier…</string>
+    <string name="treatment_at">At %1$s</string>
+    <string name="treatment_pick_title">When</string>
+    <string name="treatment_ok">OK</string>
+    <string name="treatment_cancel">Cancel</string>
+    <string name="treatment_save">Save</string>
+    <string name="treatment_open_app">Open Sukrara</string>
+    <string name="treatment_unlock">Unlock</string>
+    <string name="treatment_lock_closes">Closes unsaved in %1$d s</string>
+    <string name="treatment_lock_not_saved">Not saved: the dialog closed on the lock screen</string>
+    <plurals name="treatment_saved">
+        <item quantity="one">%1$d entry saved</item>
+        <item quantity="other">%1$d entries saved</item>
+    </plurals>
+    <plurals name="treatment_sent">
+        <item quantity="one">%1$d entry will be sent to the wearer</item>
+        <item quantity="other">%1$d entries will be sent to the wearer</item>
+    </plurals>
+</resources>

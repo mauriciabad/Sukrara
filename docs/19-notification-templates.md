@@ -1,6 +1,6 @@
 # 19 — Notification templates: can the glucose card use the space under the icon?
 
-*2026-10-18 · investigation report · standalone spike app `spikes/notification-android` (NotifLab) on two emulators
+*2026-10-18 · investigation report · standalone spike app `poc/spikes/notification-android` (NotifLab) on two emulators
 (Android 16, API 36.0; Android 16 QPR, API 36.1) and on the user's Pixel 10 Pro (Android 17, API 37.1)*
 
 ## Goal
@@ -34,7 +34,7 @@ eligibility comes from `NotificationManager.canPostPromotedNotifications()` and
 `live`, `bands` and `picture` were then posted once each on the user's phone (Android 17), from a no-sound
 DEFAULT-importance channel (`--ez visible true`; the phone hides silent notifications on the lock screen), and NotifLab
 was uninstalled again. MetricStyle on Android 17: Sukrara's own Live Update
-([n3-card-chipon](../spikes/showcase-android/evidence/n3-card-chipon.png)). Docs read:
+([n3-card-chipon](../poc/spikes/showcase-android/evidence/n3-card-chipon.png)). Docs read:
 [Live Updates](https://developer.android.com/develop/ui/views/notifications/live-update),
 [progress-centric notifications](https://developer.android.com/develop/ui/compose/notifications/progress-centric),
 the [Live Update design guide](https://developer.android.com/design/ui/mobile/guides/home-screen/live-updates),
@@ -134,7 +134,7 @@ width bar and button, colours as sent); the chip-off card stays the custom layou
 ## Run it
 
 ```sh
-cd spikes/notification-android
+cd poc/spikes/notification-android
 export JAVA_HOME=$(brew --prefix openjdk@17)/libexec/openjdk.jdk/Contents/Home
 ./gradlew :app:assembleDebug && adb install -r app/build/outputs/apk/debug/app-debug.apk
 adb shell pm grant dev.spike.notiflab android.permission.POST_NOTIFICATIONS

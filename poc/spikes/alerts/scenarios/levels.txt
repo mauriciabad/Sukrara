@@ -1,0 +1,53 @@
+# Thresholds, severity and repeats (format: spikes/alerts/SPEC.md §7)
+
+scenario Low is strictly below 70
+ 0  glucose 70
+ 1  glucose 69   => Low glucose
+ 2  glucose 70   => clear low
+ 4
+
+scenario Very low is below 55 and wins over low; getting better doesn't alert
+ 0  glucose 55   => Low glucose
+ 1  glucose 54   => clear low; Very low glucose      # more severe: at once
+ 2  glucose 55   => clear very_low                   # back to low: no alert, the user knows
+ 3  glucose 54                                       # very low again within its repeat: quiet
+ 6               => Very low glucose                 # 5 min after the last alert
+ 7
+
+scenario Highs at or above the threshold, each worse level at once
+ 0  glucose 179
+ 1  glucose 180  => High glucose
+ 2  glucose 250  => clear high; Very high glucose
+ 3  glucose 300  => clear very_high; Extremely high glucose
+ 4  glucose 299  => clear extremely_high
+ 5  glucose 179
+ 6
+
+scenario High repeats every 15 min, very high every 10
+ 0  glucose 200  => High glucose
+15               => High glucose
+30               => High glucose
+31  glucose 260  => clear high; Very high glucose
+41               => Very high glucose
+45
+
+scenario Repeat 0 alerts once per episode
+settings high.repeat=0
+ 0  glucose 200  => High glucose
+30
+
+scenario The alert goes when the reading gets old, then no data
+ 0  glucose 60   => Low glucose
+ 4  sensor off                     # last reading at 3
+ 5               => Low glucose
+10               => Low glucose
+15               => Low glucose
+18               => clear low      # the last reading is more than 15 min old
+23               => No glucose data
+24
+
+scenario A reading older than 15 min never alerts
+ 0  glucose 40 age 16
+ 1  sensor off
+ 4               => No glucose data   # but no data counts from it
+ 5

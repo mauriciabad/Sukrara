@@ -1,5 +1,5 @@
 # The website (sukrara.mauri.app) from docs/. Built here instead of Pages' branch build so links that leave docs/
-# (the reports' ../spikes/… evidence, code and specs) can point at the files on GitHub (.github/site_links.py).
+# (the reports' ../poc/spikes/… evidence, code and specs) can point at the files on GitHub (.github/site_links.py).
 name: Website
 on:
   push:

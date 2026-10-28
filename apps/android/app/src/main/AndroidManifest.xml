@@ -1,0 +1,123 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Sukrara — https://github.com/mauriciabad/sukrara
+     Copyright (C) 2026 Maurici Abad
+     SPDX-License-Identifier: GPL-3.0-or-later -->
+<!--
+  The app's own components and the permissions of the whole app. Each library module declares its own components
+  (services, receivers, providers, widget receivers…) in its manifest; the build merges them (docs/ARCHITECTURE.md
+  §Android lists them all). ManifestTest checks the merged result.
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- relays (wss), uploads (https), Juggluco's web server on 127.0.0.1 (the only cleartext: network_security_config) -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <!-- connectedDevice, not dataSync: a dataSync FGS is capped at 6 h per 24 h on Android 15+. Its prerequisite
+         CHANGE_NETWORK_STATE is an install-time permission. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE" />
+    <uses-permission android:name="android.permission.CHANGE_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- Live Update chip (promoted ongoing glucose notification) -->
+    <uses-permission android:name="android.permission.POST_PROMOTED_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <uses-permission android:name="android.permission.VIBRATE" />
+    <!-- the alert check wakes exactly on time (mute end, missed readings) -->
+    <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
+    <!-- full-screen urgent-low alarm over the lock screen -->
+    <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <!-- the battery-optimisation exemption request in setup (monitoring must not be killed) -->
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
+    <!-- sensor (Libre 3 over Bluetooth) and nearby sharing; never used for location -->
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+    <uses-permission android:name="android.permission.BLUETOOTH_ADVERTISE" />
+    <uses-permission
+        android:name="android.permission.BLUETOOTH_SCAN"
+        android:usesPermissionFlags="neverForLocation" />
+    <uses-feature
+        android:name="android.hardware.bluetooth_le"
+        android:required="false" />
+    <!-- follower: scanning the invite QR code -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-feature
+        android:name="android.hardware.camera.any"
+        android:required="false" />
+    <!-- sensor end in the calendar (opt-in) -->
+    <uses-permission android:name="android.permission.READ_CALENDAR" />
+    <uses-permission android:name="android.permission.WRITE_CALENDAR" />
+    <!-- Libre 3 start / takeover and insulin pens with an NFC tap -->
+    <uses-permission android:name="android.permission.NFC" />
+    <uses-feature
+        android:name="android.hardware.nfc"
+        android:required="false" />
+    <!-- Health Connect blood glucose (opt-in) -->
+    <uses-permission android:name="android.permission.health.WRITE_BLOOD_GLUCOSE" />
+
+    <queries>
+        <package android:name="com.google.android.calendar" />
+        <package android:name="tk.glucodata" />
+        <package android:name="com.eveningoutpost.dexdrip" />
+        <package android:name="com.google.android.healthconnect.controller" />
+        <package android:name="com.android.healthconnect.controller" />
+        <!-- apps that receive Sukrara's glucose broadcasts -->
+        <intent>
+            <action android:name="com.eveningoutpost.dexdrip.BgEstimate" />
+        </intent>
+        <intent>
+            <action android:name="com.librelink.app.ThirdPartyIntegration.GLUCOSE_READING" />
+        </intent>
+        <intent>
+            <action android:name="glucodata.Minute" />
+        </intent>
+    </queries>
+
+    <!-- Secrets (identity, sensor pairing) and health data never leave the phone: no backup, no device transfer. -->
+    <application
+        android:name=".App"
+        android:allowBackup="false"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:networkSecurityConfig="@xml/network_security_config"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.Sukrara">
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:launchMode="singleTop"
+            android:windowSoftInputMode="adjustResize">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+            <!-- sukrara:join#…: the invite page's "Open in Sukrara" button where App Links aren't verified -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="sukrara" />
+            </intent-filter>
+            <!-- invites: https://sukrara.mauri.app/join#… (assetlinks.json on the site lists this app) -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" />
+                <data android:host="sukrara.mauri.app" />
+                <data android:pathPrefix="/join" />
+            </intent-filter>
+        </activity>
+        <!-- Health Connect grants health permissions only to apps that show their privacy rationale -->
+        <activity-alias
+            android:name=".HealthPermissionsRationale"
+            android:exported="true"
+            android:permission="android.permission.START_VIEW_PERMISSION_USAGE"
+            android:targetActivity=".MainActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW_PERMISSION_USAGE" />
+                <category android:name="android.intent.category.HEALTH_PERMISSIONS" />
+            </intent-filter>
+        </activity-alias>
+    </application>
+
+</manifest>

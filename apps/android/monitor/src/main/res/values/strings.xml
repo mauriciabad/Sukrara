@@ -1,0 +1,108 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Sukrara — https://github.com/mauriciabad/sukrara
+     Copyright (C) 2026 Maurici Abad
+     SPDX-License-Identifier: GPL-3.0-or-later -->
+<resources>
+    <!-- The info notification group's summary title. -->
+    <string name="notification_group_info">Sukrara</string>
+
+    <!-- Alert names (channel names, sound titles). -->
+    <string name="alert_kind_very_low">Very low</string>
+    <string name="alert_kind_low">Low</string>
+    <string name="alert_kind_high">High</string>
+    <string name="alert_kind_very_high">Very high</string>
+    <string name="alert_kind_extremely_high">Extremely high</string>
+    <string name="alert_kind_falling_fast">Falling fast</string>
+    <string name="alert_kind_rising_fast">Rising fast</string>
+    <string name="alert_kind_no_data">No data</string>
+
+    <!-- Alert notification: headline (SPEC §1) and text (value + direction + meaning). -->
+    <string name="alert_headline_very_low">Very low glucose</string>
+    <string name="alert_headline_low">Low glucose</string>
+    <string name="alert_headline_high">High glucose</string>
+    <string name="alert_headline_very_high">Very high glucose</string>
+    <string name="alert_headline_extremely_high">Extremely high glucose</string>
+    <string name="alert_headline_falling_fast">Falling fast</string>
+    <string name="alert_headline_rising_fast">Rising fast</string>
+    <string name="alert_headline_no_data">No glucose data</string>
+    <string name="alert_headline_with_context">%1$s · %2$s</string>
+    <string name="alert_context_eat_more">eat more</string>
+    <string name="alert_context_eat_more_again">eat more again</string>
+    <string name="alert_context_after_insulin">still high after insulin</string>
+    <string name="alert_context_after_more_insulin">still high after more insulin</string>
+    <string name="alert_text_value">%1$d mg/dL %2$s</string>
+    <string name="alert_text_falling">%1$s · falling %2$s mg/dL/min</string>
+    <string name="alert_text_rising">%1$s · rising %2$s mg/dL/min</string>
+    <string name="alert_text_no_reading">No recent reading</string>
+    <string name="alert_text_no_data">No reading for %1$s</string>
+    <string name="alert_text_no_data_last">No reading for %1$s · last %2$d mg/dL</string>
+    <string name="alert_relaxed_subtext">Reminders every %1$s</string>
+
+    <!-- Alert notification actions (work from the lock screen; nothing opens). -->
+    <string name="alert_action_mute">Mute…</string>
+    <string name="alert_action_mute_for_label">Mute for (e.g. 45 min, 1 h 30)</string>
+    <string name="alert_action_remind_less">Remind less</string>
+    <string name="alert_action_remind_usual">Remind as usual</string>
+    <string name="alert_action_unmute">Unmute</string>
+    <string name="alert_action_change">Change time</string>
+
+    <!-- Sensor end. -->
+    <string name="sensor_end_soon_title">Sensor ends in %1$s</string>
+    <string name="sensor_end_soon_text">Have a new sensor ready to change it in time.</string>
+    <string name="sensor_ended_title">Sensor ended</string>
+    <string name="sensor_ended_text">No readings until you start a new sensor.</string>
+    <string name="sensor_action_pair">Pair new sensor</string>
+
+    <!-- notification groups and channels (names the person sees in Android's notification settings) -->
+    <string name="monitor_group_alerts">Glucose alerts</string>
+    <string name="monitor_group_alerts_alarm">Glucose alarms</string>
+    <string name="monitor_group_info">Other</string>
+    <string name="monitor_channel_glucose">Glucose (always shown)</string>
+    <string name="monitor_channel_status">Monitoring problems</string>
+    <string name="monitor_channel_requests">Requests</string>
+    <string name="monitor_channel_sensor">Sensor</string>
+    <string name="monitor_channel_sensor_countdown">Sensor countdown</string>
+    <string name="monitor_channel_pen_results">Pen doses</string>
+    <string name="monitor_channel_pen_check">Pen reminders</string>
+    <string name="monitor_channel_alert_very_low">Very low</string>
+    <string name="monitor_channel_alert_low">Low</string>
+    <string name="monitor_channel_alert_high">High</string>
+    <string name="monitor_channel_alert_very_high">Very high</string>
+    <string name="monitor_channel_alert_extremely_high">Extremely high</string>
+    <string name="monitor_channel_alert_falling_fast">Falling fast</string>
+    <string name="monitor_channel_alert_rising_fast">Rising fast</string>
+    <string name="monitor_channel_alert_no_data">No data</string>
+    <string name="monitor_channel_alarm_very_low">Very low (alarm)</string>
+    <string name="monitor_channel_alarm_low">Low (alarm)</string>
+    <string name="monitor_channel_alarm_high">High (alarm)</string>
+    <string name="monitor_channel_alarm_very_high">Very high (alarm)</string>
+    <string name="monitor_channel_alarm_extremely_high">Extremely high (alarm)</string>
+    <string name="monitor_channel_alarm_falling_fast">Falling fast (alarm)</string>
+    <string name="monitor_channel_alarm_rising_fast">Rising fast (alarm)</string>
+    <string name="monitor_channel_alarm_no_data">No data (alarm)</string>
+
+    <!-- the glucose notification: %1$s = the value as the card shows it (number, LO or HI), %2$s = the trend arrow -->
+    <string name="monitor_notif_value">%1$s mg/dL %2$s</string>
+    <!-- %1$s = the reading's time ("14:05", "Tue 14:05") -->
+    <string name="monitor_notif_reading_at">Reading at %1$s</string>
+    <string name="monitor_notif_no_readings_since">No readings since %1$s</string>
+    <string name="monitor_notif_waiting">Waiting for glucose…</string>
+    <string name="monitor_notif_not_monitoring">Not monitoring: no sensor yet</string>
+    <string name="monitor_notif_sensor_ended">Sensor ended</string>
+    <!-- %1$s = the time it will be ready ("14:05") -->
+    <string name="monitor_notif_warming_up">Sensor warming up · ready at %1$s</string>
+    <string name="monitor_notif_bluetooth_off">Bluetooth is off: turn it on to get readings</string>
+    <string name="monitor_notif_core_missing">This build can\'t read a Libre 3 sensor</string>
+    <!-- Live Update chip (keep it under 7 characters): %1$s = value; the chip's icon is the trend arrow -->
+    <string name="monitor_chip_value">%1$s</string>
+    <!-- Live Update chip once the value is 5 min old: the reading's time -->
+    <string name="monitor_chip_stale">%1$s</string>
+    <string name="monitor_action_open_app">Open Sukrara</string>
+    <string name="monitor_action_set_up_sensor">Set up sensor</string>
+    <string name="monitor_action_replace_sensor">Replace sensor</string>
+
+    <!-- the service couldn't start or was refused -->
+    <string name="monitor_stopped_title">Monitoring stopped</string>
+    <string name="monitor_stopped_text">No glucose readings or alerts until it runs again. Tap to resume.</string>
+    <string name="monitor_action_resume">Resume</string>
+</resources>

@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Sukrara — https://github.com/mauriciabad/sukrara
+     Copyright (C) 2026 Maurici Abad
+     SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- The card renderer's words (GlucoseCard, chart, badges, slots) and the card's screen-reader sentence (A11y). -->
+<resources>
+    <string name="badge_eat_carbs">Eat carbs</string>
+    <string name="badge_carbs_short">Carbs</string>
+    <string name="badge_take_insulin">Take insulin</string>
+    <string name="badge_insulin_short">Insulin</string>
+    <string name="badge_muted_short">Muted</string>
+    <string name="badge_muted_for">Muted · %1$s</string>
+    <plurals name="badge_time_left">
+        <item quantity="one">%1$s left</item>
+        <item quantity="other">%1$s left</item>
+    </plurals>
+    <string name="badge_replace_sensor">Replace sensor</string>
+    <string name="badge_replace_sensor_short">Sensor</string>
+    <string name="chart_back_to_now">Now</string>
+    <string name="duration_now">now</string>
+    <string name="duration_minutes">%1$dm</string>
+    <string name="duration_hours">%1$dh</string>
+    <string name="duration_hours_minutes">%1$dh %2$dm</string>
+    <string name="duration_days">%1$dd</string>
+    <string name="duration_text_minutes">%1$d min</string>
+    <string name="duration_text_hours">%1$d h</string>
+    <string name="duration_text_hours_minutes">%1$d h %2$d min</string>
+    <string name="duration_ago">%1$s ago</string>
+    <string name="period_days">%1$dd</string>
+    <string name="period_hours">%1$dh</string>
+    <string name="slot_average_short">avg</string>
+    <string name="slot_gmi_short">GMI</string>
+    <string name="slot_cv_short">CV</string>
+    <string name="slot_tir_in_range">in range</string>
+    <string name="slot_tir_very_good">very good</string>
+    <string name="card_no_readings_yet">No readings yet</string>
+    <string name="card_no_reading_since">No reading since</string>
+    <string name="card_sensor_ended">Sensor ended</string>
+    <plurals name="card_sensor_left">
+        <item quantity="one">Sensor: %1$s left</item>
+        <item quantity="other">Sensor: %1$s left</item>
+    </plurals>
+    <string name="card_warming_up">Warming up</string>
+    <string name="card_ready_at">Ready at %1$s</string>
+    <string name="card_almost_ready">Almost ready</string>
+    <string name="card_waiting_reading">Waiting for the first reading</string>
+    <string name="trend_unknown">trend unknown</string>
+    <string name="trend_steady">steady</string>
+    <string name="trend_rising">rising</string>
+    <string name="trend_rising_fast">rising fast</string>
+    <string name="trend_falling">falling</string>
+    <string name="trend_falling_fast">falling fast</string>
+    <string name="a11y_value">%1$s milligrams per decilitre</string>
+    <string name="a11y_value_old">old reading</string>
+    <string name="a11y_low_reading">below 40 milligrams per decilitre</string>
+    <string name="a11y_high_reading">above 400 milligrams per decilitre</string>
+    <string name="a11y_band_very_low">very low</string>
+    <string name="a11y_band_low">low</string>
+    <string name="a11y_band_in_range">in range</string>
+    <string name="a11y_band_high">high</string>
+    <string name="a11y_band_very_high">very high</string>
+    <string name="a11y_band_extremely_high">extremely high</string>
+    <string name="a11y_ago">%1$s ago</string>
+    <string name="a11y_just_now">just now</string>
+    <string name="a11y_no_readings">Glucose: no readings yet</string>
+    <string name="a11y_no_reading_since">Glucose: no reading since %1$s</string>
+    <string name="a11y_chart">Last %1$d hours: %2$d%% in range, %3$d%% below, %4$d%% above</string>
+    <string name="a11y_chart_empty">Last %1$d hours: no data</string>
+</resources>

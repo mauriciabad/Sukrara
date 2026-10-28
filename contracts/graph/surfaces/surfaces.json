@@ -1,0 +1,381 @@
+{
+  "about": "Every place that shows the glucose card or its value, per platform: THE registry behind 'One graph everywhere' (CLAUDE.md) and the freshness steps. A 'card' surface draws card pixels only through the renderer (GlucoseCard.draw / GlucoseCard.image) and chooses only its size, its place's settings and the parts; a 'glyph' surface (text, icons and words the system lays out) takes the value, the trend mark and the freshness steps from GlucoseCard.face (a GlucoseLook) and never formats a glucose value itself. tools/check: card-surface (a file that calls the renderer must be a registered file of the surface it names; every surface is rendered by the tests), card-api (outside 'owners' only the 'api' members of the renderer's namespaces: every painter, found automatically, and the 'api' keys), card-text (no surface formats a glucose value itself; '// card-ok: <why>' marks a line that must). CardLayoutTest (Android) and -graphselftest (Mac) render ../layout/scenes.json through each surface's real entry path at its sizes and check ../layout/rules.json; FreshnessFixtureTest and -graphselftest run the card and every glyph surface through ../freshness/freshness.json's steps. Sizes are dp / pt of the surface's own box (see each surface's 'size'). A card surface draws its value through the renderer too (one of the parts all / header / value) unless its entry has 'no_value' with the reason (CardLayoutTest, -graphselftest). Paths are the apps' (apps/android, apps/macos); 'owners', 'sources' and 'tests' are globs. A named file that doesn't exist is a 'pending file' NOTE while tools/check/strict is absent, and fails once it exists. Not included, removed with their CardSurface constants (register them again with the code): Android lockscreen widget and its description, the SystemUI hook chip and root status-bar icons (systemui cut), the notification’s custom card image (the live notification is the notification-text glyph), the first-reading card and a value on the treatment Quick Settings tile.",
+  "android": {
+    "enum": "apps/android/core/graph/src/main/kotlin/app/mauri/sukrara/graph/CardSurface.kt",
+    "owners": [
+      "apps/android/core/graph/src/main/*"
+    ],
+    "sources": [
+      "apps/android/*/src/main/kotlin/*.kt"
+    ],
+    "tests": [
+      "apps/android/*/src/test/kotlin/*.kt"
+    ],
+    "api": {
+      "GlucoseCard": [
+        "draw",
+        "face",
+        "observer",
+        "yRange"
+      ],
+      "ValueGlyphs": [
+        "arrow",
+        "number",
+        "trendIcon",
+        "icon",
+        "numberPaint",
+        "REFERENCE"
+      ],
+      "SensorBadge": [
+        "look",
+        "describe",
+        "Look"
+      ],
+      "StatusBadge": [
+        "look",
+        "describe",
+        "Look"
+      ],
+      "Slots": [
+        "text"
+      ],
+      "TirRing": [],
+      "TreatmentMarks": [
+        "palette",
+        "color",
+        "onColor",
+        "amount",
+        "duration",
+        "label",
+        "Palette",
+        "marker"
+      ],
+      "RoundedFont": [
+        "init",
+        "typeface"
+      ],
+      "TextModel": [],
+      "Freshness": [
+        "timeText",
+        "nextChangeAt",
+        "nextChangeS",
+        "valueText"
+      ]
+    },
+    "value_text_ok": [
+      {
+        "path": "apps/android/monitor/src/main/kotlin/app/mauri/sukrara/monitor/alerts/AlertNotifier.kt",
+        "why": "an alert's notification says the reading that fired it (the event, not the live value)"
+      }
+    ],
+    "surfaces": [
+      {
+        "id": "widget-value",
+        "kind": "card",
+        "entry": "renderWidget",
+        "parts": [
+          "all"
+        ],
+        "size": "widget, margins included",
+        "sizes": [
+          [
+            170,
+            80
+          ],
+          [
+            250,
+            80
+          ],
+          [
+            170,
+            170
+          ]
+        ],
+        "files": [
+          "apps/android/widgets/src/main/kotlin/app/mauri/sukrara/widgets/GlucoseWidgets.kt"
+        ]
+      },
+      {
+        "id": "widget-graph",
+        "kind": "card",
+        "entry": "renderWidget",
+        "parts": [
+          "all"
+        ],
+        "size": "widget, margins included",
+        "sizes": [
+          [
+            170,
+            170
+          ],
+          [
+            320,
+            80
+          ],
+          [
+            320,
+            170
+          ],
+          [
+            400,
+            250
+          ]
+        ],
+        "files": [
+          "apps/android/widgets/src/main/kotlin/app/mauri/sukrara/widgets/GlucoseWidgets.kt"
+        ]
+      },
+      {
+        "id": "widget-combined",
+        "kind": "card",
+        "entry": "renderWidget",
+        "parts": [
+          "all"
+        ],
+        "size": "widget, margins included",
+        "sizes": [
+          [
+            170,
+            170
+          ],
+          [
+            250,
+            170
+          ],
+          [
+            320,
+            90
+          ],
+          [
+            320,
+            170
+          ],
+          [
+            320,
+            250
+          ],
+          [
+            400,
+            250
+          ]
+        ],
+        "files": [
+          "apps/android/widgets/src/main/kotlin/app/mauri/sukrara/widgets/GlucoseWidgets.kt"
+        ]
+      },
+      {
+        "id": "app-panel",
+        "kind": "card",
+        "entry": "PanelCard",
+        "parts": [
+          "header",
+          "graph"
+        ],
+        "size": "the panel's width (its card, padding included)",
+        "sizes": [
+          [
+            379,
+            0
+          ],
+          [
+            328,
+            0
+          ]
+        ],
+        "files": [
+          "apps/android/feature/home/src/main/kotlin/app/mauri/sukrara/feature/home/HomeCard.kt"
+        ]
+      },
+      {
+        "id": "notification-text",
+        "kind": "glyph",
+        "entry": "build",
+        "what": "title, Live Update chip text and small icon (the custom card's value row is the renderer's header: 'notification')",
+        "files": [
+          "apps/android/monitor/src/main/kotlin/app/mauri/sukrara/monitor/LiveNotification.kt"
+        ]
+      },
+      {
+        "id": "widget-description",
+        "kind": "glyph",
+        "files": [
+          "apps/android/widgets/src/main/kotlin/app/mauri/sukrara/widgets/GlucoseWidgets.kt"
+        ],
+        "entry": "describeCard",
+        "what": "what the home widgets and the app panel say to a screen reader"
+      }
+    ]
+  },
+  "mac": {
+    "enum": "apps/macos/Sources/SukraraGraph/CardSurface.swift",
+    "owners": [
+      "apps/macos/Sources/SukraraGraph/*"
+    ],
+    "sources": [
+      "apps/macos/Sources/*.swift"
+    ],
+    "tests": [
+      "apps/macos/Tests/*.swift",
+      "apps/macos/Sources/sukrara-snap/*.swift"
+    ],
+    "api": {
+      "GlucoseCard": [
+        "draw",
+        "image",
+        "face",
+        "accessibilityLabel",
+        "noValueText",
+        "yRange"
+      ],
+      "SensorBadge": [
+        "look",
+        "describe",
+        "Look",
+        "flag"
+      ],
+      "StatusBadge": [
+        "look",
+        "describe",
+        "Look"
+      ],
+      "Slots": [],
+      "TreatmentMarks": [
+        "color",
+        "onColor",
+        "amount",
+        "duration"
+      ],
+      "TirRing": [],
+      "Ink": [
+        "font",
+        "draw",
+        "width",
+        "line"
+      ],
+      "TextModel": [],
+      "Freshness": [
+        "timeText",
+        "nextChange",
+        "nextChangeAt"
+      ]
+    },
+    "value_text_ok": [
+      {
+        "path": "apps/macos/Sources/SukraraApp/Alerts/AlertText.swift",
+        "why": "an alert's notification says the reading that fired it; log lines"
+      }
+    ],
+    "surfaces": [
+      {
+        "id": "menubar-card",
+        "kind": "card",
+        "entry": "PanelView (GlucoseCard.image)",
+        "parts": [
+          "all"
+        ],
+        "size": "the dropdown's card",
+        "sizes": [
+          [
+            340,
+            196
+          ]
+        ],
+        "files": [
+          "apps/macos/Sources/SukraraApp/Panel/PanelView.swift"
+        ]
+      },
+      {
+        "id": "menubar-title",
+        "kind": "glyph",
+        "entry": "AppModel.look → MenubarTitle",
+        "what": "the status item's value, strike and arrow",
+        "files": [
+          "apps/macos/Sources/SukraraApp/AppModel.swift",
+          "apps/macos/Sources/SukraraApp/StatusItem/MenubarTitle.swift"
+        ]
+      },
+      {
+        "id": "widget-value",
+        "kind": "card",
+        "entry": "WidgetEntryView.card",
+        "parts": [
+          "all"
+        ],
+        "size": "the family's content (16 pt margins off)",
+        "sizes": [
+          [
+            138,
+            138
+          ],
+          [
+            332,
+            138
+          ]
+        ],
+        "files": [
+          "apps/macos/Sources/SukraraWidget/WidgetEntryView.swift"
+        ]
+      },
+      {
+        "id": "widget-graph",
+        "kind": "card",
+        "entry": "WidgetEntryView.card",
+        "parts": [
+          "all"
+        ],
+        "size": "the family's content (16 pt margins off)",
+        "sizes": [
+          [
+            138,
+            138
+          ],
+          [
+            332,
+            138
+          ],
+          [
+            332,
+            350
+          ],
+          [
+            714,
+            350
+          ]
+        ],
+        "files": [
+          "apps/macos/Sources/SukraraWidget/WidgetEntryView.swift"
+        ]
+      },
+      {
+        "id": "widget-combined",
+        "kind": "card",
+        "entry": "WidgetEntryView.card",
+        "parts": [
+          "all"
+        ],
+        "size": "the family's content (16 pt margins off)",
+        "sizes": [
+          [
+            138,
+            138
+          ],
+          [
+            332,
+            138
+          ],
+          [
+            332,
+            350
+          ],
+          [
+            714,
+            350
+          ]
+        ],
+        "files": [
+          "apps/macos/Sources/SukraraWidget/WidgetEntryView.swift"
+        ]
+      }
+    ]
+  }
+}

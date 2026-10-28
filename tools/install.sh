@@ -1,19 +1,20 @@
 #!/bin/sh
-# CGM research spikes — https://github.com/mauriciabad/cgm-reading-mac-spike
+# Sukrara — https://github.com/mauriciabad/sukrara
 # Copyright (C) 2026 Maurici Abad
 # SPDX-License-Identifier: GPL-3.0-or-later
-# Put Sukrara on the user's phone or Mac without losing anyone's merged work (NEXT.md section 5, "One build line").
-#   tools/install.sh phone [--dry-run]   release APK → adb install -r (keeps data; never uninstalls / clears)
-#   tools/install.sh mac   [--dry-run]   bundle.sh → ~/Applications/Sukrara.app, restart widget ext, drop stale plugins
+# Put Sukrara on the owner's phone or Mac without losing anyone's merged work (docs/DEVELOPMENT.md "Install").
+#   tools/install.sh phone [--dry-run]   apps/android release APK → verify-apk.sh → adb install -r (keeps data)
+#   tools/install.sh mac   [--dry-run]   apps/macos bundle.sh → verify-app.sh → ~/Applications/Sukrara.app
 # Refuses unless: the tree is clean, HEAD contains origin/main and every branch in tools/check/integration.txt,
 # HEAD contains the commit installed last time (else features vanish from the device), and tools/check/run.sh passes.
-# Records what it installed in <git common dir>/sukrara-installed-<target> (shared by all worktrees) and prints it.
+# Records what it installed in <git common dir>/sukrara-installed-<target> (shared by all worktrees).
 # --dry-run runs every check but only prints the build / install commands.
 set -eu
 TARGET=${1:-}; DRY=0
 [ "${2:-}" = "--dry-run" ] && DRY=1
 case "$TARGET" in phone|mac) ;; *) echo "usage: tools/install.sh phone|mac [--dry-run]" >&2; exit 2 ;; esac
 ROOT=$(git rev-parse --show-toplevel); cd "$ROOT"
+. tools/release/lib.sh
 SERIAL=${ANDROID_SERIAL:-62240DLCH0005W}
 RECORD="$(cd "$(git rev-parse --git-common-dir)" && pwd)/sukrara-installed-$TARGET"
 die() { echo "REFUSED: $*" >&2; exit 1; }
@@ -22,7 +23,7 @@ run() { if [ $DRY = 1 ]; then echo "would run: $*"; else echo "+ $*"; "$@"; fi; 
 # 1. Everything merged is in this build.
 [ -z "$(git status --porcelain --untracked-files=no)" ] || die "uncommitted changes: commit them (or use a clean worktree)."
 git fetch -q origin main 2>/dev/null || echo "note: could not fetch origin/main, using the local copy"
-git merge-base --is-ancestor origin/main HEAD || die "HEAD lacks origin/main: merge or rebase on it first."
+git merge-base --is-ancestor origin/main HEAD || die "HEAD lacks origin/main: merge it first."
 grep -v '^\s*#' tools/check/integration.txt | while read -r b; do
   [ -n "$b" ] || continue
   if git rev-parse -q --verify "$b" >/dev/null; then
@@ -38,35 +39,50 @@ if [ -f "$RECORD" ]; then
 fi
 tools/check/run.sh --range origin/main..HEAD || die "tools/check/run.sh failed (see above)."
 
+VI=$(version_info) || die "VERSION is not a valid MAJOR.MINOR.PATCH (see above)."
+set -- $VI
+VERSION=$1
 HEAD=$(git rev-parse --short HEAD)
 if [ "$TARGET" = phone ]; then
-  # 2a. Release APK, in-place update (keeps identity, followers, settings).
-  VERSION=$(sed -n 's/.*versionName = "\(.*\)".*/\1/p' spikes/showcase-android/app/build.gradle.kts)
-  : "${JAVA_HOME:=$(brew --prefix openjdk@17 2>/dev/null)/libexec/openjdk.jdk/Contents/Home}"; export JAVA_HOME
-  APK=spikes/showcase-android/app/build/outputs/apk/release/app-release.apk
-  run sh -c "cd spikes/showcase-android && ./gradlew -q :app:assembleRelease"
+  # 2a. Signed release APK, verified, in-place update (keeps identity, followers, settings). Gradle reads the key's
+  # password only from the environment; it comes from the Keychain here and never goes on a command line.
+  APK=apps/android/app/build/outputs/apk/release/app-release.apk
+  MAPPING=apps/android/app/build/outputs/mapping/release/mapping.txt
+  if [ $DRY = 0 ]; then
+    SUKRARA_KEYSTORE_PASSWORD=$(release_password) || die "no release key password (Keychain item sukrara-android-release, docs/20-publishing.md)."
+    export SUKRARA_KEYSTORE_PASSWORD
+  fi
+  # Gradle needs JDK 21 and the SDK (a worktree has no local.properties).
+  JAVA_HOME="$(dirname "$(dirname "$(jdk_tool java)")")"
+  ANDROID_HOME="${ANDROID_HOME:-$HOME/Library/Android/sdk}"
+  export JAVA_HOME ANDROID_HOME
+  run sh -c "cd apps/android && ./gradlew -q :app:assembleRelease"
+  run tools/release/verify-apk.sh "$APK" "$MAPPING"
   run adb -s "$SERIAL" install -r "$APK"
   if [ $DRY = 1 ]; then GOT="$VERSION (dry run)"; else
-    GOT=$(adb -s "$SERIAL" shell dumpsys package app.mauri.sukrara.poc | sed -n 's/.*versionName=//p' | head -1 | tr -d '\r')
-    [ "$GOT" = "$VERSION" ] || die "phone reports versionName '$GOT', expected '$VERSION'."
+    GOT=$(adb -s "$SERIAL" shell dumpsys package app.mauri.sukrara | sed -n 's/.*versionName=//p' | head -1 | tr -d '\r')
+    [ "$GOT" = "$VERSION" ] || die "phone reports versionName '$GOT' for app.mauri.sukrara, expected '$VERSION'."
   fi
 else
-  # 2b. Team-signed bundle with widgets, replace the user's copy, restart the widget extension (NEXT.md section 5).
-  VERSION=$(sed -n 's/.*CFBundleShortVersionString<\/key><string>\([^<]*\)<.*/\1/p' spikes/menubar/bundle.sh)
+  # 2b. Team-signed bundle with the widget, replacing the installed one.
   DEST="$HOME/Applications/Sukrara.app"
-  run sh -c "cd spikes/menubar && ./bundle.sh"
-  if [ $DRY = 0 ]; then   # the user's copy is team-signed with the widget; an ad hoc build would drop the widgets
-    codesign -dv spikes/menubar/build/Sukrara.app 2>&1 | grep -q '^TeamIdentifier=[A-Z0-9]' &&
-      [ -d spikes/menubar/build/Sukrara.app/Contents/PlugIns/SukraraWidget.appex ] ||
-      die "the build is not team-signed with the widget (bundle.sh found no Apple Development identity?)."
+  BUILT=apps/macos/build/Sukrara.app
+  id_of() { /usr/libexec/PlistBuddy -c "Print :CFBundleIdentifier" "$1/Contents/Info.plist" 2>/dev/null || true; }
+  # Every refusal comes before anything changes on the Mac (the owner keeps an alerting app either way).
+  if [ -d "$DEST" ] && [ "$(id_of "$DEST")" != app.mauri.sukrara ]; then
+    die "$DEST is not Sukrara ($(id_of "$DEST")): move it away by hand."
   fi
+  run sh -c "cd apps/macos && Bundle/bundle.sh"
+  run tools/release/verify-app.sh "$BUILT"
   run pkill -x Sukrara || true
   run rm -rf "$DEST"
-  run ditto spikes/menubar/build/Sukrara.app "$DEST"
+  run ditto "$BUILT" "$DEST"
+  run /System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -f "$DEST"
+  run swift tools/release/url-handler.swift "$DEST" || echo "WARN: sukrara: links may still open another app (see above)."
   run open "$DEST"
   run pkill -f SukraraWidget.appex || true
   # Unregister every other registered copy (worktree / test builds), or chronod may run their stale extension.
-  pluginkit -mAv 2>/dev/null | grep -i 'app.mauri.sukrara' | awk -F'\t' '{print $NF}' | grep -v "^$DEST/" |
+  pluginkit -mAv 2>/dev/null | grep 'app.mauri.sukrara.widget' | awk -F'\t' '{print $NF}' | grep -v "^$DEST/" |
     while IFS= read -r p; do run pluginkit -r "$p"; done
   GOT=$VERSION
 fi

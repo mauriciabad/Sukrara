@@ -38,7 +38,7 @@ document per upload — device settings plus `currentGlucoseEntries`, `scheduled
 history), `insulinEntries` (rapid/long units), `foodEntries` (grams), `genericEntries` (notes, sensor start).
 Every entry carries a `recordNumber`; an edit or a delete (`"action":"deleted"`) is the same record sent again.
 
-The exact bytes are in [`spikes/libreview/SPEC.md`](../spikes/libreview/SPEC.md); `lv.py` there is an executable
+The exact bytes are in [`poc/spikes/libreview/SPEC.md`](../poc/spikes/libreview/SPEC.md); `lv.py` there is an executable
 reference that generates a golden fixture both apps must reproduce byte for byte (they do).
 
 Key design decisions:
@@ -120,7 +120,7 @@ glucose that reports are built from is the 5-minute history (which trails the li
 ## Nostr (investigation 03)
 
 [03](03-nostr.md) streams glucose from one uploader to any number of encrypted followers and lists treatments as
-out of scope. They fit without changing anything 03 built — design in [SPEC §5](../spikes/libreview/SPEC.md#5-treatments-over-nostr--proposal-fits-protocolmd-of-investigation-03-not-built):
+out of scope. They fit without changing anything 03 built — design in [SPEC §5](../poc/spikes/libreview/SPEC.md#5-treatments-over-nostr--proposal-fits-protocolmd-of-investigation-03-not-built):
 
 - **Same kind, same keys.** One addressable kind-30078 event per treatment (like 03's hourly chunks), opaque `d`,
   content = this log's JSON encrypted to 03's read key. Volume is a few events per day.

@@ -9,6 +9,8 @@
 # - libre3-ble: the Mac-side direct sensor experiment, kept private (see docs/01-connectivity.md)
 /third_party/
 /xbar-plugins/
+/poc/spikes/libre3-ble/
+# (the old location, until the local checkout is moved by hand: never commit it)
 /spikes/libre3-ble/
 
 # Sensor pairing secrets (BLE PIN + saved authorization record) — NEVER commit
@@ -18,19 +20,20 @@ sensor.json
 
 # Swift / macOS builds
 .build/
-/spikes/*/build/
-/spikes/ble-scan/blescan
+/poc/spikes/*/build/
+/apps/macos/build/
+/poc/spikes/ble-scan/blescan
 *.o
 *.a
 
 # Android / Gradle
 .gradle/
 .kotlin/
-/spikes/glucobridge-android/app/build/
-/spikes/glucobridge-android/app/.cxx/
-/spikes/glucobridge-android/build/
-/spikes/brand/android/build/
-/spikes/brand/android/app/build/
+/poc/spikes/glucobridge-android/app/build/
+/poc/spikes/glucobridge-android/app/.cxx/
+/poc/spikes/glucobridge-android/build/
+/poc/spikes/brand/android/build/
+/poc/spikes/brand/android/app/build/
 local.properties
 .idea/
 *.iml

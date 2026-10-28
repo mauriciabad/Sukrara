@@ -1,10 +1,11 @@
-# CGM research spikes — https://github.com/mauriciabad/cgm-reading-mac-spike
+# Sukrara — https://github.com/mauriciabad/sukrara
 # Copyright (C) 2026 Maurici Abad
 # SPDX-License-Identifier: GPL-3.0-or-later
-# Keeps the Homebrew cask (github.com/mauriciabad/homebrew-tap, Casks/sukrara.rb) on the latest release: when a release
-# is published, read the version from its tag (v0.11.14 → 0.11.14), hash its Sukrara-<version>.dmg and commit the new
-# version + sha256 to the tap. Pushes with the tap's deploy key (write access to that repo only), stored here as the
-# secret HOMEBREW_TAP_DEPLOY_KEY. Re-run by hand with workflow_dispatch (tag) if a release was edited.
+# Keeps the Homebrew cask (github.com/mauriciabad/homebrew-tap, Casks/sukrara.rb) on the latest stable release: when
+# a release is published, read the version from its tag (v0.11.14 → 0.11.14), hash its Sukrara-<version>.dmg and commit
+# the new version + sha256 to the tap. Prereleases (0.x release candidates) are skipped. Pushes with the tap's deploy key
+# (write access to that repo only), stored here as the secret HOMEBREW_TAP_DEPLOY_KEY. Re-run by hand with
+# workflow_dispatch (tag) if a release was edited.
 name: Homebrew tap
 on:
   release:
@@ -30,6 +31,11 @@ jobs:
       - name: Hash the release dmg
         id: dmg
         run: |
+          # Prereleases never reach the cask; the job condition skips a published
+          # prerelease, this also refuses one dispatched by hand.
+          if [ "$(gh release view "$TAG" -R "${{ github.repository }}" --json isPrerelease --jq .isPrerelease)" = true ]; then
+            echo "::error::$TAG is a prerelease: the cask only follows stable releases"; exit 1
+          fi
           VER="${TAG#v}"
           gh release download "$TAG" -R "${{ github.repository }}" -p "Sukrara-$VER.dmg" -D dl
           echo "version=$VER" >> "$GITHUB_OUTPUT"

@@ -1,0 +1,79 @@
+# Treatments: carbs answer lows and falling fast, rapid insulin highs and rising fast (format: SPEC.md §7)
+
+scenario Carbs also quiet a very low
+ 0  glucose 50   => Very low glucose
+ 2  carbs 15     => clear very_low
+ 5                                          # quiet
+17               => Very low glucose · eat more
+22               => Very low glucose · eat more
+23
+
+scenario Repeat counted from the treatment, even when its window ends before the next repeat
+settings low.repeat=15 carbs.mute=5
+ 0  glucose 60   => Low glucose
+ 1  carbs 10     => clear low
+ 6               => Low glucose · eat more  # not at 15
+21               => Low glucose · eat more
+22
+
+scenario The carbs' window ends with no new reading: the timer alerts on time
+settings carbs.mute=10
+ 0  glucose 60   => Low glucose
+ 1  carbs 10     => clear low
+ 4  sensor off                              # last reading at 3
+11               => Low glucose · eat more
+16               => Low glucose · eat more
+18               => clear low
+23               => No glucose data
+24
+
+scenario Carbs logged before the low: quiet until their window ends
+ 0  glucose 80
+ 1  carbs 15
+ 3  glucose 65                              # quiet: carbs 2 min ago
+16               => Low glucose · eat more
+21               => Low glucose · eat more
+22
+
+scenario With the carbs mute off, carbs only change the message
+settings carbs.mute=off
+ 0  glucose 60   => Low glucose
+ 2  carbs 15
+ 5               => Low glucose · eat more
+10               => Low glucose · eat more
+11
+
+scenario A deleted treatment quiets nothing and isn't mentioned
+ 0  glucose 60   => Low glucose
+ 2  carbs 15     => clear low
+ 4  delete carbs
+ 5               => Low glucose
+10               => Low glucose
+11
+
+scenario Insulin quiets highs for 60 min; the alert never suggests more insulin
+ 0  glucose 200  => High glucose
+ 2  insulin 3    => clear high
+15                                          # would have been the repeat
+62               => High glucose · still high after insulin
+70  insulin 2    => clear high
+77                                          # would have been the repeat after 62
+130              => High glucose · still high after more insulin
+145              => High glucose · still high after more insulin
+146
+
+scenario Extremely high is never quiet, even right after insulin
+ 0  glucose 260  => Very high glucose
+ 1  insulin 4    => clear very_high
+ 2  glucose 300  => Extremely high glucose · still high after insulin
+ 3  glucose 290  => clear extremely_high    # very high again: quiet (insulin)
+ 7  glucose 310  => Extremely high glucose · still high after insulin
+ 8
+
+scenario Carbs don't quiet highs
+ 0  glucose 200, carbs 10  => High glucose
+ 1
+
+scenario Insulin doesn't quiet lows
+ 0  glucose 60, insulin 2  => Low glucose
+ 1

@@ -1,0 +1,118 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Sukrara — https://github.com/mauriciabad/sukrara
+     Copyright (C) 2026 Maurici Abad
+     SPDX-License-Identifier: GPL-3.0-or-later -->
+<resources>
+    <string name="home_title">Sukrara</string>
+    <string name="home_settings">Ajustes</string>
+    <string name="home_add_treatment">Añadir tratamiento</string>
+    <string name="home_chart_now">Ahora</string>
+
+    <string name="home_a11y_value">%1$s miligramos por decilitro, %2$s, %3$s, %4$s</string>
+    <string name="home_a11y_stale">Lectura antigua: %1$s</string>
+    <string name="home_a11y_range_very_low">muy baja</string>
+    <string name="home_a11y_range_low">baja</string>
+    <string name="home_a11y_range_in">en rango</string>
+    <string name="home_a11y_range_high">alta</string>
+    <string name="home_a11y_range_very_high">muy alta</string>
+    <string name="home_a11y_just_now">ahora mismo</string>
+    <string name="home_a11y_chart">Gráfica de las últimas %1$d horas: %2$d%% en rango</string>
+    <string name="home_a11y_unmute">Reactivar alertas</string>
+
+    <string name="reason_setup_title">Sukrara aún no está configurada</string>
+    <string name="reason_setup_body">Elige si este móvil lleva el sensor o sigue a alguien que lo lleva.</string>
+    <string name="reason_setup_action">Configurar</string>
+    <string name="reason_no_sensor_title">Sin monitorizar: aún no hay sensor</string>
+    <string name="reason_no_sensor_body">Empareja un sensor para ver tu glucosa aquí. Ninguna alerta suena hasta que llegue la primera lectura.</string>
+    <string name="reason_no_sensor_action">Emparejar sensor</string>
+    <string name="reason_no_wearer_title">Sin monitorizar: aún no sigues a nadie</string>
+    <string name="reason_no_wearer_body">Abre el enlace de invitación de la persona a la que sigues. Ninguna alerta suena hasta que llegue su primera lectura.</string>
+    <string name="reason_no_wearer_action">Unirse</string>
+    <string name="reason_core_missing_title">Esta versión no puede leer sensores Libre 3</string>
+    <string name="reason_core_missing_body">Se compiló sin la biblioteca nativa del sensor. Instala una versión publicada de Sukrara.</string>
+    <string name="reason_bluetooth_title">El Bluetooth está desactivado</string>
+    <string name="reason_bluetooth_body">El sensor envía las lecturas por Bluetooth. Actívalo para recibirlas de nuevo.</string>
+    <string name="reason_bluetooth_action">Activar Bluetooth</string>
+    <string name="reason_stopped_title">Monitorización detenida</string>
+    <string name="reason_stopped_body">Android detuvo Sukrara en segundo plano. Las lecturas y las alertas están en pausa hasta que la reanudes.</string>
+    <string name="reason_stopped_action">Reanudar monitorización</string>
+    <string name="reason_ended_title">El sensor ha terminado</string>
+    <string name="reason_ended_body">Este sensor ha llegado a su fin. Ponte uno nuevo y emparéjalo.</string>
+    <string name="reason_ended_action">Emparejar sensor nuevo</string>
+    <string name="reason_warmup_title">El sensor se está calentando</string>
+    <string name="reason_warmup_body">La primera lectura llega hacia las %1$s. No hace falta hacer nada hasta entonces.</string>
+    <string name="reason_revoked_title">Ya no sigues a esta persona</string>
+    <string name="reason_revoked_body">Ha quitado este móvil de sus seguidores. Pídele una invitación nueva para volver a seguirla.</string>
+    <string name="reason_revoked_action">Unirse con una invitación nueva</string>
+    <string name="reason_wearer_silent_title">No llegan lecturas del móvil de la persona</string>
+    <string name="reason_wearer_silent_body">Última señal %1$s. Puede que su móvil esté apagado, sin conexión o sin batería.</string>
+    <string name="reason_wearer_silent_never">Aún no ha llegado nada. Puede que su móvil esté apagado, sin conexión o sin batería.</string>
+    <string name="reason_no_readings_title">No llegan lecturas del sensor</string>
+    <string name="reason_no_readings_body">Última lectura %1$s. Mantén el móvil cerca del sensor; se reconecta solo.</string>
+    <string name="reason_no_readings_never">Aún no hay lecturas. Mantén el móvil cerca del sensor; se reconecta solo.</string>
+    <string name="reason_no_readings_action">Detalles del sensor</string>
+
+    <string name="banner_alerts_title">Puede que las alertas no suenen</string>
+    <string name="banner_alerts_action">Arreglar</string>
+    <string name="req_notifications">Las notificaciones de Sukrara están desactivadas.</string>
+    <string name="req_full_screen">Sukrara no puede mostrar alarmas sobre la pantalla de bloqueo.</string>
+    <string name="req_exact_alarm">Sukrara no puede programar alarmas exactas.</string>
+    <string name="req_battery">La optimización de batería puede detener Sukrara en segundo plano.</string>
+    <string name="req_channel">El sonido de las alertas no puede saltarse el modo No molestar.</string>
+    <string name="req_bluetooth">El Bluetooth o el permiso de dispositivos cercanos está desactivado.</string>
+    <string name="banner_data_title">Algunos datos guardados estaban dañados</string>
+    <plurals name="banner_data_text">
+        <item quantity="one">%d archivo no se pudo leer y se ha apartado. Revísalo para ver qué se ha perdido.</item>
+        <item quantity="many">%d archivos no se pudieron leer y se han apartado. Revísalos para ver qué se ha perdido.</item>
+        <item quantity="other">%d archivos no se pudieron leer y se han apartado. Revísalos para ver qué se ha perdido.</item>
+    </plurals>
+    <string name="banner_data_action">Revisar</string>
+    <string name="banner_setup_title">Termina la configuración</string>
+    <string name="banner_setup_text">Siguiente: %1$s</string>
+    <string name="banner_setup_action">Continuar</string>
+    <string name="banner_setup_later">Más tarde</string>
+    <string name="banner_backup_title">Sin copia de seguridad</string>
+    <string name="banner_backup_text">Guarda una copia para que un móvil nuevo pueda recuperar tu sensor y tus seguidores.</string>
+    <string name="banner_backup_action">Hacer copia</string>
+    <string name="banner_widget_title">Añade el widget de glucosa</string>
+    <string name="banner_widget_text">Mira tu glucosa en la pantalla de inicio sin abrir la app.</string>
+    <string name="banner_widget_action">Añadir widget</string>
+    <string name="banner_clinic_title">Comparte con tu clínica</string>
+    <string name="banner_clinic_text">Sube las lecturas a LibreView o Tidepool para que tu equipo médico las vea.</string>
+    <string name="banner_clinic_action">Configurar</string>
+
+    <string name="home_unmute">Reactivar</string>
+    <string name="home_sensor_ends">El sensor termina %1$s</string>
+
+    <string name="home_following">Siguiendo a %1$s</string>
+    <string name="home_following_unnamed">Siguiendo</string>
+    <string name="home_link_heard">Última señal %1$s</string>
+    <string name="home_link_never">Esperando la primera lectura</string>
+
+    <string name="home_treatments">Últimas 24 horas</string>
+    <string name="home_treatment_rapid">%1$s de insulina rápida</string>
+    <string name="home_treatment_long">%1$s de insulina lenta</string>
+    <string name="home_treatment_carbs">%1$s de hidratos</string>
+    <string name="home_treatment_note">Nota</string>
+    <string name="home_treatment_delete">Borrar %1$s de las %2$s</string>
+    <string name="home_treatment_deleted">Tratamiento borrado</string>
+    <string name="home_undo">Deshacer</string>
+
+    <string name="data_title">Datos dañados</string>
+    <string name="data_intro">Sukrara no pudo leer algunos de sus datos guardados y empezó esas partes de nuevo. Esto es lo que significa para ti.</string>
+    <string name="data_copy">Copiar informe</string>
+    <string name="data_ack">Entendido</string>
+    <string name="data_back">Atrás</string>
+    <string name="home_link_silent">Sin señal de %1$s desde %2$s</string>
+    <string name="home_link_silent_unnamed">Sin señal de su móvil desde %1$s</string>
+    <string name="home_link_revoked">Ya no sigues a esta persona</string>
+    <string name="data_store_settings_title">Ajustes</string>
+    <string name="data_store_settings_text">Tus ajustes volvieron a los valores por defecto. Revisa tus niveles de alerta y silencios.</string>
+    <string name="data_open_alerts">Abrir ajustes de alertas</string>
+    <string name="data_store_history_title">Lecturas y tratamientos</string>
+    <string name="data_store_history_text">Puede que falten algunas lecturas guardadas o tratamientos registrados.</string>
+    <string name="data_store_keys_title">Claves e inicios de sesión</string>
+    <string name="data_store_keys_text">No se pudo leer una clave o un inicio de sesión guardado. Puede que tengas que iniciar sesión, emparejar o compartir de nuevo.</string>
+    <string name="data_store_other_title">Otros datos guardados</string>
+    <string name="data_store_other_text">Se reinició un archivo guardado; Sukrara lo empezó de nuevo vacío.</string>
+</resources>

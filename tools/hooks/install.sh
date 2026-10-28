@@ -1,5 +1,5 @@
 #!/bin/sh
-# CGM research spikes — https://github.com/mauriciabad/cgm-reading-mac-spike
+# Sukrara — https://github.com/mauriciabad/sukrara
 # Copyright (C) 2026 Maurici Abad
 # SPDX-License-Identifier: GPL-3.0-or-later
 # Use tools/hooks for this clone and all its worktrees (core.hooksPath is shared repo config).

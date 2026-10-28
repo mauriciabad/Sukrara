@@ -1,0 +1,22 @@
+{
+  "note": "Test vectors for investigation 14 (spikes/nostr/identity). Keys are public test values, never real accounts.",
+  "main_sec": "1111111111111111111111111111111111111111111111111111111111111111",
+  "derived": [
+    {
+      "index": 0,
+      "root_sec": "74fa37ebee928af65949cbc46bd83057b584c4cbf5c2f42ca4119eb0a3c9733d",
+      "profile_sec": "65cec2f2beecf66265cebff16e1a769a4b86dbd3aa3fca07e1f960d7b821d0f4"
+    },
+    {
+      "index": 1,
+      "root_sec": "33e9bb682fa68b366d38fe9372023b7b9bfdaf3a4ffb0ee6063b0bc988060a8e",
+      "profile_sec": "6a200d23b292ab88669ae735f074fc46a628fb766eac8c91280c872019a2cd66"
+    }
+  ],
+  "invite": {
+    "secret": "00112233445566778899aabbccddeeff",
+    "invite_key_pub": "54e58fc9721e219802757ef0afa87dd0e0c361925d82f53a5b67d8cc0186050c",
+    "i_pub": "c8316ad8a07f618d5610d5db8d4b93e68cd320297b1bb2f6c7e0bdfd115d8704",
+    "short_link": "https://sukrara.mauri.app/join#yDFq2KB_YY0AESIzRFVmd4iZqrvM3e7_"
+  }
+}

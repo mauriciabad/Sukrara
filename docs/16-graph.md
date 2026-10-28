@@ -151,7 +151,7 @@ dialogs came from Android's render thread and system server, not from Sukrara (m
 ## Mac
 
 The same renderer, ported line for line to Swift + CoreGraphics in one shared file
-([`spikes/widgets-macos/Shared/SukraraGraph.swift`](../spikes/widgets-macos/Shared/SukraraGraph.swift)) that both the
+([`poc/spikes/widgets-macos/Shared/SukraraGraph.swift`](../poc/spikes/widgets-macos/Shared/SukraraGraph.swift)) that both the
 menubar app (a symlink in its SwiftPM target) and the widget extension compile. Same ranges, weights, six
 algorithms, freshness steps, colours and layout.
 
@@ -329,7 +329,7 @@ short (~25 dp on a 4×2 widget); at 3 h it reads at a glance.*
 ### On the Mac (same round)
 
 `SukraraGraph.swift` ports the marks (times, mute lines), `StatusBadge`, `Slots.arrange`, `LastSlot` and `LastPlace`
-line by line; `AlertStatus` and `LastTreatment` sit in `spikes/widgets-macos/Shared/AlertRules.swift` with the
+line by line; `AlertStatus` and `LastTreatment` sit in `poc/spikes/widgets-macos/Shared/AlertRules.swift` with the
 alert settings themselves, shared by the menubar app (its `AlertEngine` uses the same `level`, `mutedBy` and `muteS`)
 and the widgets (the host writes its alert settings and the fallback ring's numbers into the widget snapshot).
 `-alerts-selftest` runs the `CardStatusTest` cases. `render treatments <dir>` (Render CLI) draws the gallery's
@@ -401,7 +401,7 @@ take the plot's room, and a leader line would cross the marker lane's mute lines
 
 ### Fixtures (the layout dump)
 
-`spikes/graph-fixtures/labels/labels.json`: 10 cases (two 5g snacks 11 h ago at the left edge, a meal with insulin
+`poc/spikes/graph-fixtures/labels/labels.json`: 10 cases (two 5g snacks 11 h ago at the left edge, a meal with insulin
 and carbs in the same minute, insulin + carbs 2 and 5 min ago at the right edge, a 2×2 graph widget without the %
 column, a full 24 h day, a one-row 4×1 side-by-side chart, corrections close together with a note, a snack every
 40 min, a label squeezed between the left edge and a newer one (drops its time), a lone bolus with no time in range
@@ -480,7 +480,7 @@ none. Now the placement is one decision, `GlucoseCard.sensorSpot`, over the whol
 - surfaces that draw a card in boxes of their own pass the same whole-card `CardStyle` with `part` (`CardPart`);
 - the place's setting (*Sensor time left*, per place and per Android widget) is part of the style.
 
-Guards: `spikes/graph-fixtures/place` (both platforms decide the same; the box and the label room in the `TextModel`),
+Guards: `poc/spikes/graph-fixtures/place` (both platforms decide the same; the box and the label room in the `TextModel`),
 two label cases with the badge's room, and `tools/check` `graph-surface` (whole tree): only `GlucoseCard` draws the chart
 and the badge, every surface `CardStyle` carries `sensorTime`, a file drawing a card in parts passes `part` each time,
 the Compose badge only next to `GlucoseCard.sensorSpot`. The gallery's `surfaces` sheet (Android) and `render treatments`

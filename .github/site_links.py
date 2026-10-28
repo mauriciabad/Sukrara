@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-# CGM research spikes — https://github.com/mauriciabad/cgm-reading-mac-spike
+# Sukrara — https://github.com/mauriciabad/sukrara
 # Copyright (C) 2026 Maurici Abad
 # SPDX-License-Identifier: GPL-3.0-or-later
 """Copy docs/ to the website source and point every link that leaves docs/ at the file on GitHub.
 
-The reports link the repository the GitHub way (`../spikes/x/evidence/a.png`), which works on github.com but not on
+The reports link the repository the GitHub way (`../poc/spikes/x/evidence/a.png`), which works on github.com but not on
 the website: Pages publishes docs/ only. Rewriting at build time keeps one way of writing links and makes every new
 report work on the site too: images → raw file at this commit, other files → their GitHub page, folders → the tree.
 

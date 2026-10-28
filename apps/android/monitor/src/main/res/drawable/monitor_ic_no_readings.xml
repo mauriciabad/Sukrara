@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Sukrara — https://github.com/mauriciabad/sukrara
+     Copyright (C) 2026 Maurici Abad
+     SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- status-bar icon: no readings (sensor signal crossed out) -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path android:fillColor="#FFFFFFFF" android:pathData="M3.3,2 L22,20.7 L20.7,22 L17.6,18.9 A8,8 0,0 1,5.1 6.4 L2,3.3 Z M6.5,7.8 A6,6 0,0 0,16.2 17.5 Z M12,4 A8,8 0,0 1,20 12 A8,8 0,0 1,19.2 15.5 L17.7,14 A6,6 0,0 0,10 6.3 L8.5,4.8 A8,8 0,0 1,12 4 Z" />
+</vector>

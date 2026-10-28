@@ -3,8 +3,9 @@
     "relation": ["delegate_permission/common.handle_all_urls"],
     "target": {
       "namespace": "android_app",
-      "package_name": "app.mauri.sukrara.poc",
+      "package_name": "app.mauri.sukrara",
       "sha256_cert_fingerprints": [
+        "27:EC:21:B2:54:4C:E5:EB:7F:D9:48:49:AD:16:DB:86:51:B3:4C:F8:98:CD:B5:0A:DE:21:59:23:1A:1A:8D:96",
         "07:05:C6:FA:80:0C:15:FB:D3:45:A0:8B:4A:EA:76:CF:F4:BD:0A:C4:45:A1:46:17:E1:60:37:F2:68:56:BE:47"
       ]
     }

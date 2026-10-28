@@ -1,7 +1,7 @@
 # 24b — Open Glucose Stream draft 3: a clean-sheet standard
 
-*2026-10-19 · investigation report · follows [24](24-open-standard.md) · spec: [`spec/draft3/`](../spec/draft3) ·
-reference: [`spec/reference/ogs/d3`](../spec/reference/ogs/d3) · evidence:
+*2026-10-19 · investigation report · follows [24](24-open-standard.md) · spec: [`poc/spec/draft3/`](../poc/spec/draft3) ·
+reference: [`poc/spec/reference/ogs/d3`](../poc/spec/reference/ogs/d3) · evidence:
 [`evidence/24b-draft3-e2e.log`](evidence/24b-draft3-e2e.log) · reviewed in [24c](24c-draft3-review.md)*
 
 > **Updated after the independent review ([24c](24c-draft3-review.md)).** The review found two critical holes (a
@@ -20,11 +20,11 @@ stream.
 
 | | Result |
 |---|---|
-| Spec set | **OGS draft 3** in `spec/draft3/`, written in RFC 2119 style, with vendor-neutral constants. Documents: core, data model, Nostr transport, Bluetooth transport, security and privacy, conformance, rationale (requirements and decisions), and a migration note from draft 1. |
+| Spec set | **OGS draft 3** in `poc/spec/draft3/`, written in RFC 2119 style, with vendor-neutral constants. Documents: core, data model, Nostr transport, Bluetooth transport, security and privacy, conformance, rationale (requirements and decisions), and a migration note from draft 1. |
 | Mental model | **Draft 1:** an owner phone broadcasts with one read key per epoch. **Draft 3:** a set of records, each **signed by its author**. Members hold **grants that are ranges of days**, cut from a key tree. Relays see **keys that change every day**. |
 | State of the art | Re-checked against current NIPs and open PRs, Marmot (MLS over Nostr), the HL7 CGM IG 1.0.0, Tidepool, Nightscout API v3, Open mHealth / IEEE 1752, HealthKit, Health Connect, Bluetooth CGMS, the consent models of Dexcom Follow, LibreLinkUp and Nightscout, MLS / Signal / Megolm, and BLE platform limits. What changed the design: [below](#what-the-state-of-the-art-changed). |
-| Reference | `spec/reference/ogs/d3`, Python with standard-library crypto (the draft-1 primitives plus HMAC trees and secp256k1 key tweaking). **MLS was not chosen**, so no heavy library is needed. Parts: owner/administrator, member, BLE identifiers, bridges, vectors, live run. |
-| Test vectors | `spec/draft3/test-vectors/ogs-draft3.json`, byte-for-byte reproducible: <br>• the tree: 2 epochs, 5 covers, day material, blinded authors and a blinded secret, `d` tags, a punctured cover; <br>• the invite in 3 text forms, 3 invite checks; <br>• **44 events**, with the plaintext of every wrap; <br>• 3 administrator checks; <br>• a **42-step acceptance scenario** with its final state; <br>• BLE UUIDs, both proofs, and frames at 3 MTUs; <br>• bridge examples (Nightscout, FHIR, Health Connect, Tidepool). |
+| Reference | `poc/spec/reference/ogs/d3`, Python with standard-library crypto (the draft-1 primitives plus HMAC trees and secp256k1 key tweaking). **MLS was not chosen**, so no heavy library is needed. Parts: owner/administrator, member, BLE identifiers, bridges, vectors, live run. |
+| Test vectors | `poc/spec/draft3/test-vectors/ogs-draft3.json`, byte-for-byte reproducible: <br>• the tree: 2 epochs, 5 covers, day material, blinded authors and a blinded secret, `d` tags, a punctured cover; <br>• the invite in 3 text forms, 3 invite checks; <br>• **44 events**, with the plaintext of every wrap; <br>• 3 administrator checks; <br>• a **42-step acceptance scenario** with its final state; <br>• BLE UUIDs, both proofs, and frames at 3 MTUs; <br>• bridge examples (Nightscout, FHIR, Health Connect, Tidepool). |
 | Tests | 36 offline tests: the 17 from draft 1, 12 from this draft (cover exactness and minimality on 60 random ranges, bounded grants, puncturing, blinded secret ↔ blinded public key, invite forms, validation, padding, BLE UUIDs, vectors and determinism) and 7 from the review (removed writer, grant-only cut, `ended` ordering, history cap, read-only emergency invites, merge ties, BLE `AUTH`). All pass. |
 | Live run | `uv run ogs d3 e2e` against **nos.lol, relay.primal.net and nostr.mom**, throwaway keys and synthetic glucose, everything expiring within the hour. The flow: <br>1. an owner invites a reader F1 (one day back) and a writer F2 (today only); <br>2. both join by typed code and backfill **exactly** their windows; <br>3. a live update reaches both; <br>4. F2's carbs are accepted by the owner and by F1; <br>5. the owner removes F1: rotation, F1 ended, F2 granted the new epoch; <br>6. new-epoch data reaches F2, and F1 can't read it; <br>7. (review) the owner removes F2 too, and F2's carbs signed in its old epoch are not recognised. <br>**9/9 checks pass, in about 50 s** ([24c log](evidence/24c-draft3-review-e2e.log)). |
 | Live run found bugs | The first run found real protocol issues, now fixed in the spec and the reference. See [Lessons from the live run](#lessons-from-the-live-run). |
@@ -32,7 +32,7 @@ stream.
 
 ## Requirements
 
-Fifteen requirements, R1–R15, are listed in full in [rationale.md §1](../spec/draft3/rationale.md#1-requirements):
+Fifteen requirements, R1–R15, are listed in full in [rationale.md §1](../poc/spec/draft3/rationale.md#1-requirements):
 - **R1 Actors:** the wearer, or a parent as administrator; several wearer devices; family; carers who write and
   acknowledge; time-limited school staff; clinicians who need history only; emergency responders; watch apps;
   integrations.
@@ -51,12 +51,12 @@ Fifteen requirements, R1–R15, are listed in full in [rationale.md §1](../spec
 - **R14 Implementable** on phones, watches and in Python.
 - **R15 No server.**
 
-The threat model is in [ogs3-security S§1](../spec/draft3/ogs3-security.md#s1-assets-and-adversaries).
+The threat model is in [ogs3-security S§1](../poc/spec/draft3/ogs3-security.md#s1-assets-and-adversaries).
 
 ## Decisions
 
 The full reasoning, with what was considered and why each option was rejected, is in
-[rationale.md §2](../spec/draft3/rationale.md#2-decisions). In short:
+[rationale.md §2](../poc/spec/draft3/rationale.md#2-decisions). In short:
 
 1. **The signed record is the authority** (D1).
    - Every record is a NIP-01 event signed by its author inside the encryption, on every copy.
@@ -144,7 +144,7 @@ The full reasoning, with what was considered and why each option was rejected, i
 
 ## What the state of the art changed
 
-The full list with sources is in [rationale.md §3](../spec/draft3/rationale.md#3-what-the-state-of-the-art-review-changed).
+The full list with sources is in [rationale.md §3](../poc/spec/draft3/rationale.md#3-what-the-state-of-the-art-review-changed).
 These findings changed the design:
 - **NIP-78 and `registry-of-kinds`:** relays SHOULD serve 30078 only to its author → no 30078 anywhere.
 - **NIP-DA (nips#2411):** a symmetric key used directly as the NIP-44 conversation key → day keys, and no `nsec` of
@@ -204,7 +204,7 @@ the alert wire parts).
 | **Data model:** flags (HI/LO display in **one graph everywhere**: the `graph` parity group), sensor records, `device`, `settings` unit/target, typed entries, open alert kinds | 2.5 | 2 |
 | **Bluetooth:** derived UUIDs, midnight re-registration, scan-filter refresh, pairing service | 2 | 1.5 |
 | **UI:** offer picker (history, duration, scopes), member list with windows, emergency invite, ack button; strings en/es | 3 | 1.5 |
-| **Tests and specs:** vectors in `InviteTest`/`BleTest`/new `Ogs3VectorsTest`, `-v3selftest`; replace `PROTOCOL-v2.md`/`PROTOCOL-identity.md` by a pointer to `spec/draft3`; parity groups; FEATURES.md, QA.md | 2 | 1.5 |
+| **Tests and specs:** vectors in `InviteTest`/`BleTest`/new `Ogs3VectorsTest`, `-v3selftest`; replace `PROTOCOL-v2.md`/`PROTOCOL-identity.md` by a pointer to `poc/spec/draft3`; parity groups; FEATURES.md, QA.md | 2 | 1.5 |
 | **Total** | **≈ 19** | **≈ 11.5** |
 
 - **About 30 agent-days in all.** With two agents per platform, that's roughly three calendar weeks, plus device QA
@@ -231,10 +231,10 @@ the alert wire parts).
 remain are the maintainer's.
 
 Material:
-- [`spec/drafts/site-page.md`](../spec/drafts/site-page.md): the page for sukrara.mauri.app, updated for draft 3;
-- [`spec/drafts/standalone-README.md`](../spec/drafts/standalone-README.md): the README of the spec repository;
-- [`spec/drafts/outreach.md`](../spec/drafts/outreach.md): texts for other projects, still unsent.
-  [`nip-pr.md`](../spec/drafts/nip-pr.md) is marked "not to be sent".
+- [`poc/spec/drafts/site-page.md`](../poc/spec/drafts/site-page.md): the page for sukrara.mauri.app, updated for draft 3;
+- [`poc/spec/drafts/standalone-README.md`](../poc/spec/drafts/standalone-README.md): the README of the spec repository;
+- [`poc/spec/drafts/outreach.md`](../poc/spec/drafts/outreach.md): texts for other projects, still unsent.
+  [`nip-pr.md`](../poc/spec/drafts/nip-pr.md) is marked "not to be sent".
 
 **Licence: CC0-1.0**, chosen by the user on 2026-10-19, for the text, the test vectors and the reference
 implementation. The trade-off that was weighed:
@@ -248,12 +248,12 @@ of it and it imports no GPL code. In this repository the same files keep their G
 
 What is done (2026-10-19):
 1. **The standalone repository is prepared locally**, not pushed, in
-   `/Users/blue/Projects/cgm-reading-mac-spike/tmp/open-glucose-stream/` (git-ignored here), committed and tagged
+   `/Users/blue/Projects/sukrara/tmp/open-glucose-stream/` (git-ignored here), committed and tagged
    `draft-3`. It contains:
-   - `spec/` from `spec/draft3`, with links into this repository pinned to a commit;
+   - `poc/spec/` from `poc/spec/draft3`, with links into this repository pinned to a commit;
    - `test-vectors/`;
    - `reference/`: the draft-3 package and the shared crypto, CC0 headers, its own crypto tests;
-   - `README.md` from `spec/drafts/standalone-README.md`;
+   - `README.md` from `poc/spec/drafts/standalone-README.md`;
    - `LICENSE`: the official CC0-1.0 legal code;
    - a CI workflow that runs the vector check and the tests.
 2. **The website page** is `docs/ogs.md`, linked from `docs/index.md`. It goes live when the branch is merged into
@@ -274,9 +274,9 @@ cost is above. Draft 1 stays the description of what Sukrara 0.11 speaks.
 
 | Path | What |
 |---|---|
-| `spec/draft3/` | README, core, data, Nostr, BLE, security, conformance, rationale, migration |
-| `spec/draft3/test-vectors/ogs-draft3.json` | vectors (throwaway keys from public strings, synthetic data) |
-| `spec/reference/ogs/d3/` | `core.py` (tree, day material, blinding, records, envelopes), `data.py`, `control.py`, `member.py`, `owner.py`, `ble.py`, `bridges.py`, `vectors.py`, `e2e.py` |
-| `spec/reference/tests/test_ogs3.py` | 12 offline tests |
+| `poc/spec/draft3/` | README, core, data, Nostr, BLE, security, conformance, rationale, migration |
+| `poc/spec/draft3/test-vectors/ogs-draft3.json` | vectors (throwaway keys from public strings, synthetic data) |
+| `poc/spec/reference/ogs/d3/` | `core.py` (tree, day material, blinding, records, envelopes), `data.py`, `control.py`, `member.py`, `owner.py`, `ble.py`, `bridges.py`, `vectors.py`, `e2e.py` |
+| `poc/spec/reference/tests/test_ogs3.py` | 12 offline tests |
 | `docs/evidence/24b-draft3-e2e.log` | the live run on public relays |
-| `spec/drafts/site-page.md`, `standalone-README.md` | publishing drafts |
+| `poc/spec/drafts/site-page.md`, `standalone-README.md` | publishing drafts |

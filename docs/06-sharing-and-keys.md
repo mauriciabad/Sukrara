@@ -1,6 +1,6 @@
 # 06 — Sharing, follower apps and key management without lock-in
 
-*2026-10-16 · investigation report · follows [03 — Nostr](03-nostr.md) · spec: [PROTOCOL-v2](../spikes/nostr/PROTOCOL-v2.md)*
+*2026-10-16 · investigation report · follows [03 — Nostr](03-nostr.md) · spec: [PROTOCOL-v2](../poc/spikes/nostr/PROTOCOL-v2.md)*
 
 ## Goal
 
@@ -52,12 +52,12 @@ entry** and followers notice nothing. Real-phone tests with Proton Pass / Bitwar
 
 ## Reference implementation + end-to-end tests (Python, real public relays)
 
-[`spikes/nostr/v2/`](../spikes/nostr/v2): `cgm2.py` (protocol), `nodes.py` (owner / follower), `scenarios.py`.
+[`poc/spikes/nostr/v2/`](../poc/spikes/nostr/v2): `cgm2.py` (protocol), `nodes.py` (owner / follower), `scenarios.py`.
 *(2026-10-19: `nodes.py`, `scenarios.py` and the CLI were retired with their `cgmshare:join?` links (investigation 24,
-P15); `cgm2.py` keeps the primitives, and [`spec/reference`](../spec/reference) is the independent implementation.)*
+P15); `cgm2.py` keeps the primitives, and [`poc/spec/reference`](../poc/spec/reference) is the independent implementation.)*
 Every node has its own keys, own SQLite and own relay connections — **the only shared thing is the public relays**,
 so a follower can only show data that really travelled through Nostr. Result: **19/19 checks pass**
-([`results/v2-scenarios.txt`](../spikes/nostr/results/v2-scenarios.txt)):
+([`results/v2-scenarios.txt`](../poc/spikes/nostr/results/v2-scenarios.txt)):
 
 | # | Scenario | Result |
 |---|---|---|
@@ -78,15 +78,15 @@ Bugs these tests caught (fixed, and written into the spec):
 
 ## Android app — "CGM Share"
 
-[`spikes/nostr/android-app`](../spikes/nostr/android-app) (`dev.spike.cgmshare`, Kotlin, ~3.6k lines). **One app,
+[`poc/spikes/nostr/android-app`](../poc/spikes/nostr/android-app) (`dev.spike.cgmshare`, Kotlin, ~3.6k lines). **One app,
 two roles** picked at onboarding — "I wear the sensor" / "I follow someone" — with **separate databases, separate
 Keystore keys and separate state files**; only the chosen role's engine is ever created.
 
 <p>
-<img src="../spikes/nostr/android-app/evidence/02-owner-share-qr.png" width="200" alt="Share QR">
-<img src="../spikes/nostr/android-app/evidence/04-owner-approve-dialog.png" width="200" alt="Approve dialog with match code">
-<img src="../spikes/nostr/android-app/evidence/06-follower-home.png" width="200" alt="Follower home">
-<img src="../spikes/nostr/android-app/evidence/09-save-to-password-manager.png" width="200" alt="Save to password manager">
+<img src="../poc/spikes/nostr/android-app/evidence/02-owner-share-qr.png" width="200" alt="Share QR">
+<img src="../poc/spikes/nostr/android-app/evidence/04-owner-approve-dialog.png" width="200" alt="Approve dialog with match code">
+<img src="../poc/spikes/nostr/android-app/evidence/06-follower-home.png" width="200" alt="Follower home">
+<img src="../poc/spikes/nostr/android-app/evidence/09-save-to-password-manager.png" width="200" alt="Save to password manager">
 </p>
 
 - **Owner**: Juggluco (or a debug synthetic source) → live + hourly chunks + roster + owner backup on 4 relays;
@@ -102,7 +102,7 @@ Keystore keys and separate state files**; only the chosen role's engine is ever 
   NIP-59; own OkHttp relay layer (paced writes, subscriptions, NIP-42 AUTH). Release APK 14 MB (7.6 MB native lib).
 
 Tested on **two emulators = two separate devices** (and against the Python reference); evidence in
-[`android-app/evidence/`](../spikes/nostr/android-app/evidence):
+[`android-app/evidence/`](../poc/spikes/nostr/android-app/evidence):
 
 | Scenario | Result |
 |---|---|

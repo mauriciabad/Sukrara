@@ -1,6 +1,6 @@
 # 25 — Nightscout upload: glucose and treatments to the user's own Nightscout
 
-*2026-10-19 · investigation report · standalone PoC `spikes/nightscout-upload` (Kotlin JVM uploader library + CLI),
+*2026-10-19 · investigation report · standalone PoC `poc/spikes/nightscout-upload` (Kotlin JVM uploader library + CLI),
 verified against a local Nightscout 15.0.8 + MongoDB 7 in Docker, synthetic data only · source read from the
 local checkouts in `third_party/`: cgm-remote-monitor `92d0834` (15.0.8), xDrip+ `8532095`, Juggluco `a983788a`,
 AndroidAPS `aa16db6419`, LoopFollow `4a74b78`, nightguard, Trio `0b29cd5`*
@@ -189,7 +189,7 @@ them on the graph with a "from Nightscout" mark, and never write them to the log
 ## 4. The PoC
 
 ```
-spikes/nightscout-upload/
+poc/spikes/nightscout-upload/
   core/   the library Sukrara would embed (plain JVM: org.json + HttpURLConnection, both in Android)
     Model.kt      Reading (with Origin), Treatment, SensorStart, UploaderBattery
     NsConfig.kt   URL rules (https, http only for localhost), NsAuth.ApiSecret | AccessToken, NsApi.V1 | V3, limits
@@ -246,7 +246,7 @@ too, because most users only have that. With the secret, the uploader is limited
 the `api-secret` header, never the plain text (the server accepts SHA-1 or SHA-512 (`enclave.js:50`). SHA-512 would
 be marginally better on the wire, but Trio and older servers use SHA-1).
 
-### Verification (evidence in `spikes/nightscout-upload/evidence/`)
+### Verification (evidence in `poc/spikes/nightscout-upload/evidence/`)
 
 Local Nightscout 15.0.8 (the official image) + MongoDB 7 in Docker, bound to 127.0.0.1. `AUTH_DEFAULT_ROLES=denied`,
 so every reader had to authenticate. The phone's zone was pinned to America/New_York so `utcOffset` is visibly
@@ -313,7 +313,7 @@ same core, so the PoC's per-reading outbox was dropped for Tidepool's model:
   the diff with the site (Nightscout only: it can list what it has cheaply; Tidepool keeps its own rules), the role
   rules (Tidepool: follower opt-in; Nightscout: wearer only). Tidepool's behaviour and tests are unchanged.
 
-**Verification** (`spikes/nightscout-upload/evidence/in-sukrara.txt`): the app's own planner, sender and HTTP client
+**Verification** (`poc/spikes/nightscout-upload/evidence/in-sukrara.txt`): the app's own planner, sender and HTTP client
 (`NightscoutLiveTest`) against a local Nightscout 15.0.8 in Docker, synthetic data, phone zone America/New_York:
 - 30 days (43 187 documents) in one cycle, ~4.5 s, API v1 + API secret; a second cycle sends nothing; a 20-minute gap
   arriving late is filled → **43 201 entries, 0 gaps > 1 min, 0 duplicates**; stored `dateString` UTC, `utcOffset` −240.
@@ -346,7 +346,7 @@ queue, backoff, diff-backfill, roles and conflict ideas here are written so they
 - Agree with `w-tidepool` on one `CloudUploader` interface (`onReadings`/`onTreatmentChanged`/`onSensorStart`/`sync()`
   → `SyncReport`) and one status row design before either merges.
 
-**Files** (Android, `spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/`):
+**Files** (Android, `poc/spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/`):
 - `nightscout/` — port `NsConfig`, `NsDocs`, `NsClient`, `Uploader`, `Http` (unchanged: org.json + HttpURLConnection
   are in Android). `Model.kt` maps from `core/Proto.Reading` and `treatments/Treatment` (the treatment's `id` is
   already a UUID).
@@ -396,7 +396,7 @@ queue, backoff, diff-backfill, roles and conflict ideas here are written so they
 1. Fresh install → Settings → Share with apps → Nightscout: off. Turn on with an empty site → it asks for the site.
 2. `http://192.168.x.y` → refused; `https://` with a wrong token → "Can't sign in", no further requests (check the
    server log), fix the token → resumes.
-3. Local test site (`spikes/nightscout-upload/verify/nightscout.sh up`, reached via `adb reverse tcp:1337 tcp:1337` as
+3. Local test site (`poc/spikes/nightscout-upload/verify/nightscout.sh up`, reached via `adb reverse tcp:1337 tcp:1337` as
    `http://localhost:1337`): after enabling, the last 7 days appear; `followers/run.sh` and `cli check` pass against it.
 4. Airplane mode 20 min → off: readings fill in, no gaps or duplicates (`cli check`). Kill the app while queued →
    after restart the queue still drains.
@@ -417,7 +417,7 @@ reading, no follower relay, one upload design shared with Tidepool. Still open:
 ## Run it
 
 ```sh
-cd spikes/nightscout-upload
+cd poc/spikes/nightscout-upload
 export JAVA_HOME=$(brew --prefix openjdk@17)/libexec/openjdk.jdk/Contents/Home
 ./gradlew :core:test :cli:installDist
 verify/all.sh                      # fresh local Nightscout in Docker, every check above → evidence/*.txt

@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Sukrara — https://github.com/mauriciabad/sukrara
+     Copyright (C) 2026 Maurici Abad
+     SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- A static synthetic curve for the widget picker (never the person's data). -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="240dp"
+    android:height="100dp"
+    android:viewportWidth="240"
+    android:viewportHeight="100">
+    <path android:fillColor="#3317A34A" android:pathData="M0,30h240v45h-240z" />
+    <path
+        android:pathData="M4,62 C30,70 50,40 80,44 C110,48 120,80 150,74 C180,68 200,36 236,40"
+        android:strokeWidth="4"
+        android:strokeColor="#17A34A"
+        android:strokeLineCap="round" />
+</vector>

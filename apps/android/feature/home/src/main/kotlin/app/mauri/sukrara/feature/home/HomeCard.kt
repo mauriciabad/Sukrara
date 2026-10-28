@@ -1,0 +1,210 @@
+// Sukrara — https://github.com/mauriciabad/sukrara
+// Copyright (C) 2026 Maurici Abad
+// SPDX-License-Identifier: GPL-3.0-or-later
+package app.mauri.sukrara.feature.home
+
+import android.content.res.Resources
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.graphics.nativeCanvas
+import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.CustomAccessibilityAction
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.customActions
+import androidx.compose.ui.unit.dp
+import app.mauri.sukrara.core.model.Durations
+import app.mauri.sukrara.core.model.GlucoseState
+import app.mauri.sukrara.core.model.SensorState
+import app.mauri.sukrara.core.model.Treatment
+import app.mauri.sukrara.graph.CardModel
+import app.mauri.sukrara.graph.CardPart
+import app.mauri.sukrara.graph.CardSurface
+import app.mauri.sukrara.graph.CardWords
+import app.mauri.sukrara.graph.ChartView
+import app.mauri.sukrara.graph.GlucoseCard
+import app.mauri.sukrara.graph.GlucoseLook
+import app.mauri.sukrara.graph.GraphConfig
+import app.mauri.sukrara.graph.GraphPalette
+import app.mauri.sukrara.graph.GraphPlace
+import app.mauri.sukrara.graph.SensorBadge
+import app.mauri.sukrara.graph.SensorInfo
+import app.mauri.sukrara.graph.SensorLife
+import app.mauri.sukrara.graph.TrendMark
+import app.mauri.sukrara.graph.stats.Band
+import app.mauri.sukrara.graph.stats.toPoint
+import java.time.Duration
+import java.time.Instant
+
+/*
+ * The home screen's card: the registered `app-panel` surface (contracts/graph/surfaces/surfaces.json). It only chooses
+ * its size and style; the renderer (`GlucoseCard`) lays out and draws the value, arrow, badge, slots and chart.
+ */
+
+/** The renderer's decision about the latest value on the home card (what the panel, the reason row and TalkBack use). */
+fun homeLook(
+    state: GlucoseState,
+    now: Instant,
+): GlucoseLook {
+    // the same sensor dates and warm-up rule the drawn card uses (a reading since the sensor's start ends the warm-up)
+    val info = state.sensor.info(now)
+    val warming = info != null && SensorLife.warming(info, state.latest?.t?.epochSecond, now.epochSecond)
+    val sensor =
+        when (val s = state.sensor) {
+            SensorState.Ended -> SensorBadge.Look(label = "", life = 0f, ended = true)
+            is SensorState.WarmingUp ->
+                if (warming) SensorBadge.Look(label = "", life = 1f, ended = false, warmup = "", readyAt = s.readyAt.epochSecond) else null
+            else -> null
+        }
+    return GlucoseCard.face(state.latest?.toPoint(), now.epochSecond, sensor, CardSurface.APP_PANEL)
+}
+
+/**
+ * The sensor's dates as the card needs them; null when nothing is known (the card then shows no sensor badge). An ended
+ * sensor without dates ends at [now], so the renderer draws "Sensor ended" + "Replace sensor" in the value's place.
+ */
+private fun SensorState.info(now: Instant): SensorInfo? =
+    when (this) {
+        SensorState.Ended -> SensorInfo(startS = now.epochSecond - SENSOR_LIFE.seconds, endS = now.epochSecond)
+        is SensorState.Active -> endsAt?.let { SensorInfo(startS = it.epochSecond - SENSOR_LIFE.seconds, endS = it.epochSecond) }
+        is SensorState.WarmingUp -> {
+            val start = readyAt.epochSecond - WARMUP.seconds
+            SensorInfo(startS = start, endS = start + SENSOR_LIFE.seconds, warmupEndS = readyAt.epochSecond)
+        }
+        else -> null
+    }
+
+private val SENSOR_LIFE = Duration.ofDays(15)
+private val WARMUP = Duration.ofHours(1)
+
+/**
+ * The card for [glucose] and [treatments] at [now]: drag sideways to scroll back in time, "Now" to come back.
+ * TalkBack reads [description] (the value sentence and the chart summary) as one node; [actions] are its custom
+ * actions (Unmute).
+ */
+@Composable
+fun PanelCard(
+    glucose: GlucoseState,
+    treatments: List<Treatment>,
+    now: Instant,
+    config: GraphConfig,
+    description: String,
+    modifier: Modifier = Modifier,
+    actions: List<CustomAccessibilityAction> = emptyList(),
+) {
+    val resources = LocalContext.current.resources
+    val words = remember(resources) { CardWords.of(resources) }
+    val dark = MaterialTheme.colorScheme.background.luminance() < 0.5f
+    val palette = GraphPalette.of(dark)
+    val nowS = now.epochSecond
+    val model =
+        remember(glucose, treatments, nowS, words) {
+            CardModel(
+                readings = glucose.recent.map { it.toPoint() },
+                treatments = treatments,
+                nowS = nowS,
+                words = words,
+                status = glucose.alerts.status,
+                sensor = glucose.sensor.info(now),
+            )
+        }
+    val style = remember(config) { config.appPanelStyle() }
+    val spanS by rememberUpdatedState(config.hours(GraphPlace.APP) * 3600L)
+    // null = following now; otherwise the end of the scrolled window
+    var endS by rememberSaveable { mutableStateOf<Long?>(null) }
+    val currentNow by rememberUpdatedState(nowS)
+    val density = LocalDensity.current.density
+    Box(modifier.fillMaxWidth()) {
+        Canvas(
+            Modifier
+                .fillMaxWidth()
+                .height(CARD_HEIGHT)
+                .clearAndSetSemantics {
+                    contentDescription = description
+                    if (actions.isNotEmpty()) customActions = actions
+                }.pointerInput(Unit) {
+                    // horizontal only, so a vertical swipe that starts on the card still scrolls the page
+                    detectHorizontalDragGestures { _, dx ->
+                        val now = currentNow
+                        val shifted = ((endS ?: now) - (dx / size.width * spanS).toLong()).coerceAtMost(now)
+                        endS = shifted.takeIf { it < now - NOW_SNAP_S }
+                    }
+                },
+        ) {
+            val view = ChartView(endS = endS ?: nowS)
+            drawIntoCanvas { canvas ->
+                GlucoseCard.draw(canvas.nativeCanvas, size.width, size.height, model, style, palette, density, CardSurface.APP_PANEL, CardPart.ALL, view = view)
+            }
+        }
+        if (endS != null) {
+            FilledTonalButton(
+                onClick = { endS = null },
+                modifier = Modifier.align(Alignment.BottomEnd).padding(8.dp),
+            ) { Text(stringResource(R.string.home_chart_now)) }
+        }
+    }
+}
+
+/** A scroll that ends within a minute of now follows now again. */
+private const val NOW_SNAP_S = 60L
+private val CARD_HEIGHT = 300.dp
+
+/**
+ * What TalkBack reads for the card: the value sentence ("112 milligrams per decilitre, falling slowly, in range,
+ * 2 minutes ago"; an old value says so first) and the chart summary. Without a value only the chart summary (the reason
+ * under the card speaks for the missing value); empty when the chart has nothing either.
+ */
+fun cardDescription(
+    state: HomeUiState,
+    resources: Resources,
+): String {
+    val bands = state.config.bands
+    val hours = state.config.hours(GraphPlace.APP)
+    val window = state.glucose.recent.filter { it.t >= state.now.minusSeconds(hours * 3600L) }
+    val chart =
+        if (window.isEmpty()) {
+            null
+        } else {
+            val inRange = window.count { bands.of(it.mgdl).group == 0 } * 100 / window.size
+            resources.getString(R.string.home_a11y_chart, hours, inRange)
+        }
+    val reading = state.glucose.latest
+    val text = state.look.text
+    if (!state.look.shown || reading == null || text == null) return chart.orEmpty()
+    val words = CardWords.of(resources)
+    val range =
+        when (bands.of(reading.mgdl)) {
+            Band.VERY_LOW -> R.string.home_a11y_range_very_low
+            Band.LOW -> R.string.home_a11y_range_low
+            Band.TIGHT, Band.TARGET -> R.string.home_a11y_range_in
+            Band.HIGH -> R.string.home_a11y_range_high
+            Band.VERY_HIGH -> R.string.home_a11y_range_very_high
+        }
+    val minutes = Duration.between(reading.t, state.now).toMinutes().coerceAtLeast(0)
+    val age = if (minutes == 0L) resources.getString(R.string.home_a11y_just_now) else words.ago(Durations.text(minutes, words.durations))
+    val trend = words.trend(state.look.rate.takeIf { state.look.trend == TrendMark.ARROW })
+    val sentence = resources.getString(R.string.home_a11y_value, text, trend, resources.getString(range), age)
+    val value = if (state.look.strike) resources.getString(R.string.home_a11y_stale, sentence) else sentence
+    return if (chart == null) value else "$value. $chart"
+}

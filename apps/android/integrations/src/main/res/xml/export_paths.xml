@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Sukrara — https://github.com/mauriciabad/sukrara
+     Copyright (C) 2026 Maurici Abad
+     SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- Export data: the share sheet reads the CSV from cache/export/ -->
+<paths>
+    <cache-path name="export" path="export/" />
+</paths>

@@ -1,5 +1,5 @@
 {
-  "_about": "Allowlists for tools/check/check.py. Keep them short; every entry is an exception someone has to justify.",
+  "_about": "Allowlists for tools/check/check.py. Keep them short; every entry is an exception someone has to justify. App paths only (the frozen poc/ is checked by java / secrets / large / images only). Every cleartext_ok / network_ok entry has its reason.",
   "header_exts": [
     ".kt",
     ".swift",
@@ -13,86 +13,59 @@
   "header_exempt": [
     "*.gradle.kts",
     "*/gradlew",
-    "spikes/brand/assets/*",
-    "spikes/showcase-android/settingslib-spa/*"
+    "assets/brand/*"
   ],
   "images_ok": [
     "docs/img/*",
-    "spikes/*/evidence/*",
-    "spikes/brand/*",
-    "*/src/main/res/*"
+    "poc/spikes/*/evidence/*",
+    "assets/brand/*",
+    "apps/android/*/src/main/res/*",
+    "apps/android/*/src/test/snapshots/*",
+    "apps/macos/Tests/*/__Snapshots__/*",
+    "apps/macos/Bundle/*.xcassets/*",
+    "apps/macos/Bundle/*.icns"
   ],
   "images_extra": [],
   "large_bytes": 2000000,
   "large_ok": [],
   "secret_ok": [
-    "spikes/nostr/identity/vectors.json",
-    "spec/test-vectors/*",
-    "tools/check/check.py"
+    "contracts/protocol/identity/vectors.json",
+    "contracts/protocol/ogs/*",
+    "poc/spikes/nostr/identity/vectors.json",
+    "poc/spec/test-vectors/*",
+    "tools/check/check.py",
+    "tools/check/selftest.sh"
   ],
   "strings_scope": [
-    "spikes/showcase-android/app/src/main/kotlin/*.kt"
+    "apps/android/*/src/main/kotlin/*.kt"
   ],
-  "strings_warn_only": [
-    "spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/features/DebugReceiver.kt",
-    "spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/hook/*"
-  ],
+  "strings_warn_only": [],
   "cleartext_ok": [
     {
-      "path": "spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/nightscout/NsConfig.kt",
-      "contains": "\"http\" -> if (isLoopback(host))",
-      "reason": "NsSite.parse, the one validated path: http only to loopback or literal home-network hosts (NsSiteTest)"
-    },
-    {
-      "path": "spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/owner/OwnerEngine.kt",
-      "contains": "\"http://127.0.0.1:17580\"",
-      "reason": "Juggluco's web server on this phone's loopback"
-    },
-    {
-      "path": "spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/bridge/LocalServers.kt",
-      "contains": "\"http://$it:${Features.NIGHTSCOUT_PORT}\"",
-      "reason": "display text: the addresses this phone's own Nightscout API serves on (nothing is fetched)"
-    },
-    {
-      "path": "spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/ui/SettingsScreens.kt",
-      "contains": "\"http://127.0.0.1:${Features.NIGHTSCOUT_PORT}",
-      "reason": "display text: this phone's own Nightscout API on loopback"
+      "path": "apps/android/sensor/src/main/kotlin/app/mauri/sukrara/sensor/juggluco/JugglucoSource.kt",
+      "contains": "http://127.0.0.1:17580",
+      "reason": "local Juggluco on this phone: its web server listens on loopback only (127.0.0.1:17580); nothing leaves the device"
     }
   ],
   "network_ok": [
     {
-      "path": "spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/nightscout/Http.kt",
-      "reason": "Nightscout upload: URLs only from NsConfig, i.e. NsSite.parse"
+      "path": "apps/android/sensor/src/main/kotlin/app/mauri/sukrara/sensor/juggluco/JugglucoSource.kt",
+      "reason": "local Juggluco on this phone: the fixed loopback base URL (LOCAL_URL); no user-entered host"
     },
     {
-      "path": "spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/nightscout/NsConfig.kt",
-      "reason": "parses the user's address (URI), opens nothing"
+      "path": "apps/android/sensor/src/main/kotlin/app/mauri/sukrara/sensor/libreview/LibreViewAccount.kt",
+      "reason": "LibreView receiver-ID sign-in: https only, fixed host api.libreview.io or api-<region>.libreview.io (region validated as 2-3 lower-case letters)"
     },
     {
-      "path": "spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/tidepool/TidepoolClient.kt",
-      "reason": "https://api.tidepool.org constant"
+      "path": "apps/android/share/src/main/kotlin/app/mauri/sukrara/share/transport/WebSocket.kt",
+      "reason": "Nostr sharing: relay WebSockets; RelayPool passes only wss:// URLs (Wire.secureRelays), never cleartext"
     },
     {
-      "path": "spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/libreview/LibreViewClient.kt",
-      "reason": "https constants; the URLs from Abbott's config must start with https:// (LibreViewClient.https)"
-    },
-    {
-      "path": "spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/direct/ReceiverId.kt",
-      "reason": "https://api(-region).libreview.io literal"
-    },
-    {
-      "path": "spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/ui/SettingsScreens.kt",
-      "reason": "update check: https://api.github.com literal"
-    },
-    {
-      "path": "spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/core/RelayConnection.kt",
-      "reason": "relay URLs only after RelayPool / Proto keep wss:// ones"
-    },
-    {
-      "path": "spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara/owner/GlucoseSource.kt",
-      "reason": "Juggluco on loopback (OwnerEngine.JUGGLUCO)"
+      "path": "apps/android/feature/settings/src/main/kotlin/app/mauri/sukrara/feature/settings/UpdateCheck.kt",
+      "reason": "About page update check: GET the fixed https URL api.github.com/repos/mauriciabad/sukrara/releases once per page open (no user-entered host, nothing sent)"
     }
   ],
+  "durations_ok": {},
   "states_pending": [
     {
       "section": "Readings and backfill",
@@ -107,23 +80,11 @@
       "reason": "written before the Complete flows rule (round f29): audit its states and exits, then add the paragraph"
     },
     {
-      "section": "Sensor life",
-      "reason": "written before the Complete flows rule (round f29): audit its states and exits, then add the paragraph"
-    },
-    {
-      "section": "New sensor (pairing flow)",
-      "reason": "written before the Complete flows rule (round f29): audit its states and exits, then add the paragraph"
-    },
-    {
       "section": "Sensor scan: other sensors",
       "reason": "written before the Complete flows rule (round f29): audit its states and exits, then add the paragraph"
     },
     {
       "section": "Data export",
-      "reason": "written before the Complete flows rule (round f29): audit its states and exits, then add the paragraph"
-    },
-    {
-      "section": "Live notification",
       "reason": "written before the Complete flows rule (round f29): audit its states and exits, then add the paragraph"
     },
     {

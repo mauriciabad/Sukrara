@@ -1,0 +1,37 @@
+{
+  "name": "Sukrara",
+  "id": "sukrara",
+  "icon": "sukrara",
+  "domain": "sukrara.mauri.app",
+  "url": "https://sukrara.mauri.app",
+  "applicationId": "app.mauri.sukrara",
+  "brand": {
+    "top": "#1BB5C9",
+    "bottom": "#0B2E5E",
+    "glyph": "#FFFFFF",
+    "accent": "#C6F432"
+  },
+  "thresholds": {
+    "low": 65,
+    "slightlyHigh": 145,
+    "high": 185,
+    "staleAfterMinutes": 5
+  },
+  "rangeKit": "a",
+  "menubarFont": "SF Pro, medium, monospaced digits (NSFont.monospacedDigitSystemFont)",
+  "range": {
+    "low": {
+      "light": "#FF3B30",
+      "dark": "#FF453A"
+    },
+    "inRange": null,
+    "above": {
+      "light": "#FF9500",
+      "dark": "#FF9F0A"
+    },
+    "high": {
+      "light": "#FF3B30",
+      "dark": "#FF453A"
+    }
+  }
+}

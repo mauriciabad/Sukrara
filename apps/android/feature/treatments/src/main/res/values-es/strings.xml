@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Sukrara — https://github.com/mauriciabad/sukrara
+     Copyright (C) 2026 Maurici Abad
+     SPDX-License-Identifier: GPL-3.0-or-later -->
+<resources>
+    <string name="tile_add_treatment">Añadir tratamiento</string>
+    <string name="tile_unavailable">Abre Sukrara para configurarlo</string>
+    <string name="treatment_title">Añadir tratamiento</string>
+    <string name="treatment_rapid">Rápida</string>
+    <string name="treatment_long">Lenta</string>
+    <string name="treatment_carbs">Carbohidratos</string>
+    <string name="treatment_unit_u">u</string>
+    <string name="treatment_unit_g">g</string>
+    <string name="treatment_note">Nota</string>
+    <string name="treatment_limits">Insulina hasta %1$du, carbohidratos hasta %2$dg, más de 0</string>
+    <string name="treatment_now">Ahora</string>
+    <string name="treatment_earlier">Antes…</string>
+    <string name="treatment_at">A las %1$s</string>
+    <string name="treatment_pick_title">Cuándo</string>
+    <string name="treatment_ok">Aceptar</string>
+    <string name="treatment_cancel">Cancelar</string>
+    <string name="treatment_save">Guardar</string>
+    <string name="treatment_open_app">Abrir Sukrara</string>
+    <string name="treatment_unlock">Desbloquear</string>
+    <string name="treatment_lock_closes">Se cierra sin guardar en %1$d s</string>
+    <string name="treatment_lock_not_saved">No guardado: el diálogo se cerró en la pantalla de bloqueo</string>
+    <plurals name="treatment_saved">
+        <item quantity="one">%1$d entrada guardada</item>
+        <item quantity="many">%1$d entradas guardadas</item>
+        <item quantity="other">%1$d entradas guardadas</item>
+    </plurals>
+    <plurals name="treatment_sent">
+        <item quantity="one">%1$d entrada se enviará a quien lleva el sensor</item>
+        <item quantity="many">%1$d entradas se enviarán a quien lleva el sensor</item>
+        <item quantity="other">%1$d entradas se enviarán a quien lleva el sensor</item>
+    </plurals>
+</resources>

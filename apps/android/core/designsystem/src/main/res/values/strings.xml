@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Sukrara — https://github.com/mauriciabad/sukrara
+     Copyright (C) 2026 Maurici Abad
+     SPDX-License-Identifier: GPL-3.0-or-later -->
+<resources>
+    <string name="ds_ok">OK</string>
+    <string name="ds_cancel">Cancel</string>
+    <string name="ds_dismiss">Dismiss</string>
+    <string name="ds_custom">Custom</string>
+    <string name="ds_custom_label">Value</string>
+    <!-- %1$s lowest value, %2$s highest value, %3$s unit -->
+    <string name="ds_custom_range">From %1$s to %2$s %3$s</string>
+    <string name="ds_unit_h">h</string>
+    <string name="ds_unit_d">days</string>
+    <string name="ds_unit_min">min</string>
+    <string name="ds_unit_s">s</string>
+    <!-- The alert checklist (AlertRequirement): one name per item for setup, home and Settings › Alert reliability -->
+    <string name="ds_req_notifications">Notifications</string>
+    <string name="ds_req_notifications_why">Without them no alert can show or sound.</string>
+    <string name="ds_req_full_screen">Full-screen alerts</string>
+    <string name="ds_req_full_screen_why">Lets an alarm open over the lock screen.</string>
+    <string name="ds_req_exact_alarm">Alarms and reminders</string>
+    <string name="ds_req_exact_alarm_why">Checks for missing readings on time, even when the phone sleeps.</string>
+    <string name="ds_req_battery">No battery restrictions</string>
+    <string name="ds_req_battery_why">Keeps Sukrara reading the sensor in the background.</string>
+    <string name="ds_req_channel">Alert sound and Do Not Disturb</string>
+    <string name="ds_req_channel_why">The alert categories must keep their sound and may break through Do Not Disturb.</string>
+    <string name="ds_req_bluetooth">Bluetooth</string>
+    <string name="ds_req_bluetooth_why">The sensor sends readings over Bluetooth.</string>
+
+    <!-- Mute / remind-less lines (contracts/alerts/copy.json; MuteText, AlertCopyTest). Side names fill %1$s. -->
+    <string name="side_low">Low</string>
+    <string name="side_high">High</string>
+    <string name="side_falling_fast">Falling fast</string>
+    <string name="side_rising_fast">Rising fast</string>
+    <string name="side_no_data">No data</string>
+    <string name="mute_side">%1$s alerts muted</string>
+    <string name="mute_side_left_one">%1$s alerts muted · %2$s left</string>
+    <string name="mute_side_left_other">%1$s alerts muted · %2$s left</string>
+    <string name="mute_after_carbs_one">%1$s alerts muted after carbs · %2$s left</string>
+    <string name="mute_after_carbs_other">%1$s alerts muted after carbs · %2$s left</string>
+    <string name="mute_after_insulin_one">%1$s alerts muted after insulin · %2$s left</string>
+    <string name="mute_after_insulin_other">%1$s alerts muted after insulin · %2$s left</string>
+    <string name="mute_falling">%1$s alerts muted while falling back into range</string>
+    <string name="mute_less">%1$s reminders every %2$s</string>
+    <string name="mute_all_left_one">Alerts muted · %1$s left</string>
+    <string name="mute_all_left_other">Alerts muted · %1$s left</string>
+    <string name="mute_all_forever">Alerts muted until you turn it off</string>
+    <string name="mute_notif_until">Until %1$s</string>
+    <string name="mute_pill">Muted · %1$s</string>
+    <string name="mute_pill_forever">Muted</string>
+    <string name="mute_choice">For %1$s</string>
+    <string name="mute_choice_forever">Until you turn it off</string>
+</resources>

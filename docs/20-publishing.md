@@ -22,9 +22,9 @@ every platform it runs on:
 
 Web research only (no app changes): Apple, Homebrew, Sparkle, Google Play Console Help, Android Developers, F-Droid,
 IzzyOnDroid, Accrescent and Garmin pages, plus news for timelines that official pages only summarise. Third-party
-sources are marked as such. The app's own facts come from the repo: `spikes/showcase-android/app/build.gradle.kts`
+sources are marked as such. The app's own facts come from the repo: `poc/spikes/showcase-android/app/build.gradle.kts`
 (`targetSdk 37`, `minSdk 36`, debug signing, Juggluco's GPLv3 security core compiled from a separate checkout),
-the manifest (permissions below), `spikes/menubar/bundle.sh` / `dmg.sh` (Developer ID + notarytool already wired),
+the manifest (permissions below), `poc/spikes/menubar/bundle.sh` / `dmg.sh` (Developer ID + notarytool already wired),
 the last release (APK 18.9 MB, dmg 11.0 MB) and the Play Store (`app.mauri.sukrara` and `.poc` both return 404, i.e.
 unused).
 
@@ -79,8 +79,8 @@ secret `HOMEBREW_TAP_DEPLOY_KEY`. One-time setup (the repo owner):
 
 ```sh
 ssh-keygen -t ed25519 -N '' -C 'release workflow → homebrew-tap' -f /tmp/tapkey
-gh repo deploy-key add /tmp/tapkey.pub -R mauriciabad/homebrew-tap --allow-write --title 'cgm-reading-mac-spike release workflow'
-gh secret set HOMEBREW_TAP_DEPLOY_KEY -R mauriciabad/cgm-reading-mac-spike < /tmp/tapkey
+gh repo deploy-key add /tmp/tapkey.pub -R mauriciabad/homebrew-tap --allow-write --title 'sukrara release workflow'
+gh secret set HOMEBREW_TAP_DEPLOY_KEY -R mauriciabad/sukrara < /tmp/tapkey
 rm /tmp/tapkey /tmp/tapkey.pub
 ```
 
@@ -89,7 +89,7 @@ rm /tmp/tapkey /tmp/tapkey.pub
 - **Apple Developer Program: 99 USD per membership year** (local price shown at enrolment), individuals can enrol
   (2FA Apple Account, own credit card; the seller name is the person's legal name) [[A1]](https://developer.apple.com/programs/)[[A2]](https://developer.apple.com/help/account/membership/program-enrollment/). Developer ID
   certificates and notarization cost nothing extra; a free Personal Team cannot notarize [[A3]](https://developer.apple.com/programs/whats-included/).
-- **Our scripts already do the rest** (`spikes/menubar/bundle.sh`, `dmg.sh`, NEXT.md §5): once, create a *Developer
+- **Our scripts already do the rest** (`poc/spikes/menubar/bundle.sh`, `dmg.sh`, NEXT.md §5): once, create a *Developer
   ID Application* certificate and `xcrun notarytool store-credentials sukrara …`; then
   `SIGN_ID="Developer ID Application: … (TEAMID)" NOTARY_PROFILE=sukrara ./bundle.sh && NOTARY_PROFILE=sukrara ./dmg.sh`
   signs (hardened runtime), notarizes and staples the app, then the dmg, and writes the release zip. The App Group
@@ -225,6 +225,52 @@ Play requires an upload key. The plan:
    followers' backfill and LibreView.
 4. (Alternative if the package were kept: APK Signature Scheme v3 key rotation can move an install from the debug key
    to a new key in place. Not worth it given the rename.)
+
+### The Android release key
+
+Steps 1–2 above are done; step 3's migration is dropped (the app starts clean).
+
+- **Where:** `~/.android/sukrara-release.jks` (PKCS12, RSA 4096, valid 30 years, alias `sukrara`), outside the repo,
+  made once by `tools/release/make-keystore.sh` (it refuses to overwrite an existing key). Its random password is in
+  the macOS Keychain item **`sukrara-android-release`** (account `sukrara`). Public fingerprint:
+  `tools/release/android-cert.sha256` (also in `docs/.well-known/assetlinks.json` for `app.mauri.sukrara`, with the
+  debug key's for debug builds).
+- **How a release build finds it:** the keystore from `SUKRARA_KEYSTORE` (default the path above), the password from
+  the environment variable `SUKRARA_KEYSTORE_PASSWORD` only (Gradle never reads the Keychain); `tools/install.sh` and the
+  release scripts fill it from the Keychain item (`security find-generic-password -s sukrara-android-release -w`).
+  `tools/release/verify-apk.sh` refuses an APK signed by anything else.
+- **Back it up now** (once, and after any change): copy the `.jks` file and the password
+  (`security find-generic-password -s sukrara-android-release -w`) into the password manager, plus one offline copy.
+  **Losing either = no more updates** for every installed copy: Android only installs an update signed by the same
+  key, so users would have to uninstall (losing their data) and install a new app.
+- **Restore on a new Mac:** put the file back at `~/.android/sukrara-release.jks` (`chmod 600`) and recreate the
+  Keychain item: `security add-generic-password -s sukrara-android-release -a sukrara -w` (it prompts for the
+  password, so it stays out of the shell history).
+
+### Before every Android release: the release smoke
+
+Run `tools/release/android-smoke.sh --final` on the commit you're about to release (emulator only; it never
+touches a phone). It builds the APK with the release key (no key or no pinned Juggluco → the build stops; it never
+falls back to the debug key), runs `verify-apk.sh` (signer = `android-cert.sha256`, package / version from `VERSION`,
+not debuggable, Libre 3 core inside, R8 full mode with the mapping that belongs to this APK, no debug classes or
+debug-tool strings, no exported component without a permission beyond the launcher and the alert sound provider,
+`POST_PROMOTED_NOTIFICATIONS` declared), then installs it fresh and launches it (see `docs/QA.md` Q10
+for every assertion). Keep the mapping (`apps/android/app/build/outputs/mapping/release/mapping.txt`) with the
+release: crash stack traces from the owner's phone are unreadable without it. Keep-rule fixes go to the owning
+module's `consumer-rules.pro` (the module that uses the reflective / JNI library), never to a blanket `-keep`.
+
+### Cutting a release
+
+On `main` (clean, pushed), with `tools/check/strict` committed: `tools/release/android-release.sh` (signed APK →
+`apps/android/app/build/dist/Sukrara-<version>.apk`, verified; the R8 mapping is archived in
+`~/.android/sukrara-mappings/`, not uploaded, because About lists every non-APK asset as a download) and
+`tools/release/mac-release.sh` (bundle → `verify-app.sh` → dmg + zip in `apps/macos/build/`). Then tag `v<version>`
+on `main` and `gh release create v<version> --verify-tag --prerelease --latest=false` with the three files while the
+version is 0.x (`Sukrara-<version>.apk`, `Sukrara-<version>.dmg`, `Sukrara-mac-<version>.zip`). A prerelease never
+bumps the Homebrew cask (`homebrew-tap.yml` skips it, also when dispatched by hand) and never becomes *Latest*. **The Mac app is not notarized yet**: there is no Developer
+ID identity or notarytool profile on the release Mac (checked 2026-10-27), so the dmg is Apple Development signed and
+the first open needs *Open Anyway* (README › Install). `NOTARY_PROFILE` in `bundle.sh` / `dmg.sh` / `mac-release.sh`
+takes over once a Developer ID exists.
 
 ### Alternatives to Play
 

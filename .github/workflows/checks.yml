@@ -1,8 +1,9 @@
-# CGM research spikes — https://github.com/mauriciabad/cgm-reading-mac-spike
+# Sukrara — https://github.com/mauriciabad/sukrara
 # Copyright (C) 2026 Maurici Abad
 # SPDX-License-Identifier: GPL-3.0-or-later
-# The repo's guards (CLAUDE.md → tools/check) plus the cross-platform tests: Android unit tests (alert scenarios,
-# graph fixtures, strings parity) and the Mac self-tests over the same scenario / fixture files.
+# The repo's guards (CLAUDE.md → tools/check) plus every app's builds and tests over the shared contracts/.
+# The trigger is never path-filtered (a skipped workflow leaves a required check pending forever): the `changes` job
+# decides which jobs run, and `gate` is the ONLY required check: it fails unless every job that should have run passed.
 name: Checks
 on:
   push:
@@ -10,7 +11,37 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
+concurrency:
+  group: checks-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      android: ${{ steps.filter.outputs.android }}
+      mac: ${{ steps.filter.outputs.mac }}
+      poc: ${{ steps.filter.outputs.poc }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dorny/paths-filter@v4
+        id: filter
+        with:
+          filters: |
+            android:
+              - 'apps/android/**'
+              - 'contracts/**'
+              - 'tools/**'
+              - 'VERSION'
+              - 'assets/**'
+            mac:
+              - 'apps/macos/**'
+              - 'contracts/**'
+              - 'tools/**'
+              - 'VERSION'
+              - 'assets/**'
+            poc:
+              - 'poc/**'
+
   rules:
     runs-on: ubuntu-latest
     steps:
@@ -28,8 +59,70 @@ jobs:
           else RANGE="origin/main..$HEAD_SHA"; fi
           echo "range: $RANGE"
           tools/check/run.sh --range "$RANGE"
+      - name: The checks' own tests
+        run: tools/check/run.sh --selftest
+      - name: Generated settings code is up to date
+        run: python3 tools/settings/gen.py --check
+      - name: Scripts parse
+        run: for f in tools/*.sh tools/*/*.sh; do bash -n "$f" || exit 1; done
 
   android:
+    needs: changes
+    if: needs.changes.outputs.android == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: gradle
+      # Pinned in :sensor (ndkVersion / cmake version); ubuntu-24.04 ships neither. Only a build with a Juggluco
+      # checkout compiles the Libre 3 core (NativeCore) and CI has none, so this runs once SUKRARA_JUGGLUCO is set.
+      - name: Android NDK + CMake for the Libre 3 core
+        if: env.SUKRARA_JUGGLUCO != ''
+        run: '"$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "ndk;28.2.13676358" "cmake;4.1.2"'
+      - name: ./gradlew check (unit + contract tests, lint) + Roborazzi verify
+        working-directory: apps/android
+        # verifyReleaseSigning guards real release outputs and needs the owner's key; CI has none and ships no
+        # release artifact, so it is excluded here (release builds are checked by tools/release/verify-apk.sh).
+        # Roborazzi verify only where goldens are committed (src/test/snapshots): :core:graph and :widgets.
+        # Spotless isn't enforced yet (QualityConventionPlugin isEnforceCheck = false) until the one-shot format.
+        run: >-
+          ./gradlew --no-daemon check -x verifyReleaseSigning
+          :core:graph:verifyRoborazziDebug :widgets:verifyRoborazziDebug
+      - name: Roborazzi diffs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: roborazzi-diffs
+          path: apps/android/**/build/outputs/roborazzi
+          if-no-files-found: ignore
+
+  mac:
+    needs: changes
+    if: needs.changes.outputs.mac == 'true'
+    # apps/macos builds against the macOS 27 SDK: the runner with Xcode 27.1, selected explicitly.
+    runs-on: xcode-27
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_27.1.app/Contents/Developer
+    steps:
+      - uses: actions/checkout@v7
+      - name: swift build + swift test (contract tests over contracts/)
+        working-directory: apps/macos
+        run: |
+          xcodebuild -version
+          swift build
+          swift test
+      - name: Unsigned bundle (app + widget appex) + launch smoke
+        working-directory: apps/macos
+        run: |
+          Bundle/bundle.sh --unsigned
+          Bundle/smoke.sh
+
+  poc-android:
+    needs: changes
+    if: needs.changes.outputs.poc == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -43,44 +136,52 @@ jobs:
           distribution: temurin
           java-version: '17'
           cache: gradle
-      - name: Unit tests (alert scenarios, graph fixtures, every surface's layout and freshness, strings parity, stats; Robolectric + galleries on JDK 21)
-        working-directory: spikes/showcase-android
+      - name: PoC unit tests
+        working-directory: poc/spikes/showcase-android
         env:
           GALLERY_JAVA_HOME: ${{ steps.jdk21.outputs.path }}
         run: ./gradlew --no-daemon :app:testDebugUnitTest
 
-  mac:
-    # Command Line Tools only: swift build of the menubar package (no signing, no widget appex, no Keychain).
+  poc-mac:
+    needs: changes
+    if: needs.changes.outputs.poc == 'true'
     runs-on: macos-15
     steps:
       - uses: actions/checkout@v7
       - name: swift build
-        working-directory: spikes/menubar
+        working-directory: poc/spikes/menubar
         run: swift build
-      - name: Type-check the widget extension and the evidence renderer (they draw the card through CardSurfaces.swift)
-        working-directory: spikes/widgets-macos
+      - name: PoC self-tests
+        working-directory: poc/spikes/menubar
         run: |
-          SDK=$(xcrun --show-sdk-path --sdk macosx)
-          swiftc -sdk "$SDK" -target arm64-apple-macos15.0 -swift-version 5 -typecheck -parse-as-library -application-extension -module-name GlucoseWidget Shared/*.swift Widget/GlucoseWidgets.swift
-          swiftc -sdk "$SDK" -target arm64-apple-macos15.0 -swift-version 5 -typecheck -parse-as-library -module-name Render Shared/*.swift Render/RenderMain.swift
-      - name: Self-tests (alert scenarios, graph math + fixtures + every surface's layout, CSV export, treatments merge, Bluetooth limits + INFO vectors)
-        working-directory: spikes/menubar
-        run: |
-          .build/debug/GlucoseBar -alerts-selftest
-          .build/debug/GlucoseBar -graphselftest
-          .build/debug/GlucoseBar -exportselftest
-          .build/debug/GlucoseBar -treatmentsselftest
-          .build/debug/GlucoseBar -bleselftest
-          .build/debug/GlucoseBar -argsselftest
-          .build/debug/GlucoseBar -identityselftest
-          .build/debug/GlucoseBar -settingsselftest
-          .build/debug/GlucoseBar -panelselftest
-      - name: Launch guard (unknown flags and dev builds never start the full app)
-        working-directory: spikes/menubar
-        run: |
-          set +e
-          for args in "-nosuchselftest" "-nosuchflag" ""; do
-            perl -e 'alarm 30; exec @ARGV' .build/debug/GlucoseBar $args; rc=$?
-            echo "GlucoseBar '$args' → exit $rc"
-            if [ $rc -ne 2 ] && [ $rc -ne 3 ]; then echo "expected exit 2 or 3"; exit 1; fi
+          for t in alerts-selftest graphselftest exportselftest treatmentsselftest bleselftest argsselftest identityselftest settingsselftest panelselftest; do
+            .build/debug/GlucoseBar -$t || exit 1
           done
+
+  gate:
+    # The only required check. Passes only when every job either succeeded, or was skipped because `changes` said
+    # its paths didn't change; a failed, cancelled or unexpectedly skipped job fails it.
+    if: always()
+    needs: [changes, rules, android, mac, poc-android, poc-mac]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Every job that should have run passed
+        env:
+          RESULTS: ${{ toJSON(needs) }}
+        run: |
+          python3 - <<'PY'
+          import json, os, sys
+          needs = json.loads(os.environ["RESULTS"])
+          out = needs.get("changes", {}).get("outputs", {})
+          wanted = {"changes": True, "rules": True, "android": out.get("android") == "true",
+                    "mac": out.get("mac") == "true", "poc-android": out.get("poc") == "true",
+                    "poc-mac": out.get("poc") == "true"}
+          bad = []
+          for job, should in wanted.items():
+              r = needs.get(job, {}).get("result")
+              ok = r == "success" or (r == "skipped" and not should)
+              print("%-12s %-9s %s" % (job, r, "ok" if ok else "FAILED"))
+              if not ok:
+                  bad.append(job)
+          sys.exit(1 if bad else 0)
+          PY

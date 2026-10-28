@@ -1,6 +1,6 @@
 # 01 — Getting live Libre 3 glucose onto a Mac, without the cloud
 
-*2026-10-15 · investigation report · code in [`spikes/`](../spikes)*
+*2026-10-15 · investigation report · code in [`poc/spikes/`](../poc/spikes)*
 
 ## Goal
 
@@ -37,7 +37,7 @@ Questions:
 
 **Yes — but not as the everyday path.**
 
-- While Juggluco is connected, a BLE scan from the Mac (`spikes/ble-scan`) sees **no** Libre: the sensor stops
+- While Juggluco is connected, a BLE scan from the Mac (`poc/spikes/ble-scan`) sees **no** Libre: the sensor stops
   advertising once a device is connected to it.
 - Juggluco (GPLv3) ships an open-source, portable implementation of the Libre 3 app-side protocol (since v10.10).
   It builds unmodified for macOS/arm64. On iOS, LibreLoop and Trio v1.0 already read Libre 3 natively; no macOS app
@@ -79,7 +79,7 @@ and live:
 **Rate precision:** the sensor reports the rate with 0.01 mg/dL/min resolution; in a 5 h sample 98 % of values were
 non-integer (short runs of exact `0` occur). Enough to draw a continuous arrow.
 
-**Wi-Fi results** (`spikes/menubar`, "auto" mode):
+**Wi-Fi results** (`poc/spikes/menubar`, "auto" mode):
 - Juggluco has no mDNS/Bonjour, so GlucoseBar sweeps the Mac's subnet for `:17580` and checks
   `/api/v1/status.json` → found the phone in **~1 s** on a /24.
 - History via `entries.json?count=180&interval=0`, then live via `/x/live`: **~0.3 s** from the phone receiving a
@@ -97,7 +97,7 @@ non-integer (short runs of exact `0` occur). Enough to draw a continuous arrow.
 | Juggluco "BLE mirror" | ✓ | ✓ | Mac would have to speak Juggluco's mirror sync protocol (handshake + session crypto + acking its internal file-sync stream). ~1–1.4k lines of Swift against an undocumented protocol that changed several times in 2026. Rejected. |
 | **Companion app + BLE GATT** | ✓ | ✓ | **Chosen** |
 
-### GlucoBridge (`spikes/glucobridge-android`, Kotlin)
+### GlucoBridge (`poc/spikes/glucobridge-android`, Kotlin)
 
 A foreground service on the phone that:
 - follows Juggluco on **`127.0.0.1:17580`** (so "Local only" can stay **on**), and

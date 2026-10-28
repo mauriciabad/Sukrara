@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Sukrara — https://github.com/mauriciabad/sukrara
+     Copyright (C) 2026 Maurici Abad
+     SPDX-License-Identifier: GPL-3.0-or-later -->
+<resources>
+    <!-- access-request notification (a follower used an invite) -->
+    <string name="share_request_title">%1$s wants to see your glucose</string>
+    <string name="share_request_for">Asked with your invite for %1$s · %2$s</string>
+    <string name="share_request_from">Asked with your invite · %1$s</string>
+    <string name="share_request_others">Another phone also tried this invite. Open Sukrara and check before allowing.</string>
+    <string name="share_request_allow">Allow</string>
+    <string name="share_request_deny">Deny</string>
+    <string name="share_request_failed_title">Couldn\'t give access</string>
+    <string name="share_request_failed_text">The invite expired, the request is no longer waiting or sharing is paused. Open Sukrara to send a new invite.</string>
+</resources>

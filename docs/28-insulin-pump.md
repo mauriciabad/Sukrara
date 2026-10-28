@@ -185,14 +185,14 @@ every 5 minutes, that is the main barrier the pumpX2 author names. Temp-basal-on
 
 ## 5. What Sukrara would need to support a pump
 
-*Design sketch from a read of the app (`A` = `spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara`,
-`M` = `spikes/menubar/Sources/GlucoseBar`) and of how AndroidAPS, Trio and controlX2 do it. Nothing was built.*
+*Design sketch from a read of the app (`A` = `poc/spikes/showcase-android/app/src/main/kotlin/app/mauri/sukrara`,
+`M` = `poc/spikes/menubar/Sources/GlucoseBar`) and of how AndroidAPS, Trio and controlX2 do it. Nothing was built.*
 
 **Today Sukrara knows nothing about pumps.** It has one glucose source at a time (`A/owner/OwnerEngine.kt:273`) and
 injection-only treatments: `k` = rapid | long | carbs | note (`A/treatments/Treatments.kt:17`). It calculates no
 IOB; the local xDrip+ server even hardcodes `"iob":"0.00"` (`A/bridge/XdripServer.kt:264`). Tidepool upload
 deliberately avoids `bolus`/`basal` (`A/tidepool/TidepoolData.kt`), and OGS draft 3 lists `basal`/`loop` only as
-planned record kinds (`spec/draft3/ogs3-data.md:359`).
+planned record kinds (`poc/spec/draft3/ogs3-data.md:359`).
 
 ### Three steps, each useful on its own
 

@@ -1,6 +1,6 @@
 # 26 — The full AGP report: percentile profile, daily profiles, a page for the doctor
 
-*2026-10-19 · investigation report · standalone PoC `spikes/agp-report` (Kotlin JVM engine + Java2D painter, Swift
+*2026-10-19 · investigation report · standalone PoC `poc/spikes/agp-report` (Kotlin JVM engine + Java2D painter, Swift
 port + CoreGraphics PDF painter), synthetic data only, no emulator · sources: IDC sample reports (2024, 2025),
 the 2019 and 2023 consensus papers, Tidepool viz `c50b095` (2026-10-02, cloned to `third_party/tidepool-viz`),
 Juggluco and xDrip+ checkouts in `third_party/`*
@@ -56,7 +56,7 @@ implementation? Where does it go in Sukrara?
 
 *`sparse`: a 14-day period with data on 5 days. The metrics and the daily strips are drawn, and the page says the
 numbers need care. The percentile profile is withheld (it needs 7 days at 70 %). The vector PDF of the first page:
-[`spikes/agp-report/evidence/glucose-report-spring-dst.pdf`](../spikes/agp-report/evidence/glucose-report-spring-dst.pdf).*
+[`poc/spikes/agp-report/evidence/glucose-report-spring-dst.pdf`](../poc/spikes/agp-report/evidence/glucose-report-spring-dst.pdf).*
 
 ## 1. The standard
 
@@ -135,7 +135,7 @@ below < 1 %) and for pregnancy. They aren't needed until Sukrara offers other ta
 
 ## 3. The PoC
 
-`spikes/agp-report/` (plain Kotlin JVM, no Android; `mac/` is a Swift package):
+`poc/spikes/agp-report/` (plain Kotlin JVM, no Android; `mac/` is a Swift package):
 
 | File | What |
 |---|---|
@@ -262,7 +262,7 @@ Draft for the integration step. Nothing below is in the app yet.
 - Android `ui/ReportCard.kt`: *Share report* pill + period sheet; `ui/ExportScreen.kt`: the format row.
 - Mac `widgets-macos/Shared/SukraraAgp.swift`: `Engine.swift` (renamed types), and a `CGContext` painter shared by the
   window, *Export PDF…* and *Print…*.
-- Shared fixtures: move `spikes/agp-report/fixtures/*.json` to `spikes/graph-fixtures/agp/`. Android runs them in
+- Shared fixtures: move `poc/spikes/agp-report/fixtures/*.json` to `poc/spikes/graph-fixtures/agp/`. Android runs them in
   `GraphFixtureTest.agp` and the Mac in `-graphselftest`. Add the page's display list for one fixture as a layout
   fixture (op kinds, rects and texts within 0.5 pt) so the two layouts can't drift. Add a parity group `agp` in
   `tools/check/parity.json` (Android files ↔ Swift file ↔ fixtures).
@@ -311,7 +311,7 @@ Draft for the integration step. Nothing below is in the app yet.
 ## Run it
 
 ```sh
-cd spikes/agp-report
+cd poc/spikes/agp-report
 export JAVA_HOME=$(brew --prefix openjdk@17)/libexec/openjdk.jdk/Contents/Home
 ./gradlew test                                  # engine tests + fixtures
 ./gradlew run --args="fixtures"                 # regenerate fixtures/*.json (synthetic)

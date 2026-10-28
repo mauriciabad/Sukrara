@@ -1,0 +1,156 @@
+# The alert notification's actions (SPEC.md §2): Mute… (a picked or typed length) and Relax. They act on one side
+# (lows incl. very low, highs incl. extremely high, …), never the other, and end at their time or once back in range by
+# the margin (10 mg/dL for 10 min by default), whatever comes first. Mute all (the home screen, the Mac's menu) quiets
+# everything. Format: SPEC.md §7.
+
+scenario Mute quiets the low for its minutes; at once when it ends
+ 0  glucose 65   => Low glucose
+ 5               => Low glucose
+ 7  mute low     => clear low                 # the notification's Mute 30 min
+10                                            # would have been the repeat
+37               => Low glucose               # still low when the mute ends: at once
+42               => Low glucose
+43
+
+scenario Mute for… with typed minutes
+settings mute.min=20
+ 0  glucose 65   => Low glucose
+ 2  mute low 10  => clear low                 # the typed minutes, not the setting's 20
+12               => Low glucose
+17               => Low glucose
+18
+
+scenario Relax: the repeats come at the slower interval
+settings relax.min=15                         # the default until round 22 (now 30)
+ 0  glucose 65   => Low glucose
+ 2  relax low                                 # the notification stays
+ 5                                            # would have been the repeat
+15               => Low glucose               # 15 min (the setting) after the last alert
+30               => Low glucose
+31
+
+scenario The mute ends once back in range by the margin
+ 0  glucose 65   => Low glucose
+ 2  mute low     => clear low                 # until 32
+ 4  glucose 80                                # 10 above the low threshold: back by the margin …
+14               => back low                  # … for 10 min: the mute ends
+20  glucose 65   => Low glucose               # a new episode, not muted
+25               => Low glucose
+26
+
+scenario Relax ends once back in range by the margin
+ 0  glucose 65   => Low glucose
+ 1  relax low
+ 3  glucose 90   => clear low
+13               => back low
+20  glucose 65   => Low glucose
+25               => Low glucose               # the kind's own 5 min again
+26
+
+scenario A mute covers very low too (user, 2026-10-21: no exception)
+ 0  glucose 65     => Low glucose
+ 2  mute low       => clear low               # Mute 30 min: the whole low side
+ 5  glucose 50                                # very low: muted too
+32                 => Very low glucose        # the mute ends: at once
+37                 => Very low glucose
+38
+
+scenario Very low can be relaxed
+settings relax.min=15                         # the default until round 22 (now 30)
+ 0  glucose 50     => Very low glucose
+ 1  relax very_low
+15                 => Very low glucose
+30                 => Very low glucose
+31
+
+scenario Mute and carbs together: quiet until both have ended
+ 0  glucose 65   => Low glucose
+ 2  carbs 10     => clear low
+ 3  mute low 5                                # nothing showing, nothing to clear
+17               => Low glucose · eat more    # the carbs' window (the longer one) ends
+22               => Low glucose · eat more
+23
+
+scenario A mute survives a restart
+ 0  glucose 65   => Low glucose
+ 2  mute low 10  => clear low
+ 5  restart                                   # nothing was showing: nothing to resume
+12               => Low glucose
+13
+
+scenario A mute on a high covers extremely high too
+ 0  glucose 200  => High glucose
+ 1  mute high    => clear high
+ 3  glucose 310                               # extremely high: muted too
+ 4  glucose 200
+31               => High glucose
+32
+
+scenario Relax on a high at the default settings: every 30 min
+ 0  glucose 200  => High glucose
+ 1  relax high                                # offered: 30 is slower than the high's 15
+15                                            # would have been the repeat
+30               => High glucose
+60               => High glucose
+61
+
+scenario A high's mute never silences a low (user, 2026-10-21)
+ 0  glucose 200    => High glucose
+ 1  mute high 2h   => clear high              # muted for 2 h
+ 3  glucose 320                               # extremely high: muted too
+ 5  glucose 200, insulin 4
+40  glucose 65     => Low glucose             # the insulin brought it low: lows alert, the high's mute never covers them
+45                 => Low glucose
+50                 => back high; Low glucose  # 10 min below 170: the high's mute ends
+51
+
+scenario Oscillating at the edge keeps the mute: no early end
+ 0  glucose 65   => Low glucose
+ 2  mute low     => clear low                 # until 32
+ 4  glucose 72                                # in range, but not 10 above the threshold: still muted
+12  glucose 68                                # low again (a new episode): still muted
+14  glucose 78
+20  glucose 69
+22  glucose 75
+30  glucose 66
+32               => Low glucose               # the mute's own end: at once
+37               => Low glucose
+38
+
+scenario Relax lasts across a brief return to range and ends with the margin
+ 0  glucose 65   => Low glucose
+ 1  relax low                                 # every 30 min instead of 5
+ 3  glucose 74   => clear low                 # in range, within the margin: still relaxed
+12  glucose 65   => Low glucose               # a new episode alerts at once …
+42               => Low glucose               # … and repeats relaxed, 30 min after it
+43  glucose 85   => clear low                 # back by the margin …
+53               => back low                  # … for 10 min: Relax ends
+60  glucose 65   => Low glucose
+65               => Low glucose               # the kind's own 5 min again
+66
+
+scenario Mute all quiets every alert, very low and extremely high included, until its time
+ 0  glucose 65       => Low glucose
+ 2  mute all 1h      => clear low
+ 5  glucose 50                                # very low: muted
+20  glucose 120
+25  glucose 320                               # extremely high: muted
+62                   => Extremely high glucose # Mute all ends: at once
+67                   => Extremely high glucose
+68
+
+scenario Mute all with Never lasts until the user turns alerts back on
+ 0  glucose 65       => Low glucose
+ 1  mute all never   => clear low
+300                                           # 5 h later: still quiet
+301 unmute all       => Low glucose           # Turn alerts back on: at once
+306                  => Low glucose
+307
+
+scenario Mute all also quiets no data
+ 0  glucose 120
+ 1  mute all 1h
+ 5  sensor off                                # the last reading is minute 4
+24                                            # no data from here: muted
+61                   => No glucose data       # Mute all ends: at once
+62
