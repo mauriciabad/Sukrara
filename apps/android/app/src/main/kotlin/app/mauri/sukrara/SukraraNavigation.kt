@@ -17,6 +17,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -62,7 +63,9 @@ import app.mauri.sukrara.feature.sharing.share.ShareScreen
 import app.mauri.sukrara.feature.sharing.share.SharingScreen
 import app.mauri.sukrara.feature.sharing.share.SharingViewModel
 import app.mauri.sukrara.integrations.AppsPage
+import app.mauri.sukrara.integrations.broadcasts.BroadcastsPage
 import app.mauri.sukrara.integrations.export.ExportPage
+import app.mauri.sukrara.integrations.healthconnect.HealthConnectPage
 import app.mauri.sukrara.integrations.libreview.LibreViewPage
 import app.mauri.sukrara.integrations.localserver.NightscoutApiPage
 import app.mauri.sukrara.integrations.nightscout.NightscoutPage
@@ -138,6 +141,14 @@ data object TidepoolRoute : NavKey
 /** Settings › Share with apps › Nightscout API on this phone. */
 @Serializable
 data object NightscoutApiRoute : NavKey
+
+/** Settings › Share with apps › Send glucose to apps. */
+@Serializable
+data object BroadcastsRoute : NavKey
+
+/** Settings › Share with apps › Health Connect (also what Health Connect opens as the privacy rationale). */
+@Serializable
+data object HealthConnectRoute : NavKey
 
 /** One settings page ([SettingsRoute]) on the back stack: [page] names it, [kind] is an alert kind page's contract id. */
 @Serializable
@@ -220,8 +231,20 @@ fun SukraraNavigation(
     modifier: Modifier = Modifier,
     openPen: String? = null,
     onPenShow: () -> Unit = {},
+    openHealthConnect: Boolean = false,
+    onHealthConnectShow: () -> Unit = {},
 ) {
     val backStack = rememberNavBackStack(HomeRoute)
+    // Health Connect's "why does this app need it" link: the page that says what is written and why
+    val healthShown by rememberUpdatedState(onHealthConnectShow)
+    LaunchedEffect(openHealthConnect) {
+        if (!openHealthConnect) return@LaunchedEffect
+        if (backStack.last() != HealthConnectRoute) {
+            if (AppsRoute !in backStack) backStack.add(AppsRoute)
+            backStack.add(HealthConnectRoute)
+        }
+        healthShown()
+    }
     // the pen read card's *Check it*: Settings › Insulin pens › that pen, on top of what is open
     val penShown by rememberUpdatedState(onPenShow)
     LaunchedEffect(openPen) {
@@ -296,8 +319,7 @@ fun SukraraNavigation(
                     }
                     entry<SharingRoute> {
                         val close = { backStack.pop(SharingRoute) }
-                        val role by graph.role.data
-                            .map { it.role }
+                        val role by remember(graph.role) { graph.role.data.map { it.role } }
                             .collectAsStateWithLifecycle(null)
                         if (role == Role.Follower) {
                             SettingsPage(stringResource(SharingR.string.sh_following_title), close, scroll = false) {
@@ -412,7 +434,19 @@ fun SukraraNavigation(
                                 openLibreView = { backStack.push(LibreViewRoute) },
                                 openNightscoutApi = { backStack.push(NightscoutApiRoute) },
                                 openTidepool = { backStack.push(TidepoolRoute) },
+                                openBroadcasts = { backStack.push(BroadcastsRoute) },
+                                openHealthConnect = { backStack.push(HealthConnectRoute) },
                             )
+                        }
+                    }
+                    entry<BroadcastsRoute> {
+                        SettingsPage(stringResource(IntegrationsR.string.in_bc_title), { backStack.pop(BroadcastsRoute) }) {
+                            BroadcastsPage(viewModel(factory = graph.integrations.broadcastsViewModels), graph.clock::now)
+                        }
+                    }
+                    entry<HealthConnectRoute> {
+                        SettingsPage(stringResource(IntegrationsR.string.in_hc_title), { backStack.pop(HealthConnectRoute) }) {
+                            HealthConnectPage(viewModel(factory = graph.integrations.healthConnectViewModels), graph.clock::now)
                         }
                     }
                     entry<TidepoolRoute> {

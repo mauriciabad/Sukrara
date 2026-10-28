@@ -35,7 +35,7 @@
 
     <!-- Share with apps -->
     <string name="in_apps_title">Share with apps</string>
-    <string name="in_apps_intro_wearer">Your glucose in other apps: your clinic through LibreView, your own Nightscout site, Garmin watches through the xDrip+ server, and a file for your clinic.</string>
+    <string name="in_apps_intro_wearer">Your glucose in other apps: your clinic through LibreView, your own Nightscout site, Garmin watches through the xDrip+ server, apps on this phone, Health Connect, and a file for your clinic.</string>
     <string name="in_apps_intro_follower">The glucose of the person you follow in other apps: Garmin watches through the xDrip+ server, and a file.</string>
     <string name="in_apps_nightscout_group" translatable="false">Nightscout</string>
     <string name="in_apps_clinic_group">Your clinic</string>
@@ -75,7 +75,7 @@
     <string name="in_nsapi_new_secret_title">Make a new API secret?</string>
     <string name="in_nsapi_new_secret_text">Apps that use the current secret can\'t read your glucose anymore until you enter the new one in them.</string>
     <string name="in_nsapi_new_secret_action">New secret</string>
-    <string name="in_nsapi_footer">Only apps on this phone can reach it, and only with the secret. It serves the last 7 days of glucose and 30 days of entries; each reading says where it came from (this phone\'s sensor, an untested sensor, or the person you follow). It isn\'t a source for a closed loop.</string>
+    <string name="in_nsapi_footer">Only apps on this phone can reach it (and devices on your home Wi-Fi while that option is on), and only with the secret. It serves the last 7 days of glucose and 30 days of entries; each reading says where it came from (this phone\'s sensor, an untested sensor, or the person you follow). It isn\'t a source for a closed loop.</string>
     <!-- Upload status (every upload page) -->
     <string name="in_status_off">Off</string>
     <string name="in_status_setup">Set up the site first</string>
@@ -195,4 +195,68 @@
     <string name="in_tp_signing_in">Signing in…</string>
     <string name="in_tp_bad_credentials">Tidepool didn\'t accept this email and password</string>
     <string name="in_tp_failed">Couldn\'t sign in (%1$s)</string>
+    <string name="in_bc_title">Send glucose to apps</string>
+    <string name="in_bc_intro">Apps on this phone that take glucose from xDrip+, LibreLink or Juggluco broadcasts (AndroidAPS, GlucoDataHandler, watch apps) can get each new reading from this phone\'s Libre 3. Only the apps you switch on get it.</string>
+    <string name="in_bc_status">Status</string>
+    <string name="in_bc_off">Off · no app is allowed</string>
+    <string name="in_bc_waiting">Waiting for a reading from this phone\'s Libre 3</string>
+    <string name="in_bc_last_sent">Last sent %1$s</string>
+    <string name="in_bc_hold_stale">the newest reading was too old to send</string>
+    <string name="in_bc_hold_future">the newest reading\'s time is in the future (check the phone\'s clock)</string>
+    <string name="in_bc_hold_lohi">LO and HI readings aren\'t sent</string>
+    <string name="in_bc_hold_no_app">no allowed app listens right now</string>
+    <string name="in_bc_follower">Nothing is sent from a follower\'s phone: apps that dose or alert must get glucose from the wearer\'s own sensor.</string>
+    <string name="in_bc_apps_group">Apps that listen</string>
+    <string name="in_bc_none">No app on this phone listens</string>
+    <string name="in_bc_none_summary">Install the app (for example AndroidAPS or GlucoDataHandler) and come back</string>
+    <string name="in_bc_changed">%1$s · this app changed since you allowed it (another signature), so nothing is sent · Tap to allow it again</string>
+    <string name="in_bc_remove">Remove %1$s</string>
+    <string name="in_bc_gone">Not installed · Tap to remove</string>
+    <string name="in_bc_footer">Only the Libre 3 this phone reads itself is sent, at most once a minute, and never LO / HI, old readings or a followed person\'s data. Each app gets one format (xDrip+ first, then LibreLink, then Juggluco), so it never gets a reading twice. A closed loop may dose insulin from these readings: allow only the apps you use.</string>
+    <string name="in_hc_title" translatable="false">Health Connect</string>
+    <string name="in_hc_intro">Your glucose in Health Connect, where health and fitness apps you allow can read it. Only readings from this phone\'s own sensor go in, once a minute.</string>
+    <string name="in_hc_switch">Write glucose to Health Connect</string>
+    <string name="in_hc_off">Off</string>
+    <string name="in_hc_waiting">On · waiting for a reading</string>
+    <string name="in_hc_written">On · last written %1$s</string>
+    <string name="in_hc_needs_permission">Health Connect doesn\'t allow writing now · nothing is written until you allow it again</string>
+    <string name="in_hc_denied">Health Connect didn\'t allow it · allow Sukrara in Health Connect, then turn this on</string>
+    <string name="in_hc_rate_limited">On · Health Connect asked to slow down (%1$s) · trying again later</string>
+    <string name="in_hc_failed">On · Health Connect refused the last write (error %1$d) · trying again later</string>
+    <string name="in_hc_open">Open Health Connect</string>
+    <string name="in_hc_open_summary">See, share or delete what was written</string>
+    <string name="in_hc_open_off">Records already written stay there until you delete them</string>
+    <string name="in_hc_open_allow">Allow Sukrara to write blood glucose</string>
+    <string name="in_hc_follower">Nothing is written on a follower\'s phone: Health Connect holds this phone owner\'s own health records, and the glucose here is the person you follow.</string>
+    <string name="in_hc_follower_short">Not on a follower\'s phone</string>
+    <string name="in_hc_unavailable">Health Connect isn\'t available on this phone (it may be turned off in Android settings).</string>
+    <string name="in_hc_unavailable_short">Not available on this phone</string>
+    <string name="in_hc_footer">When you turn it on, the last 30 days go in first. Each minute is one record, so nothing is written twice. LO and HI readings have no number and are left out. Turning it off stops writing; delete what was written in Health Connect.</string>
+    <string name="in_bc_loop_twice_title">AndroidAPS may get each reading twice</string>
+    <string name="in_bc_loop_twice">xDrip+ and GlucoDataHandler can pass readings on to AndroidAPS. If one of them does, switch AndroidAPS off here or turn their forwarding off, so AndroidAPS gets each reading once.</string>
+    <string name="in_nsapi_also_lan">also on Wi-Fi %1$s</string>
+    <string name="in_nsapi_lan_group">On your home Wi-Fi</string>
+    <string name="in_nsapi_lan_switch">Also on this Wi-Fi</string>
+    <string name="in_nsapi_lan_off">Off · only apps on this phone can read it</string>
+    <string name="in_nsapi_lan_starting">Starting…</string>
+    <string name="in_nsapi_lan_on">On · http://%1$s:17581 for devices on this Wi-Fi</string>
+    <string name="in_nsapi_lan_no_wifi">Paused · the phone isn\'t on Wi-Fi</string>
+    <string name="in_nsapi_lan_not_private">Paused · this Wi-Fi doesn\'t look like a home network (no private address)</string>
+    <string name="in_nsapi_lan_open">Paused · this Wi-Fi has no password, so anyone nearby could join it</string>
+    <string name="in_nsapi_lan_other">Paused · this isn\'t the Wi-Fi you turned it on in</string>
+    <string name="in_nsapi_lan_no_permission">Paused · Android doesn\'t allow local network access</string>
+    <string name="in_nsapi_lan_allow_here">Allow on this Wi-Fi</string>
+    <string name="in_nsapi_lan_allow_here_summary">From now on it listens on this Wi-Fi instead</string>
+    <string name="in_nsapi_lan_settings">Open Android settings</string>
+    <string name="in_nsapi_lan_settings_summary">Permissions › Nearby devices › Allow. Keep it allowed: the sensor connection needs it too. To stop, use the switch above.</string>
+    <string name="in_nsapi_lan_warning_title">Other devices can read it</string>
+    <string name="in_nsapi_lan_warning">Any device on this Wi-Fi (computers, TVs, guests\' phones) can read your glucose, doses and notes with the API secret. The connection isn\'t encrypted: someone on the same Wi-Fi can see the secret when an app sends it. It works only on the Wi-Fi you turn it on in, and never on Wi-Fi without a password.</string>
+    <string name="in_nsapi_lan_confirm_title">Open the API to your home Wi-Fi?</string>
+    <string name="in_nsapi_lan_confirm_action">Turn on</string>
+    <string name="in_nsapi_lan_url">Address on this Wi-Fi</string>
+    <string name="in_nsapi_lan_refused">Not turned on: it works only while the phone is on a home Wi-Fi with a password</string>
+    <string name="in_nsapi_lan_api_stopped">Paused · the API itself isn\'t running (see above)</string>
+    <string name="in_bc_reallow_title">Allow %1$s again?</string>
+    <string name="in_bc_reallow_text">%1$s (%2$s) is signed with a different key than when you allowed it. That happens when it was reinstalled from another source, and it can also be a different app using the same name. Allow it again only if you installed it yourself from a source you trust: an app like AndroidAPS may dose insulin from these readings.</string>
+    <string name="in_bc_reallow_action">Allow again</string>
 </resources>

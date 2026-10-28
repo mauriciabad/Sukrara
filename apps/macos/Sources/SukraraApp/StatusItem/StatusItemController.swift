@@ -39,6 +39,12 @@ final class StatusItemController: NSObject, NSPopoverDelegate {
         render()
     }
 
+    /// The status item's frame in screen coordinates (nil while it has no window, e.g. hidden by the notch).
+    var screenFrame: NSRect? {
+        guard let button = item.button, let window = button.window else { return nil }
+        return window.convertToScreen(button.convert(button.bounds, to: nil))
+    }
+
     /// Redraws the title whenever what it reads changes (Observation; re-armed after each change).
     private func render() {
         let title = withObservationTracking {

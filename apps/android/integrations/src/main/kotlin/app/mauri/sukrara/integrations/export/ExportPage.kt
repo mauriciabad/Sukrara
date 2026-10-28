@@ -143,8 +143,9 @@ fun ExportPage(
     val scope = rememberCoroutineScope()
     val saved = stringResource(R.string.in_export_saved)
     val chooser = stringResource(R.string.in_export_share_chooser)
+    val failedText = stringResource(R.string.in_export_failed)
 
-    fun failed() = Toast.makeText(context, context.getString(R.string.in_export_failed), Toast.LENGTH_LONG).show()
+    fun failed() = Toast.makeText(context, failedText, Toast.LENGTH_LONG).show()
     val saver =
         rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument(GlucoseCsv.MIME)) { uri ->
             val d = ui.data

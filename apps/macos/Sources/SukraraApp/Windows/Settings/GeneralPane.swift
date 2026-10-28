@@ -2,6 +2,7 @@
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
 import SukraraCore
+import SukraraShare
 import SwiftUI
 
 /// General: Settings from (with what's in use and Copy the wearer's settings…), units, open at login, updates,
@@ -179,7 +180,12 @@ struct FollowingRows: View {
             if let code { Text(L10n.t("Code to type on the phone: \(code)")).font(.title3.monospaced()) }
             Button(L10n.t("Cancel")) { Task { await follow.cancel() } }
         case .following(let wearer, let last, let canWrite):
-            row(L10n.t("Following \(wearer ?? L10n.t("the wearer"))"), "person.crop.circle.badge.checkmark")
+            Label {
+                Text(L10n.t("Following \(wearer ?? L10n.t("the wearer"))"))
+            } icon: {
+                AvatarView(avatar: follow.wearer?.avatar, name: wearer ?? "", size: 24)
+            }
+            .frame(minHeight: 28)
             Text(
                 last.map { L10n.t("Last reading \($0.formatted(.relative(presentation: .named)))") }
                     ?? L10n.t("No reading yet")
@@ -196,6 +202,11 @@ struct FollowingRows: View {
                     Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.orange)
                 }
                 .fixedSize(horizontal: false, vertical: true)
+            }
+            if let me = follow.me {
+                IdentityRow(me: me, wearer: wearer) { name, avatar in
+                    Task { await follow.saveProfile(name: name, avatar: avatar) }
+                }
             }
             Button(L10n.t("Stop following…"), role: .destructive) { follow.confirmingUnfollow = true }
                 .confirmationDialog(

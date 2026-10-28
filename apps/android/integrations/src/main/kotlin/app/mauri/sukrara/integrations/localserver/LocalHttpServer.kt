@@ -12,6 +12,7 @@ import java.net.Socket
 import java.net.URLDecoder
 import java.util.concurrent.ArrayBlockingQueue
 import java.util.concurrent.RejectedExecutionException
+import java.util.concurrent.ScheduledThreadPoolExecutor
 import java.util.concurrent.ThreadPoolExecutor
 import java.util.concurrent.TimeUnit
 
@@ -35,10 +36,13 @@ data class HttpAnswer(
 }
 
 /**
- * A tiny, bounded HTTP/1.1 server for the phone's local APIs (the xDrip+ server for Garmin). Safe by construction:
+ * A tiny, bounded HTTP/1.1 server for the phone's local APIs (the xDrip+ server for Garmin, the Nightscout API). Safe
+ * by construction:
  *
- * - binds 127.0.0.1 only (nothing off the phone can reach it), plain HTTP because Garmin Connect allows cleartext
- *   only to 127.0.0.1;
+ * - binds 127.0.0.1 by default (nothing off the phone can reach it), plain HTTP because Garmin Connect allows
+ *   cleartext only to 127.0.0.1; the Nightscout API's home-network listener binds one private Wi-Fi address and
+ *   passes [allowCaller] (its subnet) and [hostOk] (that address) — [LanPolicy];
+ * - a caller [allowCaller] refuses is closed at once, without an answer;
  * - one accept thread and a fixed pool of [POOL] workers with a queue of [QUEUE]: a connection beyond that is closed at
  *   once, never a new thread;
  * - every connection has a total deadline ([DEADLINE_MS], also per read), a request head of at most [MAX_HEAD] bytes,
@@ -51,6 +55,9 @@ class LocalHttpServer(
     private val port: Int,
     private val handler: (HttpRequest) -> HttpAnswer,
     private val onRequest: (HttpRequest, HttpAnswer) -> Unit = { _, _ -> },
+    private val bindAddress: InetAddress = InetAddress.getByName(LOOPBACK),
+    private val allowCaller: (InetAddress) -> Boolean = { true },
+    private val hostOk: (String?) -> Boolean = ::localHost,
 ) {
     @Volatile private var socket: ServerSocket? = null
     private var pool: ThreadPoolExecutor? = null
@@ -60,7 +67,7 @@ class LocalHttpServer(
     /** The port actually bound (tests bind port 0). */
     val boundPort: Int get() = socket?.localPort ?: -1
 
-    /** The address listened on (always loopback). */
+    /** The address listened on. */
     val boundAddress: InetAddress? get() = socket?.inetAddress
 
     @Synchronized
@@ -68,7 +75,7 @@ class LocalHttpServer(
         if (running) return true
         val s =
             try {
-                ServerSocket(port, BACKLOG, InetAddress.getByName(LOOPBACK))
+                ServerSocket(port, BACKLOG, bindAddress)
             } catch (e: IOException) {
                 return false
             }
@@ -113,7 +120,13 @@ class LocalHttpServer(
     }
 
     private fun serve(c: Socket) {
+        // the read deadline doesn't cover writing: a caller that stops reading is cut off too
+        val cut = runCatching { WATCHDOG.schedule({ runCatching { c.close() } }, DEADLINE_MS * 2, TimeUnit.MILLISECONDS) }.getOrNull()
         try {
+            if (!allowCaller(c.inetAddress)) {
+                c.close()
+                return
+            }
             c.use {
                 it.soTimeout = DEADLINE_MS.toInt()
                 val deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(DEADLINE_MS)
@@ -127,7 +140,7 @@ class LocalHttpServer(
                         else -> {
                             parse(head)?.let { req ->
                                 when {
-                                    !localHost(req.headers["host"]) -> FORBIDDEN
+                                    !hostOk(req.headers["host"]) -> FORBIDDEN
                                     req.method == "GET" || req.method == "HEAD" -> route(req)
                                     else -> METHOD
                                 }
@@ -138,6 +151,8 @@ class LocalHttpServer(
             }
         } catch (e: Throwable) {
             // a broken connection or a bug in a handler must never take the app (and its alerts) down
+        } finally {
+            cut?.cancel(false)
         }
     }
 
@@ -190,6 +205,10 @@ class LocalHttpServer(
         private val METHOD = HttpAnswer("405 Method Not Allowed", "", "text/plain")
         private val BAD = HttpAnswer("400 Bad Request", "", "text/plain")
         private val FORBIDDEN = HttpAnswer("403 Forbidden", "", "text/plain")
+        private val WATCHDOG =
+            ScheduledThreadPoolExecutor(1) { r -> Thread(r, "sukrara-local-watchdog").apply { isDaemon = true } }.apply {
+                removeOnCancelPolicy = true
+            }
 
         /**
          * A request names this phone (or no host at all, HTTP/1.0): a web page in the phone's browser that reaches the

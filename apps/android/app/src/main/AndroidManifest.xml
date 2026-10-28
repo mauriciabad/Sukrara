@@ -11,6 +11,10 @@
 
     <!-- relays (wss), uploads (https), Juggluco's web server on 127.0.0.1 (the only cleartext: network_security_config) -->
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- the Nightscout API on the home network: which Wi-Fi the phone is on (never its name: no location) -->
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <!-- Android 17: devices on the home network may connect to the Nightscout API (opt-in, off by default) -->
+    <uses-permission android:name="android.permission.ACCESS_LOCAL_NETWORK" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <!-- connectedDevice, not dataSync: a dataSync FGS is capped at 6 h per 24 h on Android 15+. Its prerequisite
          CHANGE_NETWORK_STATE is an install-time permission. -->
@@ -65,6 +69,9 @@
         </intent>
         <intent>
             <action android:name="com.librelink.app.ThirdPartyIntegration.GLUCOSE_READING" />
+        </intent>
+        <intent>
+            <action android:name="com.librelink.app.ThirdPartyIntegration.SENSOR_ACTIVATE" />
         </intent>
         <intent>
             <action android:name="glucodata.Minute" />

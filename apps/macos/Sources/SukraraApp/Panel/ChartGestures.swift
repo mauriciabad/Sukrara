@@ -5,26 +5,28 @@ import AppKit
 import SwiftUI
 
 /// The trackpad and mouse over the panel's chart: two-finger / wheel scroll moves through time, a pinch or ⌘-scroll
-/// zooms. A local event monitor reads the events over this view's area only while it is in a window, so clicks still
+/// zooms, a two-finger double tap switches between the place's window and 3 h. A local event monitor reads the events over this view's area only while it is in a window, so clicks still
 /// reach the card's buttons (the view itself is never hit).
 struct ChartGestures: NSViewRepresentable {
     /// Points to move the content by (positive = the content moves right = earlier), x of the pointer (0…1 of the area).
     var scroll: (CGFloat, CGFloat) -> Void
     /// Zoom factor (> 1 = in), x of the pointer (0…1 of the area).
     var zoom: (CGFloat, CGFloat) -> Void
+    /// A two-finger double tap (smart zoom), x of the pointer (0…1 of the area).
+    var smartZoom: (CGFloat) -> Void = { _ in }
 
     func makeNSView(context: Context) -> Catcher {
         let v = Catcher()
-        v.handlers = (scroll, zoom)
+        v.handlers = (scroll, zoom, smartZoom)
         return v
     }
 
-    func updateNSView(_ v: Catcher, context: Context) { v.handlers = (scroll, zoom) }
+    func updateNSView(_ v: Catcher, context: Context) { v.handlers = (scroll, zoom, smartZoom) }
 
     static func dismantleNSView(_ v: Catcher, coordinator: ()) { v.stop() }
 
     final class Catcher: NSView {
-        var handlers: ((CGFloat, CGFloat) -> Void, (CGFloat, CGFloat) -> Void)?
+        var handlers: ((CGFloat, CGFloat) -> Void, (CGFloat, CGFloat) -> Void, (CGFloat) -> Void)?
         private var monitor: Any?
 
         override func hitTest(_ point: NSPoint) -> NSView? { nil }
@@ -33,7 +35,8 @@ struct ChartGestures: NSViewRepresentable {
             super.viewDidMoveToWindow()
             stop()
             guard window != nil else { return }
-            monitor = NSEvent.addLocalMonitorForEvents(matching: [.scrollWheel, .magnify]) { [weak self] e in
+            monitor = NSEvent.addLocalMonitorForEvents(matching: [.scrollWheel, .magnify, .smartMagnify]) {
+                [weak self] e in
                 guard let self, let handlers = self.handlers, e.window === self.window, self.window != nil else {
                     return e
                 }
@@ -43,6 +46,8 @@ struct ChartGestures: NSViewRepresentable {
                 switch e.type {
                 case .magnify:
                     handlers.1(1 + e.magnification, x)
+                case .smartMagnify:
+                    handlers.2(x)
                 case .scrollWheel:
                     if e.modifierFlags.contains(.command) {
                         let dy = e.hasPreciseScrollingDeltas ? e.scrollingDeltaY : e.scrollingDeltaY * 10

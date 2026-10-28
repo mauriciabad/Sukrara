@@ -46,7 +46,12 @@ final class WindowCoordinator {
         follow.status = FollowerAdapter.status(snapshot)
         follow.source = FollowerAdapter.source(snapshot)
         follow.problem = FollowerAdapter.problem(snapshot)
-        follow.nearby = snapshot.nearbyOffer.map { NearbyPhone(wearer: $0.wearerName ?? L10n.t("A phone")) }
+        follow.nearby = snapshot.nearbyOffer.map {
+            NearbyPhone(wearer: $0.wearerName ?? L10n.t("A phone"), avatar: $0.wearerAvatar)
+        }
+        follow.wearer = snapshot.wearer
+        // the How You Appear row only while a follow exists (the runtime's own profile is just a default before)
+        follow.me = snapshot.link == .notFollowing ? nil : snapshot.me
         settings.wearer = Self.wearerSettings(snapshot)
         let canWrite = if case .following(_, true) = snapshot.link { true } else { false }
         treatments.isFollowing = snapshot.link.isFollowing
@@ -96,14 +101,20 @@ final class WindowCoordinator {
 
     /// Add treatment, placed under the menu bar: the Carbs field has the focus while the latest reading is below
     /// the range (or a low alert is up), else Rapid; the card's pill names the field itself (`focus`).
+    /// The status item's frame on screen (set by `AppDelegate`): Add Treatment opens under it.
+    var statusItemFrame: () -> NSRect? = { nil }
+    private let addFocus = AddTreatmentFocus()
+
     func openAddTreatment(focus: Treatment.Kind? = nil) {
         let low =
             model.isLow
             || (model.look.state == .value && GlucoseCard.rangeSide(model.cardData, config: model.graph) == .below)
         let field = focus ?? (low ? .carbs : .rapid)
-        windows.show(.addTreatment, title: L10n.t("Add Treatment"), nearMenuBar: true) {
+        // already open: a pill's field choice moves the focus there (nothing typed is lost)
+        if let focus, windows.isOpen(.addTreatment) { addFocus.request(focus) }
+        windows.show(.addTreatment, title: L10n.t("Add Treatment"), nearMenuBar: true, anchor: statusItemFrame()) {
             AddTreatmentView(
-                focus: field,
+                focus: field, focusRequests: addFocus,
                 quiet: { [weak model] rapid, carbs, at in
                     TreatmentQuietNote.of(
                         rapid: rapid, carbs: carbs, at: at, now: Int64(Date().timeIntervalSince1970),

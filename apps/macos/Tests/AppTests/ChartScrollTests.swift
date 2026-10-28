@@ -88,4 +88,64 @@ import Testing
             GlucoseCard.chartSpan(surface: .menubarCard, config: GraphConfig())
                 == TimeInterval(GraphConfig().hours * 3600))
     }
+
+    /// Two-finger double tap: the place's window ↔ 3 h, anchored at the pointer.
+    @Test func smartZoomTogglesThreeHours() {
+        var s = ChartScroll()
+        s.smartZoom(anchor: 1, default: def, first: first, now: now)
+        #expect(s.span == 3 * 3600 && s.end == nil)  // anchored at now: keeps following now
+        s.smartZoom(anchor: 1, default: def, first: first, now: now)
+        #expect(!s.away)
+        var mid = ChartScroll()
+        mid.smartZoom(anchor: 0.5, default: def, first: first, now: now)
+        // the moment under the pointer (3 h ago) stays put: the 3 h window is centred on it
+        #expect(mid.end == now - 1.5 * 3600)
+        var short = ChartScroll()
+        short.smartZoom(anchor: 1, default: 3 * 3600, first: first, now: now)
+        #expect(!short.away)  // a place that already shows 3 h has nothing to switch to
+    }
+
+    /// The spring glides without overshoot, keeps its speed when retargeted and settles.
+    @Test func glideIsCriticallyDamped() {
+        var g = Glide(0)
+        g.retarget(100, at: 10, instant: false)
+        var last = 0.0
+        for k in 1...60 {
+            let v = g.value(at: 10 + Double(k) / 100)
+            #expect(v >= last && v <= 100)  // monotonic, no bounce
+            last = v
+        }
+        #expect(g.value(at: 10.7) == 100 && g.settled(at: 10.7))
+        let speed = g.velocity(at: 10.05)
+        g.retarget(200, at: 10.05, instant: false)
+        #expect(abs(g.velocity(at: 10.05) - speed) < 1e-9)  // no jolt when the target moves
+        g.retarget(5, at: 11, instant: true)
+        #expect(g.value(at: 11) == 5 && g.settled(at: 11))
+    }
+
+    /// The y range and the Now pill ease; the first target (where the panel opens) is taken as is; reduced motion
+    /// jumps.
+    @Test func easeGlidesTheYRangeAndThePill() throws {
+        var e = ChartEase()
+        e.retarget(y: 40...300, away: false, at: 0, instant: false)
+        #expect(e.view(ChartScroll(), default: def, now: now, at: 0) == nil)  // opened at now: the renderer's own
+        var away = ChartScroll()
+        away.by(-3600, minEnd: first + def, now: now)
+        e.retarget(y: 60...200, away: true, at: 1, instant: false)
+        let mid = try #require(e.view(away, default: def, now: now, at: 1.05))
+        #expect(mid.now > 0 && mid.now < 1)
+        #expect(mid.y!.lowerBound > 40 && mid.y!.lowerBound < 60)
+        let end = try #require(e.view(away, default: def, now: now, at: 2))
+        #expect(end.now == 1 && end.y == 60...200 && end.end == now - 3600)
+        // back to now: the window glides there, the pill fades, then the renderer's own window again
+        e.goBack(from: now - 3600, span: def, at: 3, instant: false)
+        e.retarget(y: 40...300, away: false, at: 3, instant: false)
+        let going = try #require(e.view(ChartScroll(), default: def, now: now, at: 3.05))
+        #expect(going.end > now - 3600 && going.end < now && going.now > 0)
+        #expect(e.view(ChartScroll(), default: def, now: now, at: 4) == nil)
+        var reduced = ChartEase()
+        reduced.retarget(y: 40...300, away: false, at: 0, instant: true)
+        reduced.retarget(y: 60...200, away: true, at: 1, instant: true)
+        #expect(reduced.view(away, default: def, now: now, at: 1) == ChartView(end: now - 3600, y: 60...200, now: 1))
+    }
 }

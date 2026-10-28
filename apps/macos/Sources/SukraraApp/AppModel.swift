@@ -16,6 +16,9 @@ public final class AppModel {
     public let plan: LaunchPlan
     /// The wearer's readings, oldest first.
     private(set) var readings: [Reading] = []
+    /// The stored history older than `readings` (up to 31 days), loaded when the panel opens: only the panel's chart
+    /// scrolls and zooms through it (the title, widgets and alerts use `readings`).
+    private(set) var history: [Reading] = []
     private(set) var sensor: SensorInfo?
     /// The wearer's live treatments as the chart's marks, oldest first.
     private(set) var marks: [GraphMark] = []
@@ -62,7 +65,10 @@ public final class AppModel {
         self.follower = follower
         self.widget = widget
         now = clock.now
-        alerts?.onUIChange = { [weak self] in self?.feedWidget() }
+        alerts?.onUIChange = { [weak self] in
+            self?.feedWidget()
+            self?.restartTicker()  // a mute started or ended: its countdown ticks in the tooltip
+        }
     }
 
     /// Starts the follower runtime and feeds its snapshots and the wearer's alerts into the model and the alert rules.
@@ -85,7 +91,10 @@ public final class AppModel {
         link = snapshot.link
         // an unreadable Keychain (retrying) still follows the wearer: keep alerting on their readings, no-data included
         monitoring = link.isFollowing || (snapshot.keychainUnreadable && !snapshot.readings.isEmpty)
-        if wasMonitoring && !monitoring { alerts?.resetMonitoring() }
+        if wasMonitoring && !monitoring {
+            alerts?.resetMonitoring()
+            history = []
+        }
         if let alerts {
             alerts.setMirroring(monitoring && alerts.settings.source == .wearer)
             alerts.sensor(
@@ -172,6 +181,33 @@ public final class AppModel {
         return card
     }
 
+    /// The panel card's data: `cardData` with the stored history before the snapshot's readings, so the chart
+    /// scrolls and zooms through up to 31 days.
+    var panelData: CardData {
+        var data = cardData
+        guard let first = readings.first?.t else { return data }
+        let older = history.prefix { $0.t < first }
+        guard !older.isEmpty else { return data }
+        data.readings =
+            older.map { GraphReading(t: $0.t.timeIntervalSince1970, v: Double($0.mgdl), rate: $0.rate) }
+            + data.readings
+        return data
+    }
+
+    /// The panel opened: load the stored history (31 days) its chart can scroll through.
+    func loadHistory() {
+        guard let follower, monitoring else {
+            history = []
+            return
+        }
+        let since = clock.now.addingTimeInterval(-ChartView.maxSpan)
+        Task { [weak self] in
+            let loaded = await follower.readings(since: since)
+            guard let self, self.monitoring else { return }
+            self.history = loaded.sorted { $0.t < $1.t }
+        }
+    }
+
     /// Nobody is followed and nothing is on its way (not following, declined, revoked, invite used, broken).
     var needsFollow: Bool {
         switch link {
@@ -224,7 +260,10 @@ public final class AppModel {
     private func restartTicker() {
         ticker?.cancel()
         let nowT = clock.now.timeIntervalSince1970
-        guard let next = Self.nextWake(latest: readings.last?.t.timeIntervalSince1970, sensor: sensor, now: nowT)
+        guard
+            let next = Self.nextWake(
+                latest: readings.last?.t.timeIntervalSince1970, sensor: sensor,
+                muteAllUntil: alerts?.ui.muteAllUntil?.timeIntervalSince1970, now: nowT)
         else { return }
         let wait = max(0.5, next - nowT)
         ticker = Task { [weak self] in
@@ -235,10 +274,19 @@ public final class AppModel {
         }
     }
 
-    /// The next moment the title changes by itself: a freshness step, the sensor's end, or the warm-up's next whole
-    /// minute (its figure counts down without readings). nil = nothing more will change.
-    static func nextWake(latest: TimeInterval?, sensor: SensorInfo?, now: TimeInterval) -> TimeInterval? {
+    /// The next moment the title changes by itself: a freshness step, the sensor's end, the warm-up's next whole
+    /// minute (its figure counts down without readings), or the Mute all countdown's next minute (the tooltip's
+    /// "Alerts muted for N min"). nil = nothing more will change.
+    static func nextWake(
+        latest: TimeInterval?, sensor: SensorInfo?, muteAllUntil: TimeInterval? = nil, now: TimeInterval
+    ) -> TimeInterval? {
         var times = [Freshness.nextChangeAt(latest, now: now)].compactMap { $0 }
+        if let until = muteAllUntil, until > now, until < muteAllForever.timeIntervalSince1970 {
+            // minutes left round up: the figure drops as each whole minute before the end passes
+            let left = until - now
+            let step = left.truncatingRemainder(dividingBy: 60)
+            times.append(now + (step > 0 ? step : 60) + 0.5)
+        }
         if let s = sensor {
             if s.end > now { times.append(s.end + 0.5) }
             if s.start <= now, s.warmupEnd + 15 * 60 > now, latest.map({ $0 < s.start }) ?? true {

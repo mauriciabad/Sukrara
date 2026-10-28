@@ -150,7 +150,7 @@ interface AlertPlayback {
 }
 
 /** An output to other apps that is switched on (Settings › Share with apps). */
-enum class AppOutput { LibreView, Tidepool, NightscoutUpload, XdripServer, NightscoutApi }
+enum class AppOutput { LibreView, Tidepool, NightscoutUpload, XdripServer, NightscoutApi, Broadcasts, HealthConnect }
 
 /** Reads and changes the alert settings; [update] applies a change to the stored value (never to a stale copy). */
 interface AlertSettingsStore {

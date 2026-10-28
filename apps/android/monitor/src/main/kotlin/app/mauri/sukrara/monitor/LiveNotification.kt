@@ -16,6 +16,7 @@ import android.text.SpannableString
 import android.text.style.StrikethroughSpan
 import android.util.Log
 import android.widget.RemoteViews
+import androidx.annotation.RequiresApi
 import app.mauri.sukrara.core.model.GlucoseState
 import app.mauri.sukrara.core.model.NavTargets
 import app.mauri.sukrara.core.model.SensorState
@@ -161,6 +162,7 @@ class LiveNotification(
      * [MAX_METRICS] are the card's slots as the notification card shows them (`GlucoseCard.slotTexts`: time in range,
      * average, the last treatment, over the same windows as home), only while the value is a reading.
      */
+    @RequiresApi(METRIC_STYLE_SDK)
     private fun metricStyle(
         content: LiveNotificationContent,
         look: GlucoseLook,
@@ -195,6 +197,7 @@ class LiveNotification(
     }
 
     /** The value's style by the person's ranges: danger below the low band, caution above the high one. */
+    @RequiresApi(METRIC_STYLE_SDK)
     private fun semantic(
         mgdl: Int,
         bands: Bands,

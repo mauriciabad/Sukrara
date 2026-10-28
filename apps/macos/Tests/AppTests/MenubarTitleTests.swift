@@ -116,6 +116,11 @@ import Testing
         let warming = SensorInfo(start: now - 600, end: now + 14 * 86400, warmupEnd: now + 42 * 60 + 20)
         #expect(AppModel.nextWake(latest: nil, sensor: warming, now: now) == now + 20.5)
         #expect(AppModel.nextWake(latest: nil, sensor: nil, now: now) == nil)
+        // Mute all for 20 min 10 s: the tooltip's "muted for 21 min" turns 20 in 10 s, then every minute
+        #expect(AppModel.nextWake(latest: nil, sensor: nil, muteAllUntil: now + 1210, now: now) == now + 10.5)
+        #expect(AppModel.nextWake(latest: nil, sensor: nil, muteAllUntil: now + 1200, now: now) == now + 60.5)
+        let forever = muteAllForever.timeIntervalSince1970
+        #expect(AppModel.nextWake(latest: nil, sensor: nil, muteAllUntil: forever, now: now) == nil)
     }
 
     @Test func warmingUpSaysSo() {

@@ -1,6 +1,7 @@
 // Sukrara — https://github.com/mauriciabad/sukrara
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
+import AppKit
 import Foundation
 import ServiceManagement
 import SukraraAlerts
@@ -367,8 +368,11 @@ final class RecordingSender: TreatmentActions {
     @Test func pastedTextThatIsNoLinkNeverReachesTheRelays() async {
         final class Never: FollowActions {
             var calls = 0
+            var names: [String] = []
             func join(link: String) async throws(FollowFailure) { calls += 1 }
             func joinNearby(name: String) async throws(FollowFailure) { calls += 1 }
+            func setProfile(name: String, avatar: Avatar?) async { names.append(name) }
+            func setName(_ name: String) async { names.append(name) }
             func cancelJoin() async {}
             func unfollow() async {}
         }
@@ -378,8 +382,10 @@ final class RecordingSender: TreatmentActions {
         await m.follow()
         #expect(m.failure == .invalidLink && a.calls == 0 && m.status == .notFollowing)
         m.linkText = Self.link
+        m.macName = "Ana's MacBook"
         await m.follow()
         #expect(a.calls == 1 && m.failure == nil)
+        #expect(a.names == ["Ana's MacBook"])  // the typed name goes with the request
     }
 }
 
@@ -436,5 +442,24 @@ final class RecordingSender: TreatmentActions {
         s.set(SettingsFrom.custom.rawValue, for: MacSettings.settingsFrom)
         let own = GraphConfig.load(from: s, wearer: w)
         #expect(own.bands.low == 75 && own.hours == 6)
+    }
+
+    /// Add Treatment opens centred under the status item, kept 12 pt inside the screen, 6 pt under the menu bar.
+    @Test @MainActor func addTreatmentOpensUnderTheStatusItem() {
+        let area = NSRect(x: 0, y: 0, width: 1440, height: 875)
+        let size = NSSize(width: 400, height: 300)
+        let mid = AppWindows.underMenuBar(size: size, anchor: NSRect(x: 900, y: 875, width: 60, height: 24), area: area)
+        #expect(mid == NSPoint(x: 730, y: 869))
+        let edge = AppWindows.underMenuBar(
+            size: size, anchor: NSRect(x: 1400, y: 875, width: 40, height: 24), area: area)
+        #expect(edge.x == 1028, "\(edge)")
+        #expect(AppWindows.underMenuBar(size: size, anchor: nil, area: area).x == 1028)
+    }
+
+    @Test func aPillAsksTheOpenWindowToMoveTheFocus() {
+        let f = AddTreatmentFocus()
+        f.request(.carbs)
+        f.request(.carbs)
+        #expect(f.field == .carbs && f.count == 2)  // the same field again still moves the focus back
     }
 }
