@@ -259,13 +259,18 @@ public actor RelayPool: RelayTransport {
     private static func answers(
         _ socket: any WebSocket, within seconds: Double, sleep: @escaping @Sendable (Double) async throws -> Void
     ) async -> Bool {
-        await withCheckedContinuation { continuation in
-            let first = FirstAnswer(continuation)
-            Task { first.resume((try? await socket.ping()) != nil) }
-            Task {
-                try? await sleep(seconds)
-                first.resume(false)
+        let first = FirstAnswer()
+        return await withTaskCancellationHandler {
+            await withCheckedContinuation { continuation in
+                first.start(continuation)
+                Task { first.resume((try? await socket.ping()) != nil) }
+                Task {
+                    try? await sleep(seconds)
+                    first.resume(false)
+                }
             }
+        } onCancel: {
+            first.resume(false)  // stop(): don't wait for the deadline
         }
     }
 
@@ -287,11 +292,21 @@ private final class FirstAnswer: @unchecked Sendable {
     // Guarded by `lock`.
     private let lock = NSLock()
     private var continuation: CheckedContinuation<Bool, Never>?
+    /// The first answer, kept when it came before `start` (cancelled before the wait began).
+    private var answer: Bool?
 
-    init(_ continuation: CheckedContinuation<Bool, Never>) { self.continuation = continuation }
+    func start(_ continuation: CheckedContinuation<Bool, Never>) {
+        let early = lock.withLock { () -> Bool? in
+            if answer == nil { self.continuation = continuation }
+            return answer
+        }
+        if let early { continuation.resume(returning: early) }
+    }
 
     func resume(_ answer: Bool) {
         let waiting = lock.withLock { () -> CheckedContinuation<Bool, Never>? in
+            guard self.answer == nil else { return nil }
+            self.answer = answer
             defer { continuation = nil }
             return continuation
         }

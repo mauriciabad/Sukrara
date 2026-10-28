@@ -71,10 +71,10 @@ public final class AppModel {
         let wasMonitoring = monitoring
         link = snapshot.link
         // an unreadable Keychain (retrying) still follows the wearer: keep alerting on their readings, no-data included
-        monitoring = link.isFollowing || snapshot.keychainUnreadable
+        monitoring = link.isFollowing || (snapshot.keychainUnreadable && !snapshot.readings.isEmpty)
         if wasMonitoring && !monitoring { alerts?.resetMonitoring() }
         if let alerts {
-            alerts.setMirroring(link.isFollowing && alerts.settings.source == .wearer)
+            alerts.setMirroring(monitoring && alerts.settings.source == .wearer)
             alerts.sensor(
                 snapshot.sensor.map {
                     SensorWindow(
