@@ -126,6 +126,8 @@ fun AlertsSettingsContent(
     confirmedAt: Instant?,
     clock: Clock,
     actions: AlertsActions,
+    /** Above the page's groups (a follower's *Settings from* note). */
+    header: @Composable () -> Unit = {},
     onBack: () -> Unit,
 ) {
     val s = ui.settings
@@ -133,6 +135,7 @@ fun AlertsSettingsContent(
     var dialog by rememberSaveable { mutableStateOf<String?>(null) }
     SettingsPage(stringResource(R.string.st_alerts_title), onBack) {
         MuteAllStrip(ui.alerts, clock, actions.unmuteAll) { dialog = "muteAll" }
+        header()
         ActiveNow(ui.alerts, clock, actions)
         SettingsGroup {
             SwitchRow(

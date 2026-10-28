@@ -7,7 +7,6 @@ import android.app.Application
 import app.mauri.sukrara.alerts.AlertEvent
 import app.mauri.sukrara.alerts.AlertKind
 import app.mauri.sukrara.alerts.AlertSettings
-import app.mauri.sukrara.alerts.AlertSettingsCodec
 import app.mauri.sukrara.core.data.DataModule
 import app.mauri.sukrara.core.data.settings.SchemaSettings
 import app.mauri.sukrara.core.model.Clock
@@ -160,7 +159,7 @@ class AppGraph(
                 ),
             role = role.data.map { it.role },
             source = ::readingSource,
-            settings = data.settings,
+            settings = followerSettings.settings,
             treatments = recentTreatments(),
             graphConfig = graphConfig,
             // cold: the owner engine is built when the service first draws the notification
@@ -176,11 +175,11 @@ class AppGraph(
         )
     }
 
-    val alerts by lazy {
+    val alerts: AlertsModule by lazy {
         AlertsModule(
             context = app,
             hub = monitor.hub,
-            alertSettings = data.settings,
+            alertSettings = followerSettings.settings,
             // a damaged record starts the machine over; the hub re-arms it as soon as the service runs
             alertRecord = data.typedStore("alert_state", AlertRecord.serializer(), AlertRecord(), whenCorrupt = AlertRecord()),
             // a damaged memory can only repeat a sensor-end warning
@@ -193,12 +192,29 @@ class AppGraph(
             scope = scope,
             dispatchers = dispatchers,
             needsBluetooth = needsBluetooth(),
-            // a follower's runtime: the wearer's mirrored settings and its `alert` events (its own mute stays here)
-            wearerSettings =
-                flow { emitAll(follower.engine.wearerSettings) }.map { p ->
-                    p?.let { AlertSettingsCodec.decode(it.alerts.toString()) }
-                },
+            // a follower's runtime: the mirrored values *Settings from* chooses and the wearer's `alert` events (its own
+            // mute stays here)
+            wearerSettings = followerSettings.alertMirror,
             remoteEvents = flow { emitAll(follower.engine.alerts) }.mapNotNull { AlertEvent.decode(AlertCodec.encode(it)) },
+        )
+    }
+
+    /**
+     * A follower's *Settings from*: the settings the cards, the notification and the alerts use (the wearer's, the
+     * defaults or this phone's own for the mirrored rows). Inputs are cold, so building it builds nothing else.
+     */
+    val followerSettings: FollowerSettingsBridge by lazy {
+        FollowerSettingsBridge(
+            own = data.settings,
+            alerts =
+                object : FollowerSettingsBridge.AlertsAccess {
+                    override val settings get() = alerts.store.settings
+
+                    override suspend fun update(transform: (AlertSettings) -> AlertSettings) = alerts.store.updateSettings(transform)
+                },
+            role = role.data.map { it.role },
+            wearer = flow { emitAll(follower.engine.wearerSettings) },
+            wearerName = flow { emitAll(monitor.hub.state) }.map { it.link?.wearerName }.distinctUntilChanged(),
         )
     }
 
@@ -267,6 +283,7 @@ class AppGraph(
                         AppOutput.Tidepool.takeIf { s.tidepool },
                     )
                 },
+            settingsFrom = followerSettings,
         )
     }
 
@@ -359,7 +376,7 @@ class AppGraph(
 
     /** The person's graph settings: THE [GraphConfig] every card surface draws with (home, widgets). */
     val graphConfig: Flow<GraphConfig> by lazy {
-        GraphSettings.config(data.settings).shareIn(scope, SharingStarted.WhileSubscribed(SHARE_STOP_MS), replay = 1)
+        GraphSettings.config(followerSettings.settings).shareIn(scope, SharingStarted.WhileSubscribed(SHARE_STOP_MS), replay = 1)
     }
 
     val home by lazy {
@@ -517,6 +534,8 @@ class AppGraph(
                 integrations.start(scope)
             }
             step("pens") { pens.start() }
+            // the alerts' source follows *Settings from* (the wearer's alerts, or rules run here)
+            step("settingsFrom") { scope.launch { followerSettings.keepAlertSource() } }
             // sharing runs while this phone is the wearer (needs an identity: created / restored in Settings › Sharing)
             step("share") { scope.launch { shareOwner.ownerEngine.followRole(role.data.map { it.role }, scope) } }
             step("follower") {

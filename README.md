@@ -105,6 +105,8 @@ The full catalog, with every rule and number, is [docs/FEATURES.md](docs/FEATURE
   home, widgets, the live notification and your own alerts (including *no data*); near their phone they also arrive over
   Bluetooth, without internet. Add entries when they let you;
   notifications say when an invite was used, declined or your access removed; *Stop following* in Settings › Sharing.
+  **Settings from** (Settings): use the wearer's ranges, graph and alert rules (kept up to date), Sukrara's defaults,
+  or your own (start them by copying the wearer's or from the defaults); sounds and no-data alerts are always yours.
 - **Share with apps**: upload your Libre 3 glucose and entries to **LibreView** for your clinic (password used once,
   never saved; asks before taking over another uploading device; only from the moment you switch it on; a cloud on each
   entry on home says whether LibreView has it; a home banner suggests it until set up), to your own **Nightscout** site (https, access token kept encrypted; 30-day catch-up,
@@ -138,8 +140,7 @@ The full catalog, with every rule and number, is [docs/FEATURES.md](docs/FEATURE
 - VoiceOver reads the value as one sentence with the range in words.
 
 **Not included**: the LSPosed lock-screen widget, Dexcom / Aidex / SmartGuide (untested) sensors, the Nightscout API on the home network, Health Connect and broadcasts, the pen list and dose review, the sensor-end
-calendar event, settings export / import, the Android
-follower's *Settings from* page, *Pair nearby* (joining over Bluetooth without a link), and the Mac's Juggluco-over-Wi-Fi source.
+calendar event, settings export / import, and the Mac's Juggluco-over-Wi-Fi source.
 
 **Garmin watch:** switch on *Settings › Share with apps › xDrip+ server*; watch faces and data fields made for xDrip+
 read it through Garmin Connect. While **Juggluco** is Sukrara's source, Juggluco keeps its own server and feeds the

@@ -15,6 +15,7 @@ import androidx.compose.ui.unit.Density
 import app.mauri.sukrara.alerts.AlertKind
 import app.mauri.sukrara.alerts.AlertSettings
 import app.mauri.sukrara.core.data.settings.HookPosition
+import app.mauri.sukrara.core.data.settings.SettingsFrom
 import app.mauri.sukrara.core.model.AlertNote
 import app.mauri.sukrara.core.model.AlertNoteType
 import app.mauri.sukrara.core.model.AlertQuietReason
@@ -29,6 +30,10 @@ import app.mauri.sukrara.core.model.SensorState
 import app.mauri.sukrara.core.model.SystemAccessState
 import app.mauri.sukrara.core.testing.FakeClock
 import app.mauri.sukrara.designsystem.theme.SukraraTheme
+import app.mauri.sukrara.feature.settings.follower.SettingsFromActions
+import app.mauri.sukrara.feature.settings.follower.SettingsFromContent
+import app.mauri.sukrara.feature.settings.follower.SettingsFromNote
+import app.mauri.sukrara.feature.settings.follower.SettingsFromState
 import app.mauri.sukrara.feature.settings.graph.GraphActions
 import app.mauri.sukrara.feature.settings.graph.GraphContent
 import app.mauri.sukrara.feature.settings.graph.GraphMarksContent
@@ -111,6 +116,9 @@ class SettingsGallery {
             LibreViewSummary("wearer@example.invalid", 2_864_434_397),
         )
 
+    /** A follower of a made-up wearer whose settings arrived yesterday. */
+    private val fromWearer = SettingsFromState(SettingsFrom.Wearer, "Ana", now.minusSeconds(86_400))
+
     private val pages: List<Pair<String, @Composable () -> Unit>> =
         listOf(
             "overview" to
@@ -135,6 +143,39 @@ class SettingsGallery {
                 ) {}
             },
             "overview-muted" to { SettingsOverviewContent(true, muted, AlertReadiness.Ready, clock, OverviewActions()) {} },
+            "overview-follower" to {
+                SettingsOverviewContent(true, AlertUiState(), AlertReadiness.Ready, clock, OverviewActions(), settingsFrom = fromWearer) {}
+            },
+            "from-wearer" to { SettingsFromContent(fromWearer, clock, SettingsFromActions(), onBack = {}) },
+            "from-wearer-waiting" to
+                { SettingsFromContent(fromWearer.copy(wearerChangedAt = null), clock, SettingsFromActions(), onBack = {}) },
+            "from-default" to
+                { SettingsFromContent(fromWearer.copy(from = SettingsFrom.Default), clock, SettingsFromActions(), onBack = {}) },
+            "from-custom" to {
+                SettingsFromContent(
+                    fromWearer.copy(from = SettingsFrom.Custom),
+                    clock,
+                    SettingsFromActions(),
+                    onBack = {},
+                )
+            },
+            "from-custom-nothing-yet" to {
+                SettingsFromContent(
+                    SettingsFromState(SettingsFrom.Custom, wearerName = null, wearerChangedAt = null),
+                    clock,
+                    SettingsFromActions(),
+                    onBack = {},
+                )
+            },
+            "alerts-follower" to {
+                AlertsSettingsContent(
+                    AlertsUi(AlertSettings(), AlertUiState()),
+                    null,
+                    clock,
+                    AlertsActions(),
+                    header = { SettingsFromNote(fromWearer, {}) },
+                ) {}
+            },
             "alerts" to { AlertsSettingsContent(AlertsUi(AlertSettings(), AlertUiState()), null, clock, AlertsActions()) {} },
             "alerts-lately" to {
                 val lately =
@@ -322,6 +363,8 @@ class SettingsGallery {
                     "sensor",
                     "sensor-juggluco-signed-out",
                     "sensor-juggluco-unreachable",
+                    "from-wearer",
+                    "from-custom",
                 ),
         )
 }

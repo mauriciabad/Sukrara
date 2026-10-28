@@ -11,6 +11,7 @@ import app.mauri.sukrara.core.model.SensorState
 import app.mauri.sukrara.core.model.SourceId
 import app.mauri.sukrara.core.model.SourceStatus
 import app.mauri.sukrara.core.model.storage.ReadingsRepository
+import app.mauri.sukrara.core.model.storage.StateStore
 import app.mauri.sukrara.core.model.storage.TreatmentDelivery
 import app.mauri.sukrara.core.model.storage.TreatmentRecord
 import app.mauri.sukrara.core.model.storage.TreatmentsRepository
@@ -24,6 +25,7 @@ import app.mauri.sukrara.protocol.event.EventFactory
 import app.mauri.sukrara.protocol.event.Profile
 import app.mauri.sukrara.protocol.event.Rumor
 import app.mauri.sukrara.protocol.event.SensorLife
+import app.mauri.sukrara.protocol.event.SettingsCodec
 import app.mauri.sukrara.protocol.event.SettingsPayload
 import app.mauri.sukrara.protocol.event.TreatmentCodec
 import app.mauri.sukrara.protocol.event.WireReading
@@ -64,6 +66,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.channelFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.emitAll
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
@@ -134,6 +137,11 @@ class FollowerEngine(
     private val joinTimeoutMs: Long = JOIN_TIMEOUT_MS,
     /** The Bluetooth path to the wearer's phone (null: relays only). */
     private val nearbyTransports: NearbyTransportFactory? = null,
+    /**
+     * A plain (not secret) copy of the wearer's newest mirrored settings, so a Keystore that can't open the record at
+     * start still gives the alert runtime and the card the wearer's settings instead of this phone's own.
+     */
+    private val settingsCache: StateStore<WearerSettingsCache>? = null,
 ) : ReadingSource {
     private val serial = dispatcher.limitedParallelism(1)
     private val lock = Mutex()
@@ -209,6 +217,14 @@ class FollowerEngine(
         if (loaded && _state.value !is FollowState.Unreadable) return
         loaded = true
         val l = store.load()
+        when (l) {
+            FollowerStore.Load.Missing -> setSettings(null)
+
+            // the record can't be read now: the wearer's settings from the plain copy until it can
+            is FollowerStore.Load.Unreadable, FollowerStore.Load.Damaged -> latestSettings.value = cachedSettings()
+
+            is FollowerStore.Load.Loaded -> setSettings(l.record.settings)
+        }
         loadedOnce.complete(Unit)
         when (l) {
             FollowerStore.Load.Missing -> {
@@ -371,7 +387,7 @@ class FollowerEngine(
             if (!store.save(r)) return@locked JoinResult.KeyStoreFailed
             loaded = true
             treatmentCreatedAt.clear()
-            latestSettings.value = null
+            setSettings(null)
             adopt(r)
             // attached already (a follow that had ended): reconnect with the new key
             sink?.let { out ->
@@ -409,7 +425,7 @@ class FollowerEngine(
             if (deleted) {
                 record = null
                 follower = null
-                latestSettings.value = null
+                setSettings(null)
                 _sensor.value = SensorState.None
                 _status.value = SourceStatus.NotStarted
                 _state.value = FollowState.NotFollowing
@@ -702,7 +718,7 @@ class FollowerEngine(
 
                     is Item.Settings -> {
                         next = next.copy(settings = item.settings)
-                        latestSettings.value = item.settings
+                        setSettings(item.settings)
                     }
 
                     Item.Revoked -> {
@@ -879,6 +895,25 @@ class FollowerEngine(
         // the wearer's echo (which stores it as delivered)
         sink?.launch { nb.send(ev) }
     }
+
+    /** The wearer's mirrored settings now, and in the plain copy (none = forgotten: not following any more). */
+    private suspend fun setSettings(p: SettingsPayload?) {
+        latestSettings.value = p
+        val text = p?.let(SettingsCodec::encode)
+        val cache = settingsCache ?: return
+        runCatching { cache.update { if (it.payload == text) it else WearerSettingsCache(text) } }
+            .onFailure { if (it is CancellationException) throw it }
+    }
+
+    private suspend fun cachedSettings(): SettingsPayload? =
+        runCatching {
+            settingsCache
+                ?.data
+                ?.first()
+                ?.payload
+                ?.let(SettingsCodec::decode)
+        }.onFailure { if (it is CancellationException) throw it }
+            .getOrNull()
 
     /** The record in memory at once; on disk when what it trusts changed, or every [PERSIST_EVERY] otherwise. */
     private suspend fun commit(r: FollowerRecord, force: Boolean) {

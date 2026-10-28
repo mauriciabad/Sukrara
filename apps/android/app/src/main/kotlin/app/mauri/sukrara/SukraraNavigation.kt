@@ -162,6 +162,7 @@ data class SettingsKey(
             "sensorend" -> SettingsRoute.SensorEnd
             "about" -> SettingsRoute.About
             "review" -> SettingsRoute.ThresholdReview
+            "from" -> SettingsRoute.SettingsFrom
             else -> SettingsRoute.Overview
         }
 
@@ -183,6 +184,7 @@ data class SettingsKey(
                 SettingsRoute.SensorEnd -> SettingsKey("sensorend")
                 SettingsRoute.About -> SettingsKey("about")
                 SettingsRoute.ThresholdReview -> SettingsKey("review")
+                SettingsRoute.SettingsFrom -> SettingsKey("from")
             }
     }
 }
