@@ -36,21 +36,28 @@ public struct AddTreatmentView: View {
     @State private var when = TreatmentForm.When.now
     @State private var pickTime = false
     @State private var saved = false
+    /// The pen entry that may already be this insulin (*Already logged by the pen?*), with the entries Save made.
+    @State private var penAsk: (pen: Treatment, entries: [Treatment])?
     @FocusState private var focus: Treatment.Kind?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let initialFocus: Treatment.Kind
     /// The quiet line for entries logged at `at` (epoch s): rapid insulin, carbs; nil = nothing to say.
     let quiet: (_ rapid: Bool, _ carbs: Bool, _ at: Int64) -> String?
-    let save: ([Treatment]) -> Void
+    /// A pen entry of an insulin kind in `entries` close enough in time to be the same injection (nil = none).
+    let penDuplicate: (_ entries: [Treatment]) -> Treatment?
+    /// Saves `entries`; `close` = the form is done (false: something stays in it).
+    let save: (_ entries: [Treatment], _ close: Bool) -> Void
     let cancel: () -> Void
     var now: () -> Date = Date.init
 
     public init(
         focus: Treatment.Kind, quiet: @escaping (Bool, Bool, Int64) -> String? = { _, _, _ in nil },
-        save: @escaping ([Treatment]) -> Void, cancel: @escaping () -> Void
+        penDuplicate: @escaping ([Treatment]) -> Treatment? = { _ in nil },
+        save: @escaping ([Treatment], Bool) -> Void, cancel: @escaping () -> Void
     ) {
         initialFocus = focus
         self.quiet = quiet
+        self.penDuplicate = penDuplicate
         self.save = save
         self.cancel = cancel
     }
@@ -136,6 +143,41 @@ public struct AddTreatmentView: View {
         .animation(reduceMotion ? nil : .spring(duration: 0.25), value: saved)
         .animation(reduceMotion ? nil : .default, value: quietLine)
         .onAppear { focus = initialFocus }
+        .alert(
+            L10n.t("Already logged by the pen?"),
+            isPresented: Binding(get: { penAsk != nil }, set: { if !$0 { penAsk = nil } }),
+            presenting: penAsk
+        ) { ask in
+            Button(L10n.t("Cancel"), role: .cancel) { keepInsulin(ask) }
+            Button(L10n.t("Log Anyway")) { finish(ask.entries) }
+        } message: { ask in
+            Text(Self.penLine(ask.pen))
+        }
+    }
+
+    /// "8.5u rapid at 12:40".
+    static func penLine(_ t: Treatment) -> String {
+        let a = TreatmentsView.amount(t.a)
+        let at = Clock.time(Date(timeIntervalSince1970: TimeInterval(t.t)))
+        return t.k == .long ? L10n.t("\(a)u long-acting at \(at)") : L10n.t("\(a)u rapid at \(at)")
+    }
+
+    /// Cancel on the pen question: everything else of this save is saved; the insulin of the pen's kind stays typed.
+    private func keepInsulin(_ ask: (pen: Treatment, entries: [Treatment])) {
+        penAsk = nil
+        let rest = ask.entries.filter { $0.k != ask.pen.k }
+        if !rest.isEmpty { save(rest, false) }
+        let kept = fields
+        fields = TreatmentForm.Fields()
+        if ask.pen.k == .rapid { fields.rapid = kept.rapid } else { fields.long = kept.long }
+        focus = ask.pen.k
+    }
+
+    private func finish(_ entries: [Treatment]) {
+        penAsk = nil
+        NSHapticFeedbackManager.defaultPerformer.perform(.levelChange, performanceTime: .now)
+        saved = true
+        save(entries, true)
     }
 
     private func kindLabel(_ k: Treatment.Kind) -> some View {
@@ -173,10 +215,12 @@ public struct AddTreatmentView: View {
         let d = now()
         let t = when.resolve(now: Int64(d.timeIntervalSince1970))
         let entries = fields.treatments(at: t, u: TreatmentsModel.millis(d))
-        guard !entries.isEmpty else { return }
-        NSHapticFeedbackManager.defaultPerformer.perform(.levelChange, performanceTime: .now)
-        saved = true
-        save(entries)
+        guard !entries.isEmpty, penAsk == nil else { return }
+        if let pen = penDuplicate(entries) {
+            penAsk = (pen, entries)
+            return
+        }
+        finish(entries)
     }
 
     /// The chip: "Now", "15 min ago", "Today 14:05", "Yesterday 23:10".
@@ -351,11 +395,28 @@ public struct TreatmentsView: View {
                 .foregroundStyle(.secondary)
                 .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 2) {
-                Text(Self.title(t))
+                Text(Self.title(t)).contentTransition(.numericText())
+                if let pen = Self.penLine(t) { Text(pen).font(.callout).foregroundStyle(.secondary) }
                 if t.k != .note, !t.n.isEmpty { Text(t.n).font(.callout).foregroundStyle(.secondary) }
                 Text(Clock.time(at) + " · " + Self.since(at, now: now))
                     .font(.callout)
                     .foregroundStyle(.secondary)
+                if let doses = t.pd, doses.count > 1 {
+                    DisclosureGroup(L10n.t("Doses")) {
+                        ForEach(Array(doses.enumerated()), id: \.offset) { _, d in
+                            HStack {
+                                Text(Self.doseText(d)).foregroundStyle(d.p ? .secondary : .primary)
+                                Spacer()
+                                Text(Clock.time(Date(timeIntervalSince1970: TimeInterval(d.t))))
+                                    .foregroundStyle(.secondary)
+                            }
+                            .font(.callout)
+                            .accessibilityElement(children: .ignore)
+                            .accessibilityLabel(Self.doseSpoken(d))
+                        }
+                    }
+                    .font(.callout)
+                }
             }
             Spacer()
             delivery(row)
@@ -389,9 +450,33 @@ public struct TreatmentsView: View {
         }
     }
 
-    /// "Logged on the phone", "Logged on this Mac", "Logged by a follower", "Logged by the pen".
+    /// "From the pen · 1.5u primed" ("From the pen" without priming); nil for an entry typed by hand.
+    static func penLine(_ t: Treatment) -> String? {
+        guard t.fromPen else { return nil }
+        guard let pr = t.pr, pr > 0 else { return L10n.t("From the pen") }
+        return L10n.t("From the pen · \(amount(pr))u primed")
+    }
+
+    /// One dose the pen recorded: "8u", "1u primed".
+    static func doseText(_ d: Treatment.PenDose) -> String {
+        d.p ? L10n.t("\(amount(d.a))u primed") : "\(amount(d.a))u"
+    }
+
+    /// VoiceOver: "12:37, 1 unit, primed".
+    static func doseSpoken(_ d: Treatment.PenDose) -> String {
+        let at = Clock.time(Date(timeIntervalSince1970: TimeInterval(d.t)))
+        return d.p
+            ? L10n.t("\(at), \(amount(d.a)) units, primed") : L10n.t("\(at), \(amount(d.a)) units")
+    }
+
+    /// "4.5", "12".
+    static func amount(_ a: Double) -> String {
+        a.truncatingRemainder(dividingBy: 1) == 0 ? String(Int(a)) : String(format: "%.1f", a)
+    }
+
+    /// "Logged on the phone", "Logged on this Mac", "Logged by a follower", "Read from the pen on the wearer's phone".
     static func loggedBy(_ t: Treatment) -> String {
-        if t.fromPen { return L10n.t("Logged by the pen") }
+        if t.fromPen { return L10n.t("Read from the pen on the wearer's phone") }
         switch t.o {
         case .phone: return L10n.t("Logged on the wearer's phone")
         case .mac: return L10n.t("Logged on a Mac")
@@ -417,7 +502,7 @@ public struct TreatmentsView: View {
 
     /// "4.5u rapid insulin", "30g carbs", the note's text.
     static func title(_ t: Treatment) -> String {
-        let a = t.a.truncatingRemainder(dividingBy: 1) == 0 ? String(Int(t.a)) : String(format: "%.1f", t.a)
+        let a = amount(t.a)
         switch t.k {
         case .rapid: return L10n.t("\(a)u rapid insulin")
         case .long: return L10n.t("\(a)u long-acting insulin")

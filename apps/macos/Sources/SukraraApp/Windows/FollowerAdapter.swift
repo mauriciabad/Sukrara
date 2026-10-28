@@ -72,6 +72,32 @@ final class FollowerAdapter: FollowActions, TreatmentActions {
         }
     }
 
+    /// How the readings arrive while following: always over the relays, and the Bluetooth path's state when it runs.
+    static func source(_ snapshot: FollowerSnapshot) -> String? {
+        guard snapshot.link.isFollowing else { return nil }
+        let internet = L10n.t("Over the internet (relays)")
+        switch snapshot.nearby {
+        case nil: return internet
+        case .off: return internet + " · " + L10n.t("Bluetooth off")
+        case .unauthorized: return internet + " · " + L10n.t("Bluetooth not allowed")
+        case .searching: return internet + " · " + L10n.t("Looking for the phone over Bluetooth")
+        case .connected(let phone): return internet + " · " + L10n.t("Bluetooth: connected to \(phone)")
+        }
+    }
+
+    /// The newest problem worth a line under the source, with what to do (nil = none).
+    static func problem(_ snapshot: FollowerSnapshot) -> String? {
+        if let issue = snapshot.storeIssues.last {
+            return L10n.t("\(issue.file) couldn't be read and was moved aside; Sukrara started it again.")
+        }
+        if snapshot.link.isFollowing, snapshot.nearby == .unauthorized {
+            return L10n.t(
+                "Sukrara may not use Bluetooth: allow it in System Settings › Privacy & Security › Bluetooth to get readings from the phone nearby."
+            )
+        }
+        return nil
+    }
+
     static func wearerName(_ link: LinkState) -> String? {
         switch link {
         case .requested(_, let wearer, _), .following(let wearer, _): wearer

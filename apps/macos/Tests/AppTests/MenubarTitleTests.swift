@@ -58,7 +58,9 @@ import Testing
             let firing = AlertFiring(
                 id: "a", kind: .low, at: clock.now, reading: GlucoseSample(at: clock.now, mgdl: 64, rate: rate),
                 threshold: 70, n: 1, treated: 0)
-            #expect(AlertText(language: .en).title(firing).hasSuffix("64 mg/dL \(want)"), "alert, \(c["name"] ?? "")")
+            #expect(
+                AlertText(language: .en).body(firing, now: clock.now) == "64 mg/dL \(want)", "alert, \(c["name"] ?? "")"
+            )
         }
     }
 

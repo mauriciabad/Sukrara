@@ -179,7 +179,7 @@
                         AddTreatmentView(
                             focus: .carbs,
                             quiet: { _, carbs, _ in carbs ? L10n.t("Lows quiet for \(Durations.text(15))") : nil },
-                            save: { _ in }, cancel: {}))
+                            save: { _, _ in }, cancel: {}))
                 ))
             let t0 = Int64(Date().timeIntervalSince1970)
             let rows: [TreatmentsModel.Row] = [
@@ -189,6 +189,14 @@
                 .init(
                     treatment: Treatment(id: "4", k: .note, a: 0, t: t0 - 9000, n: "Walk", u: 1, o: .mac),
                     delivery: .accepted),
+                .init(
+                    treatment: Treatment(
+                        id: "5", k: .rapid, a: 8.5, t: t0 - 2400, u: 1, o: .phone, pr: 1.5, pen: "NP1",
+                        pd: [
+                            .init(t: t0 - 2580, a: 1, p: true), .init(t: t0 - 2520, a: 0.5, p: true),
+                            .init(t: t0 - 2400, a: 8.5),
+                        ]),
+                    delivery: nil),
             ]
             let tm = TreatmentsModel(rows: rows, canWrite: true, actions: nil)
             out.append(("treatments", AnyView(TreatmentsView(model: tm, add: {}).frame(width: 460, height: 380))))

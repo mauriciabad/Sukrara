@@ -90,6 +90,16 @@ import Testing
         #expect(
             FollowerAdapter.status(s)
                 == .following(wearer: "Marta", lastReading: Date(timeIntervalSince1970: 100), canWrite: false))
+        #expect(FollowerAdapter.source(s) == "Over the internet (relays)")
+        #expect(FollowerAdapter.problem(s) == nil)
+        s.nearby = .connected(phone: "Pixel")
+        #expect(FollowerAdapter.source(s) == "Over the internet (relays) · Bluetooth: connected to Pixel")
+        s.nearby = .unauthorized
+        #expect(FollowerAdapter.problem(s)?.contains("Privacy & Security") == true)
+        s.storeIssues = [StoreIssue(file: "readings.csv", quarantined: nil)]
+        #expect(FollowerAdapter.problem(s)?.hasPrefix("readings.csv couldn't be read") == true)
+        s.link = .notFollowing
+        #expect(FollowerAdapter.source(s) == nil)
         #expect(FollowerAdapter.failure(.cancelled) == nil)
         #expect(FollowerAdapter.failure(.keyFailed) == .keychain)
         #expect(FollowerAdapter.failure(.alreadyFollowing) == .alreadyFollowing)
