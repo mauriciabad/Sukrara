@@ -44,7 +44,7 @@ class LanPolicyTest {
         assertTrue(LanPolicy.pick(net("192.168.1.40" to 24), home) is LanPolicy.Pick.Ok)
         val other = net("192.168.1.40" to 24, gateway = "192.168.1.254")
         assertEquals(LanState.OtherWifi, (LanPolicy.pick(other, home) as LanPolicy.Pick.Blocked).state)
-        assertEquals(LanState.OtherWifi, (LanPolicy.pick(net("192.168.1.23" to 24), LanPin.UNKNOWN) as LanPolicy.Pick.Blocked).state)
+        assertEquals(LanState.OtherWifi, (LanPolicy.pick(net("192.168.1.23" to 24), "another network") as LanPolicy.Pick.Blocked).state)
     }
 
     @Test fun `callers from outside the subnet are dropped, mapped addresses included`() {

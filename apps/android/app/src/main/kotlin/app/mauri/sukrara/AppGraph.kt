@@ -293,7 +293,7 @@ class AppGraph(
             // a lost state writes the stored history again (idempotent: one record per minute)
             healthState = data.typedStore("health-connect", HcState.serializer(), HcState(), whenCorrupt = HcState()),
             // a lost pin pauses the home-network option ("another Wi-Fi") until Allow on this Wi-Fi: never a silent move
-            nightscoutLan = data.typedStore("nightscout-lan", LanPin.serializer(), LanPin(), whenCorrupt = LanPin(LanPin.UNKNOWN)),
+            nightscoutLan = data.typedStore("nightscout-lan", LanPin.serializer(), LanPin(), whenCorrupt = LanPin()),
             appVersion = appVersion,
             readings = data.readings,
             treatments = data.treatments,

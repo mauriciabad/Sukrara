@@ -1018,7 +1018,9 @@ missing → the same fix rows; leaving the join step stops looking. Every state 
   listener binds only the phone's private IPv4 Wi-Fi address (RFC 1918, prefix 8–30; never 0.0.0.0, a public, VPN or
   hotspot address) on port 17581, drops callers outside that subnet without an answer, and answers only a Host header
   that is exactly that address; same secret, routes and bounds, plus a write deadline (a caller that stops reading is
-  cut off). It is pinned to the Wi-Fi it was turned on in: Android hides the Wi-Fi's name without location permission
+  cut off). It is pinned to the Wi-Fi the phone is on when it is turned on (or *Allow on this Wi-Fi* is tapped); away
+  from a qualifying Wi-Fi turning it on is refused ("Not turned on: it works only while the phone is on a home Wi-Fi with
+  a password") and nothing is pinned, so it never opens on a network joined later. A lost pin pauses it until *Allow on this Wi-Fi*. Android hides the Wi-Fi's name without location permission
   (never asked), so "the same Wi-Fi" is a fingerprint of subnet, gateway, DHCP server and DNS domain, which tells most
   networks apart but not two look-alike routers. Open, WEP, OWE or unknown-security Wi-Fi is refused (a café's WPA2
   password still passes: the warning says it works wherever you turn it on). The Wi-Fi is watched (one ConnectivityManager
@@ -1033,7 +1035,9 @@ missing → the same fix rows; leaving the join step stops looking. Every state 
   `GLUCOSE_READING` / `SENSOR_ACTIVATE` or Juggluco `glucodata.Minute` broadcast (manifest `<queries>`), with its
   package name and format and a switch each, **none on by default** (schema `apps.broadcasts`). Allowing an app pins the
   SHA-256 of its signing certificate; before every send `hasSigningCertificate` checks it, so a reinstall with another
-  key gets nothing ("this app changed since you allowed it": tap to allow again, or *Remove*). An allowed app that was
+  key gets nothing ("this app changed since you allowed it": tap → a confirmation that it may be another app and that
+  AndroidAPS may dose from these readings → *Allow again*; or *Remove*). A follower's page still lists apps allowed
+  earlier with *Remove*. An allowed app that was
   uninstalled stays listed as "Not installed · Tap to remove". What goes out (a closed loop may dose from it): only the
   Libre 3 driver's live reading on the wearer's phone (never history, Juggluco, an untested family, a follower feed or
   debug data), at most 5 min old and never in the future, never LO / HI, at most one per 55 s and never the same reading
@@ -1059,7 +1063,9 @@ missing → the same fix rows; leaving the join step stops looking. Every state 
   (permission removed in Health Connect: nothing is written until it's allowed again). *Open Health Connect* opens this
   app's Health Connect permissions (allow again, see or delete what was written). Health Connect's "why this app needs
   it" link opens this page. Turning it off stops writing; records stay in Health Connect. A follower's page says nothing
-  is written on a follower's phone; a phone without Health Connect says so.
+  is written on a follower's phone; a phone without Health Connect says so (both still show the switch to turn it off
+  when it was left on). A history copy cut short (rate limit, process stop) is finished on the next passes; a new
+  reading never cancels a running pass.
 
 **States and exits**: *xDrip+ server off* (default) → switch on. *On / listening* → switch off stops it at once.
 *Port in use* → turn the other app's server off, then the switch off and on. *Left to Juggluco* → change the source in
@@ -1069,8 +1075,9 @@ stays). *Port in use* → as for the xDrip+ server. *Secret can't be read* → *
 → its switch → the warning dialog (*Cancel* keeps it off) → Android's permission. *On / listening* → switch off (or the
 API's switch). *Paused: another Wi-Fi* → *Allow on this Wi-Fi* or switch off. *Paused: no permission* → *Open Android
 settings* or switch off. *Paused: no Wi-Fi / not a home network / no password* → join the home Wi-Fi or switch off.
-*Broadcasts: no app allowed* (default) → an app's switch. *Allowed* → its switch off. *App changed* → tap to allow again,
-or *Remove*. *Not installed* → tap to remove. *No app listens* → install one, come back (the list refreshes on return).
+*Home Wi-Fi refused* (not on a qualifying Wi-Fi) → join it and switch on again. *Paused: API not running* → see the API's
+own state above. *Broadcasts: no app allowed* (default) → an app's switch. *Allowed* → its switch off. *App changed* →
+tap → confirm *Allow again* (*Cancel* keeps it blocked), or *Remove*. *Not installed* → tap to remove. *No app listens* → install one, come back (the list refreshes on return).
 *Health Connect off* (default) → switch → Health Connect's sheet. *Denied* → *Open Health Connect*, then the switch.
 *On* → switch off (records stay; *Open Health Connect* to delete them). *Permission removed* → *Open Health Connect* or
 switch off. *Slowed down / refused* → retries by itself, or switch off. *Nightscout upload*,

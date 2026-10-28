@@ -82,6 +82,27 @@ class HealthConnectSyncTest {
             assertTrue(sync.status.first() is HcStatus.Written)
         }
 
+    @Test fun `a history copy cut short by a rate limit is finished later, not forgotten`() =
+        runBlocking {
+            // three weeks back: more than the one-day recheck window, more than one batch
+            readings.upsert((1L..1_200L).map { r(it * 25) })
+            sync.setOn(true)
+            health.failAfter = 1
+            sync.pass()
+            assertEquals(HealthConnectSync.BATCH, health.written.size)
+            health.failAfter = null
+            clock.advance(Duration.ofMinutes(16))
+            sync.pass()
+            assertEquals(
+                1_200,
+                health.written
+                    .map { it.clientId }
+                    .toSet()
+                    .size,
+            )
+            assertTrue(store.data.first().backfillDone)
+        }
+
     @Test fun `a rate limit backs off and shows, then clears`() =
         runBlocking {
             readings.upsert(listOf(r(1)))
@@ -138,6 +159,10 @@ class HealthConnectSyncTest {
         var available = true
         var granted = true
         var fail: Exception? = null
+
+        /** Fails with a rate limit after this many inserts. */
+        var failAfter: Int? = null
+        private var inserts = 0
         val written = ArrayList<HcGlucose>()
 
         override fun available() = available
@@ -146,6 +171,8 @@ class HealthConnectSyncTest {
 
         override suspend fun insert(records: List<HcGlucose>) {
             fail?.let { throw it }
+            failAfter?.let { if (inserts >= it) throw HealthWriteException(HealthConnectSync.ERROR_RATE_LIMIT) }
+            inserts++
             written += records
         }
     }

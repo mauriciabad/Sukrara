@@ -36,6 +36,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import java.security.SecureRandom
 import java.time.Duration
 import java.time.Instant
@@ -123,16 +124,39 @@ class NightscoutApiServer(
     }
 
     /** On: listens on the current Wi-Fi too (pinned to it); the page has asked for confirmation and the permission. */
-    suspend fun setLan(on: Boolean) {
-        if (on) lanPin.update { LanPin() }
-        settings.set(LAN_SETTING, on)
+    suspend fun setLan(on: Boolean): LanState? {
+        if (!on) {
+            settings.set(LAN_SETTING, false)
+            return null
+        }
+        // pinned to the Wi-Fi the person confirmed on, now: never to a network the phone joins later
+        val refused = pinHere()
+        if (refused == null) settings.set(LAN_SETTING, true)
         recheckLan()
+        return refused
     }
 
-    /** *Allow on this Wi-Fi*: the option moves to the network the phone is on now. */
-    suspend fun allowHere() {
-        lanPin.update { LanPin() }
+    /** *Allow on this Wi-Fi*: the option moves to the network the phone is on now; null, or why it can't. */
+    suspend fun allowHere(): LanState? {
+        val refused = pinHere()
         recheckLan()
+        return refused
+    }
+
+    /** Pins the current Wi-Fi if it qualifies; otherwise why not (nothing changes). */
+    private suspend fun pinHere(): LanState? {
+        // Android reports a network's parts one callback at a time: wait for a complete one (none in time = no Wi-Fi)
+        val now = withTimeoutOrNull(WIFI_LOOKUP_MS) { wifi.first { it != null } }
+        return when (val pick = LanPolicy.pick(now, null)) {
+            is LanPolicy.Pick.Blocked -> {
+                pick.state
+            }
+
+            is LanPolicy.Pick.Ok -> {
+                lanPin.update { LanPin(pick.target.fingerprint) }
+                null
+            }
+        }
     }
 
     /** Looks again (the page came back: the local network permission may have changed). */
@@ -153,9 +177,18 @@ class NightscoutApiServer(
                         flowOf(null)
                     } else {
                         combine(wifi, lanPin.data, lanCheck) { w, p, _ -> LanInput(w, p.fingerprint) }
+                            // a failing watcher or store reads as "no Wi-Fi" (paused), never as a dead option
+                            .catch { emit(LanInput(null, null)) }
                     }
-                }.catch { emit(null) }
-                .collect { applyLan(it) }
+                }.collect { input ->
+                    try {
+                        applyLan(input)
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (e: Throwable) {
+                        // never a crash in the process the alerts run in
+                    }
+                }
         }
         // the stores are read only while the API is on (off by default: nobody pays for it)
         scope.launch {
@@ -227,6 +260,8 @@ class NightscoutApiServer(
                         server.bind() -> NsApiState.Listening(null, lanAddress)
                         else -> NsApiState.PortBusy
                     }
+                // the home-network listener may have looked before the secret was read
+                recheckLan()
             }
         }
 
@@ -264,8 +299,17 @@ class NightscoutApiServer(
         lock.withLock {
             withContext(io) {
                 when {
-                    input == null || secret.isEmpty() -> {
+                    input == null -> {
                         stopLan(LanState.Off)
+                    }
+
+                    secret.isEmpty() -> {
+                        stopLan(LanState.ApiStopped)
+                    }
+
+                    // no pin (it was lost): paused until Allow on this Wi-Fi, never pinned on its own
+                    input.pin == null -> {
+                        stopLan(LanState.OtherWifi)
                     }
 
                     !runCatching(localNetworkAllowed).getOrDefault(false) -> {
@@ -279,10 +323,7 @@ class NightscoutApiServer(
                             }
 
                             is LanPolicy.Pick.Ok -> {
-                                val t = pick.target
-                                // the first eligible network after switching on is the one it stays on
-                                if (input.pin == null) lanPin.update { LanPin(t.fingerprint) }
-                                listenLan(t)
+                                listenLan(pick.target)
                             }
                         }
                     }
@@ -339,6 +380,9 @@ class NightscoutApiServer(
     companion object {
         val SETTING = SchemaSettings.bool("apps.nightscout", default = false)
         val LAN_SETTING = SchemaSettings.bool("apps.nightscoutLan", default = false)
+
+        /** How long switching on waits for Android to report the current Wi-Fi. */
+        const val WIFI_LOOKUP_MS = 3_000L
         const val SECRET = "nightscout-api"
         val WINDOW: Duration = Duration.ofDays(7)
         val TREATMENTS_WINDOW: Duration = Duration.ofDays(30)

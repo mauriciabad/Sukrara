@@ -250,4 +250,9 @@
     <string name="in_nsapi_lan_confirm_title">¿Abrir la API al Wi-Fi de casa?</string>
     <string name="in_nsapi_lan_confirm_action">Activar</string>
     <string name="in_nsapi_lan_url">Dirección en este Wi-Fi</string>
+    <string name="in_nsapi_lan_refused">No se ha activado: solo funciona mientras el móvil está en un Wi-Fi de casa con contraseña</string>
+    <string name="in_nsapi_lan_api_stopped">En pausa · la propia API no está funcionando (mira arriba)</string>
+    <string name="in_bc_reallow_title">¿Volver a permitir %1$s?</string>
+    <string name="in_bc_reallow_text">%1$s (%2$s) está firmada con una clave distinta de la que tenía cuando la permitiste. Pasa cuando se reinstala desde otra fuente, y también puede ser otra app con el mismo nombre. Vuelve a permitirla solo si la instalaste tú desde una fuente de confianza: una app como AndroidAPS puede dosificar insulina con estas lecturas.</string>
+    <string name="in_bc_reallow_action">Volver a permitir</string>
 </resources>

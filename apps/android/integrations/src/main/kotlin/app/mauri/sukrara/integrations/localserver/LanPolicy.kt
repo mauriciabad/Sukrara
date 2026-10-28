@@ -37,6 +37,9 @@ sealed interface LanState {
     /** Another Wi-Fi than the one it was turned on in: paused until *Allow on this Wi-Fi*. */
     data object OtherWifi : LanState
 
+    /** The API itself isn't serving (its secret can't be read, or it is still starting). */
+    data object ApiStopped : LanState
+
     /** Android 17's local network access isn't allowed. */
     data object NoPermission : LanState
 
@@ -47,16 +50,14 @@ sealed interface LanState {
     data class Listening(val address: String) : LanState
 }
 
-/** The network the person turned the home-network option on in (its look-alike fingerprint). */
+/**
+ * The network the person turned the home-network option on in (its look-alike fingerprint); null = none (the option
+ * stays paused until *Allow on this Wi-Fi*).
+ */
 @Serializable
 data class LanPin(
     val fingerprint: String? = null,
-) {
-    companion object {
-        /** A pin that matches no network (the stored one was lost). */
-        const val UNKNOWN = "unknown"
-    }
-}
+)
 
 /** The address to bind, its prefix, and the network's fingerprint. */
 data class LanTarget(

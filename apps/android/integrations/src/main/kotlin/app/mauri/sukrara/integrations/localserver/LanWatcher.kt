@@ -21,9 +21,10 @@ import java.net.Inet4Address
 
 /**
  * The phone's Wi-Fi network for the Nightscout API on the home network: one ConnectivityManager callback, registered
- * only while [wifi] is collected (the home-network option is on) and unregistered when it stops. The request is the
- * default one for Wi-Fi, which excludes VPNs; the network it reports is the one the phone joined (the station side),
- * never the phone's own hotspot. Every callback body is guarded: an exception on ConnectivityThread would end the
+ * only while [wifi] is collected (the home-network option is on) and unregistered when it stops. It asks for Wi-Fi
+ * networks (a request carries NOT_VPN by default, and VPNs are refused again when read); the networks it reports are
+ * the ones the phone joined (the station side), never the phone's own hotspot. Callbacks arrive one at a time on the
+ * ConnectivityManager thread. Every callback body is guarded: an exception on ConnectivityThread would end the
  * process the alerts run in.
  */
 class LanWatcher(
@@ -39,15 +40,15 @@ class LanWatcher(
                 awaitClose {}
                 return@callbackFlow
             }
-            var caps: NetworkCapabilities? = null
-            var link: LinkProperties? = null
-            var current: Network? = null
+            // every Wi-Fi network Android reports (a roam briefly has two): each keeps its own capabilities and link
+            val nets = LinkedHashMap<Network, Pair<NetworkCapabilities?, LinkProperties?>>()
 
             fun publish() {
                 trySend(
                     runCatching {
-                        val c = caps
-                        val l = link
+                        // the default network when it is one of them, else the newest: always one network's own parts
+                        val chosen = nets.keys.firstOrNull { it == cm.activeNetwork } ?: nets.keys.lastOrNull()
+                        val (c, l) = chosen?.let { nets[it] } ?: (null to null)
                         if (c == null || l == null) null else read(c, l)
                     }.getOrNull(),
                 )
@@ -59,8 +60,7 @@ class LanWatcher(
                         networkCapabilities: NetworkCapabilities,
                     ) {
                         runCatching {
-                            current = network
-                            caps = networkCapabilities
+                            nets[network] = networkCapabilities to nets[network]?.second
                             publish()
                         }
                     }
@@ -70,20 +70,15 @@ class LanWatcher(
                         linkProperties: LinkProperties,
                     ) {
                         runCatching {
-                            current = network
-                            link = linkProperties
+                            nets[network] = nets[network]?.first to linkProperties
                             publish()
                         }
                     }
 
                     override fun onLost(network: Network) {
                         runCatching {
-                            if (network == current) {
-                                caps = null
-                                link = null
-                                current = null
-                                trySend(null)
-                            }
+                            nets.remove(network)
+                            publish()
                         }
                     }
                 }

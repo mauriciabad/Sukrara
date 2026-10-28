@@ -63,13 +63,13 @@ class HealthConnectViewModel(
     fun onPermission(granted: Boolean) {
         denied.value = !granted
         viewModelScope.launch {
-            if (granted) sync.setOn(true) else sync.recheck()
+            runCatching { if (granted) sync.setOn(true) else sync.recheck() }
         }
     }
 
     fun setOff() {
         denied.value = false
-        viewModelScope.launch { sync.setOn(false) }
+        viewModelScope.launch { runCatching { sync.setOn(false) } }
     }
 }
 
@@ -129,18 +129,14 @@ fun HealthConnectContent(
     modifier: Modifier = Modifier,
 ) = Column(modifier) {
     IntroText(stringResource(R.string.in_hc_intro))
-    when (ui.status) {
-        HcStatus.Follower -> {
-            SettingsGroup { InfoRow(stringResource(R.string.in_hc_follower)) }
-            return@Column
+    if (ui.status == HcStatus.Follower || ui.status == HcStatus.Unavailable) {
+        val why = if (ui.status == HcStatus.Follower) R.string.in_hc_follower else R.string.in_hc_unavailable
+        SettingsGroup {
+            InfoRow(stringResource(why))
+            // left on from before (another role, Health Connect turned off since): it can still be turned off here
+            if (ui.on) SwitchRow(stringResource(R.string.in_hc_switch), true, { actions.setOn(false) })
         }
-
-        HcStatus.Unavailable -> {
-            SettingsGroup { InfoRow(stringResource(R.string.in_hc_unavailable)) }
-            return@Column
-        }
-
-        else -> {}
+        return@Column
     }
     SettingsGroup {
         SwitchRow(

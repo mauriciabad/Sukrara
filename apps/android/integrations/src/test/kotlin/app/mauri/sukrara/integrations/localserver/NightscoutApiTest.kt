@@ -270,24 +270,32 @@ class NightscoutApiTest {
                 api.start(scope)
                 api.setOn(true)
                 withTimeout(5_000) { api.state.first { it is NsApiState.Listening } }
-                // off by default
+                // off by default; turning on away from a qualifying Wi-Fi is refused and pins nothing
                 assertEquals(LanState.Off, api.lan.value)
-                api.setLan(true)
-                withTimeout(5_000) { api.lan.first { it == LanState.NoWifi } }
+                assertEquals(LanState.NoWifi, api.setLan(true))
                 wifi.value = net(secured = false)
-                withTimeout(5_000) { api.lan.first { it == LanState.OpenWifi } }
+                assertEquals(LanState.OpenWifi, api.setLan(true))
+                assertFalse(settings.flow(NightscoutApiServer.LAN_SETTING).first())
+                assertEquals(null, pin.data.first().fingerprint)
+                // on the home Wi-Fi: pinned at once; a private address this machine doesn't have can't be bound
+                wifi.value = net(secured = true)
+                assertEquals(null, api.setLan(true))
+                withTimeout(5_000) { api.lan.first { it == LanState.PortBusy } }
+                assertTrue(pin.data.first().fingerprint != null)
                 allowed = false
                 api.recheckLan()
                 withTimeout(5_000) { api.lan.first { it == LanState.NoPermission } }
                 allowed = true
-                // a private address this machine doesn't have: the bind fails, the network is pinned
-                wifi.value = net(secured = true)
                 api.recheckLan()
                 withTimeout(5_000) { api.lan.first { it == LanState.PortBusy } }
-                withTimeout(5_000) { pin.data.first { it.fingerprint != null } }
+                // another (password) Wi-Fi: paused, never pinned on its own; Allow on this Wi-Fi moves it
                 wifi.value = WifiNet(listOf(InetAddress.getByName("10.1.2.3") to 24), "10.1.2.1", null, null, true)
                 withTimeout(5_000) { api.lan.first { it == LanState.OtherWifi } }
-                api.allowHere()
+                wifi.value = null
+                withTimeout(5_000) { api.lan.first { it == LanState.NoWifi } }
+                wifi.value = WifiNet(listOf(InetAddress.getByName("10.1.2.3") to 24), "10.1.2.1", null, null, true)
+                withTimeout(5_000) { api.lan.first { it == LanState.OtherWifi } }
+                assertEquals(null, api.allowHere())
                 withTimeout(5_000) { api.lan.first { it == LanState.PortBusy } }
                 // turning the API off turns the home-network option off too
                 api.setOn(false)

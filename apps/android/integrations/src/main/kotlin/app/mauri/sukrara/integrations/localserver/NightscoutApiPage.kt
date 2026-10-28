@@ -68,6 +68,8 @@ data class NsApiUi(
     /** The home-network option's switch and where it is. */
     val lanOn: Boolean = false,
     val lan: LanState = LanState.Off,
+    /** The last *turn on* / *Allow on this Wi-Fi* was refused: the phone isn't on a Wi-Fi that qualifies. */
+    val lanRefused: Boolean = false,
 )
 
 class NsApiActions(
@@ -86,8 +88,14 @@ class NightscoutApiViewModel(
     val localNetworkAllowed: () -> Boolean,
 ) : ViewModel() {
     private val secret = MutableStateFlow<SecretView>(SecretView.Hidden)
+    private val refused = MutableStateFlow(false)
     val ui: StateFlow<NsApiUi?> =
-        combine(server.on, server.state, secret, server.lanOn, server.lan) { on, st, s, lo, l -> NsApiUi(on, st, s, lo, l) }
+        combine(
+            combine(server.on, server.state, secret) { on, st, s -> Triple(on, st, s) },
+            server.lanOn,
+            server.lan,
+            refused,
+        ) { (on, st, s), lo, l, r -> NsApiUi(on, st, s, lo, l, r) }
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
     fun setOn(on: Boolean) {
@@ -95,12 +103,22 @@ class NightscoutApiViewModel(
     }
 
     fun setLan(on: Boolean) {
-        viewModelScope.launch { server.setLan(on) }
+        viewModelScope.launch { refused.value = guarded { server.setLan(on) } != null }
     }
 
     fun allowHere() {
-        viewModelScope.launch { server.allowHere() }
+        viewModelScope.launch { refused.value = guarded { server.allowHere() } != null }
     }
+
+    /** A store failure reads as "not turned on" (shown), never a crash. */
+    private suspend fun guarded(block: suspend () -> LanState?): LanState? =
+        try {
+            block()
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            LanState.NoWifi
+        }
 
     fun recheck() = server.recheckLan()
 
@@ -311,7 +329,12 @@ private fun LanGroup(
             stringResource(R.string.in_nsapi_lan_switch),
             ui.lanOn,
             { on -> if (on) confirm = true else actions.setLan(false) },
-            summary = if (ui.lanOn) lanStatusText(ui.lan) else stringResource(R.string.in_nsapi_lan_off),
+            summary =
+                when {
+                    ui.lanOn -> lanStatusText(ui.lan)
+                    ui.lanRefused -> stringResource(R.string.in_nsapi_lan_refused)
+                    else -> stringResource(R.string.in_nsapi_lan_off)
+                },
         )
         if (ui.lanOn) {
             when (ui.lan) {
@@ -319,7 +342,10 @@ private fun LanGroup(
                     NavigationRow(
                         stringResource(R.string.in_nsapi_lan_allow_here),
                         actions.allowHere,
-                        summary = stringResource(R.string.in_nsapi_lan_allow_here_summary),
+                        summary =
+                            stringResource(
+                                if (ui.lanRefused) R.string.in_nsapi_lan_refused else R.string.in_nsapi_lan_allow_here_summary,
+                            ),
                     )
                 }
 
@@ -362,6 +388,7 @@ private fun lanStatusText(lan: LanState): String =
         LanState.OtherWifi -> stringResource(R.string.in_nsapi_lan_other)
         LanState.NoPermission -> stringResource(R.string.in_nsapi_lan_no_permission)
         LanState.PortBusy -> stringResource(R.string.in_nsapi_busy)
+        LanState.ApiStopped -> stringResource(R.string.in_nsapi_lan_api_stopped)
         is LanState.Listening -> stringResource(R.string.in_nsapi_lan_on, lan.address)
     }
 

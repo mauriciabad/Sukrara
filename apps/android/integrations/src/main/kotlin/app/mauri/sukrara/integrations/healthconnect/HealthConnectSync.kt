@@ -19,8 +19,8 @@ import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.catch
-import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.conflate
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.emptyFlow
@@ -70,6 +70,8 @@ interface HealthStore {
 @Serializable
 data class HcState(
     val written: List<List<Long>> = emptyList(),
+    /** The stored history (up to [HealthConnectSync.BACKFILL]) went in completely once since switching on. */
+    val backfillDone: Boolean = false,
     val lastWriteMs: Long = 0,
     val lastCount: Int = 0,
     val errorCode: Int? = null,
@@ -189,12 +191,16 @@ class HealthConnectSync(
                             .map { it?.t }
                             .distinctUntilChanged()
                             .onStart { emit(null) }
+                            // a failing store skips this round; the switch or the next recheck starts it again
+                            .catch { e -> log("health connect paused: ${e.javaClass.simpleName}") }
                     }
                 }
                 // a driver backfill lands as many upserts at once: one pass after it settles
                 .debounce(DEBOUNCE_MS)
-                .catch { e -> log("health connect stopped: ${e.javaClass.simpleName}") }
-                .collectLatest { pass() }
+                // a running pass (the 30-day copy can take minutes) is never cancelled by a new reading: it finishes,
+                // then one more pass covers what arrived meanwhile
+                .conflate()
+                .collect { pass() }
         }
     }
 
@@ -210,14 +216,28 @@ class HealthConnectSync(
             } catch (e: SecurityException) {
                 // revoked in Health Connect: the page shows Allow again / turn off
                 granted.value = false
-            } catch (e: Exception) {
+            } catch (e: Throwable) {
                 fail(ERROR_OTHER)
             }
         }
 
+    /** Records the failure and when to try again; a failing store here too is only logged (never a crash). */
     private suspend fun fail(code: Int) {
         log("health connect write failed: $code")
         val now = clock.now().toEpochMilli()
+        try {
+            backOff(code, now)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Throwable) {
+            log("health connect state not saved: ${e.javaClass.simpleName}")
+        }
+    }
+
+    private suspend fun backOff(
+        code: Int,
+        now: Long,
+    ) {
         store.update {
             val n = it.failures + 1
             // Health Connect's quota refills slowly: back off from 15 min (doubling, ≤ 4 h); other errors retry sooner
@@ -236,20 +256,31 @@ class HealthConnectSync(
         val st = store.data.first()
         if (now.toEpochMilli() < st.retryAtMs) return
         val keepFrom = (now - BACKFILL).epochSecond / 60
-        // the first pass after switching on takes the whole stored history; then the last day, where a reconnect's
-        // backfill lands: only minutes not written yet go in (a new reading, or a gap the sensor filled)
-        val from = if (st.written.isEmpty()) now - BACKFILL else now - RECHECK
+        // until the whole stored history went in once (a rate limit or a stop can cut the first copy short), each pass
+        // looks at all of it; then at the last day, where a reconnect's backfill lands: only minutes not written yet
+        // go in (a new reading, or a gap the sensor filled)
+        val from = if (!st.backfillDone) now - BACKFILL else now - RECHECK
         val rows =
             qualifying(readings.range(from, now + MAX_AHEAD), now)
                 .filter { !MinuteRuns.contains(st.written, it.t.epochSecond / 60) }
-        if (rows.isEmpty()) return
+        if (rows.isEmpty()) {
+            if (!st.backfillDone) store.update { it.copy(backfillDone = true) }
+            return
+        }
         // oldest first, and the written minutes saved after each batch: a failure mid-way keeps what went in
         for (batch in rows.chunked(BATCH)) {
             health.insert(batch)
             store.update { it.copy(written = MinuteRuns.add(it.written, batch.map { b -> b.t.epochSecond / 60 }, keepFrom)) }
         }
         store.update {
-            it.copy(lastWriteMs = now.toEpochMilli(), lastCount = rows.size, errorCode = null, failures = 0, retryAtMs = 0)
+            it.copy(
+                lastWriteMs = now.toEpochMilli(),
+                lastCount = rows.size,
+                backfillDone = true,
+                errorCode = null,
+                failures = 0,
+                retryAtMs = 0,
+            )
         }
     }
 

@@ -4,8 +4,14 @@
 package app.mauri.sukrara.integrations.broadcasts
 
 import androidx.compose.foundation.layout.Column
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.ViewModel
@@ -82,15 +88,17 @@ class BroadcastsViewModel(
         viewModelScope.launch {
             val allowed = broadcaster.settingsFlow.first().apps
             installed.value =
-                withContext(io) {
-                    val r = apps.receivers()
-                    val pkgs = r.keys + allowed.map { it.pkg }
-                    Installed(
-                        r,
-                        pkgs.associateWith { apps.label(it) ?: it },
-                        allowed.associate { it.pkg to apps.signedBy(it.pkg, it.signer) },
-                    )
-                }
+                runCatching {
+                    withContext(io) {
+                        val r = apps.receivers()
+                        val pkgs = r.keys + allowed.map { it.pkg }
+                        Installed(
+                            r,
+                            pkgs.associateWith { apps.label(it) ?: it },
+                            allowed.associate { it.pkg to apps.signedBy(it.pkg, it.signer) },
+                        )
+                    }
+                }.getOrElse { Installed(emptyMap(), emptyMap(), emptyMap()) }
         }
     }
 
@@ -99,7 +107,8 @@ class BroadcastsViewModel(
         on: Boolean,
     ) {
         viewModelScope.launch {
-            if (on) broadcaster.allow(pkg) else broadcaster.remove(pkg)
+            // a store failure leaves the list as it was (shown on refresh), never a crash
+            runCatching { if (on) broadcaster.allow(pkg) else broadcaster.remove(pkg) }
             refresh()
         }
     }
@@ -153,10 +162,17 @@ fun BroadcastsContent(
 ) = Column(modifier) {
     IntroText(stringResource(R.string.in_bc_intro))
     if (!ui.wearer) {
-        SettingsGroup { InfoRow(stringResource(R.string.in_bc_follower)) }
+        SettingsGroup {
+            InfoRow(stringResource(R.string.in_bc_follower))
+            // allowed while this phone wore the sensor: still removable here
+            for (a in ui.apps.orEmpty().filter { it.allowed || it.problem != null }) {
+                NavigationRow(stringResource(R.string.in_bc_remove, a.label), { actions.remove(a.pkg) })
+            }
+        }
         FooterText(stringResource(R.string.in_bc_footer))
         return@Column
     }
+    var reallow by rememberSaveable { mutableStateOf<String?>(null) }
     val anyAllowed = ui.apps.orEmpty().any { it.allowed || it.problem != null }
     SettingsGroup { InfoRow(stringResource(R.string.in_bc_status), summary = broadcastStatusText(ui.status, anyAllowed, now)) }
     val list = ui.apps
@@ -177,7 +193,7 @@ fun BroadcastsContent(
                     AppProblem.SignerChanged -> {
                         NavigationRow(
                             a.label,
-                            { actions.setAllowed(a.pkg, true) },
+                            { reallow = a.pkg },
                             summary = stringResource(R.string.in_bc_changed, a.pkg),
                         )
                         NavigationRow(stringResource(R.string.in_bc_remove, a.label), { actions.remove(a.pkg) })
@@ -193,6 +209,21 @@ fun BroadcastsContent(
                 }
             }
         }
+    }
+    ui.apps.orEmpty().firstOrNull { it.pkg == reallow }?.let { a ->
+        // a different signature can mean another app under the same name: a closed loop may dose from what it gets
+        AlertDialog(
+            onDismissRequest = { reallow = null },
+            title = { Text(stringResource(R.string.in_bc_reallow_title, a.label)) },
+            text = { Text(stringResource(R.string.in_bc_reallow_text, a.label, a.pkg)) },
+            confirmButton = {
+                TextButton({
+                    reallow = null
+                    actions.setAllowed(a.pkg, true)
+                }) { Text(stringResource(R.string.in_bc_reallow_action)) }
+            },
+            dismissButton = { TextButton({ reallow = null }) { Text(stringResource(android.R.string.cancel)) } },
+        )
     }
     if (forwardsToLoop(ui.apps.orEmpty())) {
         SettingsGroup { InfoRow(stringResource(R.string.in_bc_loop_twice_title), summary = stringResource(R.string.in_bc_loop_twice)) }
