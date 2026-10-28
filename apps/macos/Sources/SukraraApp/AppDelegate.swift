@@ -52,13 +52,12 @@ public final class AppDelegate: NSObject, NSApplicationDelegate {
         contextMenu.openSettings = { [weak windows] in windows?.openSettings() }
         contextMenu.openTreatments = { [weak windows] in windows?.openTreatments() }
         let links = PanelLinks(
-            setup: windows.setup,
-            openSetup: { [weak self] in
-                self?.statusItem?.closePanel(); self?.windows?.openSetup()
-            },
-            openFollow: { [weak self] in
-                self?.statusItem?.closePanel(); self?.windows?.openFollow()
-            })
+            setup: windows.setup, treatments: windows.treatments,
+            openSetup: { [weak self] in self?.fromPanel { $0.openSetup() } },
+            openFollow: { [weak self] in self?.fromPanel { $0.openFollow() } },
+            openAddTreatment: { [weak self] in self?.fromPanel { $0.openAddTreatment() } },
+            openTreatments: { [weak self] in self?.fromPanel { $0.openTreatments() } },
+            openSettings: { [weak self] in self?.fromPanel { $0.openSettings() } })
         let statusItem = StatusItemController(model: model, menu: contextMenu, links: links)
         statusItem.onOpen = { [weak self] in self?.refreshNotificationPermission() }
         self.statusItem = statusItem
@@ -82,8 +81,20 @@ public final class AppDelegate: NSObject, NSApplicationDelegate {
         AppLog.app.info("launched (offline: \(self.model.plan.isOffline, privacy: .public))")
     }
 
+    /// A panel row: close the panel, then open its window.
+    private func fromPanel(_ open: (WindowCoordinator) -> Void) {
+        statusItem?.closePanel()
+        if let windows { open(windows) }
+    }
+
+    /// Settings… ⌘, in the main menu (reached through the responder chain while a Sukrara window is key).
+    @objc func showSettings(_ sender: Any?) {
+        fromPanel { $0.openSettings() }
+    }
+
     public func applicationDidBecomeActive(_ notification: Notification) {
         refreshNotificationPermission()
+        model.loginItem?.refresh()
     }
 
     public func applicationWillTerminate(_ notification: Notification) {

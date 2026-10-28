@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #if DEBUG
     import AppKit
+    import ServiceManagement
     import SukraraCore
     import SwiftUI
 
@@ -61,16 +62,21 @@
             out.append(("follow-error-noqr", AnyView(FollowStep(follow: noQR).padding().frame(width: 520))))
             let following = follow(.following(wearer: "Marta", lastReading: Date().addingTimeInterval(-180), canWrite: true))
             let settings = SettingsModel(store: store, follow: following, version: "0.90.0")
-            out.append(("settings-general", AnyView(SettingsView(model: settings, openAtLogin: .constant(true), updateResult: nil, checkForUpdates: {}, openFollow: {}).frame(width: 560, height: 640))))
+            out.append(("settings-general", AnyView(SettingsView(model: settings, loginItem: LoginItem(service: SnapLogin(status: .enabled)), updateResult: nil, checkForUpdates: {}, openFollow: {}).frame(width: 560, height: 640))))
+            out.append(("settings-general-login-approval", AnyView(SettingsView(model: settings, loginItem: LoginItem(service: SnapLogin(status: .requiresApproval)), updateResult: nil, checkForUpdates: {}, openFollow: {}).frame(width: 560, height: 700))))
+            let refused = LoginItem(service: SnapLogin(status: .notRegistered, refuses: true))
+            refused.set(true)
+            out.append(("settings-general-login-failed", AnyView(SettingsView(model: settings, loginItem: refused, updateResult: nil, checkForUpdates: {}, openFollow: {}).frame(width: 560, height: 700))))
+            out.append(("settings-general-login-unavailable", AnyView(SettingsView(model: settings, loginItem: nil, updateResult: nil, checkForUpdates: {}, openFollow: {}).frame(width: 560, height: 700))))
             let alerts = SettingsModel(store: store, follow: following, version: "0.90.0")
             alerts.pane = .alerts
-            out.append(("settings-alerts", AnyView(SettingsView(model: alerts, openAtLogin: .constant(true), updateResult: nil, checkForUpdates: {}, openFollow: {}).frame(width: 560, height: 900))))
+            out.append(("settings-alerts", AnyView(SettingsView(model: alerts, loginItem: nil, updateResult: nil, checkForUpdates: {}, openFollow: {}).frame(width: 560, height: 900))))
             let mirrored = SettingsModel(
                 store: store, follow: following,
                 wearer: WearerSettings(json: #"{"graph":{"low":72},"alerts":{"alerts":{"low":{"on":true,"mgdl":72}}}}"#, wearer: "Marta"),
                 version: "0.90.0")
             mirrored.pane = .alerts
-            out.append(("settings-alerts-mirrored", AnyView(SettingsView(model: mirrored, openAtLogin: .constant(true), updateResult: nil, checkForUpdates: {}, openFollow: {}).frame(width: 560, height: 900))))
+            out.append(("settings-alerts-mirrored", AnyView(SettingsView(model: mirrored, loginItem: nil, updateResult: nil, checkForUpdates: {}, openFollow: {}).frame(width: 560, height: 900))))
             out.append(("treatment-add", AnyView(AddTreatmentView(focusCarbs: true, save: { _ in }, cancel: {}))))
             let t0 = Int64(Date().timeIntervalSince1970)
             let rows: [TreatmentsModel.Row] = [
@@ -112,5 +118,16 @@
         }
 
         enum SnapError: Error { case render }
+    }
+
+    /// A login item service in a fixed state (snapshots never touch the real login items).
+    struct SnapLogin: LoginService {
+        var status: SMAppService.Status
+        var refuses = false
+        struct Refused: LocalizedError {
+            var errorDescription: String? { "Operation not permitted" }
+        }
+        func register() throws { if refuses { throw Refused() } }
+        func unregister() throws {}
     }
 #endif

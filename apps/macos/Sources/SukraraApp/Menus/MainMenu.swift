@@ -3,7 +3,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 import AppKit
 
-/// The main menu an accessory app still needs while one of its windows is key: ⌘Q, ⌘W, ⌘H and the Edit menu, so
+/// The main menu an accessory app still needs while one of its windows is key: Settings… ⌘,, ⌘Q, ⌘W, ⌘H and the Edit
+/// menu, so
 /// text fields (Mute…, settings) get copy, paste, undo and select all.
 enum MainMenu {
     static func make() -> NSMenu {
@@ -12,6 +13,10 @@ enum MainMenu {
             submenu(
                 "Sukrara",
                 [
+                    // the standard place (Settings… ⌘, first in the app menu); target nil reaches the delegate
+                    NSMenuItem(
+                        title: L10n.t("Settings…"), action: #selector(AppDelegate.showSettings(_:)), keyEquivalent: ","),
+                    .separator(),
                     NSMenuItem(title: "Hide Sukrara", action: #selector(NSApplication.hide(_:)), keyEquivalent: "h"),
                     .separator(),
                     NSMenuItem(

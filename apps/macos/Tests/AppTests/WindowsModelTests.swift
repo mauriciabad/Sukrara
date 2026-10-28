@@ -68,12 +68,73 @@ func scratchStore() -> DefaultsSettingsStore {
         #expect(item.status == .needsApproval)
     }
 
-    @Test func aRefusedRegistrationSaysWhy() {
+    @Test func aRefusedRegistrationSaysWhyAndTheSwitchShowsTheRealState() {
         let fake = FakeLogin()
         fake.fail = true
         let item = LoginItem(service: fake)
         item.set(true)
-        guard case .failed = item.status else { Issue.record("expected .failed, got \(item.status)"); return }
+        #expect(item.status == .off && item.lastError != nil && item.offersLoginItems)
+        item.refresh()  // becoming active: the reason stays on screen
+        #expect(item.lastError != nil)
+        fake.fail = false
+        item.set(true)
+        #expect(item.status == .on && item.lastError == nil && !item.offersLoginItems)
+    }
+
+    @Test func aRefusedUnregisterKeepsTheSwitchOn() {
+        final class StuckOn: LoginService {
+            var status: SMAppService.Status = .enabled
+            struct Refused: Error {}
+            func register() throws {}
+            func unregister() throws { throw Refused() }
+        }
+        let item = LoginItem(service: StuckOn())
+        item.set(false)
+        #expect(item.status == .on && item.status.isOn && item.lastError != nil)
+    }
+
+    @Test func aThrowWhileMacOSStillAsksForApprovalIsNoFailure() {
+        final class ThrowsButRegisters: LoginService {
+            var status: SMAppService.Status = .notRegistered
+            struct OperationNotPermitted: Error {}
+            func register() throws {
+                status = .requiresApproval
+                throw OperationNotPermitted()
+            }
+            func unregister() throws {}
+        }
+        let item = LoginItem(service: ThrowsButRegisters())
+        item.set(true)
+        #expect(item.status == .needsApproval && item.lastError == nil && item.offersLoginItems)
+    }
+
+    @Test func notFoundIsOffAndARegistrationThatDoesntTakeSaysSo() {
+        let fake = FakeLogin()
+        fake.status = .notFound
+        let item = LoginItem(service: fake)
+        #expect(item.status == .off && item.lastError == nil)
+        fake.next = .notFound  // register returned, but macOS still has no login item
+        item.set(true)
+        #expect(item.status == .off && item.lastError != nil)
+    }
+
+    @Test func everyStateBeyondOnAndOffHasALine() {
+        #expect(OpenAtLoginRows.note(.on, error: nil) == nil && OpenAtLoginRows.note(.off, error: nil) == nil)
+        #expect(OpenAtLoginRows.note(.needsApproval, error: nil) != nil)
+        let refused = OpenAtLoginRows.note(.on, error: "Operation not permitted")
+        #expect(refused?.contains("Operation not permitted") == true)
+    }
+}
+
+/// The panel's Add Treatment… row: available only while following with the wearer's permission, else the reason.
+@Suite struct AddTreatmentAvailabilityTests {
+    @Test func dimmedWithItsReasonUnlessAllowed() {
+        #expect(AddTreatmentAvailability(isFollowing: true, canWrite: true) == .available)
+        #expect(AddTreatmentAvailability(isFollowing: true, canWrite: true).reason == nil)
+        #expect(AddTreatmentAvailability(isFollowing: true, canWrite: false) == .notAllowed)
+        #expect(AddTreatmentAvailability(isFollowing: false, canWrite: true) == .notFollowing)
+        #expect(AddTreatmentAvailability(isFollowing: false, canWrite: false).reason != nil)
+        #expect(AddTreatmentAvailability(isFollowing: true, canWrite: false).reason != nil)
     }
 }
 

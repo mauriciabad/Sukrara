@@ -7,7 +7,8 @@ import SwiftUI
 /// General: Following (wearer, data age, link state, Unfollow confirmed), units, open at login, updates, version.
 struct GeneralPane: View {
     @Bindable var model: SettingsModel
-    @Binding var openAtLogin: Bool
+    /// Open at login (nil when this run may not touch login items: dev, fixture and snapshot runs).
+    var loginItem: LoginItem?
     var updateResult: String?
     var checkForUpdates: () -> Void
     var openFollow: () -> Void
@@ -23,7 +24,7 @@ struct GeneralPane: View {
                 .pickerStyle(.segmented)
             }
             Section(L10n.t("Startup")) {
-                Toggle(L10n.t("Open at login"), isOn: $openAtLogin)
+                OpenAtLoginRows(loginItem: loginItem)
             }
             Section(L10n.t("Updates")) {
                 HStack {
@@ -35,6 +36,44 @@ struct GeneralPane: View {
             }
         }
         .formStyle(.grouped)
+    }
+}
+
+/// Open at login with every `SMAppService` state in words and its way out; a run without a login item says so
+/// (the switch is dimmed) instead of a switch that does nothing.
+struct OpenAtLoginRows: View {
+    let loginItem: LoginItem?
+
+    var body: some View {
+        if let loginItem {
+            Toggle(
+                L10n.t("Open at login"),
+                isOn: Binding(get: { loginItem.status.isOn }, set: { loginItem.set($0) }))
+            if let note = Self.note(loginItem.status, error: loginItem.lastError) {
+                // the colour only on the symbol: the words keep full contrast
+                Label {
+                    Text(note)
+                } icon: {
+                    Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.orange)
+                }
+                .fixedSize(horizontal: false, vertical: true)
+            }
+            if loginItem.offersLoginItems {
+                Button(L10n.t("Open Login Items…"), action: loginItem.openSettings)
+            }
+        } else {
+            Toggle(L10n.t("Open at login"), isOn: .constant(false)).disabled(true)
+            Text(L10n.t("Not available in this run (development or test build)."))
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    /// The line under the switch (a refused change first: it explains why the switch didn't move), nil when the
+    /// switch says it all (on / off).
+    static func note(_ status: LoginItem.Status, error: String?) -> String? {
+        if let error { return L10n.t("Couldn't change Open at login: \(error)") }
+        return status == .needsApproval
+            ? L10n.t("Waiting for your approval: allow Sukrara in System Settings › General › Login Items.") : nil
     }
 }
 
@@ -57,9 +96,11 @@ struct FollowingRows: View {
             Button(L10n.t("Cancel")) { Task { await follow.cancel() } }
         case .following(let wearer, let last, let canWrite):
             row(L10n.t("Following \(wearer ?? L10n.t("the wearer"))"), "person.crop.circle.badge.checkmark")
-            Text(last.map { L10n.t("Last reading \($0.formatted(.relative(presentation: .named)))") }
-                ?? L10n.t("No reading yet"))
-                .foregroundStyle(.secondary)
+            Text(
+                last.map { L10n.t("Last reading \($0.formatted(.relative(presentation: .named)))") }
+                    ?? L10n.t("No reading yet")
+            )
+            .foregroundStyle(.secondary)
             Text(canWrite ? L10n.t("Can add treatments") : L10n.t("Can't add treatments (the wearer decides)"))
                 .foregroundStyle(.secondary)
             Button(L10n.t("Stop following…"), role: .destructive) { follow.confirmingUnfollow = true }
@@ -69,7 +110,10 @@ struct FollowingRows: View {
                     Button(L10n.t("Stop following"), role: .destructive) { Task { await follow.unfollow() } }
                     Button(L10n.t("Cancel"), role: .cancel) {}
                 } message: {
-                    Text(L10n.t("Their readings are removed from this Mac. To follow again, they have to send a new invite."))
+                    Text(
+                        L10n.t(
+                            "Their readings are removed from this Mac. To follow again, they have to send a new invite."
+                        ))
                 }
         case .declined, .inviteUsed, .revoked, .broken:
             row(Self.endText(follow.status), "exclamationmark.triangle")
@@ -93,33 +137,23 @@ struct FollowingRows: View {
 }
 
 /// The settings window's content: two panes, the last one chosen is remembered.
-public struct SettingsView: View {
+struct SettingsView: View {
     @Bindable var model: SettingsModel
     /// Open at login (chunk 21's LoginItem over SMAppService.mainApp, schema `general.openAtLogin`).
-    @Binding var openAtLogin: Bool
+    var loginItem: LoginItem?
     /// The last update check's result in words (chunk 21's UpdateCheck), nil before one ran.
     var updateResult: String?
     var checkForUpdates: () -> Void
     var openFollow: () -> Void
 
-    public init(
-        model: SettingsModel, openAtLogin: Binding<Bool>, updateResult: String?,
-        checkForUpdates: @escaping () -> Void, openFollow: @escaping () -> Void
-    ) {
-        self.model = model
-        self._openAtLogin = openAtLogin
-        self.updateResult = updateResult
-        self.checkForUpdates = checkForUpdates
-        self.openFollow = openFollow
-    }
-
-    public var body: some View {
+    var body: some View {
         TabView(selection: $model.pane) {
             GeneralPane(
-                model: model, openAtLogin: $openAtLogin, updateResult: updateResult, checkForUpdates: checkForUpdates,
-                openFollow: openFollow)
-                .tabItem { Label(L10n.t("General"), systemImage: "gearshape") }
-                .tag(SettingsModel.Pane.general)
+                model: model, loginItem: loginItem, updateResult: updateResult, checkForUpdates: checkForUpdates,
+                openFollow: openFollow
+            )
+            .tabItem { Label(L10n.t("General"), systemImage: "gearshape") }
+            .tag(SettingsModel.Pane.general)
             AlertsRangesPane(model: model)
                 .tabItem { Label(L10n.t("Alerts"), systemImage: "bell") }
                 .tag(SettingsModel.Pane.alerts)
