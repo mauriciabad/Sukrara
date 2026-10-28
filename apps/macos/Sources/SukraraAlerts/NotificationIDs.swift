@@ -1,8 +1,8 @@
-// Sukrara — https://github.com/mauriciabad/Sukrara
+// Sukrara — https://github.com/mauriciabad/sukrara
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-/// Notification category and action identifiers for the alerts (used by the notifier, chunk 21). Every alert has two
+/// Notification category and action identifiers for the alerts (used by the notifier). Every alert has two
 /// actions (SPEC §2): *Mute…* (text input; empty = `muteMin`) and *Remind less* / *Remind as usual*.
 public enum AlertNotificationIDs {
     /// An alert that Remind less would slow down.

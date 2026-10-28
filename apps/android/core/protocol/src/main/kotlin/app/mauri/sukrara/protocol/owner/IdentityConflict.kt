@@ -1,4 +1,4 @@
-// Sukrara — https://github.com/mauriciabad/Sukrara
+// Sukrara — https://github.com/mauriciabad/sukrara
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.protocol.owner
@@ -12,7 +12,7 @@ import app.mauri.sukrara.protocol.event.RosterCodec
 
 /**
  * What the wearer's phone must persist to tell its own roster / backup from another app publishing as the same
- * identity (e.g. Sukrara Showcase still running after a restore): its device key, the read keys it holds by `gk`
+ * identity (e.g. the old phone still running after a restore): its device key, the read keys it holds by `gk`
  * (epoch number → public key), and the `created_at` of the last roster and backup it published.
  */
 data class OwnerMarks(
@@ -38,7 +38,7 @@ sealed interface IdentityCheck {
     enum class Reason { RosterFromOtherDevice, RosterUnknownEpoch, BackupFromElsewhere }
 }
 
-/** A3: detects "another app is publishing as this identity" from the owner's own roster and backup events. */
+/** Detects "another app is publishing as this identity" from the owner's own roster and backup events. */
 object IdentityConflict {
     fun check(crypto: NostrCrypto, marks: OwnerMarks, ev: SignedEvent): IdentityCheck {
         if (ev.pubkey != marks.identity.public.hex || ev.kind != Wire.KIND_DATA || !crypto.verify(ev)) return IdentityCheck.Fine

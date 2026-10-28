@@ -1,4 +1,4 @@
-# Sukrara — https://github.com/mauriciabad/Sukrara
+# Sukrara — https://github.com/mauriciabad/sukrara
 # Copyright (C) 2026 Maurici Abad
 # SPDX-License-Identifier: GPL-3.0-or-later
 # Shared helpers for tools/release/*.sh and tools/install.sh (sourced, POSIX sh).
@@ -36,7 +36,7 @@ cert_sha256() {
   "$1" -exportcert -keystore "$2" -alias "$3" -storepass:env SUKRARA_KS_PW | openssl dgst -sha256 | awk '{print toupper($NF)}'
 }
 
-# "0.90.0 90000 prerelease|release" from VERSION: versionCode = major·1 000 000 + minor·1 000 + patch.
+# "0.12.0 12000 prerelease|release" from VERSION: versionCode = major·1 000 000 + minor·1 000 + patch.
 version_info() {
   v="$(tr -d ' \n' < "$(repo_root)/VERSION")"
   case "$v" in

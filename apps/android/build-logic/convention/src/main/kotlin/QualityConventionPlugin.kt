@@ -1,4 +1,4 @@
-// Sukrara — https://github.com/mauriciabad/Sukrara
+// Sukrara — https://github.com/mauriciabad/sukrara
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
 import app.mauri.sukrara.buildlogic.lib
@@ -49,7 +49,7 @@ class QualityConventionPlugin : Plugin<Project> {
     }
 
     private companion object {
-        const val HEADER = "// Sukrara — https://github.com/mauriciabad/Sukrara\n" +
+        const val HEADER = "// Sukrara — https://github.com/mauriciabad/sukrara\n" +
             "// Copyright (C) 2026 Maurici Abad\n" +
             "// SPDX-License-Identifier: GPL-3.0-or-later\n"
 

@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Sukrara — https://github.com/mauriciabad/Sukrara
+<!-- Sukrara — https://github.com/mauriciabad/sukrara
      Copyright (C) 2026 Maurici Abad
      SPDX-License-Identifier: GPL-3.0-or-later -->
 <resources>
@@ -70,7 +70,7 @@
     <string name="mute_choice">For %1$s</string>
     <string name="mute_choice_forever">Until you turn it off</string>
 
-    <!-- Sensor end (CHANGES P7). -->
+    <!-- Sensor end. -->
     <string name="sensor_end_soon_title">Sensor ends in %1$s</string>
     <string name="sensor_end_soon_text">Have a new sensor ready to change it in time.</string>
     <string name="sensor_ended_title">Sensor ended</string>

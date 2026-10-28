@@ -196,7 +196,7 @@ A `README.md` in the folder says what goes where.
 - Copy `assets/sukrara/android/res` into the app and set `android:icon="@mipmap/ic_launcher"`. On the Mac, put
   `AppIcon.icns` in `Contents/Resources` and set `CFBundleIconFile`. Use `ic_stat_sukrara` as the notification
   small icon; on the Mac, `MenubarGlyph` is a template image for menus and "no data yet".
-- The battery spike (`poc/spikes/power`, session *cgm-reading-mac-spike-02*) will measure the showcase app. What it
+- The battery spike (`poc/spikes/power`) will measure the showcase app. What it
   needs from the app (adb/DUMP-protected feature toggles, upload intervals…) is in `poc/spikes/power/README.md`. Message
   that session when the app is installed on the phone.
 

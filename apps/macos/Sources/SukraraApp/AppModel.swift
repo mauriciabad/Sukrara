@@ -1,4 +1,4 @@
-// Sukrara — https://github.com/mauriciabad/Sukrara
+// Sukrara — https://github.com/mauriciabad/sukrara
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
 import Foundation
@@ -9,7 +9,7 @@ import SukraraGraph
 import SukraraShare
 
 /// The state every surface of the menu bar app renders, composed of small controllers. One instance, owned by
-/// `AppDelegate`. Data comes in through `apply(…)` (the follower runtime, chunk 15); the controllers exist only when the
+/// `AppDelegate`. Data comes in through `apply(…)` (the follower runtime); the controllers exist only when the
 /// launch plan allows their service (an offline run has no alert controller, no update check, no login item).
 @Observable
 public final class AppModel {
@@ -146,7 +146,7 @@ public final class AppModel {
     public var statusTitle: String { menubarTitle.text }
 
     /// Why nothing is monitored, in words (the panel's first line), or nil while a value can be shown. Before the
-    /// first reading the app says so instead of "no data" — and no no-data alarm is armed (CHANGES P3).
+    /// first reading the app says so instead of "no data" — and no no-data alarm is armed.
     public var notMonitoringReason: String? {
         if plan.isOffline && plan.mode != .fixture {
             return L10n.t("Not monitoring: offline dev build (no sensor, relays or alerts)")

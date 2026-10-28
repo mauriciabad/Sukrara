@@ -1,4 +1,4 @@
-// Sukrara — https://github.com/mauriciabad/Sukrara
+// Sukrara — https://github.com/mauriciabad/sukrara
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
 import Foundation
@@ -22,7 +22,7 @@ enum AlertAction: Equatable {
 /// - Own rules, or (`mirroring`) the wearer's alerts through `AlertMirror` plus this Mac's own no-data rule.
 /// - The no-data rule is timed by the engine's `schedule` effect (a wake), never by the next reading, and re-checked on
 ///   wake from sleep and clock changes (`tick`). Before the first reading ever, nothing is armed: the engine has no
-///   reading to measure "no data" from, so a Mac that never followed anyone never rings (CHANGES P3).
+///   reading to measure "no data" from, so a Mac that never followed anyone never rings.
 /// - Every change is saved (`AlertStateStoring`), so a relaunch resumes the alerts that were up, silently, and keeps
 ///   the mutes.
 @Observable

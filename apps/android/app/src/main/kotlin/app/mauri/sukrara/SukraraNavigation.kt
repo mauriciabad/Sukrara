@@ -1,4 +1,4 @@
-// Sukrara — https://github.com/mauriciabad/Sukrara
+// Sukrara — https://github.com/mauriciabad/sukrara
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara
@@ -62,7 +62,7 @@ data object HomeRoute : NavKey
 @Serializable
 data object SetupRoute : NavKey
 
-/** Settings › Sharing: followers, requests, the identity conflict (chunk 24). */
+/** Settings › Sharing: followers, requests, the identity conflict. */
 @Serializable
 data object SharingRoute : NavKey
 
@@ -111,7 +111,7 @@ data class SettingsKey(
     }
 }
 
-/** The new-sensor flow (chunk 18): home's Pair sensor, the "Sensor ended" notification, [NavTargets.ACTION_SENSOR_SETUP]. */
+/** The new-sensor flow: home's Pair sensor, the "Sensor ended" notification, [NavTargets.ACTION_SENSOR_SETUP]. */
 @Serializable
 data object NewSensorKey : NavKey
 
@@ -126,7 +126,7 @@ data object SensorSettingsKey : NavKey
 fun opensNewSensor(action: String?): Boolean =
     action == NavTargets.ACTION_SENSOR_SETUP || action == AndroidSensorEndPresenter.ACTION_PAIR_SENSOR
 
-/** Invite links (`sukrara:` / `https://sukrara.mauri.app/join…`) open setup's join step (chunk 24). */
+/** Invite links (`sukrara:` / `https://sukrara.mauri.app/join…`) open setup's join step. */
 fun isInviteLink(uri: Uri?): Boolean =
     uri != null &&
         (uri.scheme == "sukrara" || (uri.scheme == "https" && uri.host == "sukrara.mauri.app" && uri.path.orEmpty().startsWith("/join")))
@@ -196,7 +196,7 @@ fun SukraraNavigation(
                 entry<SetupRoute> {
                     SetupScreen(
                         viewModel = viewModel(factory = SetupViewModel.factory(graph.setup)),
-                        // the sensor step embeds chunk 18's new-sensor flow; its Done / Cancel lands back on setup
+                        // the sensor step embeds the new-sensor flow; its Done / Cancel lands back on setup
                         onOpenSensorSetup = { backStack.add(NewSensorKey) },
                         thresholdRows = { settings, onThreshold -> AlertThresholdRows(settings, onThreshold) },
                         onDone = { backStack.remove(SetupRoute) },

@@ -1,4 +1,4 @@
-// Sukrara — https://github.com/mauriciabad/Sukrara
+// Sukrara — https://github.com/mauriciabad/sukrara
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
 import Foundation
@@ -7,7 +7,7 @@ import SukraraTesting
 import Testing
 
 @Suite struct IdentifierTests {
-    @Test func v1Ids() {
+    @Test func appIdentifiers() {
         #expect(SukraraIDs.appBundleID == "app.mauri.sukrara")
         #expect(SukraraIDs.widgetBundleID == "app.mauri.sukrara.widget")
         #expect(SukraraIDs.appGroup == "QWUV9H4A3G.app.mauri.sukrara")
@@ -23,7 +23,7 @@ import Testing
 @Suite struct PathsTests {
     let paths = SukraraPaths(home: URL(fileURLWithPath: "/Users/u", isDirectory: true))
 
-    @Test func v1Paths() {
+    @Test func filePaths() {
         #expect(paths.appSupport.path == "/Users/u/Library/Application Support/app.mauri.sukrara")
         #expect(paths.logs.path == "/Users/u/Library/Logs/app.mauri.sukrara")
         #expect(paths.soundFile(named: "low-1").path == "/Users/u/Library/Sounds/app.mauri.sukrara.low-1.caf")
@@ -84,7 +84,6 @@ import Testing
     }
 
     @Test func listsAlertScenariosWhenPresent() throws {
-        // The scenarios arrive with chunk 05; until then this only checks the lookup.
         guard Contracts.exists("alerts/scenarios") else { return }
         let files = try FileManager.default.contentsOfDirectory(atPath: Contracts.url("alerts/scenarios").path)
         #expect(!files.isEmpty)

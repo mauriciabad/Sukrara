@@ -1,4 +1,4 @@
-// Sukrara — https://github.com/mauriciabad/Sukrara
+// Sukrara — https://github.com/mauriciabad/sukrara
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.feature.home
@@ -35,7 +35,7 @@ sealed interface NoDataReason {
 
     /**
      * A role is set but no reading has come yet ("Not monitoring: no sensor yet"). No "no data" alarm is armed in this
-     * state (CHANGES P3), so the wording is never an alarm's.
+     * state, so the wording is never an alarm's.
      */
     data class NoSensorYet(val follower: Boolean) : NoDataReason {
         override val action = if (follower) HomeAction.OpenSetup else HomeAction.PairSensor

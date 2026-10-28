@@ -1,4 +1,4 @@
-// Sukrara — https://github.com/mauriciabad/Sukrara
+// Sukrara — https://github.com/mauriciabad/sukrara
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.sensor.libreview
@@ -53,13 +53,13 @@ sealed interface SignInResult {
 }
 
 /**
- * The LibreView account's receiver ID (CHANGES P1): what lets V1 start sensors that the showcase, Juggluco or Abbott's
+ * The LibreView account's receiver ID: what lets Sukrara start sensors that Juggluco or Abbott's
  * apps on the same account can take over, and take over sensors they started.
  *
- * Read-only sign-in through LibreLinkUp's login (as the PoC): it answers with the same account ID as LibreView's app
+ * Read-only sign-in through LibreLinkUp's login: it answers with the same account ID as LibreView's app
  * login without making this phone the account's upload device (which would cut off another app's LibreView uploads).
  * Stores ONLY the receiver ID and the email (for "signed in as"); the password and the token are never stored — the
- * receiver ID never changes for an account, and uploads (chunk 26) need a different login anyway.
+ * receiver ID never changes for an account, and uploads need a different login anyway.
  */
 class LibreViewAccount internal constructor(
     private val state: StateStore<ReceiverIdState>,
@@ -128,7 +128,7 @@ class LibreViewAccount internal constructor(
         SignInResult.Failed("LibreView kept redirecting")
     }
 
-    /** Forgets the account's receiver ID and email. V1's own ID and a running sensor's pairing stay. */
+    /** Forgets the account's receiver ID and email. Sukrara's own ID and a running sensor's pairing stay. */
     suspend fun signOut() = state.update { it.copy(account = null, accountEmail = null) }
 
     private fun post(url: String, body: String): LoginAnswer {

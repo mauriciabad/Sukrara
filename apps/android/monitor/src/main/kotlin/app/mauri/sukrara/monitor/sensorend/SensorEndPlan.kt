@@ -1,4 +1,4 @@
-// Sukrara — https://github.com/mauriciabad/Sukrara
+// Sukrara — https://github.com/mauriciabad/sukrara
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.monitor.sensorend
@@ -13,8 +13,7 @@ import kotlinx.serialization.Serializable
 data class SensorEndMemory(val endsAt: Long = 0, val warned: Boolean = false, val endedShown: Boolean = false)
 
 /**
- * The minimal sensor-end warning (CHANGES P7; the PoC's SensorEndPlan reduced to what V1 ships, the reminders page is
- * P1). All times epoch seconds:
+ * The minimal sensor-end warning (no reminders page). All times epoch seconds:
  * - one "Sensor ends in 6 h" warning [warnHours] before the end, shown once per sensor; missed (phone off), it shows
  *   late, but only before the end;
  * - one "Sensor ended" notice with *Pair new sensor*, at most [ENDED_GRACE_S] after the end (not days later after a

@@ -1,4 +1,4 @@
-// Sukrara — https://github.com/mauriciabad/Sukrara
+// Sukrara — https://github.com/mauriciabad/sukrara
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara
@@ -42,7 +42,7 @@ class HomeModule(
     private val readinessSource: AlertReadinessSource,
     private val unmuteAlerts: () -> Unit,
     private val resume: () -> Unit,
-    /** First-run setup's first unfinished row (chunk 24), for the Finish-setup banner; null = done. */
+    /** First-run setup's first unfinished row, for the Finish-setup banner; null = done. */
     nextSetupStep: Flow<String?>,
     private val refreshSetup: () -> Unit,
     /** Whether a graph widget is on the home screen, checked now (null = unknown: the banner stays hidden). */

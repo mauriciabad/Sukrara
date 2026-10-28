@@ -1,5 +1,5 @@
 #!/bin/sh
-# Sukrara — https://github.com/mauriciabad/Sukrara
+# Sukrara — https://github.com/mauriciabad/sukrara
 # Copyright (C) 2026 Maurici Abad
 # SPDX-License-Identifier: GPL-3.0-or-later
 # Static rules on the staged files (secrets, Kotlin only, GPL header, images, large files, hardcoded UI text,

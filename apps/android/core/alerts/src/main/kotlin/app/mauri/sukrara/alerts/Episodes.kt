@@ -1,4 +1,4 @@
-// Sukrara — https://github.com/mauriciabad/Sukrara
+// Sukrara — https://github.com/mauriciabad/sukrara
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.alerts
@@ -79,7 +79,7 @@ class Episode(val side: Side, var start: Long, var kind: AlertKind) {
 
 /**
  * Everything one [AlertEngine] must keep across a process restart: open episodes (so an ongoing alert isn't taken for
- * a new one and rings again — the PoC's "two sounds at once" after an update), this device's mutes / Remind less, its
+ * a new one and rings again: "two sounds at once" after an update), this device's mutes / Remind less, its
  * Mute all, and the last reading (no data counts from it, also from the alarm receiver with the service dead).
  */
 @Serializable
@@ -115,7 +115,7 @@ data class AlertState(
     }
 }
 
-/** [AlertState] ⇄ JSON (V1 format only, no PoC compatibility). */
+/** [AlertState] ⇄ JSON. */
 object AlertStateCodec {
     private val json = Json { ignoreUnknownKeys = true; allowSpecialFloatingPointValues = false }
 

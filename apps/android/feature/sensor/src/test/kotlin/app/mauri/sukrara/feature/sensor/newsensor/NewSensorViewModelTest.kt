@@ -1,4 +1,4 @@
-// Sukrara — https://github.com/mauriciabad/Sukrara
+// Sukrara — https://github.com/mauriciabad/sukrara
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.feature.sensor.newsensor
@@ -43,7 +43,7 @@ class NewSensorViewModelTest {
     }
 
     private class FakePort : NewSensorPort {
-        var env = SensorEnv(true, true, true, true, false, false, true, true, true)
+        var env = SensorEnv(true, true, true, true, false, true, true, true)
         var retries = 0
         var juggluco = 0
         var libre3 = 0

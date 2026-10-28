@@ -1,4 +1,4 @@
-// Sukrara — https://github.com/mauriciabad/Sukrara
+// Sukrara — https://github.com/mauriciabad/sukrara
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.protocol
@@ -118,7 +118,7 @@ class SyncFixturesTest {
                 step("roster-1", roster(1, g1, listOf(d)), "accepted:roster"),
                 step("live-1", live(d, g1, now - 300, 140, 0.0), "accepted:live"),
                 step("key-2", keyTo(2, g2, listOf(d2)), "accepted:key"),
-                // the replaced phone (or the showcase) refreshes its epoch-1 roster: the epoch-2 key outranks it
+                // the replaced phone refreshes its epoch-1 roster: the epoch-2 key outranks it
                 step("roster-1-refresh", roster(1, g1, listOf(d), at = now - 60), "ignored:roster-older"),
                 step("live-before-roster-2", live(d2, g2, now - 55, 139, 0.0), "accepted:live"),
                 step("roster-2", roster(2, g2, listOf(d2), at = now - 50), "accepted:roster"),
@@ -197,7 +197,7 @@ class SyncFixturesTest {
         return f.settings(dev, g1.public, v.sid, SettingsPayload(u, graph, alerts), now - 100 + u / 10)
     }
 
-    /** parity D2: the settings fixture carries every mirrored setting, so both platforms check each one wearer → follower. */
+    /** The settings fixture carries every mirrored setting, so both platforms check each one wearer → follower. */
     @Test fun everyMirroredSettingIsInTheFixture() {
         val got = ContractFiles.json("protocol/sync/settings-mirror.json").getValue("expected").jsonObject.getValue("settings").jsonObject
         val kinds = listOf("very_low", "low", "high", "very_high", "extremely_high", "falling_fast", "rising_fast")

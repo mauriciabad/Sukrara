@@ -1,4 +1,4 @@
-// Sukrara — https://github.com/mauriciabad/Sukrara
+// Sukrara — https://github.com/mauriciabad/sukrara
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.feature.sensor
@@ -107,6 +107,6 @@ class SensorGallery {
         dark = true,
         fontScale = 1f,
         prefix = "es-",
-        only = setOf("needs-libreview", "takeover-failed-showcase", "warming-up", "accept-terms", "signed-in"),
+        only = setOf("needs-libreview", "takeover-failed", "warming-up", "accept-terms", "signed-in"),
     )
 }

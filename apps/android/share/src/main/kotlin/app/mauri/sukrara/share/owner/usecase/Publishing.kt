@@ -1,4 +1,4 @@
-// Sukrara — https://github.com/mauriciabad/Sukrara
+// Sukrara — https://github.com/mauriciabad/sukrara
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.share.owner.usecase
@@ -16,7 +16,7 @@ import app.mauri.sukrara.share.owner.OwnerState
 import java.util.TreeMap
 
 /**
- * Readings to followers (PoC rules): a live event for each new reading younger than [LIVE_MAX_AGE]; hour chunks for
+ * Readings to followers: a live event for each new reading younger than [LIVE_MAX_AGE]; hour chunks for
  * every hour that changed — earlier hours at once, the current hour at most every [CHUNK_EVERY] — with `created_at`
  * strictly increasing per hour. Keeps the last [BACKFILL_HOURS] in memory (what a new follower or a rotation gets).
  * Not thread-safe: the engine calls it on its serial dispatcher.
@@ -91,8 +91,8 @@ class PublishReadings(private val ctx: OwnerContext) {
 }
 
 /**
- * A3: watches the roster / backup events signed by our identity that come back from relays. One from another device
- * (e.g. Sukrara Showcase still sharing after a restore) blocks roster / backup / rotation publishing until the person
+ * Watches the roster / backup events signed by our identity that come back from relays. One from another device
+ * (e.g. the old phone still sharing after a restore) blocks roster / backup / rotation publishing until the person
  * retries — never republishing back and forth.
  */
 class IdentityConflictDetector(private val ctx: OwnerContext) {

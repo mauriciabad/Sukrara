@@ -1,4 +1,4 @@
-// Sukrara — https://github.com/mauriciabad/Sukrara
+// Sukrara — https://github.com/mauriciabad/sukrara
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.share.owner
@@ -37,7 +37,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * A3 through the engine, on contracts/protocol/sync/owner-conflict.json (the same file 06 / Mac replay): the
+ * The identity conflict through the engine, on contracts/protocol/sync/owner-conflict.json (the same file :core:protocol / Mac replay): the
  * wearer's phone after a restore (device D2, epochs 1–2) sees roster / backup events signed by its identity.
  */
 class IdentityConflictTest {
@@ -67,12 +67,12 @@ class IdentityConflictTest {
     }
 
     @Test fun retryReplacesTheOtherAppsRosterSoItsStaleEventIsFineAfterwards() {
-        val showcase = events.getValue("showcase-roster")
-        val blocked = detector.check(state, showcase, NOW)!!
+        val other = events.getValue("other-device-roster")
+        val blocked = detector.check(state, other, NOW)!!
         val retried = detector.retry(blocked, NOW)
         assertNull(retried.state.conflict)
-        assertTrue(retried.state.rosterPublishedAt > showcase.createdAt)
-        assertEquals(IdentityCheck.Fine, IdentityConflict.check(crypto, retried.state.marks(crypto), showcase))
+        assertTrue(retried.state.rosterPublishedAt > other.createdAt)
+        assertEquals(IdentityCheck.Fine, IdentityConflict.check(crypto, retried.state.marks(crypto), other))
     }
 
     @Test fun engineBlocksControlPublishingButKeepsReadingsGoing() = runTest {
@@ -88,7 +88,7 @@ class IdentityConflictTest {
         runCurrent()
         assertTrue(engine.state.value is OwnerShareState.Sharing)
 
-        relay.deliver("own", events.getValue("showcase-roster"))
+        relay.deliver("own", events.getValue("other-device-roster"))
         runCurrent()
         val blocked = engine.state.value as OwnerShareState.AnotherAppSharingAsYou
         assertEquals(IdentityCheck.Reason.RosterFromOtherDevice, blocked.reason)

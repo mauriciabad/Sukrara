@@ -1,4 +1,4 @@
-// Sukrara — https://github.com/mauriciabad/Sukrara
+// Sukrara — https://github.com/mauriciabad/sukrara
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.feature.settings
@@ -26,7 +26,7 @@ import org.junit.Test
 /** Which schema settings these pages reach, and the alert / range edits they make. */
 @OptIn(ExperimentalCoroutinesApi::class)
 class SettingsPagesTest {
-    /** Android settings the P0 pages show (Alerts, an alert's page, Ranges, Graph, the review). */
+    /** Android settings the pages show (Alerts, an alert's page, Ranges, Graph, the review). */
     private val shown =
         setOf(
             "graph.band.veryLow", "graph.band.low", "graph.band.tight", "graph.band.high", "graph.band.veryHigh",
@@ -50,7 +50,7 @@ class SettingsPagesTest {
         ) + SettingsSpec.SETTINGS.map { it.id }.filter { it.startsWith("pens.") || it.startsWith("apps.") } +
             setOf("sensorCalendar.on", "sensorCalendar.calendarId", "healthConnect.on")
 
-    /** Not in V1's settings pages yet (P1: FEATURES.md "Not in V1"), or internal format / state with no row. */
+    /** Not on a settings page, or internal format / state with no row. */
     private val pending =
         setOf(
             "graph.hours.place", "graph.slots", "graph.ringRange", "graph.ringOrder", "graph.marks", "graph.lines", "graph.lastPlace",
@@ -124,7 +124,7 @@ class SettingsPagesTest {
                 override val alertControls = controls
                 override val alertState = flowOf(AlertUiState())
                 override val readiness = FakeReadiness()
-                override val appVersion = "0.90.0"
+                override val appVersion = "0.12.0"
                 override val prerelease = true
                 override val releases = ReleasesSource { Result.success(emptyList()) }
                 override val clock = FakeClock()

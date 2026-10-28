@@ -1,17 +1,17 @@
 #!/bin/sh
-# Sukrara — https://github.com/mauriciabad/Sukrara
+# Sukrara — https://github.com/mauriciabad/sukrara
 # Copyright (C) 2026 Maurici Abad
 # SPDX-License-Identifier: GPL-3.0-or-later
 # Builds the Mac release for a GitHub release: Bundle/bundle.sh (signed by team QWUV9H4A3G; SIGN_ID picks the
 # identity), verify-app.sh, Bundle/dmg.sh, then verifies the dmg's signature. Leaves apps/macos/build/Sukrara-<version>.dmg
 # and Sukrara-mac-<version>.zip. NOTARY_PROFILE=<profile> notarizes + staples (needs a Developer ID identity; without
 # it Gatekeeper asks once: System Settings › Privacy & Security › Open Anyway).
-# Refuses before tools/check/v1-complete exists. Prints the dmg and zip paths on the last two lines.
+# Refuses unless tools/check/strict exists. Prints the dmg and zip paths on the last two lines.
 set -eu
 . "$(dirname "$0")/lib.sh"
 root="$(repo_root)"
-if [ ! -e "$root/tools/check/v1-complete" ]; then
-  echo "refusing: tools/check/v1-complete is missing (every registry file must exist before a release)" >&2; exit 2
+if [ ! -e "$root/tools/check/strict" ]; then
+  echo "refusing: tools/check/strict is missing (every registry file must exist before a release)" >&2; exit 2
 fi
 set -- $(version_info)
 version="$1"

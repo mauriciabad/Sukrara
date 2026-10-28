@@ -1,4 +1,4 @@
-// Sukrara — https://github.com/mauriciabad/Sukrara
+// Sukrara — https://github.com/mauriciabad/sukrara
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.monitor.notify
@@ -153,7 +153,7 @@ object NotificationIds {
     const val PEN_CHECK = 21
     const val REQUESTS = 30
 
-    /** Alerts (chunk 11): the `alerts` notification group's summary, then one slot per alert group (level, rate, no data). */
+    /** Alerts: the `alerts` notification group's summary, then one slot per alert group (level, rate, no data). */
     const val ALERTS_SUMMARY = 1000
     const val ALERTS_BASE = 1001
 

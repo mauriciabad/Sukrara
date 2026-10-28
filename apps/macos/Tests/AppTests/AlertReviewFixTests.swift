@@ -1,4 +1,4 @@
-// Sukrara — https://github.com/mauriciabad/Sukrara
+// Sukrara — https://github.com/mauriciabad/sukrara
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
 import Foundation
@@ -10,7 +10,7 @@ import Testing
 
 @testable import SukraraApp
 
-/// G2 review findings: relaunch keeps the wearer's firing for Unmute, settings changes reach the rules, a relaunch
+/// Relaunch keeps the wearer's firing for Unmute, settings changes reach the rules, a relaunch
 /// re-shows silently, the file log rotates.
 @Suite struct AlertReviewFixTests {
     let clock = FakeClock()

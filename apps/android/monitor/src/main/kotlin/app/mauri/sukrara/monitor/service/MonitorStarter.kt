@@ -1,4 +1,4 @@
-// Sukrara — https://github.com/mauriciabad/Sukrara
+// Sukrara — https://github.com/mauriciabad/sukrara
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.monitor.service
@@ -34,8 +34,8 @@ interface StoppedNotice {
 
 /**
  * The only way the monitoring service is started (app open, boot, update, time change, health check, the alert check
- * of chunk 11, the notice's tap). Starting a running service is harmless, so every path just calls [start].
- * A refusal is never swallowed (the PoC's bug): the hub shows Stopped and the notice offers to resume.
+ * of the alert check, the notice's tap). Starting a running service is harmless, so every path just calls [start].
+ * A refusal is never swallowed: the hub shows Stopped and the notice offers to resume.
  */
 class MonitorStarter(
     private val hub: GlucoseHubImpl,

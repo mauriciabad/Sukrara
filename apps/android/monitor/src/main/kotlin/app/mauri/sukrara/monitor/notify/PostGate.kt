@@ -1,11 +1,11 @@
-// Sukrara — https://github.com/mauriciabad/Sukrara
+// Sukrara — https://github.com/mauriciabad/sukrara
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.monitor.notify
 
 /**
  * The gate in front of the glucose notification's `notify` (Android drops an app's posts above ~5/s, which a Bluetooth
- * backfill reached in the PoC):
+ * backfill can reach):
  *  - the same key as the last post → skipped, unless forced (a re-post after the person dismissed it);
  *  - at most one post per [minGapMs]: the first change after a quiet gap posts at once (a new value is never late),
  *    changes inside the gap are folded into one post at its end, the latest winning.

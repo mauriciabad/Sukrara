@@ -1,4 +1,4 @@
-// Sukrara — https://github.com/mauriciabad/Sukrara
+// Sukrara — https://github.com/mauriciabad/sukrara
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.monitor.alerts
@@ -38,13 +38,13 @@ fun interface AlertAlarm {
     fun set(at: Long?)
 }
 
-/** Sends the wearer's `alert` events to the followers (chunk 13's publisher; a no-op until it is wired). */
+/** Sends the wearer's `alert` events to the followers (publisher; a no-op until it is wired). */
 fun interface AlertEventSink {
     fun publish(event: AlertEvent)
 }
 
 /**
- * Restarts the monitoring service after a check found it dead (chunk 10's `MonitorStarter`; it surfaces a denial).
+ * Restarts the monitoring service after a check found it dead (`MonitorStarter`; it surfaces a denial).
  * Suspends until the start was tried, so the alarm's broadcast (and its foreground-service start exemption) is still
  * alive when it happens.
  */

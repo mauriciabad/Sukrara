@@ -1,17 +1,17 @@
 #!/bin/sh
-# Sukrara — https://github.com/mauriciabad/Sukrara
+# Sukrara — https://github.com/mauriciabad/sukrara
 # Copyright (C) 2026 Maurici Abad
 # SPDX-License-Identifier: GPL-3.0-or-later
 # Builds the Android release APK for a GitHub release: assembleRelease with THE release key (password from the
 # Keychain, never on a command line), verify-apk.sh, then copies it to apps/android/app/build/dist/Sukrara-<version>.apk
 # and archives its R8 mapping in ~/.android/sukrara-mappings/<version>-mapping.txt (crash traces from a phone are
 # unreadable without it; it isn't a release asset because About lists every non-APK asset as a download).
-# Refuses before tools/check/v1-complete exists. Prints the APK path on the last line.
+# Refuses unless tools/check/strict exists. Prints the APK path on the last line.
 set -eu
 . "$(dirname "$0")/lib.sh"
 root="$(repo_root)"
-if [ ! -e "$root/tools/check/v1-complete" ]; then
-  echo "refusing: tools/check/v1-complete is missing (every registry file must exist before a release)" >&2; exit 2
+if [ ! -e "$root/tools/check/strict" ]; then
+  echo "refusing: tools/check/strict is missing (every registry file must exist before a release)" >&2; exit 2
 fi
 set -- $(version_info)
 version="$1"

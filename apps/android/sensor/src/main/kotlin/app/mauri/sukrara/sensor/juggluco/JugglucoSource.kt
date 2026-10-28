@@ -1,4 +1,4 @@
-// Sukrara — https://github.com/mauriciabad/Sukrara
+// Sukrara — https://github.com/mauriciabad/sukrara
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.sensor.juggluco
@@ -29,7 +29,7 @@ import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.concurrent.TimeUnit
 
-/** What the Juggluco source is doing (the UI words live in chunk 18). */
+/** What the Juggluco source is doing (the UI words live in the sensor screens). */
 sealed interface JugglucoStatus {
     data object FetchingHistory : JugglucoStatus
 
@@ -50,7 +50,7 @@ internal interface JugglucoSink {
 }
 
 /**
- * Glucose from Juggluco's web server on this phone ("Local only" mode, loopback cleartext; ported from the PoC):
+ * Glucose from Juggluco's web server on this phone ("Local only" mode, loopback cleartext):
  * GET /api/v1/entries.json for history, then hold GET /x/live (SSE) open — push, no polling. Reconnects with backoff
  * 5 s → 60 s. [run] loops until its coroutine is cancelled; cancelling also cancels the open call.
  */

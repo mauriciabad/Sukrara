@@ -1,8 +1,8 @@
-// Sukrara — https://github.com/mauriciabad/Sukrara
+// Sukrara — https://github.com/mauriciabad/sukrara
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-/// The V1 identifiers. They are new (no PoC ids, no migration) and must match `Bundle/*.plist.in` and the
+/// The app identifiers. They must match `Bundle/*.plist.in` and the
 /// entitlements that `Bundle/bundle.sh` writes.
 public enum SukraraIDs {
     public static let teamID = "QWUV9H4A3G"

@@ -1,4 +1,4 @@
-// Sukrara — https://github.com/mauriciabad/Sukrara
+// Sukrara — https://github.com/mauriciabad/sukrara
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.sensor.ble
@@ -63,7 +63,7 @@ internal interface SensorEvents {
     /** Bulk readings (backfill); may include duplicates. */
     fun onHistory(readings: List<Reading>)
 
-    /** Readings by the sensor's own index (the Libre 3's life count), for the LibreView upload (chunk 26). */
+    /** Readings by the sensor's own index (the Libre 3's life count), for the LibreView upload. */
     fun onSensorGlucose(current: SensorGlucose?, history: List<SensorGlucose>) {}
 
     /** The sensor said it has reached its end (patch state, life count). It may still send in a grace period. */
@@ -85,7 +85,7 @@ internal interface SensorEvents {
 /** One glucose value by the sensor's life count (minutes since its start), as LibreView takes them. */
 data class SensorGlucose(val lifeCount: Int, val mgdl: Int, val epochSec: Long, val rate: Double? = null)
 
-/** Where the link and the sensor are; the UI words for these live in chunk 18. */
+/** Where the link and the sensor are; the UI words for these live in the sensor screens. */
 sealed interface LinkStatus {
     data object WaitingForBluetooth : LinkStatus
 

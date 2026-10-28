@@ -1,4 +1,4 @@
-// Sukrara — https://github.com/mauriciabad/Sukrara
+// Sukrara — https://github.com/mauriciabad/sukrara
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.monitor.alerts
@@ -13,7 +13,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.time.Duration
 
-/** CHANGES P3: no "no data" alarm before monitoring has started, and it arrives on time once it has. */
+/** no "no data" alarm before monitoring has started, and it arrives on time once it has. */
 class NoAlarmBeforeMonitoringTest {
     private val rig = AlertRig()
 

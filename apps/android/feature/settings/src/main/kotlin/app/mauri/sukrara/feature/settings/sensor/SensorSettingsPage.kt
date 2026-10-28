@@ -1,4 +1,4 @@
-// Sukrara — https://github.com/mauriciabad/Sukrara
+// Sukrara — https://github.com/mauriciabad/sukrara
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.feature.settings.sensor
@@ -140,11 +140,6 @@ private fun StateNotice(
         is SensorState.ActionNeeded ->
             when (s.action) {
                 SensorAction.SignInLibreView -> StateStrip(stringResource(R.string.st_sensor_sign_in_needed), listOf(stringResource(R.string.st_sensor_sign_in) to actions.signIn))
-                SensorAction.StopOtherApp ->
-                    StateStrip(
-                        stringResource(if (state.otherAppIsShowcase) R.string.st_sensor_showcase_app_text else R.string.st_sensor_other_app_text),
-                        listOf(pair),
-                    )
                 SensorAction.GrantBluetooth -> StateStrip(stringResource(R.string.st_sensor_bluetooth_permission_text), listOf(pair))
                 SensorAction.ScanSensor -> StateStrip(stringResource(R.string.st_sensor_scan_again_text), listOf(pair))
             }
@@ -225,7 +220,6 @@ private fun statusText(
                 when (s.action) {
                     SensorAction.ScanSensor -> R.string.st_sensor_status_scan_again
                     SensorAction.SignInLibreView -> R.string.st_sensor_status_sign_in
-                    SensorAction.StopOtherApp -> R.string.st_sensor_status_other_app
                     SensorAction.GrantBluetooth -> R.string.st_sensor_status_permission
                 },
             )

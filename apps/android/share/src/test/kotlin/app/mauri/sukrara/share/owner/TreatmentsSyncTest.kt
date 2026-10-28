@@ -1,4 +1,4 @@
-// Sukrara — https://github.com/mauriciabad/Sukrara
+// Sukrara — https://github.com/mauriciabad/sukrara
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.share.owner
@@ -31,7 +31,7 @@ import org.junit.Test
 
 /**
  * The owner side of contracts/protocol/sync/treatments-writer.json: the writer's own events from the fixture are judged
- * by the wearer's phone (writer scope), its echoes and its own entries are replayed through V1's follower, and the
+ * by the wearer's phone (writer scope), its echoes and its own entries are replayed through the follower, and the
  * follower ends with the fixture's expected treatments — the same file the Mac `SyncFixtureTests` decode.
  */
 class TreatmentsSyncTest {

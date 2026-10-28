@@ -1,4 +1,4 @@
-// Sukrara — https://github.com/mauriciabad/Sukrara
+// Sukrara — https://github.com/mauriciabad/sukrara
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.core.data
@@ -25,7 +25,7 @@ import java.time.Instant
 class DataModuleTest {
     private val context: Context = ApplicationProvider.getApplicationContext()
     private val clock = FakeClock()
-    private val data = DataModule(context, "0.90.0-test", DefaultDispatchers, clock, secretBox = SoftwareSecretBox())
+    private val data = DataModule(context, "0.12.0-test", DefaultDispatchers, clock, secretBox = SoftwareSecretBox())
 
     @After
     fun close() = data.database.close()

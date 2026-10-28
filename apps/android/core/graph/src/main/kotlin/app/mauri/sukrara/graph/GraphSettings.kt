@@ -1,4 +1,4 @@
-// Sukrara — https://github.com/mauriciabad/Sukrara
+// Sukrara — https://github.com/mauriciabad/sukrara
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.graph
@@ -17,7 +17,7 @@ import kotlinx.coroutines.flow.distinctUntilChanged
  * generated `SettingsSpec`). Home, widgets and every other card surface draw from [config]; the settings pages write
  * these same [Setting]s.
  *
- * Read here: the keys V1 lets the person change (ranges, time shown, vertical lines, rings, distribution, crown,
+ * Read here: the keys the person can change (ranges, time shown, vertical lines, rings, distribution, crown,
  * rewards) plus the two enums (`ringRange`, `lastPlace`). The structured keys (`slots`, `ringOrder`, `marks`, `lines`,
  * `lastElse`, per-place hours / sensor time) have no Android writer yet, so their schema defaults are the person's
  * values; they join here with the page that writes them.

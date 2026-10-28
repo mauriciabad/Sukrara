@@ -1,4 +1,4 @@
-// Sukrara — https://github.com/mauriciabad/Sukrara
+// Sukrara — https://github.com/mauriciabad/sukrara
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.sensor.libre3
@@ -25,7 +25,7 @@ import java.util.UUID
 
 /**
  * Replays Libre 3 sessions through [Libre3Driver] with a scripted link and security core: every byte the driver writes,
- * the order of its subscribes, its timers and states are pinned to what the PoC's driver did (its `Libre3DriverTest`,
+ * the order of its subscribes, its timers and states are pinned to the field-tested driver's (its `Libre3DriverTest`,
  * expectations unchanged except the cut experiment knobs). The ciphertexts are synthetic (the core is faked), so no
  * sensor data of anyone's is in here.
  */
@@ -243,7 +243,7 @@ class Libre3DriverTest {
         s.securityData(8, ByteArray(60) { 0x60 } + nonce7, CH_CHALLENGE)
         assertEquals("decrypt ${nonce7.hex()} ${"60".repeat(60)}", s.security.calls.last())
         assertEquals(LinkStatus.Authorized, s.events.lastStatus())
-        // every notification, then the glucose timer; no connection-priority request (the PoC's default)
+        // every notification, then the glucose timer; no connection-priority request
         assertEquals(fullSubscriptions + "schedule 120000", s.link.take())
         assertTrue(s.events.pairingState.isEmpty()) // a resume saves nothing new
     }

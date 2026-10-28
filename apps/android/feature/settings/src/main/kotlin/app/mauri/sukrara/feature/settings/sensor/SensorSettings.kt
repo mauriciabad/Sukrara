@@ -1,4 +1,4 @@
-// Sukrara — https://github.com/mauriciabad/Sukrara
+// Sukrara — https://github.com/mauriciabad/sukrara
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.feature.settings.sensor
@@ -47,8 +47,7 @@ enum class SourceLink {
 }
 
 /**
- * Everything Settings › Sensor shows. [sensor] is null until a sensor is known; [account] null = not signed in;
- * [otherAppIsShowcase]: the app holding the sensor (StopOtherApp) is Sukrara Showcase.
+ * Everything Settings › Sensor shows. [sensor] is null until a sensor is known; [account] null = not signed in.
  */
 data class SensorSettingsState(
     val source: SourceChoice,
@@ -56,7 +55,6 @@ data class SensorSettingsState(
     val sensor: SensorSummary?,
     val account: LibreViewSummary?,
     val link: SourceLink = SourceLink.Receiving,
-    val otherAppIsShowcase: Boolean = false,
 )
 
 /**

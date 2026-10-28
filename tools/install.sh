@@ -1,15 +1,13 @@
 #!/bin/sh
-# Sukrara — https://github.com/mauriciabad/Sukrara
+# Sukrara — https://github.com/mauriciabad/sukrara
 # Copyright (C) 2026 Maurici Abad
 # SPDX-License-Identifier: GPL-3.0-or-later
-# Put Sukrara V1 on the owner's phone or Mac without losing anyone's merged work (docs/DEVELOPMENT.md "Install").
+# Put Sukrara on the owner's phone or Mac without losing anyone's merged work (docs/DEVELOPMENT.md "Install").
 #   tools/install.sh phone [--dry-run]   apps/android release APK → verify-apk.sh → adb install -r (keeps data)
 #   tools/install.sh mac   [--dry-run]   apps/macos bundle.sh → verify-app.sh → ~/Applications/Sukrara.app
-# V1 (app.mauri.sukrara) installs NEXT TO the showcase PoC (app.mauri.sukrara.poc). On the Mac the showcase is quit,
-# moved to ~/Applications/Sukrara Showcase.app (never deleted) and its login item flagged, so only V1 alerts.
 # Refuses unless: the tree is clean, HEAD contains origin/main and every branch in tools/check/integration.txt,
 # HEAD contains the commit installed last time (else features vanish from the device), and tools/check/run.sh passes.
-# Records what it installed in <git common dir>/sukrara-installed-v1-<target> (shared by all worktrees).
+# Records what it installed in <git common dir>/sukrara-installed-<target> (shared by all worktrees).
 # --dry-run runs every check but only prints the build / install commands.
 set -eu
 TARGET=${1:-}; DRY=0
@@ -18,17 +16,9 @@ case "$TARGET" in phone|mac) ;; *) echo "usage: tools/install.sh phone|mac [--dr
 ROOT=$(git rev-parse --show-toplevel); cd "$ROOT"
 . tools/release/lib.sh
 SERIAL=${ANDROID_SERIAL:-62240DLCH0005W}
-RECORD="$(cd "$(git rev-parse --git-common-dir)" && pwd)/sukrara-installed-v1-$TARGET"
+RECORD="$(cd "$(git rev-parse --git-common-dir)" && pwd)/sukrara-installed-$TARGET"
 die() { echo "REFUSED: $*" >&2; exit 1; }
 run() { if [ $DRY = 1 ]; then echo "would run: $*"; else echo "+ $*"; "$@"; fi; }
-
-# 0. Is there an app to build yet?
-if [ "$TARGET" = phone ] && [ ! -f apps/android/settings.gradle.kts ]; then
-  echo "no apps build yet: apps/android has no Gradle build (settings.gradle.kts). Nothing to install."; exit 0
-fi
-if [ "$TARGET" = mac ] && { [ ! -f apps/macos/Package.swift ] || [ ! -x apps/macos/Bundle/bundle.sh ]; }; then
-  echo "no apps build yet: apps/macos has no Package.swift + Bundle/bundle.sh. Nothing to install."; exit 0
-fi
 
 # 1. Everything merged is in this build.
 [ -z "$(git status --porcelain --untracked-files=no)" ] || die "uncommitted changes: commit them (or use a clean worktree)."
@@ -74,50 +64,26 @@ if [ "$TARGET" = phone ]; then
     [ "$GOT" = "$VERSION" ] || die "phone reports versionName '$GOT' for app.mauri.sukrara, expected '$VERSION'."
   fi
 else
-  # 2b. Team-signed bundle with the widget; the showcase steps aside (it must not alert next to V1: double alarms).
+  # 2b. Team-signed bundle with the widget, replacing the installed one.
   DEST="$HOME/Applications/Sukrara.app"
-  SHOWCASE="$HOME/Applications/Sukrara Showcase.app"
   BUILT=apps/macos/build/Sukrara.app
   id_of() { /usr/libexec/PlistBuddy -c "Print :CFBundleIdentifier" "$1/Contents/Info.plist" 2>/dev/null || true; }
   # Every refusal comes before anything changes on the Mac (the owner keeps an alerting app either way).
-  MOVE_SHOWCASE=0
-  if [ -d "$DEST" ]; then
-    case "$(id_of "$DEST")" in
-      app.mauri.sukrara) ;;
-      app.mauri.sukrara.poc)
-        [ -e "$SHOWCASE" ] && die "$SHOWCASE already exists and $DEST is also the showcase: keep one of them (never deleted here)."
-        MOVE_SHOWCASE=1 ;;
-      *) die "$DEST is neither V1 nor the showcase ($(id_of "$DEST")): move it away by hand." ;;
-    esac
+  if [ -d "$DEST" ] && [ "$(id_of "$DEST")" != app.mauri.sukrara ]; then
+    die "$DEST is not Sukrara ($(id_of "$DEST")): move it away by hand."
   fi
   run sh -c "cd apps/macos && Bundle/bundle.sh"
   run tools/release/verify-app.sh "$BUILT"
-  # Quit the showcase only now; if anything below fails, reopen it so glucose alerts never stop.
-  if osascript -e 'application id "app.mauri.sukrara.poc" is running' 2>/dev/null | grep -q true; then
-    run osascript -e 'tell application id "app.mauri.sukrara.poc" to quit'
-    if [ $DRY = 0 ]; then
-      trap 'echo "install failed: reopening the showcase"; open -b app.mauri.sukrara.poc' EXIT
-    fi
-  fi
-  if [ $MOVE_SHOWCASE = 1 ]; then run mv "$DEST" "$SHOWCASE"; fi
   run pkill -x Sukrara || true
   run rm -rf "$DEST"
   run ditto "$BUILT" "$DEST"
   run /System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -f "$DEST"
-  run swift tools/release/url-handler.swift "$DEST" || echo "WARN: sukrara: links may still open the showcase (see above)."
+  run swift tools/release/url-handler.swift "$DEST" || echo "WARN: sukrara: links may still open another app (see above)."
   run open "$DEST"
-  trap - EXIT
   run pkill -f SukraraWidget.appex || true
-  # Unregister every other registered V1 copy (worktree / test builds), or chronod may run their stale extension.
+  # Unregister every other registered copy (worktree / test builds), or chronod may run their stale extension.
   pluginkit -mAv 2>/dev/null | grep 'app.mauri.sukrara.widget' | awk -F'\t' '{print $NF}' | grep -v "^$DEST/" |
     while IFS= read -r p; do run pluginkit -r "$p"; done
-  # The showcase's login item (its own SMAppService) can only be turned off by the showcase or in System Settings,
-  # and macOS doesn't reliably say whether it is on: remind whenever the showcase is still installed.
-  if [ -d "$SHOWCASE" ] || mdfind "kMDItemCFBundleIdentifier == 'app.mauri.sukrara.poc'" 2>/dev/null | grep -q .; then
-    echo "ACTION: if Sukrara Showcase opens at login, turn it off in System Settings › General › Login Items &"
-    echo "        Extensions, or it starts again after a restart and alerts next to V1."
-    run open "x-apple.systempreferences:com.apple.LoginItems-Settings.extension"
-  fi
   GOT=$VERSION
 fi
 

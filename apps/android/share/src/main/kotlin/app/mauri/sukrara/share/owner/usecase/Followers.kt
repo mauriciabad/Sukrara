@@ -1,4 +1,4 @@
-// Sukrara — https://github.com/mauriciabad/Sukrara
+// Sukrara — https://github.com/mauriciabad/sukrara
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.share.owner.usecase
@@ -43,7 +43,7 @@ sealed interface InboxSignal {
 
 /**
  * One gift wrap addressed to the identity (30500 from followers): `request` (single-use invite claim), `profile`,
- * `rekey`, `history` (PoC rules). Unknown senders and stale or invalid requests change nothing.
+ * `rekey`, `history`. Unknown senders and stale or invalid requests change nothing.
  */
 class HandleInbox(private val ctx: OwnerContext) {
     data class Handled(val step: Step, val signal: InboxSignal? = null)

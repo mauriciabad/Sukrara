@@ -1,4 +1,4 @@
-// Sukrara — https://github.com/mauriciabad/Sukrara
+// Sukrara — https://github.com/mauriciabad/sukrara
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.sensor.source
@@ -50,7 +50,7 @@ import java.time.Instant
 /**
  * The wearer's [ReadingSource]: the Libre 3 read directly, or Juggluco, per the setting ([kind]). Everything runs on
  * ONE serial [dispatcher] (`limitedParallelism(1)`): a source switch, a restart ([retry], a new pairing, Bluetooth on)
- * fully cancels and closes the old source before the new one starts (no PoC `restartSource()` race).
+ * fully cancels and closes the old source before the new one starts (no restart race).
  *
  * Safety: readings come only from the sensor / Juggluco, never invented; every problem becomes a [SensorStatus] with
  * an action; a no-data watchdog restarts a Libre 3 link that has gone quiet without saying why.
@@ -62,7 +62,6 @@ class SourceManager internal constructor(
     private val security: Libre3Security?,
     private val connector: GattConnector,
     private val juggluco: () -> JugglucoSource,
-    private val showcaseInstalled: () -> Boolean,
     private val clock: Clock,
     private val dispatcher: CoroutineDispatcher,
     /** Blocking I/O (Juggluco's HTTP). */
@@ -102,13 +101,13 @@ class SourceManager internal constructor(
     override val sensor: StateFlow<SensorState> = _sensor.asStateFlow()
     override val status: StateFlow<SourceStatus> = _status.asStateFlow()
 
-    /** The detailed state for the sensor screen / new-sensor flow (chunk 18). */
+    /** The detailed state for the sensor screen / new-sensor flow. */
     val detail: StateFlow<SensorStatus> = _detail.asStateFlow()
 
     /** The current sensor's serial, start and end (Libre 3 pairing or Juggluco's sensor), null when none is known. */
     val sensorInfo: StateFlow<SensorInfo?> = _info.asStateFlow()
 
-    /** Libre 3 readings by life count, for the LibreView upload (chunk 26). */
+    /** Libre 3 readings by life count, for the LibreView upload. */
     val sensorGlucose: Flow<Pair<SensorGlucose?, List<SensorGlucose>>> = _sensorGlucose.asSharedFlow()
 
     /** Starts following the setting; idempotent. */
@@ -246,7 +245,7 @@ class SourceManager internal constructor(
             scope.launch { pairings.setAuthorization(pairing, state) }
         }
 
-        override fun onOwnershipLost(serial: String) = publish(SensorStatus.OwnedByAnotherApp(showcaseInstalled()))
+        override fun onOwnershipLost(serial: String) = publish(SensorStatus.OwnedByAnotherApp)
     }
 
     // MARK: Juggluco

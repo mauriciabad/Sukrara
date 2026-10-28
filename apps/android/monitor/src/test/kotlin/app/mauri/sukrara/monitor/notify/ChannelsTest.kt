@@ -1,4 +1,4 @@
-// Sukrara — https://github.com/mauriciabad/Sukrara
+// Sukrara — https://github.com/mauriciabad/sukrara
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.monitor.notify
@@ -13,7 +13,7 @@ class ChannelsTest {
     private val ids = Channels.ALL.map { it.id }
 
     @Test
-    fun `every V1 channel id exists exactly once`() {
+    fun `every channel id exists exactly once`() {
         val expected =
             listOf("glucose", "status", "requests", "sensor", "sensor.countdown", "pen.results", "pen.check") +
                 Channels.ALERT_KINDS.map { "alert.$it" } + Channels.ALERT_KINDS.map { "alert_alarm.$it" }

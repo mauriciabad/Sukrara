@@ -1,4 +1,4 @@
-// Sukrara — https://github.com/mauriciabad/Sukrara
+// Sukrara — https://github.com/mauriciabad/sukrara
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara
@@ -23,7 +23,7 @@ import kotlinx.coroutines.launch
 import java.time.Instant
 
 /**
- * Settings › Sensor over chunk 12's sensor module and the source setting (`source.source`): the settings feature
+ * Settings › Sensor over the sensor module and the source setting (`source.source`): the settings feature
  * can't see the sensor feature, so the app joins them here.
  */
 class SensorSettingsBridge(
@@ -54,7 +54,6 @@ class SensorSettingsBridge(
                 sensor = info?.let { SensorSummary(it.serial, Instant.ofEpochSecond(it.startEpoch), Instant.ofEpochSecond(it.endEpoch)) },
                 account = email?.let { LibreViewSummary(it, receiverId) },
                 link = linkOf(detail),
-                otherAppIsShowcase = (detail as? SensorStatus.OwnedByAnotherApp)?.showcaseInstalled == true,
             )
         }
 

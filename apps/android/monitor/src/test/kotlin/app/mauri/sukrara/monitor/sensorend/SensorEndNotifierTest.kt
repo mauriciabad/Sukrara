@@ -1,4 +1,4 @@
-// Sukrara — https://github.com/mauriciabad/Sukrara
+// Sukrara — https://github.com/mauriciabad/sukrara
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.monitor.sensorend
@@ -16,7 +16,7 @@ import org.junit.Test
 import java.time.Duration
 import java.time.Instant
 
-/** CHANGES P7: one warning a few hours before the sensor ends, one "ended" notice, each once per sensor. */
+/** one warning a few hours before the sensor ends, one "ended" notice, each once per sensor. */
 class SensorEndNotifierTest {
     private val clock = FakeClock(Instant.parse("2026-01-15T12:00:00Z"))
     private val store = InMemoryStateStore(SensorEndMemory())

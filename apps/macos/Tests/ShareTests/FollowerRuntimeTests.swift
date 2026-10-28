@@ -1,4 +1,4 @@
-// Sukrara — https://github.com/mauriciabad/Sukrara
+// Sukrara — https://github.com/mauriciabad/sukrara
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
 import Foundation
@@ -49,7 +49,7 @@ struct FollowerRuntimeTests {
     let v = OgsVectors.shared
     let crypto = NostrSDKCrypto()
 
-    /// Re-wraps the OGS key delivery (made by the Python reference in the showcase's wire format) to `follower`.
+    /// Re-wraps the OGS key delivery (made by the Python reference) to `follower`.
     func keyDelivery(to follower: String) throws -> SignedEvent {
         let rumor = (v.raw["plaintexts"] as! [String: Any])["key-1"] as! [String: Any]
         let content = (rumor["rumor"] as! [String: Any])["content"] as! String

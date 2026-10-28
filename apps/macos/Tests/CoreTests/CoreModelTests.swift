@@ -1,4 +1,4 @@
-// Sukrara — https://github.com/mauriciabad/Sukrara
+// Sukrara — https://github.com/mauriciabad/sukrara
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
 import Foundation
@@ -6,12 +6,8 @@ import SukraraCore
 import SukraraTesting
 import Testing
 
-/// `contracts/<path>`, or the frozen PoC copy it is made from until the contracts land.
-private func fixture(_ contractsPath: String, poc: String) -> URL {
-    Contracts.exists(contractsPath)
-        ? Contracts.url(contractsPath)
-        : Contracts.root.deletingLastPathComponent().appending(path: "poc/spikes/\(poc)")
-}
+/// `contracts/<path>`.
+private func fixture(_ contractsPath: String) -> URL { Contracts.url(contractsPath) }
 
 private func json(_ url: URL) -> [String: Any] {
     guard let data = FileManager.default.contents(atPath: url.path),
@@ -31,7 +27,7 @@ struct Case: @unchecked Sendable, CustomTestStringConvertible {
 }
 
 @Suite struct DurationsFixtureTests {
-    static let root = Case(o: json(fixture("settings/durations.json", poc: "durations/durations.json")))
+    static let root = Case(o: json(fixture("settings/durations.json")))
 
     private static func pairs(_ key: String) -> [(Int, String)] {
         (root.o[key] as? [[Any]] ?? []).compactMap { p in
@@ -59,7 +55,7 @@ struct Case: @unchecked Sendable, CustomTestStringConvertible {
 
 @Suite struct GlucoseCsvFixtureTests {
     static let cases: [Case] = {
-        let dir = fixture("export", poc: "export-fixtures")
+        let dir = fixture("export")
         let files = ((try? FileManager.default.contentsOfDirectory(atPath: dir.path)) ?? [])
             .filter { $0.hasSuffix(".json") }.sorted()
         return files.flatMap { f in

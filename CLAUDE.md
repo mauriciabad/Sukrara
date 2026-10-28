@@ -1,34 +1,33 @@
-# Project rules (Sukrara V1)
+# Project rules (Sukrara)
 
-Rules every session follows in this repo. Sukrara V1 is two apps, Android [`apps/android`](apps/android) and Mac
-[`apps/macos`](apps/macos), tested against the shared [`contracts/`](contracts) (specs, schemas, fixtures). The
-showcase PoC and its investigations are **frozen** under [`poc/`](poc): buildable, never edited, and checked only for
+Rules every session follows in this repo. Sukrara is a set of apps under [`apps/`](apps) (Android, Mac, …), every
+one tested against the shared [`contracts/`](contracts) (specs, schemas, fixtures). The research PoC and its
+investigations are **frozen** under [`poc/`](poc): buildable, never edited, and checked only for
 secrets, large files and Java. The know-how (setup, devices, signing, install, strings) is in
 [`docs/DEVELOPMENT.md`](docs/DEVELOPMENT.md); the architecture in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 
 **Run `tools/check/run.sh` before committing and before merging** (`--help` lists the checks). The git hooks run it
 automatically once `tools/hooks/install.sh` has been run in the clone (worktrees share it): `pre-commit` fails on the
 static rules, `commit-msg` reminds about parity / FEATURES.md on a normal commit and **fails a merge** that brings
-one-sided changes. CI (`.github/workflows/checks.yml`) runs the same checks plus both apps' builds and tests; its
+one-sided changes. CI (`.github/workflows/checks.yml`) runs the same checks plus every app's builds and tests; its
 `gate` job is the only required check. A check that is wrong for your change is skipped with a commit-message trailer
 that says why (`Parity-skip: <group>: <reason>`, `Features-skip: <reason>`), never with `--no-verify`. A file a
-registry names that doesn't exist yet is a "pending V1 file" NOTE until `tools/check/v1-complete` exists (made at
-release), then it fails. The manual checks per surface are in [`docs/QA.md`](docs/QA.md); `run.sh` prints the
+registry names that doesn't exist is a "pending file" NOTE while `tools/check/strict` is absent, and fails once it
+exists. The manual checks per surface are in [`docs/QA.md`](docs/QA.md); `run.sh` prints the
 sections your change touches.
 
 - **Investigations are standalone PoCs** with a report in `docs/NN-*.md`. Bringing their results into Sukrara is a
   separate step. *(not checked)*
 - **Document what goes in and what stays out.** When results from an investigation or the PoC are brought into
-  Sukrara, record both **what was added** and **what was discarded, with the reason**: in the investigation's report
-  ("In Sukrara" section) and `docs/10-showcase.md`. *(not checked: needs judgement)*
-- **The README always stays up to date** with what Sukrara (Android and Mac) does. Update it in the same change as the
+  Sukrara, record both **what was added** and **what was discarded, with the reason**, in the investigation's report
+  ("In Sukrara" section). *(not checked: needs judgement)*
+- **The README always stays up to date** with what every Sukrara app does. Update it in the same change as the
   feature. *(check `features`: a NOTE when app code changes without README.md)*
-- **No backwards compatibility.** Replace formats outright and delete superseded code paths. This covers V1's own
-  local storage too (settings, files, databases: V1 reads nothing from the PoC). The exception is the **wire
-  formats** in `contracts/protocol` (Nostr v2, identity), which stay compatible so a restored identity keeps its
-  followers. *(not checked)*
+- **No backwards compatibility.** Replace formats outright and delete superseded code paths. This covers local
+  storage too (settings, files, databases) and anything from the PoC. The **wire formats** in `contracts/protocol`
+  (Nostr v2, identity) are versioned: every app speaks the same version. *(not checked)*
 - **Android: Kotlin only** (JNI/C is fine). Use the newest API generation. Put the GPL header on every new file
-  (`// Sukrara — https://github.com/mauriciabad/Sukrara` / `// Copyright (C) 2026 Maurici Abad` /
+  (`// Sukrara — https://github.com/mauriciabad/sukrara` / `// Copyright (C) 2026 Maurici Abad` /
   `// SPDX-License-Identifier: GPL-3.0-or-later`; `#` for py / sh / yml, `<!-- -->` for xml).
   *(checks `java`, `header`: new source files, and files moved out of `poc/`)*
 - **Strings:** every user-visible Android text in the owning module's `res/values/strings.xml` and
@@ -44,7 +43,7 @@ sections your change touches.
   the signed build first).
 - **Cleartext only where it's validated:** the app permits cleartext so a home-network Nightscout works; every
   `http://` / `ws://` URL or scheme and every place that opens a connection in the Android app needs an entry in
-  `tools/check/allow.json` (`cleartext_ok` / `network_ok`) with the reason. *(check `cleartext`, whole V1 tree)*
+  `tools/check/allow.json` (`cleartext_ok` / `network_ok`) with the reason. *(check `cleartext`, everything outside `poc/`)*
 - **Test and snapshot runs never touch the owner's devices:** every Mac snapshot / test run and every dev build runs
   offline — no Bluetooth, relays or alert engine. The Mac decides this in one pure, unit-tested place, `LaunchMode`
   (normal | snapshot (DEBUG) | test → the services it may start). Tests never use real relays or sensors.
@@ -57,7 +56,7 @@ sections your change touches.
 - **Releases:** 0.x versions are GitHub prereleases; a bug fix gets a release only after the owner has confirmed the
   fix on their device. *(not checked)*
 - **Alert rules are guarded by timeline scenarios** (`contracts/alerts/scenarios`: sequences of events → expected
-  alerts, run by both apps). Every alert-rule change adds or updates a scenario; never change a scenario's
+  alerts, run by every app). Every alert-rule change adds or updates a scenario; never change a scenario's
   expectations without the owner's OK. *(parity groups `alerts`, `alert-scenarios`, `alert-spec`;
   `AlertScenarioTest` + `AlertsTests` in CI)*
 - **Complete flows.** Every feature is designed as a whole user journey: every state a user can enter has a visible
@@ -79,21 +78,21 @@ sections your change touches.
   where there's a trackpad), sound only where the platform expects it, polished graphics. Never at the cost of clarity,
   speed or accessibility: honour reduced motion, TalkBack / VoiceOver and the alert sounds' meaning.
   *(not checked: needs judgement; QA.md Q20)*
-- **`docs/FEATURES.md` is the behaviour catalog** for the final app: every behaviour change updates it in the same
+- **`docs/FEATURES.md` is the behaviour catalog** for every app: every behaviour change updates it in the same
   commit. *(check `features`)*
 - **One graph everywhere.** The card (value, arrow, badges, slots, chart and every element in them) is laid out and
   drawn only by the renderer: Android `:core:graph` (`GlucoseCard`), Mac `SukraraGraph` (`GlucoseCard`). Every place
   that shows the card or its value is registered in `contracts/graph/surfaces/surfaces.json` (and the `CardSurface`
   enums); a card surface only chooses its size, its place's settings and the `CardPart`, a text / icon place takes
-  its value from `GlucoseCard.face`. A change to the card lands on Android AND Mac in the same round; a new surface is
-  registered and rendered by the cross-surface tests. *(checks `card-surface`, `card-api`, `card-text`; both apps'
+  its value from `GlucoseCard.face`. A change to the card lands on every app in the same round; a new surface is
+  registered and rendered by the cross-surface tests. *(checks `card-surface`, `card-api`, `card-text`; every app's
   graph tests over `contracts/graph` incl. `layout/rules.json` + `expect.json`; `tools/check/run.sh --layout`; parity
   group `graph`)*
-- **Settings never diverge across platforms.** Every setting of both apps is in THE schema
-  `contracts/settings/settings.json` (V1 store + key per platform, or the one platform with `only` + reason; its
+- **Settings never diverge across platforms.** Every setting of every app is in THE schema
+  `contracts/settings/settings.json` (store + key per platform, or the one platform with `only` + reason; its
   number format; whether followers mirror it from the wearer). App code takes every stored key from the generated
   `SettingsSpec` (`python3 tools/settings/gen.py` after a schema change); number settings use the one number input
-  (Android `NumberDialog`, Mac `NumberSettingRow`). *(check `settings`; `SettingsSchemaTest` on both apps in CI)*
+  (Android `NumberDialog`, Mac `NumberSettingRow`). *(check `settings`; `SettingsSchemaTest` on every app in CI)*
 - **Protocols and specs** (`contracts/protocol/PROTOCOL-*.md`, `contracts/alerts/SPEC.md`, `contracts/treatments`,
-  `contracts/export`): a change lands with both implementations. *(parity groups `protocol-v2`, `identity`,
+  `contracts/export`): a change lands with every implementation. *(parity groups `protocol-v2`, `identity`,
   `alert-spec`, `treatments`, `export`)*

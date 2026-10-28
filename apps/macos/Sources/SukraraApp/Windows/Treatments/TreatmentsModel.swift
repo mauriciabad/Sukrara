@@ -1,4 +1,4 @@
-// Sukrara — https://github.com/mauriciabad/Sukrara
+// Sukrara — https://github.com/mauriciabad/sukrara
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
 import Foundation
@@ -12,7 +12,7 @@ public enum TreatmentDeliveryState: Sendable, Equatable {
     case failed
 }
 
-/// What the treatment windows need from the follower runtime (chunk 15's `FollowerService.send` behind an adapter).
+/// What the treatment windows need from the follower runtime (`FollowerService.send` behind an adapter).
 public protocol TreatmentActions: AnyObject {
     /// Signs and sends a new version of `treatment` (new entry, edit or tombstone). False = not allowed.
     func send(_ treatment: Treatment) async -> Bool

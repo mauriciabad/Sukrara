@@ -1,4 +1,4 @@
-// Sukrara — https://github.com/mauriciabad/Sukrara
+// Sukrara — https://github.com/mauriciabad/sukrara
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.feature.sensor.newsensor
@@ -52,7 +52,6 @@ import app.mauri.sukrara.designsystem.haptics.rememberHaptics
 import app.mauri.sukrara.designsystem.motion.Swap
 import app.mauri.sukrara.feature.sensor.R
 import app.mauri.sukrara.graph.CardWords
-import app.mauri.sukrara.sensor.SensorModule
 import kotlinx.coroutines.delay
 import java.time.Duration
 import java.time.Instant
@@ -61,7 +60,7 @@ import java.time.Instant
  * The new-sensor flow (start a new Libre 3 or take over a running one), the route the home screen, setup and
  * Settings › Sensor open. [onSignIn] opens the LibreView sign-in; [onDone] leaves (back, Cancel, Close, Done).
  * Gates are re-checked every time the screen resumes (the person may come back from settings, the sign-in or the
- * showcase); NFC reader mode is on only while a tap is accepted.
+ * other app); NFC reader mode is on only while a tap is accepted.
  */
 @Composable
 fun NewSensorRoute(
@@ -110,7 +109,6 @@ fun NewSensorRoute(
         when (action) {
             NewSensorAction.TryAgain -> viewModel.onRetry()
             NewSensorAction.SignIn -> onSignIn()
-            NewSensorAction.OpenShowcase -> context.openShowcase()
             NewSensorAction.NfcSettings -> context.open(Intent(Settings.ACTION_NFC_SETTINGS))
             NewSensorAction.BluetoothSettings -> context.open(Intent(Settings.ACTION_BLUETOOTH_SETTINGS))
             NewSensorAction.AllowBluetooth -> bluetoothPermission.launch(Manifest.permission.BLUETOOTH_CONNECT)
@@ -226,8 +224,4 @@ private fun Context.open(intent: Intent) {
     } catch (_: ActivityNotFoundException) {
         // a phone without that settings page: the step stays, with its other ways out
     }
-}
-
-private fun Context.openShowcase() {
-    packageManager.getLaunchIntentForPackage(SensorModule.SHOWCASE_PACKAGE)?.let(::open)
 }
