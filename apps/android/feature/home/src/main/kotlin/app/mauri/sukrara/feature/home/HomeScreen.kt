@@ -4,6 +4,7 @@
 package app.mauri.sukrara.feature.home
 
 import android.text.format.DateUtils
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -39,6 +40,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
@@ -59,6 +61,7 @@ import app.mauri.sukrara.core.model.Treatment
 import app.mauri.sukrara.core.model.TreatmentKind
 import app.mauri.sukrara.designsystem.alerts.MuteText
 import app.mauri.sukrara.designsystem.alerts.rememberAlertWords
+import app.mauri.sukrara.designsystem.avatar.AvatarImage
 import app.mauri.sukrara.designsystem.banner.Banner
 import app.mauri.sukrara.designsystem.banner.BannerSeverity
 import app.mauri.sukrara.designsystem.banner.BannerSlot
@@ -147,8 +150,19 @@ fun HomeContent(
         modifier = modifier.fillMaxSize(),
         topBar = {
             TopAppBar(
-                title = { if (follower) FollowerHeader(state) else Text(stringResource(R.string.home_title)) },
+                title = {
+                    when {
+                        follower -> FollowerHeader(state)
+                        state.profile != null -> ProfileHeader(state.profile) { callbacks.onAction(HomeAction.OpenProfile) }
+                        else -> Text(stringResource(R.string.home_title))
+                    }
+                },
                 actions = {
+                    if (!follower && state.profile != null) {
+                        IconButton(onClick = { callbacks.onAction(HomeAction.Share) }) {
+                            Icon(painterResource(R.drawable.home_ic_share), contentDescription = stringResource(R.string.home_share))
+                        }
+                    }
                     IconButton(onClick = { callbacks.onAction(HomeAction.OpenSettings) }) {
                         Icon(painterResource(R.drawable.home_ic_settings), contentDescription = stringResource(R.string.home_settings))
                     }
@@ -191,6 +205,42 @@ fun HomeContent(
             }
             // room for the floating button over the last row
             Spacer(Modifier.height(88.dp))
+        }
+    }
+}
+
+/**
+ * The wearer as followers see them: picture, name (or "Add your name") and how many follow. Tapping it opens How you
+ * appear; it never pushes the card down (it is the top bar's title).
+ */
+@Composable
+private fun ProfileHeader(
+    profile: HomeProfile,
+    onClick: () -> Unit,
+) {
+    val name = profile.name.ifBlank { null }
+    Row(
+        Modifier
+            .clip(
+                MaterialTheme.shapes.medium,
+            ).clickable(role = androidx.compose.ui.semantics.Role.Button, onClick = onClick)
+            .padding(end = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        AvatarImage(profile.avatar, name.orEmpty(), size = 36.dp)
+        Column {
+            Text(
+                name ?: stringResource(R.string.home_add_your_name),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                color = if (name == null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+            )
+            Text(
+                pluralStringResource(R.plurals.home_followers, profile.followers, profile.followers),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
     }
 }

@@ -168,7 +168,7 @@
     <!-- TalkBack label of the invite QR -->
     <string name="sh_share_qr_label">Invite QR code. The link is below.</string>
     <!-- Share: instructions -->
-    <string name="sh_share_scan">Ask them to install Sukrara, choose \"I follow someone\" and scan this code, or send them the link.</string>
+    <string name="sh_share_scan">Send them the link, or let them scan this code, in Sukrara for Mac. Following from an Android phone comes in a later version.</string>
     <!-- Invite note; %1$s = expiry, %2$s = label -->
     <string name="sh_share_note">This link works once, until %1$s. Send it only to %2$s: whoever opens it first can ask to follow you, and you still allow them. It holds no key to your glucose.</string>
     <!-- Invite note; %1$s = expiry -->
@@ -235,4 +235,174 @@
         <item quantity="one">%1$d follower</item>
         <item quantity="other">%1$d followers</item>
     </plurals>
+    <!-- Avatar shape -->
+    <string name="sh_avatar_shape_cube">Cube</string>
+    <!-- Avatar shape -->
+    <string name="sh_avatar_shape_drop">Drop</string>
+    <!-- Avatar shape -->
+    <string name="sh_avatar_shape_dots">Dots</string>
+    <!-- Avatar shape -->
+    <string name="sh_avatar_shape_rings">Rings</string>
+    <!-- Avatar shape: the name's first letter -->
+    <string name="sh_avatar_shape_letter">Letter</string>
+    <!-- Avatar colour (TalkBack) -->
+    <string name="sh_avatar_colour_teal">Teal</string>
+    <!-- Avatar colour (TalkBack) -->
+    <string name="sh_avatar_colour_lime">Lime</string>
+    <!-- Avatar colour (TalkBack) -->
+    <string name="sh_avatar_colour_coral">Coral</string>
+    <!-- Avatar colour (TalkBack) -->
+    <string name="sh_avatar_colour_purple">Purple</string>
+    <!-- Avatar colour (TalkBack) -->
+    <string name="sh_avatar_colour_amber">Amber</string>
+    <!-- Avatar colour (TalkBack) -->
+    <string name="sh_avatar_colour_sky">Sky blue</string>
+    <!-- Avatar colour (TalkBack) -->
+    <string name="sh_avatar_colour_pink">Pink</string>
+    <!-- Avatar colour (TalkBack) -->
+    <string name="sh_avatar_colour_grey">Grey</string>
+    <!-- Button: a new random picture -->
+    <string name="sh_avatar_shuffle">Shuffle</string>
+    <!-- Button: show the picture options -->
+    <string name="sh_avatar_customize">Customize</string>
+    <!-- Button: hide the picture options -->
+    <string name="sh_avatar_done">Done</string>
+    <!-- Button: rotate the picture's colours -->
+    <string name="sh_avatar_turn_colours">Turn the colours</string>
+    <!-- Page title: your name and picture as followers see them -->
+    <string name="sh_profile_title">How you appear</string>
+    <!-- Field: the person's name -->
+    <string name="sh_profile_name">Your name</string>
+    <!-- Note under the profile editor -->
+    <string name="sh_profile_privacy">Only the people you share with see your name and picture. They travel encrypted and are never published.</string>
+    <!-- How you appear: when followers see the change -->
+    <string name="sh_profile_followers_note">Your followers see the change the next time their app connects.</string>
+    <!-- How you appear: save refused -->
+    <string name="sh_profile_save_failed">Couldn\'t save: sharing is paused while another app shares as you. Your changes are still here.</string>
+    <!-- Button: save the profile -->
+    <string name="sh_profile_save">Save</string>
+    <!-- Profile row without a name -->
+    <string name="sh_profile_add_name">Add your name</string>
+    <!-- Profile row summary; %1$s = "2 followers" -->
+    <string name="sh_profile_row_summary">%1$s · How you appear</string>
+    <!-- Approve, leaked link: field for the code on the follower's phone -->
+    <string name="sh_approve_type_code">Code on their phone</string>
+    <!-- Approve: typed code differs -->
+    <string name="sh_approve_code_wrong">That\'s not the code on their phone.</string>
+    <!-- Approve: Allow didn't work -->
+    <string name="sh_approve_failed">Couldn\'t give access: the invite expired or was already used. Send a new invite.</string>
+    <!-- Approve: decide later (the request keeps waiting) -->
+    <string name="sh_approve_later">Later</string>
+    <!-- Approve: the invite card's heading -->
+    <string name="sh_approve_your_invite">Your invite</string>
+    <!-- Approve: invite without a label -->
+    <string name="sh_approve_no_label">Invite without a name</string>
+    <!-- Approve: the name looks like the invite's label (a hint) -->
+    <string name="sh_approve_label_matches">Name matches</string>
+    <!-- Approve: the name differs from the invite's label -->
+    <string name="sh_approve_label_differs">Different name</string>
+    <!-- Approve: %1$s = invite time, %2$s = request time -->
+    <string name="sh_approve_sent_asked">Sent %1$s · asked %2$s</string>
+    <!-- Approve: %1$s = request time -->
+    <string name="sh_approve_asked">Asked %1$s</string>
+    <!-- Backup page title / row -->
+    <string name="sh_backup_title">Backup</string>
+    <!-- Backup row: backed up -->
+    <string name="sh_backup_row_done">Backed up</string>
+    <!-- Backup row: not backed up -->
+    <string name="sh_backup_row_missing">Not backed up: a new phone would lose your followers</string>
+    <!-- Follower row: may add entries -->
+    <string name="sh_followers_can_add">Can add entries</string>
+    <!-- Follower row: only sees -->
+    <string name="sh_followers_sees_only">Sees only</string>
+    <!-- Button: show removed followers -->
+    <string name="sh_followers_removed_show">Removed</string>
+    <!-- Button: fold removed followers -->
+    <string name="sh_followers_removed_hide">See less</string>
+    <!-- Group title: removed followers -->
+    <string name="sh_followers_removed">Removed</string>
+    <!-- Removed follower; %1$s = date -->
+    <string name="sh_followers_removed_at">Removed %1$s</string>
+    <!-- Switch: follower may add entries -->
+    <string name="sh_followers_writer">Can add entries</string>
+    <!-- Switch summary -->
+    <string name="sh_followers_writer_summary">Meals, insulin and notes they add appear in your log.</string>
+    <!-- Writer switch refused -->
+    <string name="sh_followers_writer_refused">Couldn\'t change it: sharing is paused while another app shares as you.</string>
+    <!-- Backup intro, backed up -->
+    <string name="sh_backup_intro_saved">Your sharing identity is saved outside this phone. On a new phone, restore it and your followers keep seeing you.</string>
+    <!-- Backup intro, not backed up -->
+    <string name="sh_backup_intro_missing">Your sharing identity only exists on this phone. If you lose it, everyone would need a new invite.</string>
+    <!-- Row: save to password manager -->
+    <string name="sh_backup_save">Save to password manager</string>
+    <!-- Row: save again -->
+    <string name="sh_backup_save_again">Save to password manager again</string>
+    <!-- Saved; %1$s = date -->
+    <string name="sh_backup_saved_at">Saved %1$s</string>
+    <!-- Row summary -->
+    <string name="sh_backup_recommended">Recommended: restore on a new phone in one tap</string>
+    <!-- Row / dialog: recovery code -->
+    <string name="sh_recovery_title">Recovery code</string>
+    <!-- Row summary -->
+    <string name="sh_recovery_summary">A code protected by your password, to keep somewhere safe</string>
+    <!-- Recovery code kept; %1$s = date -->
+    <string name="sh_recovery_kept_at">Copied %1$s</string>
+    <!-- Row: the encrypted backup on relays -->
+    <string name="sh_backup_relays">Follower list on relays</string>
+    <!-- %1$s = date -->
+    <string name="sh_backup_relays_updated">Updated %1$s (encrypted)</string>
+    <!-- Not yet on relays -->
+    <string name="sh_backup_relays_not_yet">Not uploaded yet: it goes out when the phone is online</string>
+    <!-- Save result -->
+    <string name="sh_backup_saved">Saved to your password manager.</string>
+    <!-- Save result -->
+    <string name="sh_backup_cancelled">Not saved: you closed the password manager.</string>
+    <!-- Save result -->
+    <string name="sh_backup_failed">Your password manager couldn\'t save it. Try again, or make a recovery code.</string>
+    <!-- Save result -->
+    <string name="sh_backup_no_identity">There\'s no sharing identity to save yet.</string>
+    <!-- Backup footer -->
+    <string name="sh_backup_footer">The relays only hold your follower list, encrypted. Without the password manager entry or the recovery code nobody can restore it, not even you.</string>
+    <!-- Recovery dialog text -->
+    <string name="sh_recovery_text">Choose a password. The code only works with it; keep both apart.</string>
+    <!-- Field -->
+    <string name="sh_recovery_password">Password</string>
+    <!-- %1$d = minimum length -->
+    <string name="sh_recovery_password_rule">At least %1$d characters</string>
+    <!-- Recovery code being made -->
+    <string name="sh_recovery_working">Making the code…</string>
+    <!-- Recovery code failed -->
+    <string name="sh_recovery_failed">Couldn\'t make the code. Try again.</string>
+    <!-- Under the shown code -->
+    <string name="sh_recovery_keep">Keep it somewhere safe. Anyone with the code and the password can share as you.</string>
+    <!-- Button -->
+    <string name="sh_recovery_create">Make code</string>
+    <!-- Button -->
+    <string name="sh_recovery_copy_close">Copy and close</string>
+    <!-- Sharing paused (another app shares as you) -->
+    <string name="sh_paused_title">Sharing is paused</string>
+    <!-- Sharing paused body -->
+    <string name="sh_paused_body">Another app is sharing as you. Settings › Sharing explains how to fix it.</string>
+    <!-- Button: restore from the password manager -->
+    <string name="sh_restore_manager">Restore from password manager</string>
+    <!-- No saved identity -->
+    <string name="sh_restore_manager_none">Your password manager has no Sukrara identity saved on this account.</string>
+    <!-- Password manager error -->
+    <string name="sh_restore_manager_failed">Your password manager couldn\'t answer. Try again, or paste the recovery code.</string>
+    <!-- Start fresh needs a name -->
+    <string name="sh_fresh_needs_name">Add your name to start.</string>
+    <!-- Page title: an invite link opened on this phone -->
+    <string name="sh_invite_here_page">Invite</string>
+    <!-- Invite opened on an Android phone -->
+    <string name="sh_invite_here_title">Open this invite on a Mac</string>
+    <!-- Why it can not be used here -->
+    <string name="sh_invite_here_body">Following from an Android phone comes in a later version. Open the link in Sukrara for Mac to follow. The invite stays unused until then.</string>
+    <!-- Button: copy the invite link -->
+    <string name="sh_invite_here_copy">Copy link</string>
+    <!-- Allow didnt happen; %1$s = name -->
+    <string name="sh_approve_refused_title">%1$s doesn\'t have access</string>
+    <!-- Allow refused while another app shares as you -->
+    <string name="sh_approve_refused_paused">Sharing is paused while another app shares as you. Fix that in Settings › Sharing, then send a new invite.</string>
+    <!-- The password manager returned something else -->
+    <string name="sh_restore_manager_not_identity">That saved password isn\'t a Sukrara identity. Pick the entry named \"Sukrara · npub…\", or paste the recovery code.</string>
 </resources>

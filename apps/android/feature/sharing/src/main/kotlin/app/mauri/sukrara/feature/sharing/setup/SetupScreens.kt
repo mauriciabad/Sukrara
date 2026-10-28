@@ -69,6 +69,7 @@ import app.mauri.sukrara.designsystem.rows.nameRes
 import app.mauri.sukrara.designsystem.rows.whyRes
 import app.mauri.sukrara.feature.sharing.R
 import app.mauri.sukrara.feature.sharing.restore.IdentityStep
+import app.mauri.sukrara.protocol.event.Profile
 import androidx.compose.ui.semantics.Role as SemanticsRole
 
 /**
@@ -127,7 +128,7 @@ data class SetupActions(
     val thresholdRows: ThresholdRows = { _, _ -> },
     val editThreshold: (AlertKind, Double) -> Unit = { _, _ -> },
     val confirmAlerts: () -> Unit = {},
-    val startFresh: () -> Unit = {},
+    val startFresh: (Profile) -> Unit = {},
     val completeIdentity: () -> Unit = {},
     val retryConflict: () -> Unit = {},
     val restore: (String, String?) -> Unit = { _, _ -> },

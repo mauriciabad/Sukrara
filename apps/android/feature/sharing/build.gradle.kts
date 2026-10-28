@@ -34,6 +34,8 @@ dependencies {
     implementation(libs.kotlinx.serialization.json)
     // invite QR code
     implementation(libs.zxing.core)
+    // the identity to / from the phone's password manager (Backup, restore)
+    implementation(libs.androidx.credentials)
     testImplementation(project(":core:testing"))
     testImplementation(libs.robolectric)
     testImplementation(libs.roborazzi)

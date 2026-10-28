@@ -51,6 +51,8 @@ data class PendingRequest(
     val avatarJson: String? = null,
     val label: String = "",
     val others: Int = 0,
+    /** When the invite this request used was made (the approve dialog's "sent … · asked …"); 0 = unknown. */
+    val inviteSentAt: Long = 0,
 )
 
 /** Another app publishes roster / backup as this identity; persisted so the block survives a restart. */
@@ -85,6 +87,10 @@ data class OwnerState(
     val rosterPublishedAt: Long = 0,
     val backupPublishedAt: Long = 0,
     val recoveryExportedAt: Long = 0,
+    /** When the identity was handed to the phone's password manager (Credential Manager); 0 = never. */
+    val passwordManagerSavedAt: Long = 0,
+    /** When this phone restored the identity from a code or the password manager; 0 = created here. */
+    val restoredAt: Long = 0,
     val conflict: ConflictRecord? = null,
     val pendingControl: List<PendingControl> = emptyList(),
     /** When the whole treatment log (last 30 days) went out last (republished at least weekly: 30-day expiry). */

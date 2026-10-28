@@ -14,6 +14,7 @@ import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -21,10 +22,12 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.Role
@@ -35,7 +38,12 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import app.mauri.sukrara.designsystem.motion.Reveal
 import app.mauri.sukrara.feature.sharing.R
+import app.mauri.sukrara.feature.sharing.backup.PasswordManager
+import app.mauri.sukrara.feature.sharing.backup.findActivity
 import app.mauri.sukrara.feature.sharing.conflict.ConflictContent
+import app.mauri.sukrara.feature.sharing.profile.ProfileEditor
+import app.mauri.sukrara.feature.sharing.profile.ProfileSaver
+import app.mauri.sukrara.feature.sharing.profile.randomAvatar
 import app.mauri.sukrara.feature.sharing.setup.ConfirmDialog
 import app.mauri.sukrara.feature.sharing.setup.NoteCard
 import app.mauri.sukrara.feature.sharing.setup.NumberedItem
@@ -46,8 +54,10 @@ import app.mauri.sukrara.feature.sharing.setup.SetupStep
 import app.mauri.sukrara.feature.sharing.setup.SetupUi
 import app.mauri.sukrara.feature.sharing.setup.StepButtons
 import app.mauri.sukrara.feature.sharing.setup.StepHeader
+import app.mauri.sukrara.protocol.event.Profile
 import app.mauri.sukrara.share.owner.OwnerShareState
 import app.mauri.sukrara.share.owner.usecase.RestoreIdentity
+import kotlinx.coroutines.launch
 
 /**
  * The sharing identity step: restore from a recovery code (gated, P2) or start fresh (confirmed, P10).
@@ -105,6 +115,61 @@ private fun ColumnScope.RestoreForm(
         )
     }
     val restoring = u.restore is RestoreUi.Busy
+    // the password manager fills the same field (masked; an ncryptsec then asks for its password), then restores
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var asking by remember { mutableStateOf(false) }
+    var managerError by remember { mutableStateOf<Int?>(null) }
+    OutlinedButton(
+        onClick = {
+            val activity = context.findActivity() ?: return@OutlinedButton
+            asking = true
+            managerError = null
+            actions.clearRestoreError()
+            scope.launch {
+                when (val got = PasswordManager.get(activity)) {
+                    is PasswordManager.Got.Secret -> {
+                        val text = got.text.trim()
+                        when {
+                            // another app's password saved for Sukrara (an account sign-in): never sent anywhere
+                            !text.startsWith("nsec1") && !text.startsWith("ncryptsec1") -> {
+                                managerError = R.string.sh_restore_manager_not_identity
+                            }
+
+                            else -> {
+                                code = text
+                                if (text.startsWith("nsec1")) actions.restore(text, null)
+                            }
+                        }
+                    }
+
+                    PasswordManager.Got.NoneSaved -> {
+                        managerError = R.string.sh_restore_manager_none
+                    }
+
+                    PasswordManager.Got.Cancelled -> {
+                        Unit
+                    }
+
+                    PasswordManager.Got.Failed -> {
+                        managerError = R.string.sh_restore_manager_failed
+                    }
+                }
+                asking = false
+            }
+        },
+        // the gate first: the secret is never fetched while the restore couldn't run
+        enabled = u.gate.open && !restoring && !u.busy && !asking,
+        modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+    ) { Text(stringResource(R.string.sh_restore_manager)) }
+    managerError?.let {
+        Text(
+            stringResource(it),
+            color = MaterialTheme.colorScheme.error,
+            style = MaterialTheme.typography.bodyMedium,
+            modifier = Modifier.semantics { liveRegion = LiveRegionMode.Assertive },
+        )
+    }
     OutlinedTextField(
         value = code,
         onValueChange = {
@@ -169,21 +234,35 @@ private fun ColumnScope.RestoreForm(
     )
 }
 
+/** Start fresh: how the wearer appears to followers (a name is needed), then a confirmed new identity. */
 @Composable
 private fun ColumnScope.StartFresh(
     enabled: Boolean,
     actions: SetupActions,
 ) {
     var confirming by rememberSaveable { mutableStateOf(false) }
+    var profile by rememberSaveable(stateSaver = ProfileSaver) { mutableStateOf(Profile("", randomAvatar())) }
     Text(stringResource(R.string.sh_fresh_title), style = MaterialTheme.typography.titleMedium)
     Text(stringResource(R.string.sh_fresh_body), style = MaterialTheme.typography.bodyMedium)
-    StepButtons(null, {}, secondary = listOf(stringResource(R.string.sh_fresh_action) to { if (enabled) confirming = true }))
+    ProfileEditor(profile, { profile = it })
+    StepButtons(
+        null,
+        {},
+        secondary = listOf(stringResource(R.string.sh_fresh_action) to { if (enabled && profile.name.isNotBlank()) confirming = true }),
+    )
+    if (profile.name.isBlank()) {
+        Text(
+            stringResource(R.string.sh_fresh_needs_name),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
     if (confirming) {
         ConfirmDialog(
             title = stringResource(R.string.sh_fresh_confirm_title),
             text = stringResource(R.string.sh_fresh_confirm_text),
             confirm = stringResource(R.string.sh_fresh_confirm),
-            onConfirm = actions.startFresh,
+            onConfirm = { actions.startFresh(profile) },
             onDismiss = { confirming = false },
         )
     }

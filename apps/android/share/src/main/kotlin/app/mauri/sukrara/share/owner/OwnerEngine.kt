@@ -27,6 +27,7 @@ import app.mauri.sukrara.share.owner.usecase.PublishReadings
 import app.mauri.sukrara.share.owner.usecase.PublishSettingsMirror
 import app.mauri.sukrara.share.owner.usecase.RemoveFollower
 import app.mauri.sukrara.share.owner.usecase.RestoreIdentity
+import app.mauri.sukrara.share.owner.usecase.SetProfile
 import app.mauri.sukrara.share.owner.usecase.SetWriter
 import app.mauri.sukrara.share.owner.usecase.Step
 import app.mauri.sukrara.share.owner.usecase.SyncTreatments
@@ -66,7 +67,7 @@ class OwnerEngine(
     private val seen: SeenWraps,
     treatmentLog: TreatmentsRepository,
     private val clock: Clock,
-    dispatcher: CoroutineDispatcher,
+    private val dispatcher: CoroutineDispatcher,
     private val settings: MirroredSettingsSource = MirroredSettingsSource.None,
     private val nearby: OwnerNearby = OwnerNearby.None,
     /** Called for a new access request (the notification with Allow / Deny lives in the app layer). */
@@ -264,17 +265,50 @@ class OwnerEngine(
             val result = use.restore(identity, found.events, found.answered, now())
             if (result is RestoreIdentity.Result.Restored) {
                 halt()
-                store.save(result.step.state, replaceUnreadable = true)
+                // the code that restored it is somewhere besides this phone: no "Not backed up" card
+                val restored = result.step.state.copy(restoredAt = now())
+                store.save(restored, replaceUnreadable = true)
                 // run() publishes the rotation from pendingControl (deliveries before the roster)
-                run(scope, result.step.state)
+                run(scope, restored)
             }
             result
         }
 
-    suspend fun exportRecovery(password: String): String? =
+    /** The identity the last recovery code was made for: [markRecoverySaved] counts only for that one. */
+    @Volatile private var exportedFor: String? = null
+
+    /** A recovery code (NIP-49, scrypt: 1–3 s, run off the engine's lock). Not a backup until [markRecoverySaved]. */
+    suspend fun exportRecovery(password: String): String? {
+        val s = owner ?: return null
+        return withContext(dispatcher) { ExportRecovery(ctx)(s, password) }.also { exportedFor = s.identityHex }
+    }
+
+    /**
+     * Hands the identity to the phone's password manager after the wearer tapped Save: [save] gets the entry's name
+     * ("Sukrara · npub1abcd…wxyz", several identities stay apart) and the `nsec`, and returns whether the password
+     * manager took it; then the "Not backed up" card goes away. The secret goes nowhere else and is never logged.
+     * False without an identity or when [save] refused.
+     */
+    suspend fun saveToPasswordManager(save: suspend (id: String, secret: String) -> Boolean): Boolean {
+        val s = owner ?: return false
+        val identity = s.identity(ctx.crypto)
+        val npub = ctx.crypto.npub(identity.public)
+        if (!save("Sukrara · ${npub.take(NPUB_HEAD)}…${npub.takeLast(NPUB_TAIL)}", ctx.crypto.nsec(identity.secret))) return false
+        // only for the identity that was saved (a restore may have replaced it meanwhile)
+        locked { owner?.takeIf { it.identityHex == s.identityHex }?.let { commit(it.copy(passwordManagerSavedAt = now())) } }
+        return true
+    }
+
+    /** The wearer kept the recovery code (copied it): the "Not backed up" card goes away. */
+    suspend fun markRecoverySaved() =
+        locked { owner?.takeIf { it.identityHex == exportedFor }?.let { commit(it.copy(recoveryExportedAt = now())) } }
+
+    /** "How you appear": followers get it in a roster at once. False without an identity or during a conflict. */
+    suspend fun setProfile(profile: Profile): Boolean =
         locked {
-            val s = owner ?: return@locked null
-            ExportRecovery(ctx)(s, password).also { commit(s.copy(recoveryExportedAt = now())) }
+            val s = owner?.takeIf { it.conflict == null } ?: return@locked false
+            SetProfile(ctx)(s, profile, now())?.let { apply(it) }
+            true
         }
 
     /** A new single-use invite link, or null without an identity or during a conflict. */
@@ -287,17 +321,33 @@ class OwnerEngine(
         }
 
     /**
-     * Allow: true only when [follower] is now an active follower (false for an expired / used invite, a request no
-     * longer waiting, or during a conflict), so the caller can say it didn't work.
+     * Allow: [ApproveResult.Allowed] only when [follower] is now an active follower, else why not, so the caller can
+     * say it didn't work. When other phones also tried the invite (a leaked link) the wearer must type the code shown
+     * on the follower's phone: [typedCode] must match.
      */
-    suspend fun approve(follower: String): Boolean {
-        val s = act { ApproveRequest(ctx)(it, follower, now()) } ?: return false
-        if (s.activeFollowers().none { it.key == follower }) return false
+    suspend fun approve(follower: String, typedCode: String? = null): ApproveResult {
+        if (owner?.conflict != null) return ApproveResult.Paused
+        val request = pendingRequest(follower) ?: return ApproveResult.Gone
+        if (request.others > 0 && typedCode != request.code) return ApproveResult.NeedsCode
+        var refused = ApproveResult.Gone
+        val s =
+            locked {
+                val st = owner ?: return@locked null
+                // re-checked under the lock: a conflict, or another phone tried the link meanwhile
+                val p = st.pending.firstOrNull { it.follower == follower }
+                when {
+                    st.conflict != null -> null.also { refused = ApproveResult.Paused }
+                    p == null -> null
+                    p.others > 0 && typedCode != p.code -> null.also { refused = ApproveResult.NeedsCode }
+                    else -> ApproveRequest(ctx)(st, follower, now())?.also { apply(it) }?.state
+                }
+            } ?: return refused
+        if (s.activeFollowers().none { it.key == follower }) return ApproveResult.Gone
         locked {
             publish(readings.republish(s, now()))
             owner?.let { apply(treatments.republish(it, now())) }
         }
-        return true
+        return ApproveResult.Allowed
     }
 
     /** The request [follower] has waiting, if any. */
@@ -359,7 +409,18 @@ class OwnerEngine(
         val relays = transport.status.value
         _state.value = s.conflict?.let {
             OwnerShareState.AnotherAppSharingAsYou(it.reason, IdentityConflictDetector.followersReceiving(it.reason), relays)
-        } ?: OwnerShareState.Sharing(s.current.n, s.followers, s.pending, relays, s.backupPublishedAt, s.recoveryExportedAt)
+        } ?: OwnerShareState.Sharing(
+            s.current.n,
+            s.followers,
+            s.pending,
+            relays,
+            s.backupPublishedAt,
+            s.recoveryExportedAt,
+            profile = ControlEvents.profile(s),
+            writers = s.activeWriters().toSet(),
+            passwordManagerSavedAt = s.passwordManagerSavedAt,
+            restoredAt = s.restoredAt,
+        )
     }
 
     private companion object {
@@ -370,5 +431,7 @@ class OwnerEngine(
         const val CONTROL_REFRESH = 6 * Wire.DAY
         const val HISTORY_MIN_GAP = 600L
         const val FETCH_TIMEOUT_MS = 12_000L
+        const val NPUB_HEAD = 12
+        const val NPUB_TAIL = 4
     }
 }
