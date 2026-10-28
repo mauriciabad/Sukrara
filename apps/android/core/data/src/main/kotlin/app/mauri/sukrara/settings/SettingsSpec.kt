@@ -150,6 +150,7 @@ object SettingsSpec {
         SettingInfo("general.unit", "enum", null, false, null, "settings:unit", "defaults:unit", null, null, null),
         SettingInfo("setup.steps", "setup", null, false, null, "", "defaults:setupSteps", null, "mac", "The Mac's first-run walk (welcome, follow, alerts, notifications, open at login); Android's first run is its own role / permission flow with its own state"),
         SettingInfo("general.openAtLogin", "bool", null, false, null, "", "system:SMAppService.mainApp", null, "mac", "A menu bar app starts as a login item; Android starts Sukrara's service on boot by itself"),
+        SettingInfo("settings.pane", "enum", null, false, null, "", "defaults:settingsPane", null, "mac", "The Mac Settings window reopens on the last pane it showed (HIG Settings); Android settings are a navigation stack that starts at its top"),
         SettingInfo("report.days", "enum", null, false, null, "", "defaults:reportDays", null, "mac", "Both reports offer the same 1 / 7 / 14 / 30-day choice in the report itself; the Mac's report window remembers the last one, Android's card starts at 14 days"),
         SettingInfo("source.source", "enum", null, false, null, "settings:source", "", null, "android", "Only the wearer's phone reads a sensor; the Mac follows (its source is the follow link, Settings › General)"),
         SettingInfo("sharing.nostr", "bool", null, false, null, "sharing:relaySharing", "", null, "android", "The wearer's phone publishes; a Mac follower only reads"),

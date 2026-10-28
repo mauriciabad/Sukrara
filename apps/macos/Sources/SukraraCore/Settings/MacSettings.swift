@@ -20,6 +20,33 @@ public enum MacSettings {
     public static let gridHours = number("graph.gridHours", SettingsSpec.Keys.gridHours, SettingsSpec.gridHours)
     public static let countdownHours = number(
         "sensor.countdownHours", SettingsSpec.Keys.countdownHours, SettingsSpec.countdownHours)
+    public static let ringCount = number("graph.ringCount", SettingsSpec.Keys.ringCount, SettingsSpec.ringCount)
+    /// Each place's own time shown (`placeHours`, 0 = same as `graphHours`): always this Mac's, never mirrored.
+    public static let menubarHours = number(
+        "graph.hours.place", SettingsSpec.Keys.menubarHours, SettingsSpec.placeHours)
+    public static let widgetHours = number("graph.hours.place", SettingsSpec.Keys.widgetHours, SettingsSpec.placeHours)
+    // The structured graph settings, stored in their wire spellings (PROTOCOL-v2 "Settings"); the defaults are the
+    // renderer's (`GraphConfig()`, checked by GraphSettingsTests).
+    public static let slots = SettingSpec(
+        key: SettingsSpec.Keys.slots, defaultValue: "TIR:86400:1,TIR:604800:1,GMI:1209600:1")
+    public static let ringRange = SettingSpec(key: SettingsSpec.Keys.ringRange, defaultValue: "IN_RANGE")
+    public static let ringOrder = SettingSpec(
+        key: SettingsSpec.Keys.ringOrder, defaultValue: "TIGHT,TARGET,LOW,VERY_LOW,HIGH,VERY_HIGH")
+    public static let lines = SettingSpec(key: SettingsSpec.Keys.lines, defaultValue: "100")
+    public static let lastPlace = SettingSpec(key: SettingsSpec.Keys.lastPlace, defaultValue: "NEAR_VALUE")
+    /// One slot, "" = nothing.
+    public static let lastElse = SettingSpec(key: SettingsSpec.Keys.lastElse, defaultValue: "TIR:2592000:1")
+    public static let marks = SettingSpec(
+        key: SettingsSpec.Keys.marks,
+        defaultValue: "rapid:point+line+amount+time,long:point+amount+time,carbs:point,note:point")
+    public static let ringMarks = SettingSpec(key: SettingsSpec.Keys.ringMarks, defaultValue: true)
+    public static let side = SettingSpec(key: SettingsSpec.Keys.side, defaultValue: true)
+    public static let columnCrown = SettingSpec(key: SettingsSpec.Keys.columnCrown, defaultValue: true)
+    /// The sensor's time left per place: always this Mac's.
+    public static let menubarSensorTime = SettingSpec(key: SettingsSpec.Keys.menubarSensorTime, defaultValue: true)
+    public static let widgetSensorTime = SettingSpec(key: SettingsSpec.Keys.widgetSensorTime, defaultValue: true)
+    /// The Settings window's last pane (a view state).
+    public static let settingsPane = SettingSpec(key: SettingsSpec.Keys.settingsPane, defaultValue: "general")
     public static let settingsFrom = SettingSpec(key: SettingsSpec.Keys.settingsFrom, defaultValue: "wearer")
     public static let unit = SettingSpec(key: SettingsSpec.Keys.unit, defaultValue: GlucoseUnit.mgdl.rawValue)
     /// The alert settings: ONE JSON value (contracts/alerts/SPEC.md §3), owned by the alert settings store.

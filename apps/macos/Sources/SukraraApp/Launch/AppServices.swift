@@ -40,11 +40,11 @@ final class AppServices: ServiceStarting {
     /// The wearer's mirrored settings while following (from the follower snapshots), nil otherwise.
     private var wearer: WearerSettings?
 
-    /// The rules this Mac runs: its own alert settings, with the wearer's mirrored values in "Settings from: Wearer".
+    /// The rules this Mac runs: its own alert settings with the mirrored values from "Settings from"
+    /// (`AlertSettings.inUse`: the wearer's, the defaults, or this Mac's own in Custom).
     var alertSettings: AlertSettings {
         let own = defaults.data(forKey: SettingsSpec.Keys.alerts).map(AlertSettings.decode) ?? AlertSettings()
-        guard own.source == .wearer, let wearer else { return own }
-        return own.mirroring(wearer)
+        return own.inUse(from: DefaultsSettingsStore(defaults: defaults).settingsFrom, wearer: wearer)
     }
 
     /// The alert settings changed (Settings window, a mirrored wearer setting): the rules and the copied sounds follow

@@ -78,8 +78,11 @@ The full catalog, with every rule and number, is [docs/FEATURES.md](docs/FEATURE
   login.
 - **Alerts** with sound packs and the same rules and timeline scenarios as Android; mute and unmute from the menu.
 - **Treatments**: add rapid / long / carbs / note, see the phone's entries, delete your own with undo.
-- **Settings**: General (following, unit, open at login, update check) and Alerts (per alert, quiet times, sounds,
-  ranges); it can mirror the wearer's alert settings.
+- **Settings** in five panes: General (*Settings from* Wearer / Default / Custom, unit, open at login, update check,
+  Quit), Graph (time shown per place, treatments on the graph, lines, ranges, sensor countdown and time left), Rings
+  (rings and numbers, ring order you drag, last treatment), Alerts (per alert, quiet times, sounds) and Following.
+- The card shows the wearer's treatments on the chart with their mute lines, the last treatment beside the value and
+  a pill that counts down while a treatment quiets the alert; the widgets too.
 - **Desktop widgets** (Glucose, Glucose graph, Glucose + graph) with the same card; they age by themselves (struck
   through at 5 min, the graph dimmed with the reading's time, no value at 20 min) and a tap opens Add treatment.
 - VoiceOver reads the value as one sentence with the range in words.
