@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.sensor.libre3
 
+import app.mauri.sukrara.core.model.GlucoseRange
 import app.mauri.sukrara.core.model.Reading
 import app.mauri.sukrara.core.model.SourceId
 import app.mauri.sukrara.sensor.ble.BleLink
@@ -308,7 +309,9 @@ internal class Libre3Driver(
         val reading = u16(2)
         val uncapped = u16(15)
         val mgdl = if (uncapped in VALID_MGDL) uncapped else reading
-        if (mgdl !in VALID_MGDL) {
+        // below the sensor's range: only when the uncapped AND the capped value both say so (one odd word is no LO)
+        val belowRange = mgdl !in VALID_MGDL && uncapped in 1 until GlucoseRange.FLOOR && reading in 1..GlucoseRange.FLOOR
+        if (mgdl !in VALID_MGDL && !belowRange) {
             log("ignoring out-of-range glucose")
             return
         }
@@ -319,7 +322,15 @@ internal class Libre3Driver(
         events.onStatus(LinkStatus.Live)
         val now = clockMs() / 1000
         val rate = if (rawRate == -32768) null else rawRate / 100.0
-        events.onReading(reading(now, mgdl, rate))
+        val at = Instant.ofEpochSecond(now)
+        // outside 40–400 the reading is the flagged LO / HI (the Libre app's "LO" / "HI"), never the number
+        events.onReading(
+            when {
+                belowRange || GlucoseRange.isLo(mgdl) -> Reading.lo(at, SourceId.Libre3)
+                GlucoseRange.isHi(mgdl) -> Reading.hi(at, SourceId.Libre3)
+                else -> reading(now, mgdl, rate)
+            },
+        )
 
         // The packet also carries the matching 5-minute value, which fills a follower's chart a bit faster.
         val histLifeCount = u16(10)
@@ -331,7 +342,7 @@ internal class Libre3Driver(
                 null
             }
         histPoint?.let { events.onHistory(listOf(reading(it.epochSec, it.mgdl, null))) }
-        events.onSensorGlucose(SensorGlucose(lifeCount, mgdl, now, rate), listOfNotNull(histPoint))
+        events.onSensorGlucose(if (belowRange) null else SensorGlucose(lifeCount, mgdl, now, rate), listOfNotNull(histPoint))
     }
 
     /** Encrypts a command and writes it to PatchControl (same framing as incoming packets). */

@@ -6,6 +6,7 @@ package app.mauri.sukrara.sensor.aidex
 import app.mauri.sukrara.sensor.SensorProfile
 import app.mauri.sukrara.sensor.ble.FailReason
 import app.mauri.sukrara.sensor.ble.LinkStatus
+import app.mauri.sukrara.sensor.ble.NoValueReason
 import app.mauri.sukrara.sensor.brand.Advert
 import app.mauri.sukrara.sensor.brand.BrandEvents
 import app.mauri.sukrara.sensor.brand.BrandLink
@@ -95,6 +96,48 @@ class AidexXDriverTest {
         assertEquals("schedule ${AidexXDriver.POLL_MS}", link.ops.last())
         link.pending!!.run()
         assertEquals(listOf("write F002 ${trace["cmd-glucose"].hex()}", "schedule ${AidexXDriver.POLL_MS}"), link.ops.takeLast(2))
+    }
+
+    /**
+     * The record's status byte: 0 and 1 come with good values in the recorded frames, anything else gives no value.
+     * The sensor's "ended" frame (type 3 on the key characteristic) stops it for good only when two arrive intact.
+     */
+    @Test
+    fun unseenStatusGivesNoValueAndTheEndTakesTwoIntactFrames() {
+        val events = BrandEvents()
+        val link = BrandLink(isBonded = true)
+        val d = driver(events)
+        d.onConnected(link, chars, 0)
+        d.onNotification(AidexX.KEY_BONDED, trace["notified-key"])
+        d.onRead(AidexX.DATA, trace["session-read"])
+        val g = AidexX.Glucose.parse(trace["advertisement"], 11)!!
+        assertEquals(1, g.status)
+        d.onGlucose(g.copy(status = 2))
+        assertEquals(LinkStatus.NoValue(NoValueReason.SensorError), events.last())
+        assertTrue(events.readings.isEmpty())
+
+        val session = AidexX.sessionKey(trace["notified-key"], iv, trace["session-read"])!!
+        val endedFrame = AidexX.command(session, iv, AidexX.CURRENT_ENDED, ByteArray(14))
+        d.onNotification(AidexX.KEY_BONDED, endedFrame)
+        assertTrue(events.ended.isEmpty())
+        d.onNotification(AidexX.KEY_BONDED, endedFrame.copyOf().also { it[3] = (it[3] + 1).toByte() }) // CRC fails
+        assertTrue(events.ended.isEmpty())
+        d.onNotification(AidexX.KEY_BONDED, endedFrame)
+        assertEquals(1, events.ended.size)
+        assertEquals(LinkStatus.SensorEnded, events.last())
+    }
+
+    /** Juggluco's range: the 10-bit field all ones (1023) or above 800 is no value, never a HI. */
+    @Test
+    fun implausibleValueIsNoValueAndOutOfRangeIsFlagged() {
+        val start = nowS - 21600 * 60L
+        val events = BrandEvents()
+        val d = driver(events, start = start)
+        val g = AidexX.Glucose.parse(trace["advertisement"], 11)!!
+        d.onGlucose(g.copy(mgdl = 1023))
+        assertEquals(LinkStatus.NoValue(NoValueReason.Missing), events.last())
+        d.onGlucose(g.copy(minutesSinceStart = g.minutesSinceStart + 1, mgdl = 30))
+        assertTrue(events.readings.single().isLo)
     }
 
     /**

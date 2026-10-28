@@ -13,6 +13,18 @@ import kotlinx.serialization.Serializable
 data class AlertReading(val t: Long, val mgdl: Int, val rate: Double? = null) {
     /** This reading, dated no later than [now]. */
     fun notAfter(now: Long): AlertReading = if (t > now) copy(t = now) else this
+
+    /** The sensor's LO (below what it measures): below every low threshold (SPEC §1). */
+    val isLo: Boolean get() = mgdl < FLOOR
+
+    /** The sensor's HI (above what it measures): above every high threshold. */
+    val isHi: Boolean get() = mgdl > CEILING
+
+    companion object {
+        /** The shown range (`:core:model` GlucoseRange, the Mac's GlucoseRange): outside it a value is LO / HI. */
+        const val FLOOR = 40
+        const val CEILING = 400
+    }
 }
 
 /** Times (epoch s) of the logged, not deleted, carbs and rapid insulin: the treatment quiet rules (SPEC §2). */
@@ -63,12 +75,16 @@ object Rules {
 
     fun fresh(r: AlertReading?, now: Long): Boolean = r != null && now - r.t <= FRESH_S
 
-    /** The level kind [r] is in at [now] (the most severe that matches), or null: stale, in range, alerts off. */
+    /**
+     * The level kind [r] is in at [now] (the most severe that matches), or null: stale, in range, alerts off. A LO
+     * matches every low kind and a HI every high kind, whatever the thresholds: its real value is beyond them all.
+     */
     fun levelOf(r: AlertReading?, s: AlertSettings, now: Long): AlertKind? {
         if (r == null || !s.on || !fresh(r, now)) return null
         return AlertKind.LEVELS_BY_SEVERITY.firstOrNull { k ->
             val rule = s.rule(k)
-            rule.on && if (k.isBelowThreshold) r.mgdl < rule.threshold else r.mgdl >= rule.threshold
+            rule.on &&
+                if (k.isBelowThreshold) r.isLo || r.mgdl < rule.threshold else r.isHi || r.mgdl >= rule.threshold
         }
     }
 
@@ -91,7 +107,8 @@ object Rules {
      */
     fun fallingBackIntoRange(kind: AlertKind, r: AlertReading?, s: AlertSettings): Boolean {
         val rate = r?.rate ?: return false
-        if (!s.fallingHigh.on || kind !in AlertKind.FALLING_MUTABLE || rate >= 0) return false
+        // a HI's real value is unknown: no prediction from it
+        if (r.isHi || !s.fallingHigh.on || kind !in AlertKind.FALLING_MUTABLE || rate >= 0) return false
         return r.mgdl + rate * s.fallingHigh.min < s.rule(AlertKind.HIGH).threshold
     }
 

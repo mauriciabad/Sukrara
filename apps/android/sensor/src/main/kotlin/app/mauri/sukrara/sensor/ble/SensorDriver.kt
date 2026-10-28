@@ -175,14 +175,8 @@ enum class NoValueReason {
     /** The sensor reports an error. */
     SensorError,
 
-    /** The message carries no number. */
+    /** The message carries no number (below / above the sensor's range is a LO / HI reading, not this). */
     Missing,
-
-    /** Lower than the sensor can measure ("LO"): no number is shown, never a made-up floor value. */
-    BelowRange,
-
-    /** Higher than the sensor can measure ("HI"). */
-    AboveRange,
 }
 
 /** Why a scanned family's pairing can't go on without the person. */

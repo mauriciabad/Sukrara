@@ -42,6 +42,7 @@ internal class G7Driver(
     private var start: Long? = null
 
     override val validMgdl = Dexcom.VALID_MGDL
+    override val plausibleMgdl = Dexcom.PLAUSIBLE_MGDL
 
     override val scan = listOf(ScanSpec(service = Dexcom.ADVERTISEMENT))
 

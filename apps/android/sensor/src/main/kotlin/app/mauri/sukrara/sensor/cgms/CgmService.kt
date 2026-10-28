@@ -71,7 +71,15 @@ internal object CgmService {
         val annunciation: Annunciation,
         /** Null when the record carries no E2E-CRC. */
         val crcOk: Boolean?,
+        /** The glucose SFLOAT as sent (tells −INFINITY "below range" from NaN "error" when [mgdl] is null). */
+        val glucoseRaw: Int = 0,
     ) {
+        /** The sensor's own LO: −INFINITY with the "below range" warning (and not "above"). */
+        val lo: Boolean get() = glucoseRaw == SFLOAT_MINUS_INFINITY && annunciation.belowRange && !annunciation.aboveRange
+
+        /** The sensor's own HI: +INFINITY with the "above range" warning (and not "below"). */
+        val hi: Boolean get() = glucoseRaw == SFLOAT_PLUS_INFINITY && annunciation.aboveRange && !annunciation.belowRange
+
         companion object {
             /** One record starting at [from]; null when it is too short or its size is wrong. */
             fun parse(
@@ -101,6 +109,7 @@ internal object CgmService {
                     trend?.toDouble(),
                     Annunciation(status, calTemp, warning),
                     crc,
+                    rec.u16le(2),
                 )
             }
 
@@ -131,6 +140,9 @@ internal object CgmService {
      * IEEE 11073-20601 16-bit SFLOAT. The reserved patterns (NaN, ±INFINITY, NRes, reserved) come back as null: they
      * mean "no number", e.g. 0x0802 = −INFINITY = below the sensor's range.
      */
+    const val SFLOAT_MINUS_INFINITY = 0x0802
+    const val SFLOAT_PLUS_INFINITY = 0x07FE
+
     fun sfloat(raw: Int): Float? {
         if (raw in setOf(0x07FF, 0x0800, 0x0801, 0x0802, 0x07FE)) return null
         var mantissa = raw and 0x0FFF
