@@ -412,6 +412,7 @@ class AppGraph(
                 widgets.presence.refresh()
                 widgets.presence.placed.value
             },
+            widgetPinnable = { widgets.presence.canPin() },
             treatmentLog = { treatments.log },
             sharing = { shareOwner.ownerEngine.state },
             penTapsBlocked = { pens.tapsBlockedWhileOn() },

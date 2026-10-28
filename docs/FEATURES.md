@@ -512,7 +512,9 @@ Android (`apps/android/widgets`, Glance; tests `WidgetUpdaterTest`, `WidgetTapTe
 `WidgetManifestTest`, Roborazzi `WidgetShotsTest`). Three widgets, each a registered card surface drawn only by the
 renderer at the placement's real size (`SizeMode.Exact` → `LocalSize`; the PoC's exported `WidgetProbe` provider is
 gone): *Glucose* (value, trend, rings / last treatment), *Glucose graph* (the chart alone) and *Glucose and graph*
-(value + slots + chart). Their style is `widgetCardStyle` (`:core:graph`), the same one `CardLayoutTest` renders. Light
+(value + slots + chart). Sizes: *Glucose* is placed at 2×1 and resizes down to one cell, where the renderer keeps
+the value and its arrow and drops the rings (surfaces.json `widget-value` 48×48 in `CardLayoutTest`; `WidgetShotsTest`
+`oneCell`); *Glucose and graph* is placed at 4×3; *Glucose graph* at 4×2. Their style is `widgetCardStyle` (`:core:graph`), the same one `CardLayoutTest` renders. Light
 and dark palettes, the system corner radius, the widget fills its cell. Freshness as on every surface: the number is
 struck through and greyed from 5 min and replaced by *no readings since …* from 20 min; the graph goes after 3 h.
 *Glucose graph* has no value, so the renderer marks its age on the chart (contracts/graph/freshness `graph_only`, same
@@ -536,9 +538,12 @@ TalkBack reads the renderer's value sentence plus, with a chart, its summary.
   non-waking `FreshnessTicker` alarm), the sensor, *Mute all*, treatments, settings, the theme or the follower's
   name. Nothing is drawn while the screen is off; one redraw catches up when it comes on. Pictures are sized to the
   cell and capped at 1400 px on the long side (RemoteViews memory).
-- **Picker preview**: a static synthetic layout (never the person's data).
-- Not included: the lock-screen widget (LSPosed), the generated picker previews, a tap that opens the Sensor screen
-  when the sensor has ended.
+- **Picker preview** (`WidgetPreview.kt`): on Android 15+ the picker shows each widget drawn by the renderer over a
+  sample day (`previewFrame`: in range, 120 and rising, source `widget-preview`; never the person's readings, and
+  only in the picker and the pin dialog), composed at two sizes per widget (`CardWidget.providePreview`,
+  `previewSizeMode`) and handed to the system when the widgets start (`setWidgetPreviews`; rate-limited by the
+  system, a refused call keeps the previous preview). Older launchers show the static layout (`previewLayout`).
+- Not included: the lock-screen widget (LSPosed), a tap that opens the Sensor screen when the sensor has ended.
 
 **States and exits**: *Placed* → touch & hold → *Reconfigure* (*Widget settings*: *Save*, *Cancel* / back leaves it as
 it was, *Reset* puts every row back to *Same as the app*) or *Remove* (its settings are forgotten). *Just placed* →
@@ -547,13 +552,13 @@ the reading's time) and *no readings* (20 min+) show on the widget itself; the t
 
 ## Add-the-widget banner
 
-Android, wearer and follower homes (`widgets/WidgetPresence.kt`, `ui/WidgetBannerCard.kt`, tests `WidgetBannerTest`; `:widgets` `WidgetPresence` feeds home's `widgetPlaced` on every resume and the pin callback, *Add widget* calls `requestPinAppWidget` without a preview extra; no launcher-can't-pin hint). Sukrara is meant to be used through the big home-screen widget, so while no graph widget is placed (`AppWidgetManager.getAppWidgetIds` of *Glucose + graph* or *Glucose graph* is empty; the value widget and the lock screen widget don't count) home shows a card under the glucose panel: the widgets icon, *Put your glucose on the home screen* (es *Pon tu glucosa en la pantalla de inicio*), a close button and the pill *Add widget* (es *Añadir widget*). The pill asks the launcher to place *Glucose + graph* (`requestPinAppWidget`; the launcher's own dialog, with the widget's preview in the request: `EXTRA_APPWIDGET_PREVIEW` = Glance `composeForPreview` of the picker's `providePreview`, one layout per preview size, round 22: without it Pixel Launcher showed a blank card with the app icon). When the launcher can't pin (`isRequestPinAppWidgetSupported` false, or the request is refused) the pill is replaced by *Touch & hold the home screen, then Widgets › Sukrara*. Checked again whenever home resumes and on the pin's success callback, so the card leaves as soon as the widget is placed. Not red, not before setup. Close hides it for good on this phone (`widget-banner` prefs, not in the settings export: widgets are per launcher); placing a widget is not a dismissal, so removing it later (or a launcher reset) brings the card back. Debug builds: `DebugReceiver --es cmd widgetBanner` prints the state, `--ez reset true` undoes the dismissal. Mac: none (the menubar is its main surface; macOS has no API to place a widget).
+Android, wearer and follower homes (`:widgets` `WidgetPresence` feeds home's `widgetPlaced` and `widgetPinnable` on every resume and the pin callback; `:feature:home` `BannerKind.AddWidget`; tests `BannerSlotTest`, `HomeTextTest` `widgetBanner*`, gallery `widget-banner`, `widget-banner-manual`). Sukrara is meant to be used through the big home-screen widget, so while no graph widget is placed (`AppWidgetManager.getAppWidgetIds` of *Glucose + graph* or *Glucose graph* is empty; the value widget and the lock screen widget don't count) home shows a card under the glucose panel: the widgets icon, *Put your glucose on the home screen* (es *Pon tu glucosa en la pantalla de inicio*), a close button and the pill *Add widget* (es *Añadir widget*). The pill asks the launcher to place *Glucose + graph* (`requestPinAppWidget`; the launcher's own dialog, with the widget's preview in the request: `EXTRA_APPWIDGET_PREVIEW` = Glance `composeForPreview` of the picker's `providePreview`, one layout per preview size: without it Pixel Launcher shows a blank card with the app icon). When the launcher can't pin (`isRequestPinAppWidgetSupported` false, or it refused a request in this run of the app) the card has no button and says *Touch & hold the home screen, then tap Widgets › Sukrara.* (es *Mantén pulsada la pantalla de inicio y toca Widgets › Sukrara.*); a refusal switches it at once. Checked again whenever home resumes and on the pin's success callback, so the card leaves as soon as the widget is placed. Not red, not before setup. Close hides it for good on this phone (`widget-banner` prefs, not in the settings export: widgets are per launcher); placing a widget is not a dismissal, so removing it later (or a launcher reset) brings the card back. Debug builds: `DebugReceiver --es cmd widgetBanner` prints the state, `--ez reset true` undoes the dismissal. Mac: none (the menubar is its main surface; macOS has no API to place a widget).
 
 <p>
   <img src="img/home/add-widget-banner.png" alt="Home's banner while no graph widget is placed: Put your glucose on the home screen, a close button and the Add widget pill" width="400">
 </p>
 
-**States and exits**: *shown* (no graph widget placed) → *Add widget* (or the long-press hint when the launcher can't pin); it leaves when a widget is placed and comes back when none is. *Closed* (on this phone) → *Undo* in the snackbar right after, or later Settings → *Show closed tips* ([Closed tips](#closed-tips)); placing a widget from the launcher still works.
+**States and exits**: *shown* (no graph widget placed) → *Add widget* (the launcher's dialog: *Add* places it, its cancel leaves the card as it was), or, when the launcher can't pin, the touch-and-hold hint with × as the way out; it leaves when a widget is placed and comes back when none is. *Closed* (on this phone) → *Undo* in the snackbar right after, or later Settings → *Show closed tips* ([Closed tips](#closed-tips)); placing a widget from the launcher still works.
 
 ## Restart-System-UI card
 
