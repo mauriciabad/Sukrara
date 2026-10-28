@@ -247,6 +247,7 @@ class AppGraph(
                         AppOutput.LibreView.takeIf { s.libreView },
                         AppOutput.NightscoutUpload.takeIf { s.nightscoutUpload },
                         AppOutput.XdripServer.takeIf { s.xdripServer },
+                        AppOutput.NightscoutApi.takeIf { s.nightscoutApi },
                     )
                 },
         )

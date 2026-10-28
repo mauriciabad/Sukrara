@@ -123,6 +123,7 @@
     <string name="st_apps_summary">Nightscout, relojes Garmin, un archivo para tu clínica</string>
     <string name="st_apps_nightscout">Subir a Nightscout</string>
     <string name="st_apps_xdrip">Servidor xDrip+</string>
+    <string name="st_apps_nightscout_api">API de Nightscout</string>
     <string name="st_show_closed_tips">Mostrar consejos cerrados</string>
     <plurals name="st_closed_tips">
         <item quantity="one">%1$d consejo cerrado</item>

@@ -25,6 +25,8 @@ import app.mauri.sukrara.integrations.libreview.LibreViewUploader
 import app.mauri.sukrara.integrations.libreview.LibreViewViewModel
 import app.mauri.sukrara.integrations.libreview.LvReadings
 import app.mauri.sukrara.integrations.libreview.LvState
+import app.mauri.sukrara.integrations.localserver.NightscoutApiServer
+import app.mauri.sukrara.integrations.localserver.NightscoutApiViewModel
 import app.mauri.sukrara.integrations.localserver.XdripServer
 import app.mauri.sukrara.integrations.nightscout.NightscoutUploader
 import app.mauri.sukrara.integrations.nightscout.NightscoutViewModel
@@ -42,6 +44,7 @@ data class AppsSummary(
     val nightscoutUpload: Boolean,
     val xdripServer: Boolean,
     val libreView: Boolean,
+    val nightscoutApi: Boolean = false,
 )
 
 /**
@@ -106,9 +109,11 @@ class IntegrationsModule(
 
     val xdrip = XdripServer(settings, readings, sensor, jugglucoIsSource, clock, dispatchers.io)
 
+    val nightscoutApi = NightscoutApiServer(settings, secure, readings, treatments, clock, dispatchers.io)
+
     val summary: Flow<AppsSummary> =
-        combine(nightscout.page, xdrip.on, libreView.page) { ns, x, lv ->
-            AppsSummary(ns.status != UploadStatus.Off, x, lv.status != UploadStatus.Off && lv.status != UploadStatus.Setup)
+        combine(nightscout.page, xdrip.on, libreView.page, nightscoutApi.on) { ns, x, lv, api ->
+            AppsSummary(ns.status != UploadStatus.Off, x, lv.status != UploadStatus.Off && lv.status != UploadStatus.Setup, api)
         }
 
     /**
@@ -132,12 +137,16 @@ class IntegrationsModule(
         nightscout.start(scope)
         libreView.start(scope)
         xdrip.start(scope)
+        nightscoutApi.start(scope)
     }
 
     // MARK: view models (the app's navigation entries create them)
 
     val appsViewModels: ViewModelProvider.Factory
         get() = viewModelFactory { initializer { AppsViewModel(this@IntegrationsModule, context, dispatchers.io) } }
+
+    val nightscoutApiViewModels: ViewModelProvider.Factory
+        get() = viewModelFactory { initializer { NightscoutApiViewModel(nightscoutApi) } }
 
     fun exportViewModels(follower: Boolean): ViewModelProvider.Factory =
         viewModelFactory { initializer { ExportViewModel(exporter, follower, dispatchers.io) } }
