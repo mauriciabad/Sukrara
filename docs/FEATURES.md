@@ -625,16 +625,20 @@ Android (`:monitor`, `LiveNotification` = registered surface `notification-text`
   colorized foreground-service card in the value's range colour (grey once struck through), drawn by the renderer
   (registered card surface `notification`, `NotificationCard`, `notificationCardStyle`): the card's header row
   (value, trend, late time, status pill, slots on discs) collapsed, header + the chart (the Notification place's
-  window) expanded. Small icon = the number itself (`ValueGlyphs.icon`, struck at half strength) when *Number as
+  window) expanded. The slots count the stored days and the live window (`CardFrame.slots`, the 31-day history), so
+  the 7–30-day rings match home and the widgets. Roborazzi goldens `NotificationCardShotsTest` (light / dark × fresh,
+  struck, status pill). Small icon = the number itself (`ValueGlyphs.icon`, struck at half strength) when *Number as
   notification icon* is on, else the arrow. Pictures are drawn at most at 2× density, cached (header per minute, chart
   per 5 min / reading), never drawn while the screen is off (an out-of-date card posts as text and screen on redraws
   it); a drawing failure posts the same notification as text, and the foreground start never draws.
 - **Android 17 Live Update card**: MetricStyle with the face's value (`mg/dL`, styled danger / caution / safe by the
-  person's low and high bands; plain once struck through) and the late reading's time.
+  person's low and high bands; plain once struck through), the late reading's time, then the card's slots as words
+  up to three metrics (`GlucoseCard.slotTexts`, the notification card's choice and order: *74%* · *in range 1d*,
+  *4.5u* · *12m ago*), only while the value is a reading.
 - Settings › **Status bar**: *Live Update chip* (default on), *Allow Live Updates for Sukrara* (shown while the chip
   is on and Android refuses it; opens Android's per-app Live Updates setting, re-read on return), *Number as
   notification icon* (default on; disabled with "The chip already shows the value" while the chip shows).
-- Not included (issues): MetricStyle slots on Android 17, mmol/L.
+- Not included (issues): mmol/L.
 - **States and exits**: *Live Update chip* → turn off in Settings › Status bar (or Android's per-app Live Updates
   setting, or demote it from the chip) → the colorized card; back on in the same places (*Allow Live Updates* row when
   Android refuses it). *Number icon* → Settings › Status bar. *Notification swiped away* → it comes back (it is the
