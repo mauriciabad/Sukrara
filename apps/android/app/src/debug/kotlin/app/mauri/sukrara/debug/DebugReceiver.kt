@@ -12,6 +12,9 @@ import app.mauri.sukrara.core.model.Role
 import app.mauri.sukrara.graph
 import app.mauri.sukrara.monitor.MonitoringService
 import app.mauri.sukrara.monitor.service.StartReason
+import app.mauri.sukrara.pen.PenReadActivity
+import app.mauri.sukrara.pen.opennov.PenDose
+import app.mauri.sukrara.pen.opennov.PenRead
 import kotlinx.coroutines.launch
 
 class DebugReceiver : BroadcastReceiver() {
@@ -40,6 +43,7 @@ object DebugFakes {
     private val commands =
         mapOf<String, (Context, Intent) -> Unit>(
             PREFIX + "SYNTHETIC" to ::synthetic,
+            PREFIX + "PEN_READ" to ::penRead,
         )
 
     /** Runs [action] when it is a known fake; false otherwise. */
@@ -76,6 +80,46 @@ object DebugFakes {
             if (on) graph.role.update { if (it.role == null) RoleRecord(Role.Wearer) else it }
             context.stopService(Intent(context, MonitoringService::class.java))
             graph.monitor.starter.start(StartReason.App)
+        }
+    }
+
+    /**
+     * `PEN_READ [--es doses "-9:8.5,-8:1"] [--es serial AB1234567] [--ez first true]`: a made-up NovoPen read (minutes
+     * from now : units) goes through the real pen path (ledger, engine, treatment log) and its card shows over the
+     * current app. Emulators have no NFC: this also shows the pen surfaces there. `first` = a first read 10 min ago
+     * (nothing older is logged), so the doses that follow are new.
+     */
+    private fun penRead(
+        context: Context,
+        intent: Intent,
+    ) {
+        val graph = context.graph
+        graph.scope.launch {
+            graph.ready.await()
+            graph.pens.fakeNfc.value = true
+            val now = graph.clock.now().epochSecond
+            val penNow = 400 * 86400L
+            val serial = intent.getStringExtra("serial") ?: "AB1234567"
+
+            fun read(at: Long, doses: List<Pair<Long, Double>>) =
+                PenRead(serial, "NovoPen", at, penNow + (at - now), doses.map { (t, u) -> PenDose(penNow - (now - t), t, u, 0x08000000) })
+            // an earlier half-unit dose identifies the pen as an Echo Plus (an empty read would be the untested NovoPen 6)
+            if (intent.getBooleanExtra("first", false)) graph.pens.pens.onRead(read(now - 600, listOf(now - 86400L to 4.5)))
+            val doses =
+                (intent.getStringExtra("doses") ?: "-1:1,-1:8.5").split(',').mapIndexed { i, d ->
+                    val (min, u) = d.split(':')
+                    (now + min.toLong() * 60 + i) to u.toDouble()
+                }
+            graph.pens.pens.onRead(read(now, doses))
+            // the read card is enabled a moment after fakeNfc (or never while reading is Off): a refused start is only logged
+            kotlinx.coroutines.delay(500)
+            runCatching {
+                context.startActivity(
+                    Intent(context, PenReadActivity::class.java)
+                        .putExtra(PenReadActivity.PREVIEW, true)
+                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+                )
+            }.onFailure { Log.w("SukraraDebug", "pen card not shown", it) }
         }
     }
 }

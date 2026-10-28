@@ -62,6 +62,7 @@ import app.mauri.sukrara.feature.sharing.share.SharingScreen
 import app.mauri.sukrara.feature.sharing.share.SharingViewModel
 import app.mauri.sukrara.integrations.AppsPage
 import app.mauri.sukrara.integrations.export.ExportPage
+import app.mauri.sukrara.integrations.libreview.LibreViewPage
 import app.mauri.sukrara.integrations.nightscout.NightscoutPage
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
@@ -107,7 +108,7 @@ data class SetupStepRoute(
 @Serializable
 data object DataProblemsRoute : NavKey
 
-/** Settings › Share with apps (Nightscout upload, the xDrip+ server, Export data). */
+/** Settings › Share with apps (LibreView, Nightscout upload, the xDrip+ server, Export data). */
 @Serializable
 data object AppsRoute : NavKey
 
@@ -118,6 +119,10 @@ data object NightscoutUploadRoute : NavKey
 /** Settings › Share with apps › Export data. */
 @Serializable
 data object ExportRoute : NavKey
+
+/** Settings › Share with apps › LibreView. */
+@Serializable
+data object LibreViewRoute : NavKey
 
 /** One settings page ([SettingsRoute]) on the back stack: [page] names it, [kind] is an alert kind page's contract id. */
 @Serializable
@@ -133,6 +138,7 @@ data class SettingsKey(
             "graph" -> SettingsRoute.Graph
             "marks" -> SettingsRoute.GraphMarks
             "lock" -> SettingsRoute.LockScreen
+            "pens" -> SettingsRoute.Pens
             "reliability" -> SettingsRoute.Reliability
             "statusbar" -> SettingsRoute.StatusBar
             "sensorend" -> SettingsRoute.SensorEnd
@@ -151,6 +157,7 @@ data class SettingsKey(
                 SettingsRoute.Graph -> SettingsKey("graph")
                 SettingsRoute.GraphMarks -> SettingsKey("marks")
                 SettingsRoute.LockScreen -> SettingsKey("lock")
+                SettingsRoute.Pens -> SettingsKey("pens")
                 SettingsRoute.Reliability -> SettingsKey("reliability")
                 SettingsRoute.StatusBar -> SettingsKey("statusbar")
                 SettingsRoute.SensorEnd -> SettingsKey("sensorend")
@@ -361,6 +368,7 @@ fun SukraraNavigation(
                                 now = graph.clock::now,
                                 openNightscout = { backStack.push(NightscoutUploadRoute) },
                                 openExport = { backStack.push(ExportRoute) },
+                                openLibreView = { backStack.push(LibreViewRoute) },
                             )
                         }
                     }
@@ -369,6 +377,14 @@ fun SukraraNavigation(
                         SettingsPage(stringResource(IntegrationsR.string.in_ns_title), { backStack.pop(NightscoutUploadRoute) }) {
                             role?.let { r ->
                                 NightscoutPage(viewModel(factory = graph.integrations.nightscoutViewModels(r.role == Role.Wearer)))
+                            }
+                        }
+                    }
+                    entry<LibreViewRoute> {
+                        val role by graph.role.data.collectAsStateWithLifecycle(null)
+                        SettingsPage(stringResource(IntegrationsR.string.in_lv_title), { backStack.pop(LibreViewRoute) }) {
+                            role?.let { r ->
+                                LibreViewPage(viewModel(factory = graph.integrations.libreViewViewModels(r.role == Role.Wearer)))
                             }
                         }
                     }

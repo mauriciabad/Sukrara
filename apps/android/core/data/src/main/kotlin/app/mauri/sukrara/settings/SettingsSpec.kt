@@ -169,7 +169,7 @@ object SettingsSpec {
         SettingInfo("apps.xdrip", "bool", null, false, null, "integrations:xdripServer", "", null, "android", "Watch apps read the phone the watch is paired to"),
         SettingInfo("apps.nightscout", "bool", null, false, null, "integrations:nightscoutServer", "", null, "android", "Phone-side local API for apps on the phone and the home network"),
         SettingInfo("apps.nightscoutLan", "bool", null, false, null, "integrations:nightscoutServerLan", "", null, "android", "Phone-side local API"),
-        SettingInfo("apps.libreview", "bool", null, false, null, "integrations:libreview", "", null, "android", "Only the wearer's phone uploads to the wearer's LibreView account"),
+        SettingInfo("apps.libreview", "group", null, false, null, "integrations:libreview", "", null, "android", "Only the wearer's phone uploads to the wearer's LibreView account"),
         SettingInfo("home.uploadBanner", "bool", null, false, null, "settings:uploadBanner", "", null, "android", "The clinic upload (LibreView / Tidepool) is set up on the wearer's phone"),
         SettingInfo("apps.tidepool", "group", null, false, null, "integrations:tidepool", "", null, "android", "Tidepool upload runs on a phone (wearer, or a follower uploading the followed person's data); the Mac doesn't upload"),
         SettingInfo("apps.nightscoutUpload", "group", null, false, null, "integrations:nightscoutUpload", "", null, "android", "Only the wearer's phone uploads"),

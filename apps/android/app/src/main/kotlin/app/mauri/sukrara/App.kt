@@ -11,6 +11,8 @@ import app.mauri.sukrara.monitor.AlertsHost
 import app.mauri.sukrara.monitor.MonitorHost
 import app.mauri.sukrara.monitor.MonitorModule
 import app.mauri.sukrara.monitor.alerts.AlertsModule
+import app.mauri.sukrara.pen.PensHost
+import app.mauri.sukrara.pen.PensModule
 import app.mauri.sukrara.share.ShareOwnerModule
 import app.mauri.sukrara.share.owner.requests.ShareOwnerHost
 import app.mauri.sukrara.widgets.WidgetsHost
@@ -26,7 +28,8 @@ class App :
     AlertsHost,
     TreatmentsHost,
     ShareOwnerHost,
-    WidgetsHost {
+    WidgetsHost,
+    PensHost {
     lateinit var graph: AppGraph
         private set
 
@@ -47,6 +50,8 @@ class App :
     override val shareOwner: ShareOwnerModule get() = graph.shareOwner
 
     override val widgets: WidgetsModule get() = graph.widgets
+
+    override val pens: PensModule get() = graph.pens
 }
 
 val Context.graph: AppGraph get() = (applicationContext as App).graph

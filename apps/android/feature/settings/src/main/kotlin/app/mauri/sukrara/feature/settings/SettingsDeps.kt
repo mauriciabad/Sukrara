@@ -42,6 +42,9 @@ interface SettingsDeps {
 
     val clock: Clock
 
+    /** Whether this phone reads insulin pens (the wearer's phone with NFC): Settings shows *Insulin pens* only then. */
+    fun pensAvailable(): Boolean = false
+
     /** Root for Sukrara and the System UI module (Settings › Status bar, "With root"). */
     val systemAccess: SystemAccessPort
 
@@ -114,7 +117,7 @@ interface AlertPlayback {
 }
 
 /** An output to other apps that is switched on (Settings › Share with apps). */
-enum class AppOutput { NightscoutUpload, XdripServer }
+enum class AppOutput { LibreView, NightscoutUpload, XdripServer }
 
 /** Reads and changes the alert settings; [update] applies a change to the stored value (never to a stale copy). */
 interface AlertSettingsStore {

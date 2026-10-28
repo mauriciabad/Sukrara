@@ -38,9 +38,13 @@ import androidx.lifecycle.viewmodel.viewModelFactory
 import app.mauri.sukrara.designsystem.avatar.AvatarImage
 import app.mauri.sukrara.designsystem.haptics.rememberHaptics
 import app.mauri.sukrara.feature.sharing.FollowerSharing
+import app.mauri.sukrara.feature.sharing.NearbyFixRow
 import app.mauri.sukrara.feature.sharing.R
+import app.mauri.sukrara.feature.sharing.nearbySummary
 import app.mauri.sukrara.feature.sharing.setup.NoteCard
 import app.mauri.sukrara.protocol.follow.FollowStatus
+import app.mauri.sukrara.share.ble.AndroidNearbyCentral
+import app.mauri.sukrara.share.ble.NearbyStatus
 import app.mauri.sukrara.share.follower.FollowState
 import kotlinx.coroutines.launch
 
@@ -49,8 +53,11 @@ class FollowingViewModel(
     private val follower: FollowerSharing,
 ) : ViewModel() {
     val state = follower.state
+    val nearby = follower.nearby
 
     suspend fun stop(): Boolean = follower.stopFollowing()
+
+    fun refreshNearby() = follower.refreshNearby()
 
     companion object {
         fun factory(follower: FollowerSharing) = viewModelFactory { initializer { FollowingViewModel(follower) } }
@@ -71,6 +78,7 @@ fun FollowingPage(
     modifier: Modifier = Modifier,
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val nearby by viewModel.nearby.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
     val haptics = rememberHaptics()
     var failed by rememberSaveable { mutableStateOf(false) }
@@ -88,6 +96,8 @@ fun FollowingPage(
             }
         },
         onJoinAgain = onJoinAgain,
+        nearby = nearby,
+        onRefreshNearby = viewModel::refreshNearby,
         modifier = modifier,
     )
 }
@@ -100,6 +110,8 @@ fun FollowingContent(
     onStop: () -> Unit,
     onJoinAgain: () -> Unit,
     modifier: Modifier = Modifier,
+    nearby: NearbyStatus = NearbyStatus.Stopped,
+    onRefreshNearby: () -> Unit = {},
 ) {
     var confirming by rememberSaveable { mutableStateOf(false) }
     val someone = stringResource(R.string.sh_join_someone)
@@ -184,6 +196,13 @@ fun FollowingContent(
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+                // "connected" only once the phone proved it's this wearer's (B§6), never on a bare connection
+                Text(
+                    stringResource(R.string.sh_following_nearby, nearbySummary(nearby, on = true, wearer = false)),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                NearbyFixRow(nearby, AndroidNearbyCentral.PERMISSIONS, onRefreshNearby)
             }
         }
         if (failed) NoteCard(stringResource(R.string.sh_following_stop_failed), error = true)

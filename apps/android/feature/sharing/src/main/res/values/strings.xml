@@ -443,4 +443,29 @@
     <string name="sh_following_unreadable">This phone can\'t open the follower key right now. Sukrara keeps trying; their stored readings and alerts stay. If it doesn\'t recover, stop following and join again.</string>
     <string name="sh_following_damaged">The follower key on this phone is damaged. Stop following, then join again with a new link.</string>
     <string name="sh_following_join_again">Join with a new link</string>
+    <!-- Bluetooth nearby (wearer: Settings › Sharing; follower: Following page) -->
+    <string name="sh_nearby_group">Bluetooth</string>
+    <string name="sh_nearby_title">Share over Bluetooth</string>
+    <string name="sh_nearby_off">Off. Followers get readings over the internet.</string>
+    <string name="sh_nearby_bluetooth_off">Bluetooth is off</string>
+    <string name="sh_nearby_permission">Needs the Nearby devices permission</string>
+    <string name="sh_nearby_unsupported">This phone can\'t share over Bluetooth</string>
+    <plurals name="sh_nearby_connected">
+        <item quantity="one">%d device connected nearby</item>
+        <item quantity="other">%d devices connected nearby</item>
+    </plurals>
+    <string name="sh_nearby_connected_phone">connected to their phone</string>
+    <string name="sh_nearby_waiting">On · no follower device nearby</string>
+    <string name="sh_nearby_searching">looking for their phone</string>
+    <string name="sh_nearby_no_followers">On once someone follows you</string>
+    <string name="sh_nearby_idle">not connected</string>
+    <string name="sh_nearby_allow">Allow Nearby devices</string>
+    <string name="sh_nearby_allow_summary">Readings go between phones nearby, even without internet</string>
+    <string name="sh_nearby_turn_on">Turn on Bluetooth</string>
+    <string name="sh_nearby_devices">Nearby devices</string>
+    <string name="sh_nearby_mac">Mac</string>
+    <string name="sh_nearby_phone">phone</string>
+    <string name="sh_nearby_device_name">%1$s · %2$s</string>
+    <string name="sh_nearby_device_connected">Connected over Bluetooth</string>
+    <string name="sh_following_nearby">Bluetooth: %1$s</string>
 </resources>

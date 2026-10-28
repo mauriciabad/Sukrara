@@ -3,14 +3,19 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.feature.sharing
 
+import app.mauri.sukrara.core.model.storage.SettingsRepository
 import app.mauri.sukrara.protocol.event.Profile
+import app.mauri.sukrara.share.ShareOwnerModule
 import app.mauri.sukrara.share.owner.ApproveResult
 import app.mauri.sukrara.share.owner.OwnerEngine
 import app.mauri.sukrara.share.owner.OwnerShareState
 import app.mauri.sukrara.share.owner.usecase.CreateInvite
 import app.mauri.sukrara.share.owner.usecase.RestoreIdentity
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flowOf
 
 /** A created invite: the link (also the QR) and when it stops working (epoch s). */
 data class Invite(val link: String, val label: String, val expiresAt: Long)
@@ -63,12 +68,22 @@ interface OwnerSharing {
 
     /** "I turned it off — retry" on the identity conflict screen. */
     suspend fun retryConflict()
+
+    /** Bluetooth nearby: the switch, the server's state and the named links. */
+    val nearby: Flow<NearbyUi> get() = flowOf(NearbyUi())
+
+    /** The Bluetooth switch (Settings › Sharing). */
+    suspend fun setNearby(on: Boolean) = Unit
+
+    /** Look again (Bluetooth turned on, Nearby devices allowed). */
+    fun refreshNearby() = Unit
 }
 
 /** [OwnerSharing] on the engine; [scope] = the app's process scope (the engine's relay work outlives screens). */
 class EngineOwnerSharing(
     private val engine: OwnerEngine,
     private val scope: CoroutineScope,
+    private val settings: SettingsRepository,
     private val now: () -> Long,
 ) : OwnerSharing {
     /** The app starts the engine for a wearer (`followRole`); setup only reads its state. */
@@ -109,9 +124,19 @@ class EngineOwnerSharing(
         engine.deny(follower)
     }
 
+    /** Remove also drops that follower's Bluetooth links (a device that connects again isn't named or trusted). */
     override suspend fun remove(follower: String) {
-        engine.remove(follower)
+        engine.forget(follower)
     }
+
+    override val nearby: Flow<NearbyUi> =
+        combine(settings.flow(ShareOwnerModule.NearbySharing), engine.nearbyStatus, engine.nearbyLinks, ::NearbyUi)
+
+    override suspend fun setNearby(on: Boolean) {
+        settings.set(ShareOwnerModule.NearbySharing, on)
+    }
+
+    override fun refreshNearby() = engine.refreshNearby()
 
     override suspend fun retryConflict() {
         engine.retryConflict()

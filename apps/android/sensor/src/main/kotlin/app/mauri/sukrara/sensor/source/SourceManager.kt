@@ -20,6 +20,7 @@ import app.mauri.sukrara.sensor.ble.LinkStatus
 import app.mauri.sukrara.sensor.ble.SensorDriver
 import app.mauri.sukrara.sensor.ble.SensorEvents
 import app.mauri.sukrara.sensor.ble.SensorGlucose
+import app.mauri.sukrara.sensor.ble.SensorGlucoseBatch
 import app.mauri.sukrara.sensor.ble.SensorScanner
 import app.mauri.sukrara.sensor.brand.BrandDriver
 import app.mauri.sukrara.sensor.cgms.SmartGuideDriver
@@ -95,7 +96,7 @@ class SourceManager internal constructor(
     private val _detail = MutableStateFlow<SensorStatus>(SensorStatus.NoSensor)
     private val _sensor = MutableStateFlow<SensorState>(SensorState.None)
     private val _status = MutableStateFlow<SourceStatus>(SourceStatus.NotStarted)
-    private val _sensorGlucose = MutableSharedFlow<Pair<SensorGlucose?, List<SensorGlucose>>>(extraBufferCapacity = 64)
+    private val _sensorGlucose = MutableSharedFlow<SensorGlucoseBatch>(extraBufferCapacity = 64)
     private val infoState = MutableStateFlow<SensorInfo?>(null)
     private var info: SensorInfo?
         get() = infoState.value
@@ -122,8 +123,8 @@ class SourceManager internal constructor(
     /** The current sensor's serial, start and end (Libre 3 pairing or Juggluco's sensor), null when none is known. */
     val sensorInfo: StateFlow<SensorInfo?> = infoState.asStateFlow()
 
-    /** Libre 3 readings by life count, for the LibreView upload. */
-    val sensorGlucose: Flow<Pair<SensorGlucose?, List<SensorGlucose>>> = _sensorGlucose.asSharedFlow()
+    /** Libre 3 readings by life count, tagged with their sensor's serial, for the LibreView upload. */
+    val sensorGlucose: Flow<SensorGlucoseBatch> = _sensorGlucose.asSharedFlow()
 
     /** Starts following the setting; idempotent. */
     fun start() {
@@ -326,7 +327,8 @@ class SourceManager internal constructor(
 
         override fun onSensorGlucose(current: SensorGlucose?, history: List<SensorGlucose>) {
             current?.let { lastLifeCount = pairing.serial to it.lifeCount }
-            _sensorGlucose.tryEmit(current to history)
+            // LibreView takes only a Libre 3's readings (its record numbers come from the Libre serial)
+            if (pairing.profile == SensorProfile.Libre3) _sensorGlucose.tryEmit(SensorGlucoseBatch(pairing.serial, current, history))
         }
 
         override fun onSensorEnded(serial: String) {

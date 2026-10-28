@@ -41,9 +41,13 @@ import app.mauri.sukrara.designsystem.rows.InfoRow
 import app.mauri.sukrara.designsystem.rows.NavigationRow
 import app.mauri.sukrara.designsystem.rows.SettingsGroup
 import app.mauri.sukrara.designsystem.rows.SwitchRow
+import app.mauri.sukrara.feature.sharing.NearbyFixRow
+import app.mauri.sukrara.feature.sharing.NearbyUi
 import app.mauri.sukrara.feature.sharing.R
+import app.mauri.sukrara.feature.sharing.nearbySummary
 import app.mauri.sukrara.feature.sharing.share.shownName
 import app.mauri.sukrara.protocol.event.Profile
+import app.mauri.sukrara.share.ble.AndroidNearbyServer
 import app.mauri.sukrara.share.owner.FollowerRecord
 import app.mauri.sukrara.share.owner.OwnerShareState
 import java.text.DateFormat
@@ -59,6 +63,10 @@ class FollowersActions(
     val backup: () -> Unit = {},
     /** The follower dialog closed (its refusal note goes away). */
     val closeFollower: () -> Unit = {},
+    /** The Bluetooth switch. */
+    val setNearby: (Boolean) -> Unit = {},
+    /** Bluetooth turned on / Nearby devices allowed: look again. */
+    val refreshNearby: () -> Unit = {},
 )
 
 /**
@@ -72,6 +80,7 @@ fun FollowersPage(
     actions: FollowersActions,
     modifier: Modifier = Modifier,
     writerRefused: String? = null,
+    nearby: NearbyUi = NearbyUi(),
 ) {
     var open by rememberSaveable { mutableStateOf<String?>(null) }
     var showRemoved by rememberSaveable { mutableStateOf(false) }
@@ -105,6 +114,29 @@ fun FollowersPage(
                 val since = stringResource(R.string.sh_followers_since, date(f.since))
                 val scope = stringResource(if (f.key in state.writers) R.string.sh_followers_can_add else R.string.sh_followers_sees_only)
                 PersonRow(f.avatarJson, f.name, "$since · $scope") { open = f.key }
+            }
+        }
+        SettingsGroup(title = stringResource(R.string.sh_nearby_group)) {
+            SwitchRow(
+                title = stringResource(R.string.sh_nearby_title),
+                checked = nearby.on,
+                onCheckedChange = actions.setNearby,
+                summary = nearbySummary(nearby.status, nearby.on, wearer = true),
+            )
+            if (nearby.on) NearbyFixRow(nearby.status, AndroidNearbyServer.PERMISSIONS, actions.refreshNearby)
+        }
+        // only links whose identity proof named an active follower: an unnamed one is never listed (no made-up name)
+        val devices = nearby.links.mapNotNull { l -> active.firstOrNull { it.key == l.follower }?.let { it to l } }
+        if (nearby.on && devices.isNotEmpty()) {
+            SettingsGroup(title = stringResource(R.string.sh_nearby_devices)) {
+                for ((f, link) in devices) {
+                    val device = stringResource(if (link.device == "mac") R.string.sh_nearby_mac else R.string.sh_nearby_phone)
+                    PersonRow(
+                        f.avatarJson,
+                        stringResource(R.string.sh_nearby_device_name, shownName(f.name), device),
+                        stringResource(R.string.sh_nearby_device_connected),
+                    ) { open = f.key }
+                }
             }
         }
         if (removed.isNotEmpty()) {

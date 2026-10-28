@@ -116,6 +116,9 @@ internal interface SensorEvents {
 /** One glucose value by the sensor's life count (minutes since its start), as LibreView takes them. */
 data class SensorGlucose(val lifeCount: Int, val mgdl: Int, val epochSec: Long, val rate: Double? = null)
 
+/** One driver report of [SensorGlucose], with the serial of the sensor it came from. */
+data class SensorGlucoseBatch(val serial: String, val current: SensorGlucose?, val history: List<SensorGlucose>)
+
 /** Where the link and the sensor are; the UI words for these live in the sensor screens. */
 sealed interface LinkStatus {
     data object WaitingForBluetooth : LinkStatus

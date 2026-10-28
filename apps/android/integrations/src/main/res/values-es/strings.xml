@@ -35,8 +35,9 @@
 
     <!-- Share with apps -->
     <string name="in_apps_title">Compartir con apps</string>
-    <string name="in_apps_intro_wearer">Tu glucosa en otras apps: tu propio sitio de Nightscout, relojes Garmin a través del servidor xDrip+ y un archivo para tu clínica.</string>
+    <string name="in_apps_intro_wearer">Tu glucosa en otras apps: tu clínica a través de LibreView, tu propio sitio de Nightscout, relojes Garmin a través del servidor xDrip+ y un archivo para tu clínica.</string>
     <string name="in_apps_intro_follower">La glucosa de la persona a la que sigues en otras apps: relojes Garmin a través del servidor xDrip+ y un archivo.</string>
+    <string name="in_apps_clinic_group">Tu clínica</string>
     <string name="in_apps_watch_group">Relojes</string>
     <string name="in_apps_xdrip">Servidor xDrip+</string>
     <string name="in_apps_xdrip_off">Para relojes Garmin · mientras está activado, cualquier app de este móvil puede leerlo</string>
@@ -109,4 +110,34 @@
     <string name="in_ns_test_failed">No se ha podido conectar con el sitio (%1$s)</string>
     <string name="in_ns_problem_https">Usa https://: Sukrara solo envía tus datos cifrados</string>
     <string name="in_ns_problem_url">Esto no es una dirección web</string>
+
+    <!-- LibreView upload -->
+    <string name="in_lv_intro">Envía la glucosa de tu Libre 3 y tus entradas a tu cuenta de LibreView, como la app FreeStyle Libre 3, para que tu clínica las vea en sus informes.</string>
+    <string name="in_lv_account">Cuenta</string>
+    <string name="in_lv_sign_in">Iniciar sesión</string>
+    <string name="in_lv_signed_in">Sesión iniciada</string>
+    <string name="in_lv_main">Subir a LibreView</string>
+    <string name="in_lv_main_needs_account">Inicia sesión primero</string>
+    <string name="in_lv_status_setup">Inicia sesión primero</string>
+    <string name="in_lv_status_auth">LibreView pide que vuelvas a iniciar sesión (puede que otra app haya tomado la cuenta)</string>
+    <string name="in_lv_glucose">Glucosa</string>
+    <string name="in_lv_glucose_summary">De un Libre 3 conectado a este teléfono, desde que lo activas</string>
+    <string name="in_lv_glucose_from">De un Libre 3 conectado a este teléfono, desde %1$s</string>
+    <string name="in_lv_entries_summary">Las entradas que crees o cambies a partir de ahora; editar o borrar corrige lo que tiene LibreView</string>
+    <string name="in_lv_sign_out">Cerrar sesión</string>
+    <string name="in_lv_sign_out_title">¿Cerrar sesión en LibreView?</string>
+    <string name="in_lv_sign_out_text">No se sube nada más hasta que vuelvas a iniciar sesión. Lo que LibreView ya tiene se queda allí.</string>
+    <string name="in_lv_sign_out_action">Cerrar sesión</string>
+    <string name="in_lv_footer">Usa el email y la contraseña de tu cuenta de LibreView (la de LibreLink o la app Libre 3). Sukrara envía la contraseña una vez para iniciar sesión y solo guarda el token de sesión de LibreView, cifrado en este teléfono. LibreView acepta datos de un solo dispositivo por cuenta: si ya sube LibreLink, la app Libre 3 o Juggluco, Sukrara pregunta antes de tomar el relevo. La glucosa solo se sube de un Libre 3 al que Sukrara se conecta directamente.</string>
+    <string name="in_lv_dialog_title">Iniciar sesión en LibreView</string>
+    <string name="in_lv_email">Email</string>
+    <string name="in_lv_password">Contraseña</string>
+    <string name="in_lv_password_note">Se usa una vez para iniciar sesión, nunca se guarda</string>
+    <string name="in_lv_sign_in_action">Iniciar sesión</string>
+    <string name="in_lv_signing_in">Iniciando sesión…</string>
+    <string name="in_lv_bad_credentials">LibreView no aceptó este email y contraseña</string>
+    <string name="in_lv_failed">No se pudo iniciar sesión (%1$s)</string>
+    <string name="in_lv_take_over_title">Otro dispositivo sube datos a esta cuenta</string>
+    <string name="in_lv_take_over_text">LibreView acepta datos de un dispositivo por cuenta, ahora otro (LibreLink, la app Libre 3 o Juggluco). Si Sukrara toma el relevo, ese dispositivo deja de subir a LibreView. Hazlo solo si Sukrara debe ser quien sube.</string>
+    <string name="in_lv_take_over">Tomar el relevo</string>
 </resources>

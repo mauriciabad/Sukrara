@@ -11,6 +11,8 @@ import app.mauri.sukrara.core.model.Clock
 import app.mauri.sukrara.core.model.DispatcherProvider
 import app.mauri.sukrara.core.model.GlucoseHub
 import app.mauri.sukrara.protocol.event.Profile
+import app.mauri.sukrara.share.ble.AndroidNearbyCentral
+import app.mauri.sukrara.share.ble.NearbyTransportFactory
 import app.mauri.sukrara.share.crypto.SdkNostrCrypto
 import app.mauri.sukrara.share.follower.FollowerEngine
 import app.mauri.sukrara.share.follower.FollowerNotice
@@ -49,6 +51,7 @@ class FollowerModule(
             dispatcher = dispatchers.default,
             setLink = hub::setLink,
             onNotice = notices,
+            nearbyTransports = NearbyTransportFactory { identity -> AndroidNearbyCentral(context, crypto, identity) },
         ).also { watchNetwork(it) }
     }
 
