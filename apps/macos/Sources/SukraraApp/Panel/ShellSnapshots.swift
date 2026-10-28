@@ -149,6 +149,7 @@
         func clear(_ group: AlertGroup) {}
         func postMuted(_ side: AlertSide, until: Date) {}
         func removeMuted(_ side: AlertSide) {}
+        func postTest(_ kind: AlertKind) {}
     }
 
     private struct NoWake: WakeScheduling {

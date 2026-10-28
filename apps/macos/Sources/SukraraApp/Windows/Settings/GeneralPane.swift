@@ -230,6 +230,8 @@ struct SettingsView: View {
     var checkForUpdates: () -> Void
     var openFollow: () -> Void
     var reconnect: (() -> Void)? = nil
+    /// The running alert rules (Send Test Alert, Active now); nil in an offline run.
+    var alerts: AlertController? = nil
 
     var body: some View {
         TabView(selection: $model.pane) {
@@ -245,7 +247,7 @@ struct SettingsView: View {
             RingsPane(model: model)
                 .tabItem { Label(L10n.t("Rings"), systemImage: "circle.circle") }
                 .tag(SettingsModel.Pane.rings)
-            AlertsRangesPane(model: model)
+            AlertsRangesPane(model: model, controller: alerts)
                 .tabItem { Label(L10n.t("Alerts"), systemImage: "bell") }
                 .tag(SettingsModel.Pane.alerts)
             FollowingPane(model: model, openFollow: openFollow, reconnect: reconnect)
