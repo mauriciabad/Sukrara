@@ -35,7 +35,7 @@ import java.util.Date
 
 /**
  * Who follows the wearer, and requests still waiting. A follower opens [FollowerDialog] (Remove, confirmed); the empty
- * state leads to the share screen. Removing the old Mac after switching from the Showcase happens here.
+ * state leads to the share screen. An old device is removed here too.
  */
 @Composable
 fun FollowersPage(

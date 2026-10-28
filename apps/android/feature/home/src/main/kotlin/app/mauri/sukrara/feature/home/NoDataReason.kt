@@ -132,6 +132,4 @@ sealed interface HomeAction {
 
     data object OpenClinicUpload : HomeAction
 
-    /** Opens the Sukrara Showcase's app info page so the person can turn it off or uninstall it. */
-    data object OpenShowcaseInfo : HomeAction
 }

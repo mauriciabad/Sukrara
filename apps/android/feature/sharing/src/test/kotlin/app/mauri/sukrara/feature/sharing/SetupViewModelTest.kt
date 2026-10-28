@@ -147,7 +147,7 @@ class SetupViewModelTest {
         }
 
     @Test
-    fun `with a live reading and no Showcase the restore runs, and a wrong password stays on the step`() =
+    fun `with a live reading the restore runs, and a wrong password stays on the step`() =
         runTest {
             roles.role.value = Role.Wearer
             hub.live(clock)

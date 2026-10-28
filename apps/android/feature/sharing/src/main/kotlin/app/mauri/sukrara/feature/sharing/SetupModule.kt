@@ -10,9 +10,7 @@ import app.mauri.sukrara.core.model.Role
 import app.mauri.sukrara.core.model.storage.StateStore
 import app.mauri.sukrara.feature.sharing.setup.AlertSettingsAccess
 import app.mauri.sukrara.core.model.AlertReadinessSource
-import app.mauri.sukrara.feature.sharing.setup.PhoneFacts
 import app.mauri.sukrara.feature.sharing.setup.SetupRecord
-import app.mauri.sukrara.feature.sharing.setup.ShowcaseDetector
 import app.mauri.sukrara.feature.sharing.setup.FinishItem
 import app.mauri.sukrara.feature.sharing.setup.RestoreGate
 import app.mauri.sukrara.feature.sharing.setup.SetupFacts
@@ -71,12 +69,6 @@ class SetupModule(
     /** Following on Android (chunk 25) is in this build. */
     val followerAvailable: Boolean = false,
 ) {
-    private val ctx = context.applicationContext
-
-    val showcase by lazy { ShowcaseDetector(ctx) }
-
-    private val showcaseInstalled = MutableStateFlow(false)
-
     /** When the alert thresholds were confirmed (setup or Settings › Alerts), null = never (CHANGES P4). */
     val alertsConfirmedAt: Flow<Instant?> by lazy {
         settings.flow(THRESHOLDS_CONFIRMED_AT).map { text -> text.takeIf { it.isNotEmpty() }?.let { runCatching { Instant.parse(it) }.getOrNull() } }
@@ -94,29 +86,23 @@ class SetupModule(
         settings.set(THRESHOLDS_CONFIRMED_AT, clock.now().toString())
     }
 
-    fun phoneNow(): PhoneFacts {
-        readiness.refresh()
-        return PhoneFacts(showcase.installed().also { showcaseInstalled.value = it })
-    }
-
-    /** Home calls this on resume: re-reads the checklist and whether the Showcase is still installed. */
+    /** Home and setup call this on resume: permissions change in the system's settings. */
     fun refresh() {
-        phoneNow()
+        readiness.refresh()
     }
 
     /** The home "Finish setup" card's items ([FinishSetupCard]); empty before a role and once nothing is left. */
     val finishItems: Flow<List<FinishItem>> by lazy {
-        combine(setupStore.data, roles.role, hub.state, sharing.state, combine(showcaseInstalled, alertsConfirmedAt, readiness.readiness, ::Triple)) {
+        combine(setupStore.data, roles.role, hub.state, sharing.state, combine(alertsConfirmedAt, readiness.readiness, ::Pair)) {
                 record,
                 role,
                 glucose,
                 share,
-                (installed, confirmed, checklist),
+                (confirmed, checklist),
             ->
             val facts =
                 SetupFacts(
                     role = role,
-                    showcaseInstalled = installed,
                     followerAvailable = followerAvailable,
                     ownSensorLive = RestoreGate.ownSensorLive(glucose, clock.now()),
                     hasIdentity = share is OwnerShareState.Sharing || share is OwnerShareState.AnotherAppSharingAsYou,

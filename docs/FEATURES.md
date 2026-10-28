@@ -137,7 +137,7 @@ Rules: [poc/spikes/alerts/SPEC.md](../poc/spikes/alerts/SPEC.md); timelines: [po
 
 ## First-run setup (Mac)
 
-- V1 Mac (chunk 23): on first launch a setup window walks Welcome → Follow → Alerts → Notifications → Open at login → Done. The welcome says following the phone's Sukrara Showcase works too, and keeps working after the phone switches to Sukrara as long as the recovery code is restored there. Follow offers pasting an invite link (or opening a `sukrara:` / `https://sukrara.mauri.app/join#…` link), importing a QR code image (offline Core Image; failure text *No Sukrara invite QR code found in that image.*) and nearby pairing (the phone's initial, *They'll see this Mac as “<computer name>”.* (the name the follower runtime sends; not editable in V1), *Ask to follow* / *Not now*; while waiting *Waiting for <wearer> to approve* with *Cancel*). Text that isn't an invite never reaches the relays. The Alerts step shows the five level thresholds and needs *Use these* (never confirmed silently); changing them is in Settings › Alerts. Each step state is stored under `setup.steps` (`SetupFlow`, `SetupFlowTests`). Steps slide in with a spring (a fade with Reduce Motion).
+- V1 Mac (chunk 23): on first launch a setup window walks Welcome → Follow → Alerts → Notifications → Open at login → Done. Follow offers pasting an invite link (or opening a `sukrara:` / `https://sukrara.mauri.app/join#…` link), importing a QR code image (offline Core Image; failure text *No Sukrara invite QR code found in that image.*) and nearby pairing (the phone's initial, *They'll see this Mac as “<computer name>”.* (the name the follower runtime sends; not editable in V1), *Ask to follow* / *Not now*; while waiting *Waiting for <wearer> to approve* with *Cancel*). Text that isn't an invite never reaches the relays. The Alerts step shows the five level thresholds and needs *Use these* (never confirmed silently); changing them is in Settings › Alerts. Each step state is stored under `setup.steps` (`SetupFlow`, `SetupFlowTests`). Steps slide in with a spring (a fade with Reduce Motion).
 - Settings window (V1 Mac): two panes, *General* (Following: wearer, last reading age, link state, *Stop following…* confirmed with "they have to send a new invite"; unit mg/dL / mmol/L (`general.unit`); Open at login; version + *Check now*) and *Alerts* (alerts on, per kind on / threshold / repeat, quiet times, sound pack, the six range bands). Every number uses `NumberSettingRow` over the generated `SettingsSpec`. While following in *Settings from: Wearer* with the wearer's settings received, the mirrored rows are read-only under *From <wearer>* with *Use my own settings* and *Defaults*. An unreadable stored alert value keeps the last one read and shows *Alert settings couldn't be read* with *Reset alert settings*.
 - Treatments (V1 Mac): *Add treatment* (Rapid, Long, Carbs, Note at once; minutes ago; the `contracts/treatments/treatment-form.json` rules; Carbs focused when opened while low; save gives a `.levelChange` haptic and a short spring, none with Reduce Motion). The Treatments window lists entries newest first with the delivery of this Mac's entries (*Sending* / *Sent* / *On the phone* / *Not sent* + *Retry*); only this Mac's entries can be deleted, with a 10 s *Undo* bar (⌘Z). The phone's and the pens' entries are read-only.
 - Wiring (V1 Mac, integration): the setup window opens by itself only while the walk never started (`setup.steps` empty); the panel shows *Finish Setup…* while a step is skipped or not reached (it closes the panel and reopens the walk at the first unfinished step) and, once setup is complete, *Follow Someone…* whenever this Mac follows nobody (after *Stop following*, a decline, a revoke, a used invite). Settings › General › *Follow…* opens the walk's Follow step. Nearby pairing is searched only while a Follow step is on screen and not following. A `sukrara:` invite link opens the Follow step and starts following at once (only text that parses as an invite reaches the relays; *This Mac already follows someone…* when it does); `sukrara://treatment/new` opens *Add treatment* (or the Treatments window when the wearer hasn't allowed this Mac to add) and `sukrara://open` the panel (`AppLink`, `AppLinkTests`). The right-click menu is Treatments…, Settings… ⌘,, Check for Updates… (opens the panel with the result), Quit Sukrara ⌘Q. In *Settings from: Wearer* while following, the alert rules this Mac runs take each kind's on / threshold / repeat and the three quiet rules from the wearer's settings event (what it didn't send stays this Mac's; the alerts switch, alarm, sounds and no data are always this Mac's); a change in Settings or a new wearer event reaches the rules and the copied sounds at once, and the unit (`general.unit`) reaches the menu bar title and the panel's card. After an invite link the Follow step shows *Waiting for <wearer> to approve* (with the code to type on the phone for a nearby join) and *Cancel*; an invite link while already following keeps the following state and says *This Mac already follows someone…*. The Treatments window says *The wearer hasn't allowed this Mac to add treatments* under the list when adding isn't allowed (*Follow someone to see and add their treatments* while following nobody). While notifications are allowed but not Time Sensitive (V1 ships without the entitlement), the panel and the setup's notification step say *A Focus (Do Not Disturb, Sleep…) can hold back Sukrara's alarms on this Mac. Allow Sukrara in each Focus, and keep the phone as the alarm.* with *Open Focus Settings*. Relay and Bluetooth connection changes run one after another in the follower runtime (start, join, reconnect, unfollow, stop); triggers that arrive while a reconnect is queued join it. The Mac reconnects on wake and when the network comes back (a change to connected, not the monitor's first report); a clock change only re-checks the alerts. The app declares `CFBundleLocalizations` en + es, so the bundled app shows Spanish on a Spanish Mac. The card and its VoiceOver sentence use the user's ranges and hours (`GraphConfig.load`, the wearer's in *Settings from: Wearer*), redrawn on every settings change or wearer event. The windows', panel's, menu's and menu bar title's text is in English and Spanish (`Localizable.xcstrings`; `LocalizationTests` checks every key has both and the same placeholders), and so is the card's VoiceOver sentence including the status pill's (*Come hidratos*, *Alertas de glucosa baja silenciadas tras los hidratos · quedan 10 min*); the pill's drawn words and the mute lines (`MuteCopy`) are still English on the Mac. Review pictures: `sukrara-snap shell|windows <dir>` (append `-es` for Spanish) renders the menu bar title + panel states and every window state with synthetic data.
@@ -148,9 +148,8 @@ Rules: [poc/spikes/alerts/SPEC.md](../poc/spikes/alerts/SPEC.md); timelines: [po
 
 ## First-run setup (Android)
 
-V1 Android (chunk 24, `apps/android/feature/sharing` `setup/`): a calm ordered journey from install to home. The order is
-binding (CHANGES P2–P5, P10): **Welcome → Role → Permissions → Turn off Sukrara Showcase → Sensor → Alert thresholds →
-Your followers → home**. "Step N of M" is announced by TalkBack; steps cross-fade with a spring (snaps with reduced
+Android (`apps/android/feature/sharing` `setup/`): a calm ordered journey from install to home. The order is
+binding (CHANGES P2–P5, P10): **Welcome → Role → Permissions → Sensor → Alert thresholds → Your followers → home**. "Step N of M" is announced by TalkBack; steps cross-fade with a spring (snaps with reduced
 motion); setup done gives a confirm haptic. Progress is kept in the typed store `setup` (`SetupMachine`, pure;
 `SetupMachineTest`), so setup resumes at the same step after a restart; the role lives in its own store (`role`), so a
 damaged setup file never asks for the role again or turns alerts off.
@@ -166,13 +165,6 @@ damaged setup file never asks for the role again or turns alerts off.
   set, `:core:designsystem` `ds_req_*`): *Notifications*, *Full-screen alerts*, *Alarms and reminders*, *No battery
   restrictions*, *Alert sound and Do Not Disturb*, *Bluetooth* (wearer only). Each missing item has *Allow*: runtime permissions are asked in context
   the first time, then the matching system page opens. Re-read on every resume. *Continue anyway* / *Later*.
-- **Turn off Sukrara Showcase** (only while `app.mauri.sukrara.poc` is installed): a numbered list in the showcase's
-  own words — 1 *Save its recovery code* (Settings › Backup › Recovery code, to the password manager), 2 *Turn its
-  alerts off* (Settings › Alerts › Glucose alerts; else its no-data alarm rings), 3 *Free the sensor* (Settings ›
-  Glucose source › Forget this sensor) — and "Keep it installed until the end of setup". *Open Showcase*, *I've done
-  these* (confirmed), *Skip*. Setup never offers to uninstall the showcase before the restore (the recovery code
-  would be lost). The followers keep seeing the wearer through the Showcase until
-  the restore at the end.
 - **Sensor**: *Set up sensor* opens chunk 18's new-sensor flow (Libre 3 start / takeover with the LibreView receiver
   ID, or Juggluco). Until a reading arrives it says "Not monitoring: no sensor yet. No alert can ring until a reading
   arrives."; the step completes only with a live reading from this phone's own sensor (≤ 15 min old): "Reading
@@ -182,30 +174,26 @@ damaged setup file never asks for the role again or turns alerts off.
   *Off (…)* when the kind is off — from the settings the alert runtime reads, each editable with the number dialog;
   levels must stay in order (very low < low < high < very high < extremely high). Nothing is saved until *Confirm these alerts*;
   *Later* leaves them unconfirmed (never silently defaulted).
-- **Your followers**: *Restore from your recovery code* (Showcase › Settings › Backup › Recovery code; `ncryptsec` +
-  password or `nsec`, typed as hidden text, never saved state) or *Start fresh*. The warning "Sukrara Showcase will
-  stop sharing with your followers. Do this when this app has your sensor." is always shown, then a numbered checklist
-  that ticks itself: 1 *Sensor running in Sukrara*, 2 *Sharing is off in Sukrara Showcase* (checkbox, only while it's
-  installed), 3 *Paste your recovery code*. Restore is enabled only
-  when this app has a live reading from its own sensor AND the Showcase is uninstalled or the person ticked "Sharing is
-  off in Sukrara Showcase" (`RestoreGate`, re-checked just before restoring; `RestoreGateTest`). *Start fresh* is
-  confirmed: "Your followers (and your Mac) will need a new invite. Your old identity stays in the Showcase; this
-  phone can't switch back to it without reinstalling."
+- **Your followers**: *Restore from your recovery code* (`ncryptsec` + password or `nsec`, typed as hidden text, never
+  saved state) or *Start fresh*. The warning "Your followers move to this phone: the phone that shared until now stops
+  reaching them. Do this once this phone has your sensor." is always shown, then a numbered checklist that ticks
+  itself: 1 *Sensor running in Sukrara*, 2 *Paste your recovery code*. Restore is enabled only when this phone has a
+  live reading from its own sensor (`RestoreGate`, re-checked just before restoring; `RestoreGateTest`). *Start fresh*
+  is confirmed: "Your followers (and your Mac) will need a new invite. Your old identity can't be brought to this
+  phone later without reinstalling."
 - **Finish setup** (home's banner, chunk 16): names the first skipped step that still matters — *Allow what alerts
-  need*, *Turn off Sukrara Showcase*, *Connect your sensor*, *Alerts not confirmed*, *Restore your followers*; its
+  need*, *Connect your sensor*, *Alerts not confirmed*, *Restore your followers*; its
   action reopens that step alone (done or *Later* → home); items drop out by themselves when the checklist is complete,
-  the Showcase is uninstalled, a reading arrives, the thresholds are confirmed (also in Settings › Alerts:
+  a reading arrives, the thresholds are confirmed (also in Settings › Alerts:
   `alerts.thresholdsConfirmedAt`) or an identity exists. First launch (no role yet) opens setup on top of home.
 
 **States and exits**: every step → *Back* (not into the role once chosen) and its primary action; Permissions,
-Showcase, Sensor, Alerts and Followers → *Skip* / *Later* (→ the Finish setup banner → reopens the step → completes or *Later*
-again). Role → choose → confirm / *Cancel*; Follower in this build → stays on the role step with the note. Showcase →
-*I've done these* → confirm / *Cancel*. Sensor waiting → *Set up sensor* (chunk 18 flow, its own Cancel) / *Later*;
+Sensor, Alerts and Followers → *Skip* / *Later* (→ the Finish setup banner → reopens the step → completes or *Later*
+again). Role → choose → confirm / *Cancel*; Follower in this build → stays on the role step with the note. Sensor waiting → *Set up sensor* (chunk 18 flow, its own Cancel) / *Later*;
 reading received → *Continue*. Alerts → edit (number dialog *Cancel* / OK) → *Confirm these alerts*, disabled with the
-order message while levels are out of order. Followers → restore disabled (each reason in a note: no reading yet, the
-Showcase may still share → tick the box) / restoring ("Looking for your backup on the relays…") / restore error (inline,
+order message while levels are out of order. Followers → restore disabled (no reading yet: the note says so) / restoring ("Looking for your backup on the relays…") / restore error (inline,
 the code stays, fix and retry; never drops into Start fresh: needs password, wrong password, not a code, relays
-unreachable, no backup, unreadable, Showcase still sharing) / restored (followers count) → home; *Start fresh* → confirm
+unreachable, no backup, unreadable, another phone still sharing) / restored (followers count) → home; *Start fresh* → confirm
 / *Cancel*; identity unreadable → note + restore; another app sharing as you → the conflict content (below) / *Later*.
 System back on the first step leaves setup (home shows "Not monitoring: setup incomplete" with *Set up*).
 
@@ -372,10 +360,9 @@ sensor* (last reading …) → Sensor details. Not in V1 yet: "sensor owned by S
 (the hub has no such states yet).
 
 **One banner slot**, by priority: (0) *Monitoring stopped* (Android stopped the service; shown even while the last value is on screen) → Resume monitoring; (1) *Alerts may not ring* + the alert checklist's first problem (`AlertReadiness`,
-the same items and order as setup's permission step) → Fix; (2) *Turn off Sukrara Showcase* while
-`app.mauri.sukrara.poc` is installed (re-checked on resume) → Open its app info; (3) *Some saved data was damaged*
-(`DataModule.corruption`) → Review; (4) *Finish setup* (next step) → Continue; (5) *Not backed up*; (6) *Add the glucose
-widget*; (7) *Share with your clinic*. 0–3 are *safety* banners: error-container colours with a filled action at the start (clear of the floating button), drawn right under the card so they're on screen without scrolling, and *Add treatment* turns icon-only while one shows or the page is scrolled; tips use the neutral container. 0–3 can't be dismissed; Finish setup's close = later (back after 24 h until
+the same items and order as setup's permission step) → Fix; (2) *Some saved data was damaged*
+(`DataModule.corruption`) → Review; (3) *Finish setup* (next step) → Continue; (4) *Not backed up*; (5) *Add the glucose
+widget*; (6) *Share with your clinic*. 0–2 are *safety* banners: error-container colours with a filled action at the start (clear of the floating button), drawn right under the card so they're on screen without scrolling, and *Add treatment* turns icon-only while one shows or the page is scrolled; tips use the neutral container. 0–2 can't be dismissed; Finish setup's close = later (back after 24 h until
 done); 5–7 close for good (typed state `home-banners`). A banner whose input isn't known on this build yet is never
 shown. Not in V1 yet: tips, the quiet all-green reliability row, the clinic report card.
 The alert checklist (Android V1, `:monitor` `AndroidAlertReadiness`, ONE instance `AlertsModule.readiness` for home's

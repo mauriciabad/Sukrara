@@ -207,7 +207,6 @@ class AppGraph(
 
     val home by lazy {
         HomeModule(
-            context = app,
             data = data,
             clock = clock,
             scope = scope,

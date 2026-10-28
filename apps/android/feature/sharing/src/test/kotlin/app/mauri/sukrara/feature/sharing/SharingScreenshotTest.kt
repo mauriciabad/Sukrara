@@ -65,7 +65,7 @@ class SharingScreenshotTest {
         Locale.setDefault(Locale.US)
     }
 
-    private val facts = SetupFacts(role = Role.Wearer, showcaseInstalled = true, followerAvailable = false, ownSensorLive = false, hasIdentity = false)
+    private val facts = SetupFacts(role = Role.Wearer, followerAvailable = false, ownSensorLive = false, hasIdentity = false)
 
     private fun ui(
         step: SetupStep,
@@ -79,12 +79,12 @@ class SharingScreenshotTest {
     ) = SetupUi(
         step = step,
         index = index,
-        count = 7,
+        count = 6,
         facts = facts,
         record = record,
         readiness = AlertReadiness(missing),
         alerts = alerts,
-        gate = RestoreGate.evaluate(facts.ownSensorLive, facts.showcaseInstalled, record.showcaseSharingOffConfirmed),
+        gate = RestoreGate.evaluate(facts.ownSensorLive),
         share = share,
         restore = restore,
         busy = false,
@@ -109,28 +109,27 @@ class SharingScreenshotTest {
             "setup-3-permissions" to {
                 SetupContent(ui(SetupStep.Permissions, 3, missing = setOf(AlertRequirement.FullScreenIntent, AlertRequirement.BatteryExemption)), a)
             },
-            "setup-4-showcase" to { SetupContent(ui(SetupStep.Showcase, 4), a) },
-            "setup-5-sensor-waiting" to { SetupContent(ui(SetupStep.Sensor, 5), a) },
-            "setup-5-sensor-live" to { SetupContent(ui(SetupStep.Sensor, 5, live), a) },
-            "setup-6-alerts" to { SetupContent(ui(SetupStep.Alerts, 6, live), a) },
-            "setup-6-alerts-out-of-order" to {
-                SetupContent(ui(SetupStep.Alerts, 6, live, alerts = AlertThresholds(AlertSettings()).with(ThresholdField.High, 260.0)), a)
+            "setup-4-sensor-waiting" to { SetupContent(ui(SetupStep.Sensor, 4), a) },
+            "setup-4-sensor-live" to { SetupContent(ui(SetupStep.Sensor, 4, live), a) },
+            "setup-5-alerts" to { SetupContent(ui(SetupStep.Alerts, 5, live), a) },
+            "setup-5-alerts-out-of-order" to {
+                SetupContent(ui(SetupStep.Alerts, 5, live, alerts = AlertThresholds(AlertSettings()).with(ThresholdField.High, 260.0)), a)
             },
-            "setup-7-identity-gate-closed" to { SetupContent(ui(SetupStep.Identity, 7), a) },
-            "setup-7-identity-gate-open" to {
-                SetupContent(ui(SetupStep.Identity, 7, live, record = SetupRecord(showcaseSharingOffConfirmed = true)), a)
+            "setup-6-identity-gate-closed" to { SetupContent(ui(SetupStep.Identity, 6), a) },
+            "setup-6-identity-gate-open" to {
+                SetupContent(ui(SetupStep.Identity, 6, live), a)
             },
-            "setup-7-restore-wrong-password" to {
+            "setup-6-restore-wrong-password" to {
                 SetupContent(
-                    ui(SetupStep.Identity, 7, live, record = SetupRecord(showcaseSharingOffConfirmed = true), restore = RestoreUi.Failed(RestoreIdentity.Result.WrongPassword)),
+                    ui(SetupStep.Identity, 6, live, restore = RestoreUi.Failed(RestoreIdentity.Result.WrongPassword)),
                     a,
                 )
             },
-            "setup-7-restore-busy" to {
-                SetupContent(ui(SetupStep.Identity, 7, live.copy(showcaseInstalled = false), restore = RestoreUi.Busy), a)
+            "setup-6-restore-busy" to {
+                SetupContent(ui(SetupStep.Identity, 6, live, restore = RestoreUi.Busy), a)
             },
-            "setup-7-identity-conflict" to { SetupContent(ui(SetupStep.Identity, 7, live, share = conflict), a) },
-            "conflict-screen" to { IdentityConflictScreen(conflict, {}, {}, {}, {}) },
+            "setup-6-identity-conflict" to { SetupContent(ui(SetupStep.Identity, 6, live, share = conflict), a) },
+            "conflict-screen" to { IdentityConflictScreen(conflict, {}, {}) },
             "share-new" to { ShareScreen(InviteUi.None, {}, {}) },
             "share-ready" to {
                 ShareScreen(InviteUi.Ready(Invite("https://sukrara.mauri.app/join#c3ludGhldGljLWludml0ZS1mb3ItdGVzdHM", "Anna", 1_761_600_000)), {}, {})

@@ -55,27 +55,6 @@
     <string name="sh_setup_permissions_body">Your alerts need these. The same list stays on the home screen until everything is allowed.</string>
     <!-- Setup checklist: continue with items still missing -->
     <string name="sh_setup_permissions_continue_anyway">Continue anyway</string>
-    <!-- Setup: turn off the showcase app, title -->
-    <string name="sh_setup_showcase_title">Turn off Sukrara Showcase</string>
-    <!-- Setup: turn off the showcase app, explanation -->
-    <string name="sh_setup_showcase_body">Do these in Sukrara Showcase, in this order. Keep it installed until the end of setup: you\'ll paste its recovery code there.</string>
-    <string name="sh_setup_showcase_step_code">Save its recovery code: Settings › Backup › Recovery code, then copy it to your password manager.</string>
-    <string name="sh_setup_showcase_step_alerts">Turn its alerts off: Settings › Alerts › Glucose alerts. Otherwise its no-data alarm rings once Sukrara has the sensor.</string>
-    <string name="sh_setup_showcase_step_sensor">Free the sensor: Settings › Glucose source › Forget this sensor.</string>
-    <!-- Setup: showcase step note about followers -->
-    <string name="sh_setup_showcase_followers">Your followers keep seeing you through the Showcase until you restore them here, at the end of setup.</string>
-    <!-- Button: open the showcase app -->
-    <string name="sh_setup_showcase_open">Open Showcase</string>
-    <!-- Button: the person turned the showcase off -->
-    <!-- Button: uninstall the showcase app -->
-    <string name="sh_setup_showcase_uninstall">Uninstall Showcase</string>
-    <string name="sh_setup_showcase_done">I\'ve done these</string>
-    <!-- Confirmation title -->
-    <string name="sh_setup_showcase_confirm_title">Sukrara Showcase is ready?</string>
-    <!-- Confirmation text -->
-    <string name="sh_setup_showcase_confirm_text">Its recovery code is saved, its alerts are off and it forgot the sensor. Otherwise both apps ring for the same low, and without the code every follower needs a new invite.</string>
-    <!-- Confirmation button -->
-    <string name="sh_setup_showcase_confirm">Yes, all done</string>
     <!-- Setup sensor step: title -->
     <string name="sh_setup_sensor_title">Connect your sensor</string>
     <!-- Setup sensor step: explanation -->
@@ -114,7 +93,7 @@
     <!-- Setup identity step: title -->
     <string name="sh_identity_title">Your followers</string>
     <!-- Setup identity step: explanation -->
-    <string name="sh_identity_body">Bring the people who follow you in Sukrara Showcase, or start fresh with new invites.</string>
+    <string name="sh_identity_body">Restore your followers with your recovery code, or start fresh with new invites.</string>
     <!-- Setup identity step: already sharing; %1$d = followers -->
     <string name="sh_identity_sharing">Sharing is set up. Followers: %1$d.</string>
     <!-- Setup identity: stored identity unreadable -->
@@ -122,17 +101,13 @@
     <!-- Restore section title -->
     <string name="sh_restore_title">Restore from your recovery code</string>
     <!-- Restore warning (always shown) -->
-    <string name="sh_restore_warning">Sukrara Showcase will stop sharing with your followers. Do this when this app has your sensor.</string>
+    <string name="sh_restore_warning">Your followers move to this phone: the phone that shared until now stops reaching them. Do this once this phone has your sensor.</string>
     <!-- Where the recovery code is -->
-    <string name="sh_restore_where">Paste the code you saved from Sukrara Showcase › Settings › Backup › Recovery code (ncryptsec… with its password, or nsec…).</string>
+    <string name="sh_restore_where">Paste your recovery code (ncryptsec… with its password, or nsec…).</string>
     <!-- Restore blocked: no reading yet -->
     <string name="sh_restore_block_no_reading">Connect your sensor first: restore becomes available once this app receives a reading.</string>
-    <!-- Restore blocked: showcase may still be sharing -->
-    <string name="sh_restore_block_showcase">Turn sharing off in Sukrara Showcase, then tick this.</string>
     <string name="sh_restore_step_sensor">Sensor running in Sukrara</string>
     <string name="sh_restore_step_code">Paste your recovery code</string>
-    <!-- Checkbox: showcase sharing is off -->
-    <string name="sh_restore_showcase_sharing_off">Sharing is off in Sukrara Showcase</string>
     <!-- Field: recovery code -->
     <string name="sh_restore_code">Recovery code</string>
     <!-- Field: password of the recovery code -->
@@ -148,15 +123,15 @@
     <!-- Restore error -->
     <string name="sh_restore_err_wrong_password">Wrong password. Check it and try again.</string>
     <!-- Restore error -->
-    <string name="sh_restore_err_not_a_key">That isn\'t a recovery code. Copy it again from Sukrara Showcase.</string>
+    <string name="sh_restore_err_not_a_key">That isn\'t a recovery code. Copy it again and paste it here.</string>
     <!-- Restore error -->
     <string name="sh_restore_err_offline">Couldn\'t reach the relays. Check the internet and try again; nothing changed.</string>
     <!-- Restore error -->
-    <string name="sh_restore_err_no_backup">No backup found for this code. Make sure it\'s the code from Sukrara Showcase.</string>
+    <string name="sh_restore_err_no_backup">No backup found for this code. Check that it\'s your recovery code.</string>
     <!-- Restore error -->
     <string name="sh_restore_err_unreadable">The backup was found but can\'t be read. Nothing changed.</string>
     <!-- Restore error -->
-    <string name="sh_restore_err_outdated">Sukrara Showcase is still sharing. Turn its sharing off, wait a minute and try again.</string>
+    <string name="sh_restore_err_outdated">Another phone is still sharing with this identity. Turn its sharing off, wait a minute and try again.</string>
     <!-- Restore error -->
     <string name="sh_restore_err_already">This phone already shares with an identity.</string>
     <!-- Start fresh section title -->
@@ -168,27 +143,25 @@
     <!-- Start fresh confirmation title -->
     <string name="sh_fresh_confirm_title">Start fresh?</string>
     <!-- Start fresh confirmation text -->
-    <string name="sh_fresh_confirm_text">Your followers (and your Mac) will need a new invite. Your old identity stays in the Showcase; this phone can\'t switch back to it without reinstalling.</string>
+    <string name="sh_fresh_confirm_text">Your followers (and your Mac) will need a new invite. Your old identity can\'t be brought to this phone later without reinstalling.</string>
     <!-- Start fresh confirmation button -->
     <string name="sh_fresh_confirm">Start fresh</string>
     <!-- Identity conflict: title -->
     <string name="sh_conflict_title">Another app is sharing as you</string>
     <!-- Identity conflict: what happened -->
-    <string name="sh_conflict_body">Sukrara Showcase (or another phone) is still sharing with your identity. Sukrara paused changes to your followers so the two apps don\'t undo each other. Your readings and alerts keep working here.</string>
+    <string name="sh_conflict_body">Another phone is still sharing with your identity. Sukrara paused changes to your followers so the two don\'t undo each other. Your readings and alerts keep working here.</string>
     <!-- Identity conflict: followers still get readings -->
     <string name="sh_conflict_followers_receiving">Your followers still receive your readings.</string>
     <!-- Identity conflict: followers do not get readings -->
     <string name="sh_conflict_followers_not_receiving">Your followers aren\'t receiving readings from this phone right now.</string>
     <!-- Identity conflict: what to do -->
-    <string name="sh_conflict_what_to_do">Stop sharing in Sukrara Showcase (or uninstall it), then retry.</string>
+    <string name="sh_conflict_what_to_do">Stop sharing on the other phone, then retry.</string>
     <!-- Identity conflict: retry button -->
     <string name="sh_conflict_retry">I turned it off. Retry</string>
     <!-- Identity conflict: close -->
     <string name="sh_conflict_close">Close</string>
     <!-- Finish setup item -->
     <string name="sh_finish_allow">Allow what alerts need</string>
-    <!-- Finish setup item -->
-    <string name="sh_finish_showcase">Turn off Sukrara Showcase</string>
     <!-- Finish setup item -->
     <string name="sh_finish_sensor">Connect your sensor</string>
     <!-- Finish setup item -->
@@ -260,7 +233,7 @@
     <!-- Followers: since; %1$s = date -->
     <string name="sh_followers_since">Following since %1$s</string>
     <!-- Followers: footer -->
-    <string name="sh_followers_footer">Each follower sees your glucose, alerts and treatments. After switching from Sukrara Showcase, remove the old Mac here and invite it again.</string>
+    <string name="sh_followers_footer">Each follower sees your glucose, alerts and treatments. Remove a device you no longer use here.</string>
     <!-- Follower dialog: close -->
     <string name="sh_followers_close">Close</string>
     <!-- Follower dialog: remove -->

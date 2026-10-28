@@ -6,7 +6,6 @@ package app.mauri.sukrara.feature.sharing.setup
 import app.mauri.sukrara.core.model.GlucoseState
 import app.mauri.sukrara.core.model.SourceId
 import app.mauri.sukrara.core.model.SourceStatus
-import app.mauri.sukrara.share.owner.usecase.RestoreIdentity
 import java.time.Duration
 import java.time.Instant
 
@@ -14,15 +13,11 @@ import java.time.Instant
 enum class RestoreBlock {
     /** P2: this app hasn't received a live reading from its own sensor yet. */
     NoLiveReading,
-
-    /** A3: Sukrara Showcase is installed and the person hasn't confirmed its sharing is off. */
-    ShowcaseMayBeSharing,
 }
 
 /**
- * The restore gate (CHANGES P2, A3). Restoring rotates the stream to this phone, so the Showcase stops reaching the
- * followers: allowed only when this app already has the sensor AND the Showcase can't keep publishing as the same
- * identity. The screen always shows the warning sentence, open or closed.
+ * The restore gate (CHANGES P2). Restoring moves the stream to this phone, so the phone that shared until now stops
+ * reaching the followers: allowed only once this phone has the sensor. The screen always shows the warning sentence.
  */
 data class RestoreGate(val blocks: Set<RestoreBlock>) {
     val open: Boolean get() = blocks.isEmpty()
@@ -33,17 +28,7 @@ data class RestoreGate(val blocks: Set<RestoreBlock>) {
 
         private val OWN_SOURCES = setOf(SourceId.Libre3, SourceId.Juggluco)
 
-        fun evaluate(
-            ownSensorLive: Boolean,
-            showcaseInstalled: Boolean,
-            showcaseSharingOffConfirmed: Boolean,
-        ): RestoreGate =
-            RestoreGate(
-                buildSet {
-                    if (!ownSensorLive) add(RestoreBlock.NoLiveReading)
-                    if (!RestoreIdentity.restoreAllowed(showcaseInstalled, showcaseSharingOffConfirmed)) add(RestoreBlock.ShowcaseMayBeSharing)
-                },
-            )
+        fun evaluate(ownSensorLive: Boolean): RestoreGate = RestoreGate(if (ownSensorLive) emptySet() else setOf(RestoreBlock.NoLiveReading))
 
         /** Readings are arriving live from this phone's own sensor (not a follower feed), the newest ≤ 15 min old. */
         fun ownSensorLive(

@@ -18,7 +18,6 @@ import app.mauri.sukrara.share.owner.usecase.HandleInbox
 import app.mauri.sukrara.share.owner.usecase.RestoreIdentity
 import app.mauri.sukrara.share.owner.usecase.RestoreIdentity.Result
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -81,11 +80,5 @@ class RestoreIdentityTest {
         assertTrue(use.restore(identity, emptyList(), answered = 3, now = NOW) is Result.NoBackupFound)
         val stranger = crypto.generate()
         assertTrue(use.restore(stranger, relayEvents, answered = 1, now = NOW) is Result.NoBackupFound)
-    }
-
-    @Test fun restoreGate() {
-        assertTrue(RestoreIdentity.restoreAllowed(showcaseInstalled = false, userConfirmedShowcaseOff = false))
-        assertFalse(RestoreIdentity.restoreAllowed(showcaseInstalled = true, userConfirmedShowcaseOff = false))
-        assertTrue(RestoreIdentity.restoreAllowed(showcaseInstalled = true, userConfirmedShowcaseOff = true))
     }
 }

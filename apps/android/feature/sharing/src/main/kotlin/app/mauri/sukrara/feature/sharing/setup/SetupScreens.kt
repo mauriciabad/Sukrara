@@ -69,7 +69,7 @@ import app.mauri.sukrara.feature.sharing.restore.IdentityStep
 import androidx.compose.animation.AnimatedContent
 
 /**
- * The first-run setup (brief 24, binding order): welcome → role → permissions → turn off the Showcase → sensor →
+ * The first-run setup (brief 24, binding order): welcome → role → permissions → sensor →
  * alert thresholds → sharing identity → home. Each step says "Step N of M" to TalkBack, has Back (except the first)
  * and Skip / Later where skipping is safe; skipped steps go to the home "Finish setup" card.
  * [onOpenSensorSetup] opens chunk 18's new-sensor flow; [onDone] goes home.
@@ -110,9 +110,6 @@ data class SetupActions(
     val chooseRole: (Role) -> Unit = {},
     val completePermissions: () -> Unit = {},
     val fix: (AlertRequirement) -> Unit = {},
-    val openShowcase: () -> Unit = {},
-    val uninstallShowcase: () -> Unit = {},
-    val confirmShowcaseOff: () -> Unit = {},
     val openSensorSetup: () -> Unit = {},
     val completeSensor: () -> Unit = {},
     val editThreshold: (ThresholdField, Double) -> Unit = { _, _ -> },
@@ -120,7 +117,6 @@ data class SetupActions(
     val startFresh: () -> Unit = {},
     val completeIdentity: () -> Unit = {},
     val retryConflict: () -> Unit = {},
-    val setShowcaseSharingOff: (Boolean) -> Unit = {},
     val restore: (String, String?) -> Unit = { _, _ -> },
     val clearRestoreError: () -> Unit = {},
     val skip: (SetupStep) -> Unit = {},
@@ -139,9 +135,6 @@ private fun SetupViewModel.actions(
             chooseRole = ::chooseRole,
             completePermissions = ::completePermissions,
             fix = { r -> readinessFix(r) },
-            openShowcase = { showcaseOpenIntent()?.let(context::startSafely) },
-            uninstallShowcase = { context.startSafely(showcaseUninstallIntent()) },
-            confirmShowcaseOff = ::confirmShowcaseOff,
             openSensorSetup = onOpenSensorSetup,
             completeSensor = ::completeSensor,
             editThreshold = ::editThreshold,
@@ -149,7 +142,6 @@ private fun SetupViewModel.actions(
             startFresh = ::startFresh,
             completeIdentity = ::completeIdentity,
             retryConflict = ::retryConflict,
-            setShowcaseSharingOff = ::setShowcaseSharingOff,
             restore = ::restore,
             clearRestoreError = ::clearRestoreError,
             skip = ::skip,
@@ -192,7 +184,6 @@ fun SetupContent(
                     SetupStep.Welcome -> WelcomeStep(actions)
                     SetupStep.Role -> RoleStep(u, actions)
                     SetupStep.Permissions -> PermissionsStep(u, actions)
-                    SetupStep.Showcase -> ShowcaseStep(actions)
                     SetupStep.Sensor -> SensorStep(u, actions)
                     SetupStep.Alerts -> AlertConfirmStep(u, actions)
                     SetupStep.Identity -> IdentityStep(u, actions)
@@ -434,35 +425,6 @@ private fun runtimePermission(r: AlertRequirement): String? =
         AlertRequirement.Bluetooth -> android.Manifest.permission.BLUETOOTH_CONNECT
         else -> null
     }
-
-@Composable
-private fun ColumnScope.ShowcaseStep(actions: SetupActions) {
-    var confirming by rememberSaveable { mutableStateOf(false) }
-    StepHeader(stringResource(R.string.sh_setup_showcase_title), stringResource(R.string.sh_setup_showcase_body))
-    // the recovery code first: uninstalling the showcase before it's saved would cost every follower a new invite
-    NumberedItem(1, stringResource(R.string.sh_setup_showcase_step_code))
-    NumberedItem(2, stringResource(R.string.sh_setup_showcase_step_alerts))
-    NumberedItem(3, stringResource(R.string.sh_setup_showcase_step_sensor))
-    NoteCard(stringResource(R.string.sh_setup_showcase_followers))
-    StepButtons(
-        stringResource(R.string.sh_setup_showcase_open),
-        actions.openShowcase,
-        secondary =
-            listOf(
-                stringResource(R.string.sh_setup_showcase_done) to { confirming = true },
-                stringResource(R.string.sh_setup_skip) to { actions.skip(SetupStep.Showcase) },
-            ),
-    )
-    if (confirming) {
-        ConfirmDialog(
-            title = stringResource(R.string.sh_setup_showcase_confirm_title),
-            text = stringResource(R.string.sh_setup_showcase_confirm_text),
-            confirm = stringResource(R.string.sh_setup_showcase_confirm),
-            onConfirm = actions.confirmShowcaseOff,
-            onDismiss = { confirming = false },
-        )
-    }
-}
 
 @Composable
 private fun ColumnScope.SensorStep(

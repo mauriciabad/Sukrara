@@ -11,7 +11,6 @@ fun FinishItem.label(context: Context): String =
     context.getString(
         when (this) {
             FinishItem.AllowAlerts -> R.string.sh_finish_allow
-            FinishItem.TurnOffShowcase -> R.string.sh_finish_showcase
             FinishItem.ConnectSensor -> R.string.sh_finish_sensor
             FinishItem.AlertsNotConfirmed -> R.string.sh_finish_alerts
             FinishItem.RestoreFollowers -> R.string.sh_finish_identity

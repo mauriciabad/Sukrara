@@ -35,7 +35,6 @@ import app.mauri.sukrara.feature.home.DataProblemScreen
 import app.mauri.sukrara.feature.home.HomeAction
 import app.mauri.sukrara.feature.home.HomeScreen
 import app.mauri.sukrara.feature.home.HomeViewModel
-import app.mauri.sukrara.feature.home.banners.Showcase
 import app.mauri.sukrara.feature.sensor.libreview.LibreViewSignInRoute
 import app.mauri.sukrara.feature.sensor.newsensor.NewSensorRoute
 import app.mauri.sukrara.feature.settings.SettingsRoute
@@ -167,13 +166,10 @@ fun SukraraNavigation(
                     )
                 }
                 entry<SharingRoute> {
-                    val showcase = graph.setup.showcase
                     SharingScreen(
                         viewModel = viewModel(factory = SharingViewModel.factory(graph.setup.sharing)),
                         onSetUpSharing = { backStack.add(SetupRoute) },
                         onShare = { backStack.add(ShareRoute) },
-                        onOpenShowcase = { showcase.openIntent()?.let { open(context, it) {} } },
-                        onUninstallShowcase = { open(context, showcase.uninstallIntent()) {} },
                         onClose = { backStack.removeLastOrNull() },
                     )
                 }
@@ -281,10 +277,6 @@ private fun route(
 
         HomeAction.EnableBluetooth -> {
             open(context, Intent(Settings.ACTION_BLUETOOTH_SETTINGS)) {}
-        }
-
-        HomeAction.OpenShowcaseInfo -> {
-            open(context, Showcase.appInfo()) {}
         }
 
         HomeAction.ResumeMonitoring -> {

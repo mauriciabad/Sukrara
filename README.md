@@ -18,11 +18,9 @@ stops arriving, lets you log insulin and carbs in seconds, and shares readings *
 Nostr relays or Bluetooth nearby. There's no cloud account to create and no server to host. The name is
 Catalan-ish: *sucre* (sugar) + *ara* (now).
 
-> **Sukrara V1, 0.90.x: release candidates.** V1 is a clean rewrite of the Sukrara showcase (0.11.x, the PoC built
-> from research spikes, now frozen in [`poc/`](poc/)). 0.90.x versions are GitHub **prereleases** and haven't been
-> tested on a real sensor yet: keep the showcase installed as your fallback until V1 has run a few days for you (see
-> [Switching from the showcase](#switching-from-the-showcase)). **Not a medical device** (see the
-> [disclaimer](#disclaimer)).
+> **0.90.x: release candidates.** 0.90.x versions are GitHub **prereleases** and haven't been tested on a real
+> sensor yet: keep your current CGM app as a fallback until Sukrara has run a few days for you. **Not a medical
+> device** (see the [disclaimer](#disclaimer)).
 
 ## What it does today
 
@@ -32,14 +30,14 @@ The full catalog, with every rule and number, is [docs/FEATURES.md](docs/FEATURE
 - **Reads the Libre 3 / 3 Plus directly**: hold the phone to the sensor to start a new one or take over a running one
   (NFC), then Sukrara keeps it connected over Bluetooth by itself, with 24 h backfill and automatic reconnects. It
   uses your **LibreView account's receiver ID** (sign in once, only to get the ID), so a sensor can move between
-  Sukrara, the showcase and Abbott's app. Or read from **Juggluco's local web server** if Juggluco keeps the sensor.
+  Sukrara and Abbott's app. Or read from **Juggluco's local web server** if Juggluco keeps the sensor.
 - A guided **new sensor** screen: where the NFC antenna is, warm-up countdown, every failure handled on the same screen
   (ended sensor, Libre 1/2, another app holding the sensor, Bluetooth off).
 - **Settings › Sensor**: the current sensor (status, serial, start, end and time left), the reading source (Libre 3
   directly or Juggluco, saying first what changes), the LibreView account (email and receiver ID, sign in / out; the
   password is never stored) and *Pair new sensor*.
 - **Home screen**, glucose first: the value, trend arrow and a 6 h chart you can scroll back, the sensor's end date,
-  one banner at a time for what needs you (monitoring stopped, alerts may not ring, turn off Sukrara Showcase,
+  one banner at a time for what needs you (monitoring stopped, alerts may not ring,
   damaged saved data, finish setup), and the last 24 h of treatments with delete + undo. Never a bare "---": when
   there's no value it says why and what to do.
 - A **live notification** that is also a **Live Update chip** next to the clock (Android 16 QPR2+), with the same
@@ -57,15 +55,15 @@ The full catalog, with every rule and number, is [docs/FEATURES.md](docs/FEATURE
 - **Settings** for daily use: alerts (thresholds you confirm, repeats, sounds, quiet rules), an alert reliability
   checklist with *Fix* buttons (notifications, alarms, full-screen, battery, Do Not Disturb, Bluetooth), ranges,
   graph basics, sensor, and About with an update check against this repo's releases.
-- **Sharing core**: your sharing identity, restorable from the showcase's recovery code so existing followers keep
-  following; readings and alerts go to approved followers over Nostr relays (protocol v2, compatible with
-  the showcase). If another app is publishing as the same identity, Sukrara stops and says so instead of fighting it.
-- **First-run setup** in a calm, fixed order: role (confirmed) → what alerts need → turn off the showcase → sensor →
-  confirm your alert thresholds → your followers (restore only once V1 has your sensor, or start fresh) → home. Any
+- **Sharing core**: your sharing identity, restorable from its recovery code so existing followers keep following;
+  readings and alerts go to approved followers over Nostr relays (protocol v2). If another device is publishing as
+  the same identity, Sukrara stops and says so instead of fighting it.
+- **First-run setup** in a calm, fixed order: role (confirmed) → what alerts need → sensor → confirm your alert
+  thresholds → your followers (restore once this phone has your sensor, or start fresh) → home. Any
   step can wait; home's *Finish setup* banner brings it back.
 - **Sharing screens**: invite one person (QR that springs in, link to send or copy, works once for 24 h), allow or deny
   their request after comparing a 4-digit code, see and remove followers (confirmed), and a clear screen when another
-  app is sharing as you.
+  device is sharing as you.
 - English and Spanish (Spain) everywhere.
 
 **Mac (you follow someone, from the menu bar)**
@@ -73,86 +71,40 @@ The full catalog, with every rule and number, is [docs/FEATURES.md](docs/FEATURE
   card and chart (drawn by the same renderer rules as Android, tested against the same fixtures).
 - **Follow** a wearer with an invite link, a QR code image or **nearby** Bluetooth pairing; readings, alerts and
   treatments arrive end-to-end encrypted. A setup window walks Welcome → Follow → Alerts → Notifications → Open at
-  login. It also follows a phone that still runs the showcase.
+  login.
 - **Alerts** with sound packs and the same rules and timeline scenarios as Android; mute and unmute from the menu.
 - **Treatments**: add rapid / long / carbs / note, see the phone's entries, delete your own with undo.
 - **Settings**: General (following, unit, open at login, update check) and Alerts (per alert, quiet times, sounds,
   ranges); it can mirror the wearer's alert settings.
 - **Desktop widgets** (Glucose, Glucose graph, Glucose + graph) with the same card; they age by themselves (struck
   through at 5 min, the graph dimmed with the reading's time, no value at 20 min) and a tap opens Add treatment.
-  After switching from the showcase, remove the showcase's widgets and add Sukrara's.
 - VoiceOver reads the value as one sentence with the range in words.
 
-**Not in 0.90.0** (keep the showcase if you rely on these; see
+**Not in 0.90.0** (see
 [docs/10-showcase.md › V1](docs/10-showcase.md#v1-what-came-in-and-what-was-left-out) for why): the root status-bar
 icons and the LSPosed lock-screen widget, Dexcom / Aidex / SmartGuide (untested) sensors, Garmin via the local xDrip+
 server, Nightscout / Tidepool / LibreView uploads, Health Connect and broadcasts, insulin pens, the full sensor
 reminders page and calendar event, the glucose report and CSV export, settings export / import, following on
 Android and Bluetooth sharing from the phone, and the Mac's Juggluco-over-Wi-Fi source.
 
-**Garmin watch:** V1 has no watch server. The watch keeps working only while **Juggluco** reads the sensor (Juggluco
-serves it): keep Juggluco and pick it as V1's source (*Settings › Sensor › Juggluco*). If V1 takes the sensor over
-directly, the watch goes blank until 0.90.x.
+**Garmin watch:** Sukrara has no watch server yet. A watch fed by **Juggluco** keeps working while Juggluco reads the
+sensor: pick Juggluco as Sukrara's source (*Settings › Sensor › Juggluco*).
 
 ## Install
 
 Downloads are on [GitHub releases](https://github.com/mauriciabad/Sukrara/releases) (0.90.x are marked
-*Pre-release*). V1 installs **next to** Sukrara Showcase (new app id `app.mauri.sukrara`; the showcase is
-`app.mauri.sukrara.poc`) and copies nothing from it: you set it up fresh.
+*Pre-release*). The app id is `app.mauri.sukrara`.
 
 - **Android** (Android 16+, arm64): download `Sukrara-0.90.x.apk` on the phone and open it; allow installs from your
   browser when asked. Updates install over the old version and keep your data. With
-  [Obtainium](https://obtainium.imranr.dev/), turn on *Include prereleases*. V1 is signed with its own key, so it
-  can't update the showcase and the showcase can't update it.
+  [Obtainium](https://obtainium.imranr.dev/), turn on *Include prereleases*.
 - **Mac** (Apple Silicon, macOS 15+): download `Sukrara-0.90.x.dmg` and drag **Sukrara** onto **Applications**. The app
   isn't notarized yet: the first open is stopped; click **Done**, then **System Settings → Privacy & Security → Open
   Anyway** ([Apple: open a Mac app from an unknown developer](https://support.apple.com/guide/mac-help/mh40616/mac)).
-  Sukrara lives in the menu bar (no Dock icon). Homebrew only installs stable releases, so it keeps the showcase.
+  Sukrara lives in the menu bar (no Dock icon). Homebrew only installs stable releases.
 - **From this repo** (the owner's devices): `tools/install.sh phone|mac` builds the release, verifies it and installs
-  it in place. It refuses a dirty tree, unmerged work or failing checks. On the Mac it first quits the showcase and
-  moves it to `~/Applications/Sukrara Showcase.app` (never deleted), and makes V1 the `sukrara:` link handler.
-
-## Switching from the showcase
-
-Order matters: two apps can't own one sensor, two apps alerting means double alarms, and restoring your identity in
-V1 too early cuts your followers off from the app that still has the readings. V1's first-run setup walks the phone
-steps in this order; any step you skip comes back from home's *Finish setup* banner.
-
-1. **Install V1 next to the showcase** (above). Open it, choose *I wear the sensor* (confirmed: one role per
-   install) and allow what alerts need (*Notifications*, *Full-screen alerts*, *Alarms and reminders*, *No battery
-   restrictions*, *Alert sound and Do Not Disturb*, *Bluetooth*: the names Settings › Alert reliability uses).
-2. **Get the showcase ready before anything else**, in this order (V1's setup shows the same list and asks you to
-   confirm; home shows *Turn off Sukrara Showcase* for as long as the showcase is installed). **Don't uninstall the
-   showcase yet**: you need its recovery code at step 5.
-   1. **Save its recovery code**: *Settings › Backup › Recovery code*, copied to your password manager.
-   2. **Turn its alerts off**: *Settings › Alerts › Glucose alerts*. Otherwise, once V1 has the sensor, the
-      showcase's no-data alarm rings every 20 minutes, at night too.
-   3. **Free the sensor**: *Settings › Glucose source › Forget this sensor* (or *App info › Force stop*).
-   4. If you use them, turn off the showcase's **root status-bar icons** and the **LSPosed lock-screen widget**: they
-      would keep showing the showcase's stale value next to V1's.
-
-   If the official Libre app is on the phone, **force-stop it** (*App info › Force stop*) **or uninstall it**: swiping
-   it away doesn't free the sensor.
-3. **Take over the sensor in V1**: sign in to LibreView when asked (needed: the sensor is bound to your LibreView
-   account's receiver ID) and hold the phone to the sensor. Setup waits for a real reading; until then V1 says *Not
-   monitoring: no sensor yet*.
-4. **Confirm your alert thresholds**: V1 never uses them silently.
-5. **Only then restore your identity**: turn sharing off in the showcase, then in V1 paste the recovery code you
-   saved at step 2. V1 shows the three conditions as a checklist (sensor running in V1, sharing off in the showcase,
-   the code) and refuses while the showcase is installed unless you confirm its sharing is off. Your followers move to V1 by themselves; nobody needs a new invite. (Or
-   *Start fresh* and invite everyone again.)
-6. **Check your followers**: the Mac (showcase or V1) shows V1's value less than 5 minutes old. To move the Mac to V1
-   too, install V1 there and follow your phone from its setup window.
-7. **Turn off the showcase's Mac login item by hand**: System Settings › General › Login Items, remove *Sukrara
-   Showcase* (`tools/install.sh mac` quits it and flags the item but can't remove it for you). Uninstall the showcase
-   on the phone once V1 has run well for a while; until then join links ask which app to open.
-
-**Going back if V1 fails:** uninstall V1 (it has no stop / forget-sensor action yet), open the showcase and take the sensor back with
-*Pair new sensor* and a tap (it works because both apps use your LibreView account's receiver ID), then turn the
-showcase's alerts back on. If you restored your identity in V1, uninstall V1 before turning the showcase's sharing
-back on, so the two never publish as the same identity. If the takeover doesn't work, keep the showcase on the
-current sensor and switch at the next sensor change. Nothing is copied between the apps, so the showcase's data is
-as you left it.
+  it in place. It refuses a dirty tree, unmerged work or failing checks. On the Mac it makes Sukrara the `sukrara:` link
+  handler.
 
 ## Repository layout
 

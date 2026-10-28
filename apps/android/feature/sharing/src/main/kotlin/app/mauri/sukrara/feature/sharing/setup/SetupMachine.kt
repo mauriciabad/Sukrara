@@ -7,17 +7,15 @@ import app.mauri.sukrara.core.model.Role
 import kotlinx.serialization.Serializable
 
 /**
- * The first-run setup steps, in their binding order (brief 24, CHANGES P2–P5, P10): the sensor runs in V1 before the
- * alerts are confirmed and long before the identity can be restored (a restore cuts Sukrara Showcase off from the
- * followers, so it waits until this app has the sensor).
+ * The first-run setup steps, in their binding order (CHANGES P2–P5, P10): the sensor runs here before the alerts are
+ * confirmed and before the identity can be restored (a restore moves the followers to this phone, so it waits until
+ * this phone has the sensor).
  */
 enum class SetupStep {
     Welcome,
     Role,
     Permissions,
 
-    /** Shown only while Sukrara Showcase is installed. */
-    Showcase,
     Sensor,
     Alerts,
     Identity,
@@ -36,17 +34,12 @@ enum class SetupStep {
 data class SetupRecord(
     val completed: Set<SetupStep> = emptySet(),
     val skipped: Set<SetupStep> = emptySet(),
-    /** The person said alerts and the sensor are off in Sukrara Showcase (P3). */
-    val showcaseOffConfirmed: Boolean = false,
-    /** The person said sharing is off in Sukrara Showcase (A3 restore gate; separate from [showcaseOffConfirmed]). */
-    val showcaseSharingOffConfirmed: Boolean = false,
 )
 
 /** What setup reads from the phone and the other areas, re-read on every resume. */
 data class SetupFacts(
     /** The phone's role (its own store); null = not chosen yet. */
     val role: Role?,
-    val showcaseInstalled: Boolean,
     /** Following on Android exists in this build (chunk 25). */
     val followerAvailable: Boolean,
     /** A live reading from this phone's own sensor ([RestoreGate.ownSensorLive]). */
@@ -62,7 +55,6 @@ data class SetupFacts(
 /** One line of the home "Finish setup" card: a skipped step that still matters; tapping reopens [step]. */
 enum class FinishItem(val step: SetupStep) {
     AllowAlerts(SetupStep.Permissions),
-    TurnOffShowcase(SetupStep.Showcase),
     ConnectSensor(SetupStep.Sensor),
     AlertsNotConfirmed(SetupStep.Alerts),
     RestoreFollowers(SetupStep.Identity),
@@ -85,9 +77,9 @@ object SetupMachine {
     fun steps(facts: SetupFacts): List<SetupStep> =
         when (facts.role) {
             // follower join (chunk 25) adds its own step here
-            Role.Follower -> listOf(SetupStep.Welcome, SetupStep.Role, SetupStep.Permissions, SetupStep.Showcase, SetupStep.Alerts)
+            Role.Follower -> listOf(SetupStep.Welcome, SetupStep.Role, SetupStep.Permissions, SetupStep.Alerts)
             Role.Wearer, null -> SetupStep.entries
-        }.filter { it != SetupStep.Showcase || facts.showcaseInstalled }
+        }
 
     /** The step to show now, or null when setup is over (home). Resumes exactly where the person left. */
     fun next(
@@ -122,9 +114,6 @@ object SetupMachine {
     /** The checklist step is done (missing items stay on the home reliability row). */
     fun completePermissions(record: SetupRecord): SetupRecord = record.done(SetupStep.Permissions)
 
-    /** "I've turned it off" (confirmed in the UI). */
-    fun confirmShowcaseOff(record: SetupRecord): SetupRecord = record.copy(showcaseOffConfirmed = true).done(SetupStep.Showcase)
-
     /** The sensor step completes only with a real live reading from this phone's sensor. */
     fun completeSensor(
         record: SetupRecord,
@@ -140,11 +129,6 @@ object SetupMachine {
         facts: SetupFacts,
     ): SetupRecord = if (facts.hasIdentity) record.done(SetupStep.Identity) else record
 
-    fun confirmShowcaseSharingOff(
-        record: SetupRecord,
-        off: Boolean,
-    ): SetupRecord = record.copy(showcaseSharingOffConfirmed = off)
-
     /** Skip / "Later": the step goes to the Finish-setup card. Welcome and Role can't be skipped. */
     fun skip(
         record: SetupRecord,
@@ -153,7 +137,7 @@ object SetupMachine {
 
     /**
      * The home card's items: skipped steps that still matter. They drop out by themselves once the fact behind them
-     * changes (the Showcase was uninstalled, a reading arrived, an identity exists).
+     * changes (a reading arrived, the thresholds were confirmed, an identity exists).
      */
     fun finishItems(
         record: SetupRecord,
@@ -167,7 +151,6 @@ object SetupMachine {
                 step !in record.completed &&
                 step in record.skipped &&
                 when (item) {
-                    FinishItem.TurnOffShowcase -> facts.showcaseInstalled && !record.showcaseOffConfirmed
                     FinishItem.ConnectSensor -> !facts.ownSensorLive
                     FinishItem.RestoreFollowers -> !facts.hasIdentity
                     FinishItem.AlertsNotConfirmed -> !facts.alertsConfirmed

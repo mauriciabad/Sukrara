@@ -32,8 +32,6 @@ fun SharingScreen(
     viewModel: SharingViewModel,
     onSetUpSharing: () -> Unit,
     onShare: () -> Unit,
-    onOpenShowcase: () -> Unit,
-    onUninstallShowcase: () -> Unit,
     onClose: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -51,7 +49,7 @@ fun SharingScreen(
                     onAction = onSetUpSharing,
                 )
             is OwnerShareState.AnotherAppSharingAsYou ->
-                IdentityConflictScreen(s, viewModel::retryConflict, onOpenShowcase, onUninstallShowcase, onClose)
+                IdentityConflictScreen(s, viewModel::retryConflict, onClose)
             is OwnerShareState.Sharing -> {
                 FollowersPage(s.followers, s.pending, onReview = { reviewing = it.follower }, onRemove = { viewModel.remove(it.key) }, onShare = onShare)
                 s.pending.firstOrNull { it.follower == reviewing }?.let { request ->

@@ -19,9 +19,6 @@ enum class BannerKind(val safety: Boolean) {
     /** Something alerts need is missing (notifications, exact alarm, …): alerts may not ring. */
     AlertsUnreliable(safety = true),
 
-    /** The Sukrara Showcase (`app.mauri.sukrara.poc`) is still installed: two apps = double alarms (CHANGES P3). */
-    TurnOffShowcase(safety = true),
-
     /** A stored file was damaged and set aside: data loss is never silent (its exit: review and acknowledge). */
     DataProblem(safety = true),
 
@@ -34,7 +31,6 @@ enum class BannerKind(val safety: Boolean) {
 
 /** What the banners depend on besides the alert checklist; null = not known on this build yet (never shown). */
 data class HomeEnvironment(
-    val showcaseInstalled: Boolean = false,
     /** The next unfinished first-run setup step's name, or null when setup is done. */
     val nextSetupStep: String? = null,
     val backedUp: Boolean? = null,
@@ -85,7 +81,6 @@ object HomeBanners {
                 when (kind) {
                     BannerKind.MonitoringStopped -> monitoringStopped
                     BannerKind.AlertsUnreliable -> readiness?.ready == false
-                    BannerKind.TurnOffShowcase -> env.showcaseInstalled
                     BannerKind.DataProblem -> dataProblems > 0
                     BannerKind.FinishSetup -> env.nextSetupStep != null
                     BannerKind.NotBackedUp -> env.backedUp == false

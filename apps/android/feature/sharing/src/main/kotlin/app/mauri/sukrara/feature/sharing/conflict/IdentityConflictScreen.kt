@@ -23,16 +23,14 @@ import app.mauri.sukrara.feature.sharing.setup.StepHeader
 import app.mauri.sukrara.share.owner.OwnerShareState
 
 /**
- * A3: another app (Sukrara Showcase) publishes as this identity. It blocks the sharing area only — readings and alerts
- * keep running on this phone and the glucose stays visible elsewhere. Exits: Retry after turning the other app's
- * sharing off, Open / Uninstall the Showcase, or leave ([onClose]). There is no "replace identity" in V1 (reinstall).
+ * A3: another device publishes as this identity. It blocks the sharing area only — readings and alerts keep running on
+ * this phone. Exits: Retry after turning the other device's sharing off, or leave ([onClose]). There is no "replace
+ * identity" (reinstall).
  */
 @Composable
 fun IdentityConflictScreen(
     state: OwnerShareState.AnotherAppSharingAsYou,
     onRetry: () -> Unit,
-    onOpenShowcase: () -> Unit,
-    onUninstallShowcase: () -> Unit,
     onClose: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -41,7 +39,7 @@ fun IdentityConflictScreen(
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         StepHeader(stringResource(R.string.sh_conflict_title), null)
-        ConflictContent(state, onRetry, onOpenShowcase, onUninstallShowcase)
+        ConflictContent(state, onRetry)
         StepButtons(null, {}, secondary = listOf(stringResource(R.string.sh_conflict_close) to onClose))
     }
 }
@@ -51,19 +49,9 @@ fun IdentityConflictScreen(
 fun ColumnScope.ConflictContent(
     state: OwnerShareState.AnotherAppSharingAsYou,
     onRetry: () -> Unit,
-    onOpenShowcase: () -> Unit,
-    onUninstallShowcase: () -> Unit,
 ) {
     Text(stringResource(R.string.sh_conflict_body))
     NoteCard(stringResource(if (state.followersReceiving) R.string.sh_conflict_followers_receiving else R.string.sh_conflict_followers_not_receiving))
     Text(stringResource(R.string.sh_conflict_what_to_do))
-    StepButtons(
-        stringResource(R.string.sh_conflict_retry),
-        onRetry,
-        secondary =
-            listOf(
-                stringResource(R.string.sh_setup_showcase_open) to onOpenShowcase,
-                stringResource(R.string.sh_setup_showcase_uninstall) to onUninstallShowcase,
-            ),
-    )
+    StepButtons(stringResource(R.string.sh_conflict_retry), onRetry)
 }

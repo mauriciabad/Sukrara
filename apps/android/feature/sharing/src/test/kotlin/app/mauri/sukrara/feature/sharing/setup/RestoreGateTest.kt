@@ -14,11 +14,7 @@ import org.junit.Test
 import java.time.Instant
 
 class RestoreGateTest {
-    private fun gate(
-        live: Boolean = true,
-        installed: Boolean = false,
-        confirmed: Boolean = false,
-    ) = RestoreGate.evaluate(live, installed, confirmed)
+    private fun gate(live: Boolean = true) = RestoreGate.evaluate(live)
 
     @Test
     fun `disabled without a live reading`() {
@@ -26,20 +22,8 @@ class RestoreGateTest {
     }
 
     @Test
-    fun `disabled while the Showcase is installed and sharing not confirmed off`() {
-        assertEquals(setOf(RestoreBlock.ShowcaseMayBeSharing), gate(installed = true).blocks)
-        assertTrue(gate(installed = true, confirmed = true).open)
-    }
-
-    @Test
     fun `enabled when every condition holds`() {
         assertTrue(gate().open)
-        assertTrue(gate(installed = true, confirmed = true).open)
-    }
-
-    @Test
-    fun `every block at once`() {
-        assertEquals(RestoreBlock.entries.toSet(), gate(live = false, installed = true).blocks)
     }
 
     private val now = Instant.parse("2026-10-27T08:00:00Z")

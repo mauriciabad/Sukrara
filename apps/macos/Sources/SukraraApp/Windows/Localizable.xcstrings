@@ -849,22 +849,6 @@
         }
       }
     },
-    "Following the Showcase works too — follow the phone's Sukrara Showcase today. It keeps working after the phone switches to Sukrara, as long as the recovery code is restored there." : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Following the Showcase works too — follow the phone's Sukrara Showcase today. It keeps working after the phone switches to Sukrara, as long as the recovery code is restored there."
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "También puedes seguir la Showcase: sigue hoy la Sukrara Showcase del móvil. Seguirá funcionando cuando el móvil cambie a Sukrara, siempre que allí se restaure el código de recuperación."
-          }
-        }
-      }
-    },
     "Follow…" : {
       "localizations" : {
         "en" : {

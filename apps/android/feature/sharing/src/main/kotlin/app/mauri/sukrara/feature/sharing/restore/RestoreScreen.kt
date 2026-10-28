@@ -50,7 +50,7 @@ import app.mauri.sukrara.share.owner.OwnerShareState
 import app.mauri.sukrara.share.owner.usecase.RestoreIdentity
 
 /**
- * The sharing identity step: restore from the Showcase's recovery code (gated, P2/A3) or start fresh (confirmed, P10).
+ * The sharing identity step: restore from a recovery code (gated, P2) or start fresh (confirmed, P10).
  * Already sharing → Continue. Another app sharing as this identity → the conflict content (no restore, no new identity).
  */
 @Composable
@@ -65,7 +65,7 @@ fun ColumnScope.IdentityStep(
             StepButtons(stringResource(R.string.sh_setup_continue), actions.completeIdentity)
         }
         is OwnerShareState.AnotherAppSharingAsYou -> {
-            ConflictContent(share, onRetry = actions.retryConflict, onOpenShowcase = actions.openShowcase, onUninstallShowcase = actions.uninstallShowcase)
+            ConflictContent(share, onRetry = actions.retryConflict)
             StepButtons(null, {}, secondary = listOf(stringResource(R.string.sh_setup_later) to { actions.skip(SetupStep.Identity) }))
         }
         else -> {
@@ -90,28 +90,12 @@ private fun ColumnScope.RestoreForm(
     var password by remember { mutableStateOf("") }
     Text(stringResource(R.string.sh_restore_title), style = MaterialTheme.typography.titleMedium)
     NoteCard(stringResource(R.string.sh_restore_warning))
-    // the gate as a numbered checklist that ticks itself: 1 sensor live here, 2 showcase sharing off, 3 the code
+    // the gate as a numbered checklist that ticks itself: 1 sensor live here, 2 the code
     val sensorLive = RestoreBlock.NoLiveReading !in u.gate.blocks
     NumberedItem(1, stringResource(R.string.sh_restore_step_sensor), done = sensorLive) {
         if (!sensorLive) Text(stringResource(R.string.sh_restore_block_no_reading), style = MaterialTheme.typography.bodyMedium)
     }
-    val showcaseStep = if (u.facts.showcaseInstalled) 2 else null
-    if (showcaseStep != null) {
-        NumberedItem(showcaseStep, stringResource(R.string.sh_restore_showcase_sharing_off), done = u.record.showcaseSharingOffConfirmed) {
-            Row(
-                Modifier.fillMaxWidth().heightIn(min = 48.dp).toggleable(
-                    value = u.record.showcaseSharingOffConfirmed,
-                    role = Role.Checkbox,
-                    onValueChange = actions.setShowcaseSharingOff,
-                ),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Checkbox(checked = u.record.showcaseSharingOffConfirmed, onCheckedChange = null)
-                Text(stringResource(R.string.sh_restore_block_showcase), style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(start = 12.dp))
-            }
-        }
-    }
-    NumberedItem(if (showcaseStep != null) 3 else 2, stringResource(R.string.sh_restore_step_code)) {
+    NumberedItem(2, stringResource(R.string.sh_restore_step_code)) {
         Text(stringResource(R.string.sh_restore_where), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
     val restoring = u.restore is RestoreUi.Busy

@@ -57,8 +57,6 @@ data class SetupUi(
 )
 
 class SetupViewModel(private val m: SetupModule) : ViewModel() {
-    /** Re-read on every resume: package installs and system settings change outside the app. */
-    private val phone = MutableStateFlow(m.phoneNow())
     private val shown = MutableStateFlow<SetupStep?>(null)
     private val restore = MutableStateFlow<RestoreUi>(RestoreUi.Idle)
     private val busy = MutableStateFlow(false)
@@ -80,12 +78,11 @@ class SetupViewModel(private val m: SetupModule) : ViewModel() {
 
     val ui: StateFlow<SetupUi?> =
         // the checklist is THE live flow (the monitor computes it asynchronously): never a copy taken on resume
-        combine(inputs, phone, m.readiness.readiness, shown, combine(restore, busy, single, editing, ::Locals)) { i, p, readiness, override, l ->
+        combine(inputs, m.readiness.readiness, shown, combine(restore, busy, single, editing, ::Locals)) { i, readiness, override, l ->
             val now = m.clock.now()
             val facts =
                 SetupFacts(
                     role = i.role,
-                    showcaseInstalled = p.showcaseInstalled,
                     followerAvailable = m.followerAvailable,
                     ownSensorLive = RestoreGate.ownSensorLive(i.glucose, now),
                     hasIdentity = i.share is OwnerShareState.Sharing || i.share is OwnerShareState.AnotherAppSharingAsYou,
@@ -107,7 +104,7 @@ class SetupViewModel(private val m: SetupModule) : ViewModel() {
                 record = i.record,
                 readiness = readiness,
                 alerts = AlertThresholds(l.editing ?: i.alerts),
-                gate = RestoreGate.evaluate(facts.ownSensorLive, facts.showcaseInstalled, i.record.showcaseSharingOffConfirmed),
+                gate = RestoreGate.evaluate(facts.ownSensorLive),
                 share = i.share,
                 restore = l.restore,
                 busy = l.busy,
@@ -117,8 +114,7 @@ class SetupViewModel(private val m: SetupModule) : ViewModel() {
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
     fun onResume() {
-        m.readiness.refresh()
-        phone.value = m.phoneNow()
+        m.refresh()
     }
 
     /**
@@ -152,10 +148,6 @@ class SetupViewModel(private val m: SetupModule) : ViewModel() {
 
     fun readinessFix(r: app.mauri.sukrara.core.model.AlertRequirement) = m.readiness.fix(r)
 
-    fun showcaseOpenIntent() = m.showcase.openIntent()
-
-    fun showcaseUninstallIntent() = m.showcase.uninstallIntent()
-
     fun continueWelcome() = record(SetupMachine::completeWelcome)
 
     /** P10: called after the person confirmed what the role means. A changed role resets the alert runtime first. */
@@ -169,8 +161,6 @@ class SetupViewModel(private val m: SetupModule) : ViewModel() {
         }
 
     fun completePermissions() = record(SetupMachine::completePermissions)
-
-    fun confirmShowcaseOff() = record(SetupMachine::confirmShowcaseOff)
 
     fun completeSensor() {
         val facts = ui.value?.facts ?: return
@@ -210,24 +200,14 @@ class SetupViewModel(private val m: SetupModule) : ViewModel() {
 
     fun retryConflict() = act { m.sharing.retryConflict() }
 
-    fun setShowcaseSharingOff(off: Boolean) = record { SetupMachine.confirmShowcaseSharingOff(it, off) }
-
     /** Restores only through an open gate, re-checked here (the facts may have changed since the screen drew). */
     fun restore(
         code: String,
         password: String?,
     ) = act {
         val u = ui.first { it != null }!!
-        val gate =
-            RestoreGate.evaluate(
-                ownSensorLive = RestoreGate.ownSensorLive(m.hub.state.value, m.clock.now()),
-                showcaseInstalled = m.showcase.installed(),
-                showcaseSharingOffConfirmed = m.setupStore.data.first().showcaseSharingOffConfirmed,
-            )
-        if (!gate.open) {
-            phone.value = m.phoneNow()
-            return@act
-        }
+        val gate = RestoreGate.evaluate(ownSensorLive = RestoreGate.ownSensorLive(m.hub.state.value, m.clock.now()))
+        if (!gate.open) return@act
         restore.value = RestoreUi.Busy
         // an unexpected failure is "nothing changed, try again", never a stuck spinner
         val result =
@@ -291,7 +271,3 @@ class SetupViewModel(private val m: SetupModule) : ViewModel() {
     }
 }
 
-/** The phone facts read synchronously on resume. */
-data class PhoneFacts(
-    val showcaseInstalled: Boolean,
-)

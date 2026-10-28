@@ -3,7 +3,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara
 
-import android.content.Context
 import app.mauri.sukrara.core.data.CorruptFile
 import app.mauri.sukrara.core.data.DataModule
 import app.mauri.sukrara.core.model.AlertReadiness
@@ -19,7 +18,6 @@ import app.mauri.sukrara.feature.home.DataProblem
 import app.mauri.sukrara.feature.home.HomeDeps
 import app.mauri.sukrara.feature.home.banners.BannerMemory
 import app.mauri.sukrara.feature.home.banners.HomeEnvironment
-import app.mauri.sukrara.feature.home.banners.Showcase
 import app.mauri.sukrara.graph.GraphConfig
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
@@ -36,7 +34,6 @@ import kotlinx.coroutines.flow.update
  * THE alert checklist (`AlertsModule.readiness`, the same instance settings and setup render).
  */
 class HomeModule(
-    private val context: Context,
     private val data: DataModule,
     override val clock: Clock,
     scope: CoroutineScope,
@@ -77,7 +74,7 @@ class HomeModule(
     fun refresh() {
         readinessSource.refresh()
         refreshSetup()
-        env.update { it.copy(showcaseInstalled = Showcase.installed(context.packageManager), widgetPlaced = widgetPlaced()) }
+        env.update { it.copy(widgetPlaced = widgetPlaced()) }
     }
 
     override fun acknowledge(problem: DataProblem) {

@@ -110,12 +110,4 @@ class RestoreIdentity(private val ctx: OwnerContext) {
         val seeded = restored.copy(rosterPublishedAt = lastRoster, backupPublishedAt = newest.createdAt)
         return Result.Restored(Rotate(ctx)(seeded, now), restored.activeFollowers().size)
     }
-
-    companion object {
-        /**
-         * A3 gate for the restore screen (chunk 24): restore rotates the stream, so Sukrara Showcase must not keep
-         * publishing as the same identity — either it isn't installed or the person confirmed its sharing is off.
-         */
-        fun restoreAllowed(showcaseInstalled: Boolean, userConfirmedShowcaseOff: Boolean): Boolean = !showcaseInstalled || userConfirmedShowcaseOff
-    }
 }
