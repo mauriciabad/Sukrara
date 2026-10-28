@@ -109,10 +109,11 @@ final class WindowCoordinator {
                         rapid: rapid, carbs: carbs, at: at, now: Int64(Date().timeIntervalSince1970),
                         settings: model?.alerts?.settings, mirroring: model?.alerts?.mirroring ?? false)
                 },
-                save: { [weak self] entries in
+                penDuplicate: { [weak self] entries in self?.treatments.penDuplicate(of: entries) },
+                save: { [weak self] entries, close in
                     guard let self else { return }
                     Task { await self.treatments.add(entries) }
-                    self.windows.close(.addTreatment)
+                    if close { self.windows.close(.addTreatment) }
                 },
                 cancel: { [weak self] in self?.windows.close(.addTreatment) })
         }

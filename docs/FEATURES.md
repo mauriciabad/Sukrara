@@ -105,7 +105,7 @@ Rules: [poc/spikes/alerts/SPEC.md](../poc/spikes/alerts/SPEC.md); timelines: [po
 or when the card's *Eat carbs* pill opened it), *Now* / *Earlier…* (*When*: *Time* picker or *Minutes ago* with 5 / 15
 / 30 / 60 chips, resolved when saving; the chip then reads *16 min ago*), the quiet line (*Highs quiet for 44 min ·
 lows quiet for 14 min*: what the entries quiet on this phone from the chosen time; none while alerts are off or a
-follower mirrors the wearer's alerts), the limits line, *Open Sukrara*, and the lock-screen countdown (*Closes unsaved in N s* + *Unlock*; same rules, `LockCountdownTest`). Saves go through `TreatmentLog` (each version strictly newer, undo = a newer version, `WriterScope`) and the share layer's `TreatmentSync`. Not included: the countdown ring on Cancel, the pen duplicate question, editing from the list (the log supports it), the tile's glucose subtitle.
+follower mirrors the wearer's alerts), the limits line, *Open Sukrara*, and the lock-screen countdown (*Closes unsaved in N s* + *Unlock*; same rules, `LockCountdownTest`). Saves go through `TreatmentLog` (each version strictly newer, undo = a newer version, `WriterScope`) and the share layer's `TreatmentSync`. Not included: the countdown ring on Cancel, the pen duplicate question on Android (the Mac asks it, see Mac menu and windows), editing from the list (the log supports it), the tile's glucose subtitle.
 - Every writer sends `o: follower` (the Mac too; its own rows stay `mac` locally). Mac following someone: Delete (context menu, ⌫, Undo) works only on entries made on this Mac; the wearer's and other followers' rows are read-only.
 
 ## Mac menu and windows
