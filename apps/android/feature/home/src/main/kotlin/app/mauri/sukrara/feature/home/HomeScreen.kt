@@ -95,6 +95,7 @@ fun HomeScreen(
                 onDismiss = viewModel::dismiss,
                 onFix = viewModel::fix,
                 onUnmute = viewModel::unmute,
+                onEndQuiet = viewModel::endQuiet,
                 onDelete = viewModel::delete,
                 onUndo = viewModel::undoDelete,
                 onUndoGone = viewModel::undoShown,
@@ -110,6 +111,8 @@ data class HomeCallbacks(
     val onDismiss: (BannerKind) -> Unit = {},
     val onFix: (AlertRequirement) -> Unit = {},
     val onUnmute: () -> Unit = {},
+    /** Ends the quiet of the low ([lowSide]) or the high side ("Unmute", "Alert me anyway"). */
+    val onEndQuiet: (lowSide: Boolean) -> Unit = {},
     val onDelete: (Treatment) -> Unit = {},
     val onUndo: () -> Unit = {},
     val onUndoGone: () -> Unit = {},
@@ -318,9 +321,12 @@ private fun GlucoseSection(
             }
         } else {
             Column {
+                val pill = pillAction(state)
+                var sheet by remember { mutableStateOf<PillAction?>(null) }
                 PanelCard(
                     glucose = state.glucose,
-                    treatments = state.treatments,
+                    history = state.history,
+                    treatments = state.chartTreatments,
                     now = state.now,
                     config = state.config,
                     description = cardDescription(state, resources),
@@ -331,7 +337,34 @@ private fun GlucoseSection(
                         } else {
                             emptyList()
                         },
+                    pill = pill,
+                    pillWords = pillWords(state, resources),
+                    onPill = { action ->
+                        when (action) {
+                            is PillAction.Treat -> callbacks.onAction(HomeAction.Treat(carbs = action.carbs))
+                            PillAction.ReplaceSensor -> callbacks.onAction(HomeAction.PairSensor)
+                            is PillAction.Quiet, PillAction.MuteAll -> sheet = action
+                            PillAction.None -> Unit
+                        }
+                    },
                 )
+                sheet?.let { shown ->
+                    QuietSheet(
+                        action = shown,
+                        onDismiss = { sheet = null },
+                        onEnd = {
+                            sheet = null
+                            when (shown) {
+                                is PillAction.Quiet -> callbacks.onEndQuiet(shown.lowSide)
+                                else -> callbacks.onUnmute()
+                            }
+                        },
+                        onSettings = {
+                            sheet = null
+                            callbacks.onAction(HomeAction.OpenAlertSettings)
+                        },
+                    )
+                }
                 BannerSlot(safetyBanner)
                 // Monitoring stopped already has its safety banner (banner 0): never say it twice
                 val compact =
@@ -340,21 +373,65 @@ private fun GlucoseSection(
                             state.banner == BannerKind.MonitoringStopped
                     }
                 ReasonRow(compact, state.now) { callbacks.onAction(it) }
-                SensorLine(state)
+                SensorLine(state) { callbacks.onAction(HomeAction.PairSensor) }
             }
         }
     }
 }
 
+/**
+ * When the sensor ends; in its last day (the wearer) *Pair new sensor* as a tonal button under it, so the new one can
+ * be put on before the old one stops.
+ */
 @Composable
-private fun SensorLine(state: HomeUiState) {
+private fun SensorLine(
+    state: HomeUiState,
+    onPair: () -> Unit,
+) {
     val ends = (state.glucose.sensor as? SensorState.Active)?.endsAt ?: return
-    Text(
-        stringResource(R.string.home_sensor_ends, relative(ends, state.now)),
-        style = MaterialTheme.typography.bodyMedium,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-        modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 4.dp),
+    Column(Modifier.padding(start = 16.dp, end = 16.dp, top = 4.dp)) {
+        Text(
+            stringResource(R.string.home_sensor_ends, relative(ends, state.now)),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Reveal(lastDay(state)) {
+            FilledTonalButton(onClick = onPair, modifier = Modifier.padding(top = 8.dp).fillMaxWidth()) {
+                Text(stringResource(R.string.home_pair_new_sensor))
+            }
+        }
+    }
+}
+
+/** The wearer's sensor ends within a day: home offers *Pair new sensor*. */
+internal fun lastDay(state: HomeUiState): Boolean {
+    val ends = (state.glucose.sensor as? SensorState.Active)?.endsAt ?: return false
+    return state.glucose.role == Role.Wearer && Duration.between(state.now, ends) <= Duration.ofDays(1)
+}
+
+/** What the card's pill does for [state] (only the wearer pairs a sensor; anyone with a role may add a treatment). */
+internal fun pillAction(state: HomeUiState): PillAction {
+    // the card draws *Replace sensor* there: only the wearer can act on it
+    if (state.glucose.sensor == SensorState.Ended && state.glucose.role != Role.Wearer) return PillAction.None
+    return PillAction.of(
+        state.glucose.alerts.status,
+        state.now.epochSecond,
+        canAdd = state.glucose.role != null,
+        ended = state.glucose.sensor == SensorState.Ended,
+        muteAll = state.mutedUntil != null,
     )
+}
+
+/** TalkBack's words for the pill: what it shows. */
+private fun pillWords(
+    state: HomeUiState,
+    resources: android.content.res.Resources,
+): String {
+    val words = CardWords.of(resources)
+    if (state.glucose.sensor == SensorState.Ended) return words.replaceSensor
+    return app.mauri.sukrara.graph.StatusBadge
+        .describe(state.glucose.alerts.status, state.now.epochSecond, words)
+        .orEmpty()
 }
 
 /** Before there is anything to draw: the reason in the card's place, announced politely. */

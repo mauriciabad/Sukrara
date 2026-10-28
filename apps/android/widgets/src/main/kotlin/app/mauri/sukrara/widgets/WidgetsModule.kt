@@ -13,6 +13,7 @@ import android.util.Log
 import androidx.glance.appwidget.GlanceAppWidgetManager
 import app.mauri.sukrara.core.model.Clock
 import app.mauri.sukrara.core.model.GlucoseState
+import app.mauri.sukrara.core.model.Reading
 import app.mauri.sukrara.core.model.Treatment
 import app.mauri.sukrara.core.model.storage.StateStore
 import app.mauri.sukrara.graph.GraphConfig
@@ -35,6 +36,7 @@ class WidgetsModule(
     glucose: Flow<GlucoseState>,
     treatments: Flow<List<Treatment>>,
     graphConfig: Flow<GraphConfig>,
+    storedHistory: Flow<List<Reading>>,
     freshnessTicks: Flow<Unit>,
     store: StateStore<WidgetPlacements>,
 ) {
@@ -50,6 +52,7 @@ class WidgetsModule(
             treatments = treatments,
             config = graphConfig,
             placements = settings.placements,
+            stored = storedHistory,
             freshnessTicks = freshnessTicks,
             screenOn = screenOn(context),
             dark = { context.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK == Configuration.UI_MODE_NIGHT_YES },

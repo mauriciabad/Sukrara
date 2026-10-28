@@ -5,8 +5,9 @@ import SukraraAlerts
 import SukraraCore
 import SwiftUI
 
-/// Alerts + ranges: alerts on/off, per kind on/off + threshold + repeat, quiet times, sound pack, range bands.
-/// Mirrored rows are read-only and labelled "From <wearer>" with the exits "Use my own settings" / "Defaults".
+/// Alerts: alerts on/off, per kind on/off + threshold + repeat, quiet times, sound pack. The mirrored rows (each
+/// kind's on / threshold / repeat but no data's, the quiet times) show the rules in use and are read-only outside
+/// Custom; what isn't mirrored (alerts on/off, no data, sounds) is always this Mac's and editable.
 struct AlertsRangesPane: View {
     @Bindable var model: SettingsModel
 
@@ -22,7 +23,7 @@ struct AlertsRangesPane: View {
                     Button(L10n.t("Reset alert settings")) { model.alerts.resetToDefaults() }
                 }
             }
-            MirroredSection(model: model)
+            SettingsFromSection(model: model)
             Section(L10n.t("Alerts")) {
                 Toggle(L10n.t("Glucose alerts"), isOn: alertBinding(\.on))
                 ForEach(AlertKind.allCases, id: \.self) { kind in
@@ -39,21 +40,14 @@ struct AlertsRangesPane: View {
                     ForEach(SettingsSpec.options["soundPack"] ?? [], id: \.self) { Text(Self.packName($0)).tag($0) }
                 }
             }
-            Section(L10n.t("Ranges (mg/dL)")) {
-                ForEach(MacSettings.bands, id: \.id) { band in
-                    NumberSettingRow(
-                        label: Self.bandName(band.id), format: band.format,
-                        value: Binding(get: { model.number(band) }, set: { model.setNumber($0, band) }),
-                        readOnly: model.mirrors)
-                }
-            }
         }
         .formStyle(.grouped)
     }
 
     @ViewBuilder private func kindRows(_ kind: AlertKind) -> some View {
         let id = "alerts.threshold.\(kind.rawValue)"
-        let mirrored = model.mirrors && kind != .noData
+        let readOnly = model.alertsMirrored && kind != .noData
+        let shown = model.shownAlerts[kind]
         DisclosureGroup {
             if let name = SettingsSpec.settings.first(where: { $0.id == id })?.number,
                 let format = SettingsSpec.numbers[name]
@@ -61,45 +55,32 @@ struct AlertsRangesPane: View {
                 NumberSettingRow(
                     label: L10n.t("Threshold"), format: format,
                     value: Binding(
-                        get: { (mirrored ? model.wearer?.number(id) : nil) ?? model.alerts.settings[kind].threshold },
-                        set: { v in model.alerts.update { $0[kind].threshold = v } }),
-                    readOnly: mirrored)
+                        get: { shown.threshold }, set: { v in model.alerts.update { $0[kind].threshold = v } }),
+                    readOnly: readOnly)
             }
             NumberSettingRow(
                 label: L10n.t("Repeat"), format: SettingsSpec.alertRepeat,
                 value: Binding(
-                    get: {
-                        (mirrored ? model.wearerNumber("alerts.kind.repeat", kind: kind) : nil)
-                            ?? Double(model.alerts.settings[kind].repeatMin)
-                    },
-                    set: { v in model.alerts.update { $0[kind].repeatMin = Int(v) } }),
-                readOnly: mirrored)
+                    get: { Double(shown.repeatMin) }, set: { v in model.alerts.update { $0[kind].repeatMin = Int(v) } }),
+                readOnly: readOnly)
         } label: {
             Toggle(
                 Self.kindName(kind),
-                isOn: Binding(
-                    get: {
-                        (mirrored ? model.wearer?.bool("alerts.kind.on", kind: kind.rawValue) : nil)
-                            ?? model.alerts.settings[kind].on
-                    },
-                    set: { v in model.alerts.update { $0[kind].on = v } })
+                isOn: Binding(get: { shown.on }, set: { v in model.alerts.update { $0[kind].on = v } })
             )
-            .disabled(mirrored)
+            .disabled(readOnly)
         }
     }
 
     private func quiet(_ label: String, _ path: WritableKeyPath<AlertSettings, QuietRule>, _ id: String) -> some View {
         let name = SettingsSpec.settings.first { $0.id == id }?.number ?? ""
-        let onId = id.replacingOccurrences(of: ".min", with: ".on")
-        let isOn = model.wearerBool(onId) ?? model.alerts.settings[keyPath: path].on
-        let on = Binding(get: { isOn }, set: { v in model.alerts.update { $0[keyPath: path].on = v } })
-        let minutes = Binding(
-            get: { model.wearerNumber(id) ?? model.alerts.settings[keyPath: path].min },
-            set: { v in model.alerts.update { $0[keyPath: path].min = v } })
+        let rule = model.shownAlerts[keyPath: path]
+        let on = Binding(get: { rule.on }, set: { v in model.alerts.update { $0[keyPath: path].on = v } })
+        let minutes = Binding(get: { rule.min }, set: { v in model.alerts.update { $0[keyPath: path].min = v } })
         return VStack(alignment: .leading) {
-            Toggle(label, isOn: on).disabled(model.mirrors)
-            if let format = SettingsSpec.numbers[name], isOn {
-                NumberSettingRow(label: L10n.t("For"), format: format, value: minutes, readOnly: model.mirrors)
+            Toggle(label, isOn: on).disabled(model.alertsMirrored)
+            if let format = SettingsSpec.numbers[name], rule.on {
+                NumberSettingRow(label: L10n.t("For"), format: format, value: minutes, readOnly: model.alertsMirrored)
             }
         }
     }
@@ -122,55 +103,11 @@ struct AlertsRangesPane: View {
         }
     }
 
-    static func bandName(_ id: String) -> String {
-        switch id {
-        case "graph.band.veryLow": L10n.t("Very low below")
-        case "graph.band.low": L10n.t("Low below")
-        case "graph.band.tight": L10n.t("Very good up to")
-        case "graph.band.high": L10n.t("High from")
-        case "graph.band.veryHigh": L10n.t("Very high from")
-        default: L10n.t("Extremely high from")
-        }
-    }
-
     static func packName(_ p: String) -> String {
         switch p {
         case "system": L10n.t("System sound")
         case "none": L10n.t("No sound")
         default: p.capitalized
-        }
-    }
-}
-
-/// "Settings from": Wearer (read-only rows, "From <wearer>"), Default or Custom; the exits from mirroring.
-struct MirroredSection: View {
-    @Bindable var model: SettingsModel
-
-    var body: some View {
-        if model.wearer != nil {
-            Section {
-                if model.mirrors {
-                    Label(
-                        L10n.t("From \(model.wearer?.wearer ?? L10n.t("the wearer")): these follow their phone"),
-                        systemImage: "iphone")
-                    HStack {
-                        Button(L10n.t("Use my own settings")) { model.useOwn() }
-                        Button(L10n.t("Defaults…")) { model.confirmingDefaults = true }
-                            .confirmationDialog(
-                                L10n.t("Use the default alerts and ranges?"), isPresented: $model.confirmingDefaults
-                            ) {
-                                Button(L10n.t("Use defaults")) { model.useDefaults() }
-                                Button(L10n.t("Cancel"), role: .cancel) {}
-                            } message: {
-                                Text(L10n.t("This Mac's own thresholds and ranges are replaced by the defaults."))
-                            }
-                    }
-                } else {
-                    Button(L10n.t("Use \(model.wearer?.wearer ?? L10n.t("the wearer"))'s settings")) {
-                        model.settingsFrom = .wearer
-                    }
-                }
-            }
         }
     }
 }

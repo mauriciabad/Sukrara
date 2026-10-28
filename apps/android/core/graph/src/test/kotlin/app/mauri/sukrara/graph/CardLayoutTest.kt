@@ -223,25 +223,17 @@ class CardLayoutTest {
             Shape("app-panel", GraphPlace.APP, listOf(CardPart.HEADER to 120f, CardPart.GRAPH to 180f), sizes("app-panel")) {
                 full(it, GraphPlace.APP)
             },
+            // the notification's real style (WidgetStyle.kt notificationCardStyle, what :monitor draws with)
+            Shape("notification", GraphPlace.NOTIFICATION, listOf(CardPart.HEADER to 64f, CardPart.GRAPH to 96f), sizes("notification")) {
+                notificationCardStyle(it)
+            },
             // Layout coverage only, not registered surfaces (not in the app; surfaces.json "about"): the shapes the Mac
-            // shares answers with in expect.json (a wide 3-ring lock-screen card, a value-only card, the notification's
-            // header + graph). Drop one only together with the expect.json answers it alone produces.
+            // shares answers with in expect.json (a wide 3-ring lock-screen card, a value-only card). Drop one only together with the expect.json answers it alone produces.
             Shape("lockscreen-shape", GraphPlace.WIDGETS, listOf(CardPart.ALL to 0f), listOf(380f to 200f, 360f to 170f)) {
                 full(it, GraphPlace.WIDGETS)
             },
             Shape("value-only-shape", GraphPlace.APP, listOf(CardPart.VALUE to 0f), listOf(220f to 72f)) {
                 full(it, GraphPlace.APP, graph = false)
-            },
-            Shape(
-                "notification-shape",
-                GraphPlace.NOTIFICATION,
-                listOf(CardPart.HEADER to 64f, CardPart.GRAPH to 96f),
-                listOf(
-                    291f to 0f,
-                    240f to 0f,
-                ),
-            ) {
-                full(it, GraphPlace.NOTIFICATION)
             },
         )
 

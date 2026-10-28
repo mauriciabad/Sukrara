@@ -4,13 +4,19 @@
 package app.mauri.sukrara.monitor
 
 import android.content.Context
+import app.mauri.sukrara.core.data.settings.SurfaceSettings
 import app.mauri.sukrara.core.model.Clock
 import app.mauri.sukrara.core.model.DispatcherProvider
 import app.mauri.sukrara.core.model.GlucoseHub
+import app.mauri.sukrara.core.model.Reading
 import app.mauri.sukrara.core.model.ReadingSource
 import app.mauri.sukrara.core.model.Role
+import app.mauri.sukrara.core.model.Treatment
 import app.mauri.sukrara.core.model.storage.ReadingsRepository
+import app.mauri.sukrara.core.model.storage.SettingsRepository
 import app.mauri.sukrara.core.model.storage.StateStore
+import app.mauri.sukrara.graph.GraphConfig
+import app.mauri.sukrara.monitor.hub.GlucoseHistory
 import app.mauri.sukrara.monitor.hub.GlucoseHubImpl
 import app.mauri.sukrara.monitor.hub.MonitorRecord
 import app.mauri.sukrara.monitor.notify.Channels
@@ -25,6 +31,12 @@ import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.shareIn
 
 /**
  * The monitor's objects (DI module): the hub, the service's starter, the health check, the freshness ticker and
@@ -42,11 +54,24 @@ class MonitorModule(
     record: StateStore<MonitorRecord>,
     role: Flow<Role?>,
     val source: suspend (Role) -> ReadingSource?,
+    settings: SettingsRepository,
+    treatments: Flow<List<Treatment>>,
+    graphConfig: Flow<GraphConfig>,
 ) {
     val hubImpl = GlucoseHubImpl(scope, dispatchers, clock, readings, record, role)
 
     /** What every other module reads. */
     val hub: GlucoseHub get() = hubImpl
+
+    private val glucoseHistory = GlucoseHistory(clock, readings, hubImpl.state.map { it.recent })
+
+    /**
+     * The last 31 days before the live window (home's scroll and zoom, the multi-day slots), re-read hourly: a surface
+     * that follows the hub joins them with `GlucoseState.recent` itself (`ReadingHistory.join`), so a new reading
+     * redraws it once, not twice.
+     */
+    val storedHistory: Flow<List<Reading>> =
+        glucoseHistory.stored.shareIn(scope, SharingStarted.WhileSubscribed(HISTORY_STOP_MS), replay = 1)
 
     val notification = LiveNotification(context)
 
@@ -72,6 +97,36 @@ class MonitorModule(
     /** A freshness step passed without a new reading: surfaces that show the value redraw (notification, widgets). */
     val freshnessTicks: SharedFlow<Unit> = ticks
 
+    private val screenOn = MutableSharedFlow<Unit>(extraBufferCapacity = 1, onBufferOverflow = BufferOverflow.DROP_OLDEST)
+
+    /**
+     * What the glucose notification draws besides the hub state: the status-bar settings, the treatments and the graph
+     * settings (the custom card), as one value that changes when any of them does.
+     */
+    val notificationInputs: Flow<NotificationInputs> =
+        combine(
+            settings.flow(SurfaceSettings.StatusChip),
+            settings.flow(SurfaceSettings.NumberIcon),
+            treatments,
+            graphConfig,
+        ) { chip, icon, list, config -> NotificationInputs(chip, icon, list, config) }
+            .distinctUntilChanged()
+            // a failing store must never stop the foreground notification: it goes on with the defaults
+            .catch {
+                android.util.Log.w("Sukrara.monitor", "notification inputs failed: ${it.javaClass.simpleName}")
+                emit(NotificationInputs(chip = true, numberIcon = true, treatments = emptyList(), config = GraphConfig()))
+            }
+
+    /**
+     * Post the glucose notification again even if unchanged: the screen came on (its card isn't drawn while it's off),
+     * or the person swiped it away.
+     */
+    val repostTicks: SharedFlow<Unit> = screenOn
+
+    internal fun repost() {
+        screenOn.tryEmit(Unit)
+    }
+
     /** Channels and the hub's inputs; call from `AppGraph.ready()` (after storage is ready, off the main thread). */
     suspend fun ready() {
         Channels.create(context)
@@ -86,6 +141,14 @@ class MonitorModule(
     }
 }
 
+/** The glucose notification's inputs besides the hub state. */
+data class NotificationInputs(
+    val chip: Boolean,
+    val numberIcon: Boolean,
+    val treatments: List<Treatment>,
+    val config: GraphConfig,
+)
+
 /** The `Application` gives the monitor's Android components (service, receivers) their module. */
 interface MonitorHost {
     val monitor: MonitorModule
@@ -93,5 +156,8 @@ interface MonitorHost {
     /** Completes when the app's storage and modules are ready ([MonitorModule.ready] has run). */
     suspend fun awaitReady()
 }
+
+/** Home left for this long (rotation, a quick switch) keeps the month in memory. */
+private const val HISTORY_STOP_MS = 5_000L
 
 internal val Context.monitorHost: MonitorHost get() = applicationContext as MonitorHost

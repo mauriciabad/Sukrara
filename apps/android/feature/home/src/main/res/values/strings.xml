@@ -6,7 +6,6 @@
     <string name="home_title">Sukrara</string>
     <string name="home_settings">Settings</string>
     <string name="home_add_treatment">Add treatment</string>
-    <string name="home_chart_now">Now</string>
 
     <!-- TalkBack: the card as one sentence ("112 milligrams per decilitre, falling slowly, in range, 2 minutes ago") -->
     <string name="home_a11y_value">%1$s milligrams per decilitre, %2$s, %3$s, %4$s</string>
@@ -121,6 +120,22 @@
     <string name="data_store_keys_text">A saved key or sign-in couldn\'t be read. You may need to sign in, pair or share again.</string>
     <string name="data_store_other_title">Other saved data</string>
     <string name="data_store_other_text">A saved file was reset; Sukrara started it again from empty.</string>
+    <string name="home_chart_back">Back to now</string>
+    <string name="home_chart_earlier">Show earlier</string>
+    <string name="home_chart_later">Show later</string>
+    <string name="home_chart_zoom_in">Zoom in</string>
+    <string name="home_chart_zoom_out">Zoom out</string>
+    <string name="home_pill_replace_sensor">Pair new sensor</string>
+    <string name="home_pill_alert_options">Alert options</string>
+    <string name="home_quiet_lows">Low alerts</string>
+    <string name="home_quiet_highs">High alerts</string>
+    <string name="home_quiet_all">All alerts</string>
+    <string name="home_quiet_taken">Quiet after your treatment, so they don\'t ring while it works.</string>
+    <string name="home_quiet_muted">You muted them on this phone.</string>
+    <string name="home_quiet_all_text">Mute alerts is on: no alert rings on this phone.</string>
+    <string name="home_quiet_anyway">Alert me anyway</string>
+    <string name="home_quiet_settings">Alert settings</string>
+    <string name="home_pair_new_sensor">Pair new sensor</string>
     <!-- Top bar button: share with someone (a new invite) -->
     <string name="home_share">Share with someone</string>
     <!-- Wearer's row without a name yet -->

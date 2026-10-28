@@ -8,6 +8,7 @@ import app.mauri.sukrara.core.model.AlertControls
 import app.mauri.sukrara.core.model.AlertReadinessSource
 import app.mauri.sukrara.core.model.AlertUiState
 import app.mauri.sukrara.core.model.Clock
+import app.mauri.sukrara.core.model.SensorState
 import app.mauri.sukrara.core.model.storage.SettingsRepository
 import kotlinx.coroutines.flow.Flow
 
@@ -38,6 +39,9 @@ interface SettingsDeps {
     val releases: ReleasesSource
 
     val clock: Clock
+
+    /** The wearer's sensor as the hub knows it (Settings › Sensor end shows its end). */
+    val sensor: Flow<SensorState>
 }
 
 /** Reads and changes the alert settings; [update] applies a change to the stored value (never to a stale copy). */

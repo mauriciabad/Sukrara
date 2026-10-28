@@ -55,7 +55,6 @@ import app.mauri.sukrara.feature.sharing.share.ProfilePage
 import app.mauri.sukrara.feature.sharing.share.ShareScreen
 import app.mauri.sukrara.feature.sharing.share.SharingScreen
 import app.mauri.sukrara.feature.sharing.share.SharingViewModel
-import app.mauri.sukrara.monitor.sensorend.AndroidSensorEndPresenter
 import kotlinx.coroutines.flow.first
 import kotlinx.serialization.Serializable
 import app.mauri.sukrara.feature.settings.R as SettingsR
@@ -111,6 +110,8 @@ data class SettingsKey(
             "ranges" -> SettingsRoute.Ranges
             "graph" -> SettingsRoute.Graph
             "reliability" -> SettingsRoute.Reliability
+            "statusbar" -> SettingsRoute.StatusBar
+            "sensorend" -> SettingsRoute.SensorEnd
             "about" -> SettingsRoute.About
             "review" -> SettingsRoute.ThresholdReview
             else -> SettingsRoute.Overview
@@ -125,6 +126,8 @@ data class SettingsKey(
                 SettingsRoute.Ranges -> SettingsKey("ranges")
                 SettingsRoute.Graph -> SettingsKey("graph")
                 SettingsRoute.Reliability -> SettingsKey("reliability")
+                SettingsRoute.StatusBar -> SettingsKey("statusbar")
+                SettingsRoute.SensorEnd -> SettingsKey("sensorend")
                 SettingsRoute.About -> SettingsKey("about")
                 SettingsRoute.ThresholdReview -> SettingsKey("review")
             }
@@ -144,7 +147,7 @@ data object SensorSettingsKey : NavKey
 
 /** Intent actions that open the new-sensor flow: the sensor-end notification's Pair new sensor, other modules' links. */
 fun opensNewSensor(action: String?): Boolean =
-    action == NavTargets.ACTION_SENSOR_SETUP || action == AndroidSensorEndPresenter.ACTION_PAIR_SENSOR
+    action == NavTargets.ACTION_SENSOR_SETUP
 
 /** Invite links (`sukrara:` / `https://sukrara.mauri.app/join…`) open setup's join step. */
 fun isInviteLink(uri: Uri?): Boolean =
@@ -355,6 +358,14 @@ private fun route(
 
         HomeAction.AddTreatment -> {
             open(context, Intent(NavTargets.ACTION_QUICK_TREATMENT)) {}
+        }
+
+        is HomeAction.Treat -> {
+            open(context, Intent(NavTargets.ACTION_QUICK_TREATMENT).putExtra(NavTargets.EXTRA_FOCUS_CARBS, action.carbs)) {}
+        }
+
+        HomeAction.OpenAlertSettings -> {
+            backStack.push(SettingsKey.of(SettingsRoute.Alerts))
         }
 
         HomeAction.EnableBluetooth -> {

@@ -19,6 +19,8 @@ import app.mauri.sukrara.core.model.AlertQuietSide
 import app.mauri.sukrara.core.model.AlertReadiness
 import app.mauri.sukrara.core.model.AlertRequirement
 import app.mauri.sukrara.core.model.AlertUiState
+import app.mauri.sukrara.core.model.SensorEndConfig
+import app.mauri.sukrara.core.model.SensorReminder
 import app.mauri.sukrara.core.model.SensorState
 import app.mauri.sukrara.core.testing.FakeClock
 import app.mauri.sukrara.designsystem.theme.SukraraTheme
@@ -29,6 +31,11 @@ import app.mauri.sukrara.feature.settings.sensor.SensorSettingsState
 import app.mauri.sukrara.feature.settings.sensor.SensorSummary
 import app.mauri.sukrara.feature.settings.sensor.SourceChoice
 import app.mauri.sukrara.feature.settings.sensor.SourceLink
+import app.mauri.sukrara.feature.settings.sensorend.SensorEndActions
+import app.mauri.sukrara.feature.settings.sensorend.SensorEndContent
+import app.mauri.sukrara.feature.settings.sensorend.SensorEndPrefs
+import app.mauri.sukrara.feature.settings.statusbar.StatusBarContent
+import app.mauri.sukrara.feature.settings.statusbar.StatusBarPrefs
 import com.github.takahirom.roborazzi.captureRoboImage
 import org.junit.Rule
 import org.junit.Test
@@ -147,6 +154,33 @@ class SettingsGallery {
                     SensorSettingsActions(),
                 ) {
                 }
+            },
+            "statusbar" to { StatusBarContent(StatusBarPrefs(chip = true, numberIcon = true), true, {}, {}, {}) {} },
+            "statusbar-live-updates-off" to { StatusBarContent(StatusBarPrefs(chip = true, numberIcon = false), false, {}, {}, {}) {} },
+            "statusbar-chip-off" to { StatusBarContent(StatusBarPrefs(chip = false, numberIcon = true), true, {}, {}, {}) {} },
+            "sensorend" to {
+                SensorEndContent(
+                    SensorEndPrefs(SensorEndConfig(), 8, SensorState.Active(now.plusSeconds(86_400 + 3600))),
+                    now,
+                    SensorEndActions(),
+                    onBack = {},
+                )
+            },
+            "sensorend-custom" to {
+                SensorEndContent(
+                    SensorEndPrefs(
+                        SensorEndConfig(
+                            reminders = listOf(SensorReminder(3, 20 * 60), SensorReminder(1, 9 * 60), SensorReminder(0, 7 * 60)),
+                            countdown = false,
+                            evening = false,
+                        ),
+                        4,
+                        SensorState.WarmingUp(now.plusSeconds(1800)),
+                    ),
+                    now,
+                    SensorEndActions(),
+                    onBack = {},
+                )
             },
             "sensor-none" to {
                 SensorSettingsContent(

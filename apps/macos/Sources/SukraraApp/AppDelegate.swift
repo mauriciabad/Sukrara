@@ -22,6 +22,7 @@ public final class AppDelegate: NSObject, NSApplicationDelegate {
     private var windows: WindowCoordinator?
     /// The wearer's mirrored settings while following (nil otherwise).
     private var wearer: WearerSettings?
+    private var settingsPending = false
 
     public init(plan: LaunchPlan) {
         let services = AppServices(plan: plan)
@@ -30,7 +31,8 @@ public final class AppDelegate: NSObject, NSApplicationDelegate {
         store = DefaultsSettingsStore(defaults: services.defaults)
         model = services.model()
         model.unit = store.unit
-        model.graph = GraphConfig.load(from: store, wearer: nil)
+        model.graph = GraphConfig.load(from: store, wearer: nil, place: .menubar)
+        model.widgetGraph = GraphConfig.load(from: store, wearer: nil, place: .widget)
     }
 
     public func applicationDidFinishLaunching(_ notification: Notification) {
@@ -68,6 +70,7 @@ public final class AppDelegate: NSObject, NSApplicationDelegate {
         windows.openPanel = { [weak statusItem] in statusItem?.showPanel() }
         services.permissionChanged = { [weak self] in self?.refreshNotificationPermission() }
         observeSystemTime()
+        observeClockStyle()
         observeNetwork()
         refreshNotificationPermission()
         model.run()
@@ -115,13 +118,26 @@ public final class AppDelegate: NSObject, NSApplicationDelegate {
             NotificationCenter.default.addObserver(
                 forName: UserDefaults.didChangeNotification, object: nil, queue: .main
             ) { [weak self] _ in
-                Task { @MainActor in self?.settingsChanged() }
+                Task { @MainActor in self?.scheduleSettingsChanged() }
             })
         observers.append(
             NotificationCenter.default.addObserver(forName: .NSSystemClockDidChange, object: nil, queue: .main) {
                 [weak self] _ in
                 Task { @MainActor in self?.model.systemTimeChanged() }
             })
+    }
+
+    /// System Settings › 24-hour time or the time zone changed: every time on screen and in the widgets follows.
+    private func observeClockStyle() {
+        for name in Clock.changeNotifications {
+            observers.append(
+                NotificationCenter.default.addObserver(forName: name, object: nil, queue: .main) { [weak self] _ in
+                    Task { @MainActor in
+                        self?.model.clockStyleChanged()
+                        self?.windows?.treatments.clockStyle += 1
+                    }
+                })
+        }
     }
 
     /// The network came back: reconnect the relays now instead of waiting for the pool's watchdog (up to 270 s).
@@ -141,13 +157,25 @@ public final class AppDelegate: NSObject, NSApplicationDelegate {
         if satisfied && networkSatisfied == false { model.networkCameBack() }
     }
 
+    /// Many defaults written together (one Settings edit stores every card setting) are handled once.
+    private func scheduleSettingsChanged() {
+        guard !settingsPending else { return }
+        settingsPending = true
+        Task { @MainActor in
+            settingsPending = false
+            settingsChanged()
+        }
+    }
+
     /// A defaults change (Settings window, another process): the alert rules, the unit and the card follow.
     private func settingsChanged() {
         services.settingsChanged()
-        let graph = GraphConfig.load(from: store, wearer: wearer)
-        let changed = model.unit != store.unit || model.graph != graph
+        let graph = GraphConfig.load(from: store, wearer: wearer, place: .menubar)
+        let widgetGraph = GraphConfig.load(from: store, wearer: wearer, place: .widget)
+        let changed = model.unit != store.unit || model.graph != graph || model.widgetGraph != widgetGraph
         if model.unit != store.unit { model.unit = store.unit }
         if model.graph != graph { model.graph = graph }
+        if model.widgetGraph != widgetGraph { model.widgetGraph = widgetGraph }
         if changed { model.feedWidget(settingsChanged: true) }
     }
 

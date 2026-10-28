@@ -17,12 +17,16 @@ public final class AppModel {
     /// The wearer's readings, oldest first.
     private(set) var readings: [Reading] = []
     private(set) var sensor: SensorInfo?
+    /// The wearer's live treatments as the chart's marks, oldest first.
+    private(set) var marks: [GraphMark] = []
     private(set) var link: LinkState = .notFollowing
     /// The wearer's readings feed the card and the alert rules: following, or following with the Keychain retrying.
     private var monitoring = false
     var unit: GlucoseUnit = .mgdl
     /// The card's settings (bands, hours…): this Mac's, or the wearer's mirrored ones (`GraphConfig.load`).
     var graph = GraphConfig()
+    /// The widgets' card settings: the same, with the Widgets place's own time shown and sensor time left.
+    var widgetGraph = GraphConfig()
     /// "Now" for the card: moved by the freshness ticker at each freshness step, so a value greys and strikes on time.
     private(set) var now: Date
     var notificationPermission: NotificationPermission = .allowed
@@ -96,6 +100,7 @@ public final class AppModel {
                     return AlertTreatment(kind: kind, at: Date(timeIntervalSince1970: TimeInterval(t.t)))
                 })
         }
+        marks = monitoring ? CardAlertsMapping.marks(snapshot.treatments) : []
         sensor = snapshot.sensor.map {
             SensorInfo(start: TimeInterval($0.start), end: TimeInterval($0.end), warmupEnd: TimeInterval($0.warmupEnd))
         }
@@ -116,7 +121,7 @@ public final class AppModel {
         let state =
             "\(monitoring ? "monitoring" : "idle") \(look.state.rawValue) \(data.alerts.status) settings \(widgetSettings)"
         widget.update(
-            WidgetSnapshot(writtenAt: clock.now.timeIntervalSince1970, data: data, config: graph, unit: unit),
+            WidgetSnapshot(writtenAt: clock.now.timeIntervalSince1970, data: data, config: widgetGraph, unit: unit),
             shown: .init(value: look.text ?? "—", state: state))
     }
 
@@ -141,8 +146,24 @@ public final class AppModel {
     var cardData: CardData {
         CardData(
             readings: readings.map { GraphReading(t: $0.t.timeIntervalSince1970, v: Double($0.mgdl), rate: $0.rate) },
-            sensor: sensor, alerts: CardAlertsMapping.of(alerts?.ui ?? .idle, now: now),
-            now: now.timeIntervalSince1970)
+            marks: marks, sensor: sensor,
+            alerts: cardAlerts, now: now.timeIntervalSince1970)
+    }
+
+    /// The card's alert decision: the engine's state, or while mirroring the wearer's alerts the same rules over the
+    /// latest reading (this Mac's engine then runs only no data).
+    private var cardAlerts: CardAlerts {
+        var card = CardAlertsMapping.of(alerts?.ui ?? .idle, settings: alerts?.settings, marks: marks, now: now)
+        if let alerts, alerts.mirroring {
+            let latest = readings.last.map { GlucoseSample(at: $0.t, mgdl: Double($0.mgdl), rate: $0.rate) }
+            card.status = CardAlertsMapping.mirroredStatus(
+                latest: latest, settings: alerts.settings, marks: marks, sideMutes: alerts.mirroredSideMutes(at: now),
+                muteAll: alerts.ui.muteAllUntil, now: now)
+            card.last = CardAlertsMapping.lastTreatment(marks, status: card.status, now: now.timeIntervalSince1970) {
+                card.muteEnds[$0.id]
+            }
+        }
+        return card
     }
 
     /// Nobody is followed and nothing is on its way (not following, declined, revoked, invite used, broken).
@@ -218,6 +239,12 @@ public final class AppModel {
         restartTicker()
     }
 
+    /// The clock's look changed (24-hour time, time zone): the card's times and the widgets are drawn again.
+    func clockStyleChanged() {
+        now = clock.now
+        feedWidget(settingsChanged: true)
+    }
+
     /// The Mac woke: the time moved and the sockets are likely dead; reconnect now instead of after the watchdog.
     func didWake() {
         systemTimeChanged()
@@ -229,22 +256,5 @@ public final class AppModel {
         feeds.forEach { $0.cancel() }
         alerts?.stop()
         if let follower { Task { await follower.stop() } }
-    }
-}
-
-/// The alert engine's state as the card's badge decision (`CardAlerts`): what the card draws under the value.
-enum CardAlertsMapping {
-    static func of(_ ui: AlertUIState, now: Date) -> CardAlerts {
-        let level = ui.active[.level]
-        let side: AlertStatus.Side? = level.map { $0.kind.isBelowThreshold ? .low : .high }
-        let status: AlertStatus
-        switch (side, level?.quiet, ui.muteAllUntil) {
-        case (let s?, .sideMuted(let until)?, _): status = .paused(s, until: until.timeIntervalSince1970)
-        case (let s?, _, let all?): status = .paused(s, until: min(all.timeIntervalSince1970, AlertStatus.never))
-        case (let s?, nil, nil): status = .needed(s)
-        case (nil, _, let all?): status = .muted(until: min(all.timeIntervalSince1970, AlertStatus.never))
-        default: status = .none
-        }
-        return CardAlerts(status: status)
     }
 }
