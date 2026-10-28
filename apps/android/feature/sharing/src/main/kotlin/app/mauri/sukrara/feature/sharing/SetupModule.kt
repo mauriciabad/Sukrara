@@ -67,9 +67,12 @@ class SetupModule(
     val startMonitoring: () -> Unit,
     val readiness: AlertReadinessSource,
     val clock: Clock,
-    /** Following on Android is in this build. */
-    val followerAvailable: Boolean = false,
+    /** The follower role (join, stop following). */
+    val follower: FollowerSharing = FollowerSharing.None,
 ) {
+    /** An invite link opened on this phone before it follows anyone: setup's join step starts with it. */
+    val pendingInvite = kotlinx.coroutines.flow.MutableStateFlow<String?>(null)
+
     /** When the alert thresholds were confirmed (setup or Settings › Alerts), null = never. */
     val alertsConfirmedAt: Flow<Instant?> by lazy {
         settings.flow(THRESHOLDS_CONFIRMED_AT).map { text ->
@@ -99,17 +102,23 @@ class SetupModule(
 
     /** The home "Finish setup" card's items ([FinishSetupCard]); empty before a role and once nothing is left. */
     val finishItems: Flow<List<FinishItem>> by lazy {
-        combine(setupStore.data, roles.role, hub.state, sharing.state, combine(alertsConfirmedAt, readiness.readiness, ::Pair)) {
+        combine(
+            setupStore.data,
+            roles.role,
+            hub.state,
+            combine(sharing.state, follower.state, ::Pair),
+            combine(alertsConfirmedAt, readiness.readiness, ::Pair),
+        ) {
             record,
             role,
             glucose,
-            share,
+            (share, follow),
             (confirmed, checklist),
             ->
             val facts =
                 SetupFacts(
                     role = role,
-                    followerAvailable = followerAvailable,
+                    following = follow.following,
                     ownSensorLive = RestoreGate.ownSensorLive(glucose, clock.now()),
                     hasIdentity = share is OwnerShareState.Sharing || share is OwnerShareState.AnotherAppSharingAsYou,
                     alertsConfirmed = confirmed != null,

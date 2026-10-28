@@ -158,6 +158,9 @@ object NotificationIds {
     const val PEN_CHECK = 21
     const val REQUESTS = 30
 
+    /** What the followed wearer said: invite used, declined, access removed. */
+    const val FOLLOWING = 31
+
     /** Alerts: the `alerts` notification group's summary, then one slot per alert group (level, rate, no data). */
     const val ALERTS_SUMMARY = 1000
     const val ALERTS_BASE = 1001

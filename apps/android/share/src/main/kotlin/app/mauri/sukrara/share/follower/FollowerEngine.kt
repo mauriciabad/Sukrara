@@ -140,7 +140,7 @@ class FollowerEngine(
     /** The wearer's `alert` events, for the follower's own alert runtime (which keeps its mute to itself). One collector. */
     val alerts: Flow<AlertPayload> = _alerts.receiveAsFlow()
 
-    private val _settings = MutableStateFlow<SettingsPayload?>(null)
+    private val latestSettings = MutableStateFlow<SettingsPayload?>(null)
     private val loadedOnce = CompletableDeferred<Unit>()
 
     /**
@@ -150,7 +150,7 @@ class FollowerEngine(
     val wearerSettings: Flow<SettingsPayload?> =
         flow {
             loadedOnce.await()
-            emitAll(_settings)
+            emitAll(latestSettings)
         }
 
     private var record: FollowerRecord? = null
@@ -211,7 +211,7 @@ class FollowerEngine(
         record = r
         follower = StreamFollower(crypto, r.stream)
         persistedAt = now()
-        _settings.value = r.settings
+        latestSettings.value = r.settings
         _sensor.value = sensorState(r.sensor)
         render()
     }
@@ -283,7 +283,7 @@ class FollowerEngine(
             if (!store.save(r)) return@locked JoinResult.KeyStoreFailed
             loaded = true
             treatmentCreatedAt.clear()
-            _settings.value = null
+            latestSettings.value = null
             adopt(r)
             // attached already (a follow that had ended): reconnect with the new key
             sink?.let { out ->
@@ -321,7 +321,7 @@ class FollowerEngine(
             if (deleted) {
                 record = null
                 follower = null
-                _settings.value = null
+                latestSettings.value = null
                 _sensor.value = SensorState.None
                 _status.value = SourceStatus.NotStarted
                 _state.value = FollowState.NotFollowing
@@ -435,7 +435,10 @@ class FollowerEngine(
     private suspend fun filters(): Map<String, RelayFilter> {
         val s = follower?.state ?: return emptyMap()
         val now = now()
-        val out = mutableMapOf(INBOX to RelayFilter(kinds = listOf(Wire.KIND_WRAP), p = listOf(s.follower.public.hex), since = now - 3 * Wire.DAY))
+        val out =
+            mutableMapOf(
+                INBOX to RelayFilter(kinds = listOf(Wire.KIND_WRAP), p = listOf(s.follower.public.hex), since = now - 3 * Wire.DAY),
+            )
         val sid = s.sid
         val identity = s.identity
         if (sid == null || identity == null || s.status != FollowStatus.Active) return out
@@ -444,7 +447,12 @@ class FollowerEngine(
         val devices = s.devices.sorted()
         val newest = readingsRepo.range(Instant.ofEpochSecond(now - 7 * Wire.DAY), Instant.ofEpochSecond(now + Wire.HOUR)).lastOrNull()
         out[CHUNKS] =
-            RelayFilter(kinds = listOf(Wire.KIND_DATA), authors = devices, c = listOf(Wire.glucoseC(sid)), since = chunkSince(newest?.t?.epochSecond, now))
+            RelayFilter(
+                kinds = listOf(Wire.KIND_DATA),
+                authors = devices,
+                c = listOf(Wire.glucoseC(sid)),
+                since = chunkSince(newest?.t?.epochSecond, now),
+            )
         out[LIVE] = RelayFilter(kinds = listOf(Wire.KIND_LIVE, Wire.KIND_ALERT), authors = devices, since = now - 120)
         out[SETTINGS] = RelayFilter(kinds = listOf(Wire.KIND_DATA), authors = devices, d = listOf(Wire.settingsD(sid)))
         out[TREATMENTS] =
@@ -488,7 +496,19 @@ class FollowerEngine(
         var resubscribe = false
         when (result) {
             is FollowResult.Ignored -> {
-                result.rekey?.let { rekey -> r.stream.identity?.let { send(events.gift(r.stream.follower, it, rekey, now(), now() + Wire.TTL_REQUEST)) } }
+                result.rekey?.let { rekey ->
+                    r.stream.identity?.let {
+                        send(
+                            events.gift(
+                                r.stream.follower,
+                                it,
+                                rekey,
+                                now(),
+                                now() + Wire.TTL_REQUEST,
+                            ),
+                        )
+                    }
+                }
             }
 
             is FollowResult.Rejected -> {
@@ -528,7 +548,7 @@ class FollowerEngine(
 
                     is Item.Settings -> {
                         next = next.copy(settings = item.settings)
-                        _settings.value = item.settings
+                        latestSettings.value = item.settings
                     }
 
                     Item.Revoked -> {
@@ -546,8 +566,9 @@ class FollowerEngine(
                 }
             }
         }
-        val trustChanged = before.copy(seen = emptyMap(), rekeyAt = emptyMap(), alertsSeen = emptyMap()) !=
-            f.state.copy(seen = emptyMap(), rekeyAt = emptyMap(), alertsSeen = emptyMap())
+        val trustChanged =
+            before.copy(seen = emptyMap(), rekeyAt = emptyMap(), alertsSeen = emptyMap()) !=
+                f.state.copy(seen = emptyMap(), rekeyAt = emptyMap(), alertsSeen = emptyMap())
         commit(next, force = trustChanged || next.wearer != r.wearer || next.settings != r.settings || next.sensor != r.sensor)
         val out = sink
         if (out != null && transport != null && next.stream.relays.isNotEmpty() && next.stream.relays != relayUrls) {
@@ -600,7 +621,12 @@ class FollowerEngine(
     fun canWrite(): Boolean = record?.canWrite == true
 
     /** F's public key while following (a writer's entries carry it as creator). */
-    fun followerKey(): String? = record?.stream?.follower?.public?.hex
+    fun followerKey(): String? =
+        record
+            ?.stream
+            ?.follower
+            ?.public
+            ?.hex
 
     /**
      * A writer's entry stored on this phone (add / edit / delete): sent at once under the newest epoch, and again on
@@ -618,7 +644,11 @@ class FollowerEngine(
         val s = r.stream
         val sid = s.sid ?: return null
         val newest = s.epochs.values.maxByOrNull { it.n } ?: return null
-        val payload = TreatmentWire.toPayload(entry).copy(origin = TreatmentCodec.ORIGIN_FOLLOWER, primed = null, pen = null, penDoses = null)
+        val payload =
+            TreatmentWire
+                .toPayload(
+                    entry,
+                ).copy(origin = TreatmentCodec.ORIGIN_FOLLOWER, primed = null, pen = null, penDoses = null)
         val at = maxOf(now(), (treatmentCreatedAt[payload.id] ?: 0) + 1)
         treatmentCreatedAt[payload.id] = at
         return events.treatment(s.follower, newest.key.public, sid, payload, at)
@@ -629,7 +659,12 @@ class FollowerEngine(
         treatments
             .changedSince(Instant.ofEpochSecond(now() - Wire.TTL_TREATMENT))
             .filter { it.delivery == TreatmentDelivery.Pending }
-            .forEach { entry -> treatmentEvent(entry)?.let { ev -> pendingEvents[ev.id] = entry.treatment.id; send(ev) } }
+            .forEach { entry ->
+                treatmentEvent(entry)?.let { ev ->
+                    pendingEvents[ev.id] = entry.treatment.id
+                    send(ev)
+                }
+            }
     }
 
     private suspend fun markDelivered(eventId: String) {
@@ -663,7 +698,10 @@ class FollowerEngine(
         val identity = r.stream.identity ?: return
         val now = now()
         if (now - r.historyAskedAt < HISTORY_INTERVAL) return
-        val stored = readingsRepo.range(Instant.ofEpochSecond(now - 13 * Wire.HOUR), Instant.ofEpochSecond(now + Wire.HOUR)).map { it.t.epochSecond }
+        val stored =
+            readingsRepo.range(Instant.ofEpochSecond(now - 13 * Wire.HOUR), Instant.ofEpochSecond(now + Wire.HOUR)).map {
+                it.t.epochSecond
+            }
         val since = missingHours(stored, now)?.minOrNull() ?: return
         send(events.gift(r.stream.follower, identity, Rumor.History(since), now, now + Wire.TTL_HISTORY_REQUEST))
         commit(r.copy(historyAskedAt = now), force = true)
@@ -727,7 +765,14 @@ class FollowerEngine(
         const val TREATMENTS = "treatments"
 
         /** Chunk backfill: an hour before the newest stored reading, at least the last 13 h, at most 7 days. */
-        fun chunkSince(newestStored: Long?, now: Long): Long = maxOf(now - 7 * Wire.DAY, minOf(now - 13 * Wire.HOUR, (newestStored ?: now) - Wire.HOUR))
+        fun chunkSince(newestStored: Long?, now: Long): Long =
+            maxOf(
+                now - 7 * Wire.DAY,
+                minOf(
+                    now - 13 * Wire.HOUR,
+                    (newestStored ?: now) - Wire.HOUR,
+                ),
+            )
 
         /** Hour starts of the last 12 whole hours without a stored reading; null while the newest is > 15 min old. */
         fun missingHours(stored: List<Long>, now: Long): List<Long>? {

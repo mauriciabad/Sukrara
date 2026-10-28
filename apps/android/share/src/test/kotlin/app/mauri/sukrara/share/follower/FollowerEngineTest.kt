@@ -102,7 +102,10 @@ class FollowerEngineTest {
     /** The wearer receives [request] and approves it: what it publishes. */
     private fun approve(request: SignedEvent): Pair<OwnerState, List<SignedEvent>> {
         val handled = HandleInbox(ctx)(created.step.state, request, NOW)
-        val follower = handled.step.state.pending.single().follower
+        val follower =
+            handled.step.state.pending
+                .single()
+                .follower
         val step = ApproveRequest(ctx)(handled.step.state, follower, NOW)!!
         return step.state to step.publish
     }
@@ -167,7 +170,10 @@ class FollowerEngineTest {
             assertEquals(FollowStatus.Active, s.status)
             assertTrue(relay.subscriptions.keys.containsAll(listOf(FollowerEngine.CHUNKS, FollowerEngine.LIVE, FollowerEngine.TREATMENTS)))
 
-            val live = PublishReadings(ctx).onReadings(wearer, listOf(Reading(Instant.ofEpochSecond(NOW - 30), 123, 0.5, SourceId.Libre3)), NOW)
+            val live =
+                PublishReadings(
+                    ctx,
+                ).onReadings(wearer, listOf(Reading(Instant.ofEpochSecond(NOW - 30), 123, 0.5, SourceId.Libre3)), NOW)
             deliverAll(live.filter { it.kind == Wire.KIND_LIVE })
             runCurrent()
             assertEquals(listOf(123), received.flatten().map { it.mgdl })
@@ -183,7 +189,10 @@ class FollowerEngineTest {
             deliverAll(published)
             runCurrent()
             val forged = wearer.copy(deviceHex = crypto.generate().secret.revealHex())
-            val live = PublishReadings(ctx).onReadings(forged, listOf(Reading(Instant.ofEpochSecond(NOW - 30), 40, null, SourceId.Libre3)), NOW)
+            val live =
+                PublishReadings(
+                    ctx,
+                ).onReadings(forged, listOf(Reading(Instant.ofEpochSecond(NOW - 30), 40, null, SourceId.Libre3)), NOW)
             deliverAll(live.filter { it.kind == Wire.KIND_LIVE })
             runCurrent()
             assertTrue(received.isEmpty())
@@ -194,7 +203,14 @@ class FollowerEngineTest {
             val e = engine()
             val request = joined(e)
             val handled = HandleInbox(ctx)(created.step.state, request, NOW)
-            val denied = DenyRequest(ctx)(handled.step.state, handled.step.state.pending.single().follower, NOW)!!
+            val denied =
+                DenyRequest(ctx)(
+                    handled.step.state,
+                    handled.step.state.pending
+                        .single()
+                        .follower,
+                    NOW,
+                )!!
             clock.instant = (Instant.ofEpochSecond(NOW + 5))
             deliverAll(denied.publish)
             runCurrent()
@@ -232,7 +248,16 @@ class FollowerEngineTest {
             assertTrue(e.canWrite())
             val entry =
                 TreatmentRecord(
-                    Treatment("t1", TreatmentKind.Carbs, 20.0, Instant.ofEpochSecond(NOW), "", Instant.ofEpochSecond(NOW + 2), false, TreatmentOrigin.Follower),
+                    Treatment(
+                        "t1",
+                        TreatmentKind.Carbs,
+                        20.0,
+                        Instant.ofEpochSecond(NOW),
+                        "",
+                        Instant.ofEpochSecond(NOW + 2),
+                        false,
+                        TreatmentOrigin.Follower,
+                    ),
                     creator = follower,
                     delivery = TreatmentDelivery.Pending,
                 )
@@ -254,7 +279,10 @@ class FollowerEngineTest {
             val (wearer, published) = approve(joined(e))
             deliverAll(published)
             runCurrent()
-            val live = PublishReadings(ctx).onReadings(wearer, listOf(Reading(Instant.ofEpochSecond(NOW - 30), 123, 0.5, SourceId.Libre3)), NOW)
+            val live =
+                PublishReadings(
+                    ctx,
+                ).onReadings(wearer, listOf(Reading(Instant.ofEpochSecond(NOW - 30), 123, 0.5, SourceId.Libre3)), NOW)
             deliverAll(live.filter { it.kind == Wire.KIND_LIVE })
             runCurrent()
             readings.upsert(received.flatten())
@@ -281,7 +309,12 @@ class FollowerEngineTest {
             assertNotNull(secure.read(FollowerStore.NAME))
             val record = FollowerCodec.decode(crypto, secure.read(FollowerStore.NAME)!!.decodeToString())!!
             // the record never prints a key
-            assertFalse(record.toString().contains(record.stream.follower.secret.revealHex()))
+            assertFalse(
+                record.toString().contains(
+                    record.stream.follower.secret
+                        .revealHex(),
+                ),
+            )
         }
 
     @Test fun missingHoursOnlyWhileTheStreamIsLive() {

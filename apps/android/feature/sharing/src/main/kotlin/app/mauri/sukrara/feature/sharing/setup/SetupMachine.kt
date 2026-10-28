@@ -14,6 +14,9 @@ import kotlinx.serialization.Serializable
 enum class SetupStep {
     Welcome,
     Role,
+
+    /** Follower only: join with the wearer's invite link (not skippable: following is the role). */
+    Join,
     Permissions,
 
     Sensor,
@@ -22,7 +25,7 @@ enum class SetupStep {
     ;
 
     /** Welcome and Role can't be skipped: the app does nothing useful without a role. Every other step can. */
-    val skippable: Boolean get() = this != Welcome && this != Role
+    val skippable: Boolean get() = this != Welcome && this != Role && this != Join
 }
 
 /**
@@ -40,8 +43,8 @@ data class SetupRecord(
 data class SetupFacts(
     /** The phone's role (its own store); null = not chosen yet. */
     val role: Role?,
-    /** Following on Android exists in this build. */
-    val followerAvailable: Boolean,
+    /** This phone follows someone (joined; not declined, used up or removed). */
+    val following: Boolean = false,
     /** A live reading from this phone's own sensor ([RestoreGate.ownSensorLive]). */
     val ownSensorLive: Boolean,
     /** This phone already has a sharing identity (restored or started fresh). */
@@ -67,9 +70,6 @@ enum class FinishItem(val step: SetupStep) {
 enum class RoleRefusal {
     /** P10: the role is chosen only after the person confirmed what it means. */
     NotConfirmed,
-
-    /** Following on Android isn't in this build yet: setup stays on the role step. */
-    FollowerNotAvailable,
 }
 
 /**
@@ -79,10 +79,8 @@ enum class RoleRefusal {
 object SetupMachine {
     fun steps(facts: SetupFacts): List<SetupStep> =
         when (facts.role) {
-            // follower join adds its own step here
-            Role.Follower -> listOf(SetupStep.Welcome, SetupStep.Role, SetupStep.Permissions, SetupStep.Alerts)
-
-            Role.Wearer, null -> SetupStep.entries
+            Role.Follower -> listOf(SetupStep.Welcome, SetupStep.Role, SetupStep.Join, SetupStep.Permissions, SetupStep.Alerts)
+            Role.Wearer, null -> SetupStep.entries - SetupStep.Join
         }
 
     /** The step to show now, or null when setup is over (home). Resumes exactly where the person left. */
@@ -97,23 +95,33 @@ object SetupMachine {
         record: SetupRecord,
         facts: SetupFacts,
     ): Boolean =
-        step in record.completed ||
-            (facts.role != null && (step == SetupStep.Welcome || step == SetupStep.Role)) ||
-            (step == SetupStep.Alerts && facts.alertsConfirmed)
+        // joined, and the person moved on from the waiting screen (its code); a follow that ended asks again
+        if (step == SetupStep.Join) {
+            facts.following && step in record.completed
+        } else {
+            step in record.completed ||
+                (facts.role != null && (step == SetupStep.Welcome || step == SetupStep.Role)) ||
+                (step == SetupStep.Alerts && facts.alertsConfirmed)
+        }
 
     fun completeWelcome(record: SetupRecord): SetupRecord = record.done(SetupStep.Welcome)
 
-    /** P10: the role to store, or why not: refused until [confirmed]; follower refused while it isn't in this build. */
+    /** P10: the role to store, or why not: refused until [confirmed]. */
     fun chooseRole(
         role: Role,
         confirmed: Boolean,
         facts: SetupFacts,
     ): Result<Role, RoleRefusal> =
         when {
-            role == Role.Follower && !facts.followerAvailable -> Result.Refused(RoleRefusal.FollowerNotAvailable)
             !confirmed -> Result.Refused(RoleRefusal.NotConfirmed)
             else -> Result.Done(role)
         }
+
+    /** The join step is done once this phone follows someone (the request may still be waiting). */
+    fun completeJoin(
+        record: SetupRecord,
+        facts: SetupFacts,
+    ): SetupRecord = if (facts.following) record.done(SetupStep.Join) else record
 
     /** The checklist step is done (missing items stay on the home reliability row). */
     fun completePermissions(record: SetupRecord): SetupRecord = record.done(SetupStep.Permissions)

@@ -20,8 +20,9 @@ import app.mauri.sukrara.feature.sharing.R
 import kotlinx.coroutines.launch
 
 /**
- * An invite link opened on this phone. Following from an Android phone isn't in this version, so it says where the
- * link works (Sukrara for Mac) and offers Copy link; Back leaves. Nothing is sent and the invite stays unused.
+ * An invite link opened on a phone that can't use it to follow (it wears the sensor, or already follows someone): says
+ * the link is for the device that will follow and offers Copy link; Back leaves. Nothing is sent and the invite stays
+ * unused. A phone that can follow opens setup's join step with the link instead.
  */
 @Composable
 fun InviteHereScreen(

@@ -144,7 +144,14 @@ internal object FollowerCodec {
             put("creators", JsonObject(s.creators.mapValues { JsonPrimitive(it.value) }))
             put(
                 "held",
-                JsonObject(s.held.mapValues { (_, v) -> buildJsonArray { add(JsonPrimitive(v.first)); add(JsonPrimitive(v.second)) } }),
+                JsonObject(
+                    s.held.mapValues { (_, v) ->
+                        buildJsonArray {
+                            add(JsonPrimitive(v.first))
+                            add(JsonPrimitive(v.second))
+                        }
+                    },
+                ),
             )
             put(
                 "alertsSeen",
@@ -195,7 +202,8 @@ internal object FollowerCodec {
                 o["epochs"]!!.jsonArray.associate { e ->
                     val eo = e.jsonObject
                     val key = SecretKey.ofHex(eo.str("g")!!)?.let(crypto::keyPair) ?: return null
-                    app.mauri.sukrara.protocol.Wire.gk(key.public) to Epoch(eo.int("n")!!, key)
+                    app.mauri.sukrara.protocol.Wire
+                        .gk(key.public) to Epoch(eo.int("n")!!, key)
                 }
             val stream =
                 FollowerState(
@@ -214,16 +222,20 @@ internal object FollowerCodec {
                     settingsU = o.long("settingsU") ?: -1,
                     creators = o["creators"]?.jsonObject?.mapValues { it.value.jsonPrimitive.content }.orEmpty(),
                     held =
-                        o["held"]?.jsonObject?.mapValues { (_, v) ->
-                            val a = v.jsonArray
-                            a[0].jsonPrimitive.longOrNull!! to a[1].jsonPrimitive.content
-                        }.orEmpty(),
+                        o["held"]
+                            ?.jsonObject
+                            ?.mapValues { (_, v) ->
+                                val a = v.jsonArray
+                                a[0].jsonPrimitive.longOrNull!! to a[1].jsonPrimitive.content
+                            }.orEmpty(),
                     alertsSeen =
-                        o["alertsSeen"]?.jsonArray?.associate { e ->
-                            val a = e.jsonArray
-                            Triple(a[0].jsonPrimitive.content, a[1].jsonPrimitive.booleanOrNull!!, a[2].jsonPrimitive.intOrNull!!) to
-                                a[3].jsonPrimitive.longOrNull!!
-                        }.orEmpty(),
+                        o["alertsSeen"]
+                            ?.jsonArray
+                            ?.associate { e ->
+                                val a = e.jsonArray
+                                Triple(a[0].jsonPrimitive.content, a[1].jsonPrimitive.booleanOrNull!!, a[2].jsonPrimitive.intOrNull!!) to
+                                    a[3].jsonPrimitive.longOrNull!!
+                            }.orEmpty(),
                     lastKeyAt = o.long("lastKeyAt") ?: 0,
                     revokedAt = o.long("revokedAt") ?: 0,
                 )

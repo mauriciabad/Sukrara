@@ -33,6 +33,7 @@ import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.navigation3.ui.NavDisplay
 import app.mauri.sukrara.alerts.AlertKind
 import app.mauri.sukrara.core.model.NavTargets
+import app.mauri.sukrara.core.model.Role
 import app.mauri.sukrara.feature.home.DataProblemScreen
 import app.mauri.sukrara.feature.home.HomeAction
 import app.mauri.sukrara.feature.home.HomeScreen
@@ -45,6 +46,9 @@ import app.mauri.sukrara.feature.settings.SettingsRoute
 import app.mauri.sukrara.feature.settings.SettingsScreen
 import app.mauri.sukrara.feature.settings.sensor.SensorSettingsScreen
 import app.mauri.sukrara.feature.settings.sensor.SensorSettingsViewModel
+import app.mauri.sukrara.feature.sharing.follower.FollowingPage
+import app.mauri.sukrara.feature.sharing.follower.FollowingViewModel
+import app.mauri.sukrara.feature.sharing.following
 import app.mauri.sukrara.feature.sharing.setup.SetupScreen
 import app.mauri.sukrara.feature.sharing.setup.SetupStep
 import app.mauri.sukrara.feature.sharing.setup.SetupViewModel
@@ -56,6 +60,7 @@ import app.mauri.sukrara.feature.sharing.share.ShareScreen
 import app.mauri.sukrara.feature.sharing.share.SharingScreen
 import app.mauri.sukrara.feature.sharing.share.SharingViewModel
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import kotlinx.serialization.Serializable
 import app.mauri.sukrara.feature.settings.R as SettingsR
 import app.mauri.sukrara.feature.sharing.R as SharingR
@@ -74,7 +79,7 @@ data object SharingRoute : NavKey
 @Serializable
 data object ShareRoute : NavKey
 
-/** An invite link opened on this phone: where it works (following from Android isn't in this version). */
+/** An invite link opened on a phone that can't follow with it (it wears the sensor, or follows someone already). */
 @Serializable
 data class InviteHereRoute(
     val link: String,
@@ -149,7 +154,7 @@ data object SensorSettingsKey : NavKey
 fun opensNewSensor(action: String?): Boolean =
     action == NavTargets.ACTION_SENSOR_SETUP
 
-/** Invite links (`sukrara:` / `https://sukrara.mauri.app/join…`) open setup's join step. */
+/** Invite links (`sukrara:` / `https://sukrara.mauri.app/join…`) open setup's join step (or say where they work). */
 fun isInviteLink(uri: Uri?): Boolean =
     uri != null &&
         (uri.scheme == "sukrara" || (uri.scheme == "https" && uri.host == "sukrara.mauri.app" && uri.path.orEmpty().startsWith("/join")))
@@ -187,7 +192,26 @@ fun SukraraNavigation(
         val link = deepLink?.toString()
         if (link != null && isInviteLink(deepLink) && link != handledLink) {
             handledLink = link
-            backStack.push(InviteHereRoute(link))
+            val role =
+                graph.role.data
+                    .first()
+                    .role
+            val follow = graph.follower.engine.state.value
+            if (role == Role.Wearer || (role == Role.Follower && follow.following)) {
+                backStack.push(InviteHereRoute(link))
+            } else {
+                // a phone that can follow: setup's join step starts with the link (the role step first if none yet)
+                graph.setup.pendingInvite.value = link
+                if (role ==
+                    Role.Follower
+                ) {
+                    backStack.push(SetupStepRoute(SetupStep.Join))
+                } else if (SetupRoute !in
+                    backStack
+                ) {
+                    backStack.add(SetupRoute)
+                }
+            }
         }
     }
     val context = LocalContext.current
@@ -207,6 +231,23 @@ fun SukraraNavigation(
                     }
                     entry<SharingRoute> {
                         val close = { backStack.pop(SharingRoute) }
+                        val role by graph.role.data
+                            .map { it.role }
+                            .collectAsStateWithLifecycle(null)
+                        if (role == Role.Follower) {
+                            SettingsPage(stringResource(SharingR.string.sh_following_title), close, scroll = false) {
+                                FollowingPage(
+                                    viewModel = viewModel(factory = FollowingViewModel.factory(graph.setup.follower)),
+                                    onJoinAgain = { backStack.push(SetupStepRoute(SetupStep.Join)) },
+                                    // the role is cleared: setup again, on top of home
+                                    onLeft = {
+                                        backStack.retainAll { it == HomeRoute }
+                                        backStack.add(SetupRoute)
+                                    },
+                                )
+                            }
+                            return@entry
+                        }
                         // the settings page's title and Back (system / predictive back comes with NavDisplay)
                         SettingsPage(stringResource(SettingsR.string.st_sharing), close, scroll = false) {
                             SharingScreen(
