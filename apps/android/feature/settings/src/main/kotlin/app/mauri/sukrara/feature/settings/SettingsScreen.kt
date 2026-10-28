@@ -95,6 +95,7 @@ fun SettingsScreen(
             val readiness by deps.readiness.readiness.collectAsStateWithLifecycle()
             val apps by deps.appsShared.collectAsStateWithLifecycle(emptySet())
             val clinic by deps.clinicBanner.collectAsStateWithLifecycle(false)
+            val closedTips by deps.closedTips.collectAsStateWithLifecycle(0)
             LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { deps.readiness.refresh() }
             SettingsOverviewContent(
                 ui?.settings?.on ?: true,
@@ -109,10 +110,13 @@ fun SettingsScreen(
                     unmuteAll = vm::unmuteAll,
                     openClinicUpload = openClinicUpload,
                     dismissClinicBanner = deps::dismissClinicBanner,
+                    restoreClinicBanner = deps::restoreClinicBanner,
+                    restoreClosedTips = deps::restoreClosedTips,
                     pens = deps.pensAvailable(),
                 ),
                 apps,
                 clinic,
+                closedTips,
                 onBack,
             )
         }

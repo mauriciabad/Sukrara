@@ -212,6 +212,9 @@ class AppGraph(
                     set == false && !memory.dismissed(BannerKind.ShareWithClinic, clock.now())
                 },
             dismissClinicBanner = { scope.launch { home.bannerMemory.update { it.dismiss(BannerKind.ShareWithClinic, clock.now()) } } },
+            restoreClinicBanner = { scope.launch { home.bannerMemory.update { it.restore(BannerKind.ShareWithClinic) } } },
+            closedTips = home.bannerMemory.data.map { it.closed },
+            restoreClosedTips = { scope.launch { home.bannerMemory.update { it.restoreAll() } } },
             alertPlayback =
                 object : AlertPlayback {
                     override fun play(

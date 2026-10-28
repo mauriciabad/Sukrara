@@ -529,9 +529,20 @@ Android (`apps/android/monitor` `systemui/SystemAccess`, `SystemUiTest`): Settin
 
 ## Closed tips
 
-Android, both roles (round f33, the user: closed tips never came back; `features/Tips.kt`, `ui/TipsUi.kt`, tests `TipsTest`, `TipsGallery`). Every card with a close button is a `Tips.Tip` in one registry: *Share your data with your clinic*, *Put your glucose on the home screen* and *Restart System UI*; each keeps its closed state where it always did (`FeatureState.uploadBannerDismissed`, `widget-banner` prefs, `system_access` prefs). The close buttons go through `Tips.close`, which shows an M3 snackbar *Tip closed* with the action *Undo* (es *Consejo cerrado*, *Deshacer*; long duration, which Android stretches for users who set *Time to take action*; over home or the settings overview, wherever the card was closed); *Undo* puts the card back at once. Settings overview (wearer and follower, above *Advanced*, a lightbulb icon): *Show closed tips* with *2 tips closed* (es *Mostrar consejos cerrados*, *2 consejos cerrados*) brings every closed card back; while none is closed it is greyed out with *No closed tips*. A card that comes back shows only where its own conditions hold (no clinic upload set up, no graph widget placed, System UI behind). `TipsTest` closes and restores every `Tip` through the real stores, one at a time, and fails when a home card's close button doesn't go through `Tips.close` (a closable card outside the registry couldn't be restored). Mac: none (the dropdown has no closable tip cards, so there is nothing for *Show closed tips* to bring back).
+Android, both roles (`:feature:home` `banners/HomeBanners.kt` `BannerMemory`, typed state `home-banners`; tests
+`BannerSlotTest`). Home's info tips (*Back up your account*, *Put your glucose on the home screen*, *Share your data
+with your clinic*, *Finish setup*'s *Later*) and the Settings overview's *Share your data with your clinic* banner close
+into one memory. Every close shows a snackbar *Tip closed. Settings › Show closed tips brings it back.* with *Undo* (es
+*Consejo cerrado…*, *Deshacer*), over home or the settings overview wherever it was closed; *Undo* puts the tip back at
+once. The Settings overview (wearer and follower, above *About*) shows *Show closed tips* with *2 tips closed* while any
+tip is closed (Finish setup's *Later* doesn't count: it comes back after a day by itself); a tap brings every closed tip
+back (snackbar *Closed tips will show again where they apply*) and the row goes away. A tip that comes back shows only
+where its own conditions hold (no clinic upload set up, no widget placed, …). Safety banners can't be closed. Mac: none
+(the dropdown has no closable tips).
 
-**States and exits**: *Tip shown* → its close button (TalkBack *Dismiss*) closes it. *Just closed* → the snackbar's *Undo* (a TalkBack-focusable button) brings it back; the snackbar leaves by itself or with a swipe. *Closed* → Settings → *Show closed tips* brings every closed tip back; nothing closed → the row is unavailable (*No closed tips*).
+**States and exits**: *Tip shown* → its close button (TalkBack *Dismiss*) closes it. *Just closed* → the snackbar's
+*Undo* (a TalkBack-focusable button) brings it back; the snackbar leaves by itself or with its close button. *Closed* →
+Settings → *Show closed tips* brings every closed tip back; nothing closed → the row isn't shown.
 
 ## Sensor scan: other sensors
 

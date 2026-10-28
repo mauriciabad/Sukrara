@@ -124,6 +124,14 @@
     <string name="st_apps_libreview" translatable="false">LibreView</string>
     <string name="st_apps_nightscout">Nightscout upload</string>
     <string name="st_apps_xdrip">xDrip+ server</string>
+    <string name="st_show_closed_tips">Show closed tips</string>
+    <plurals name="st_closed_tips">
+        <item quantity="one">%1$d tip closed</item>
+        <item quantity="other">%1$d tips closed</item>
+    </plurals>
+    <string name="st_tip_closed">Tip closed. Show closed tips brings it back.</string>
+    <string name="st_tips_shown">Closed tips will show again where they apply</string>
+    <string name="st_undo">Undo</string>
     <string name="st_about_title">About</string>
     <string name="st_about_version">Version</string>
     <string name="st_update_checking">Checking for updates…</string>

@@ -61,6 +61,15 @@ interface SettingsDeps {
     /** *Share your data with your clinic*: Dismiss (on home too). */
     fun dismissClinicBanner() {}
 
+    /** Undo on the "Tip closed" snackbar after [dismissClinicBanner]. */
+    fun restoreClinicBanner() {}
+
+    /** How many tips (home's and this one) are closed: *Show closed tips* shows while any is. */
+    val closedTips: Flow<Int> get() = flowOf(0)
+
+    /** *Show closed tips*: every closed tip can show again. */
+    fun restoreClosedTips() {}
+
     /** An alert's sound preview and *Send a test alert* (the alert runtime's notifier); nothing in screenshots. */
     val alertPlayback: AlertPlayback get() = AlertPlayback.None
 }

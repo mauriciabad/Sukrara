@@ -38,6 +38,9 @@ class SettingsModule(
     pensAvailable: () -> Boolean = { false },
     clinicBanner: Flow<Boolean> = flowOf(false),
     dismissClinicBanner: () -> Unit = {},
+    restoreClinicBanner: () -> Unit = {},
+    closedTips: Flow<Int> = flowOf(0),
+    restoreClosedTips: () -> Unit = {},
 ) {
     val deps: SettingsDeps =
         object : SettingsDeps {
@@ -60,6 +63,12 @@ class SettingsModule(
             override fun pensAvailable() = pensAvailable()
 
             override fun dismissClinicBanner() = dismissClinicBanner()
+
+            override fun restoreClinicBanner() = restoreClinicBanner()
+
+            override val closedTips = closedTips
+
+            override fun restoreClosedTips() = restoreClosedTips()
         }
 
     /** When the alert thresholds were confirmed (null = never): home's Finish-setup card asks until they are. */
