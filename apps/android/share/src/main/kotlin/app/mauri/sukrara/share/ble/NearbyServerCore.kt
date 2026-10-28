@@ -33,6 +33,9 @@ class NearbyServerCore(
 
         /** Active followers' keys: an identity proof can name only one of them. */
         fun followers(): Collection<PublicKeyHex>
+
+        /** *Pair nearby* while open and unexpired: INFO then carries `i`, `relays` and `pair` (B§7.3). */
+        fun pairing(): BleMessages.Pairing? = null
     }
 
     sealed interface Effect {
@@ -280,7 +283,7 @@ class NearbyServerCore(
         wraps.removeAll { it.isExpired(now) }
         if (roster?.isExpired(now) == true) roster = null
         if (live?.isExpired(now) == true) live = null
-        enqueue(p, BleMessages.info(sid, nonce, null, now), urgent = true)
+        enqueue(p, BleMessages.info(sid, nonce, host.pairing(), now), urgent = true)
         val ordered = listOfNotNull(roster) + others.values + treatments.values + listOfNotNull(live) + wraps
         ordered.forEach { enqueue(p, BleMessages.event(it)) }
         return pump(peer, p)

@@ -70,6 +70,21 @@ object BleMessages {
             },
         )
 
+    /**
+     * The *Pair nearby* offer in an INFO body (B§7.3): the wearer's identity `i`, its `wss://` relays, the invite token
+     * and expiry and the wearer's profile. null when there is none, it's malformed or expired at [now].
+     */
+    fun pairing(info: JsonObject, now: Long): Pairing? {
+        val identity = (info["i"] as? JsonPrimitive)?.content?.let(PublicKeyHex::parse) ?: return null
+        val pair = info["pair"] as? JsonObject ?: return null
+        val token = (pair["t"] as? JsonPrimitive)?.content?.takeIf { TOKEN.matches(it) } ?: return null
+        val expiry = (pair["x"] as? JsonPrimitive)?.content?.toLongOrNull()?.takeIf { it > now } ?: return null
+        val relays = (info["relays"] as? JsonArray)?.mapNotNull { (it as? JsonPrimitive)?.content }.orEmpty()
+        return Pairing(identity, Wire.secureRelays(relays), token, expiry, Profile.of(pair["profile"]))
+    }
+
+    private val TOKEN = Regex("[A-Za-z0-9_-]{16,64}")
+
     private fun message(type: String, body: JsonElement): ByteArray =
         buildJsonArray {
             add(JsonPrimitive(type))

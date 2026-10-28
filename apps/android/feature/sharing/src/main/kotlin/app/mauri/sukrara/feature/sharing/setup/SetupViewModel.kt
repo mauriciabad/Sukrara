@@ -15,8 +15,11 @@ import app.mauri.sukrara.feature.sharing.SetupModule
 import app.mauri.sukrara.feature.sharing.following
 import app.mauri.sukrara.protocol.event.Avatar
 import app.mauri.sukrara.protocol.event.Profile
+import app.mauri.sukrara.share.ble.NearbyStatus
 import app.mauri.sukrara.share.follower.FollowState
 import app.mauri.sukrara.share.follower.JoinResult
+import app.mauri.sukrara.share.follower.NearbyOffer
+import app.mauri.sukrara.share.follower.NearbySearch
 import app.mauri.sukrara.share.owner.OwnerShareState
 import app.mauri.sukrara.share.owner.usecase.RestoreIdentity
 import kotlinx.coroutines.CancellationException
@@ -25,6 +28,9 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -70,6 +76,8 @@ data class SetupUi(
     val join: JoinUi = JoinUi.Idle,
     /** An invite link opened on this phone: the join step's field starts with it. */
     val invite: String? = null,
+    /** *Find phones nearby* while it looks (null = not looking). */
+    val nearby: NearbySearch? = null,
     val busy: Boolean,
     /** Opened from the Finish-setup card: one step, then home. */
     val single: Boolean,
@@ -278,6 +286,61 @@ class SetupViewModel(
             if (result == JoinResult.Joined) m.pendingInvite.value = null
         }
     }
+
+    /** null = not looking; each new number starts a fresh search (after Bluetooth or the permission came back). */
+    private val searching = MutableStateFlow<Int?>(null)
+
+    /** *Find phones nearby*: Bluetooth looks only while the join step shows the list. */
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    val nearbySearch: StateFlow<NearbySearch?> =
+        searching
+            .flatMapLatest { on ->
+                if (on !=
+                    null
+                ) {
+                    m.follower.findNearby().onStart { emit(NearbySearch(NearbyStatus.Searching, emptyList())) }
+                } else {
+                    flowOf(null)
+                }
+            }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    fun findNearby(on: Boolean) {
+        searching.value = if (on) (searching.value ?: 0) + 1 else null
+        clearJoinError()
+    }
+
+    /** Bluetooth turned on / Nearby devices allowed: a running search starts again. */
+    fun refreshNearby() {
+        searching.value?.let { searching.value = it + 1 }
+    }
+
+    /** Asks the wearer whose phone offered *Pair nearby*; the search stops (the follow's own link takes over). */
+    fun joinNearby(
+        offer: NearbyOffer,
+        name: String,
+    ) {
+        if (joining.value == JoinUi.Busy) return
+        viewModelScope.launch {
+            joining.value = JoinUi.Busy
+            searching.value = null
+            val result =
+                try {
+                    m.follower.joinNearby(offer, profileFor(name))
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (_: Exception) {
+                    JoinResult.Offline
+                }
+            joining.value = if (result == JoinResult.Joined) JoinUi.Idle else JoinUi.Failed(result)
+        }
+    }
+
+    private fun profileFor(name: String) =
+        name
+            .trim()
+            .take(Profile.MAX_NAME)
+            .takeIf { it.isNotEmpty() }
+            ?.let { Profile(it, Avatar.random(SecureRandom())) }
 
     fun clearJoinError() {
         if (joining.value is JoinUi.Failed) joining.value = JoinUi.Idle

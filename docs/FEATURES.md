@@ -31,7 +31,8 @@ Rules: [poc/spikes/alerts/SPEC.md](../poc/spikes/alerts/SPEC.md); timelines: [po
 - "Very low" (id `very_low`) replaced "urgent low" everywhere (settings JSON, channels, sounds, events); no migration.
 - Level alerts: one at a time, the most severe wins; a worse kind of the same side alerts at once; getting better
   (very low → low) doesn't alert.
-- Rate alerts (falling/rising fast) run next to level alerts; no data runs on a timer and clears on the next reading. The Android timer is an elapsed-time alarm, so a clock change (`TIME_SET`) re-checks at once and plans it again (round 22: with the clock moved forward the old high stayed up and no "no data" came; a real gap alerts on time, scenario *A high with no more readings…*).
+- Rate alerts (falling/rising fast) run next to level alerts; a reading without a rate (a LO / HI has none) keeps an
+  open falling / rising fast as it is (alert up, repeat due, a Mute not back by it): a LO isn't a sign the fall stopped; no data runs on a timer and clears on the next reading. The Android timer is an elapsed-time alarm, so a clock change (`TIME_SET`) re-checks at once and plans it again (round 22: with the clock moved forward the old high stayed up and no "no data" came; a real gap alerts on time, scenario *A high with no more readings…*).
 - Readings older than 15 min never alert; the alert clears when the reading gets that old.
 - Episodes: one per group and side; a brief exit (back in range for less than the repeat interval, at least 5 min)
   clears the notification but keeps the episode, its repeat count and its treatments; no new "first" alert.
@@ -63,7 +64,7 @@ Rules: [poc/spikes/alerts/SPEC.md](../poc/spikes/alerts/SPEC.md); timelines: [po
   - *Side relaxed*: Android chip under the card *Low reminders every 30 min* (es *Avisos de glucosa baja cada 30 min*), the notification's **Remind as usual**, sheet / Active now; Mac panel row, pill menu, Active now. Out: Remind as usual (an overdue repeat at once), back by the margin.
   - *Muted + relaxed*: both lines and both exits; the margin ends both.
   - *All alerts muted (time / Never)*: Android under the card *Alerts muted · 1 h 12 min left* (counting down) / *Alerts muted until you turn it off* (es *Alertas silenciadas · quedan 1 h 12 min* / *… hasta que lo desactives*) with **Unmute** (es *Reactivar*) and **Change**, the muted pill everywhere, Active now, TalkBack actions on the card (*Alerts: Unmute*, *Alerts: Change time*); Mac dropdown row with **Unmute** and **Change Time**, the menu bar's bell.slash (tooltip and VoiceOver *Alerts muted …*), the pill's menu, Settings › Alerts › Active now. Out: Unmute (what matches alerts at once), its end (never with Never), Change.
-  - History lines (Android; the Mac logs them): *Low alerts muted for 1 h*, *Low reminders every 30 min*, *Low alerts unmuted*, *Low reminders as usual (every 5 min)*, *Low back in range: alerts as usual*, *All alerts muted for 2 h* / *… until you turn it off*, *Alerts unmuted*.
+  - History lines (Android; the Mac logs them): Settings › Alerts › **Lately** lists the newest 5 of the last 24 h with their time (es *Últimamente*): *Low · 66 mg/dL* (an alert's first ring; repeats and silent re-posts after a restart aren't lines; *(from the wearer)* when mirrored), *High cleared* (the rules ended it, not a mute), *Low alerts muted for 30 min*, *Low alerts unmuted*, *Low alerts: remind less* / *remind as usual*, *Low back in range: alerts as usual*, *All alerts muted for 2 h* / *… until you turn it off*, *Alerts unmuted*. The runtime keeps the last 20 lines in the alert record (`AlertNotes`, saved with the rules' state, so a restart keeps them; *Start fresh* clears them). The group shows only while it has lines; it is read-only (the strips and pages above are the ways out).
 
 - Falling-high mute (default 20 min): no high/very high alert while `sgv + rate × min < high`; it only postpones (a
   repeat that came due fires when it ends).
@@ -437,6 +438,18 @@ Role kept safe (Android): the role is stored twice (`role.json`, `role-backup.js
 *Some saved data was damaged* banner and the other copy keeps the phone monitoring (never back to setup with the service
 silently stopped); the copies are brought back in line at start.
 
+**Glucose report** card (Android, `ReportCard`, at the bottom of home for wearer and follower once any reading is
+stored; tests `ReportCardTest`, `HistoryGallery.reportCard`): the clinic report's numbers over home's stored 31 days
+(`GlucoseMetrics`, time-weighted like the rings, re-counted every 5 minutes): a 1 d / 7 d / 14 d / 30 d segmented
+picker (opens on 14 days; a view control, not a setting — schema `report.days` is the Mac's remembered window; a tick
+haptic on change), the stacked bar of the six bands beside time very high / high / above range, in range / very good,
+low / very low / below range, each with its share (`ShareText`) and, where the international consensus sets one, its
+goal as a chip (green with a check when met, orange when not); average glucose (< 154 mg/dL), GMI in % and mmol/mol
+(< 7 % / < 53 mmol/mol) and CV (≤ 36 %); a note when readings cover less than 70 % of the period, and the coverage in
+the footer. No readings in the period → *No readings in the last day. Choose a longer period.* TalkBack reads each
+row as one line with its goal and *goal met* / *goal not met*; the bar animates to new shares (snaps with reduced
+motion). Ranges are in mg/dL like the chart axis.
+
 **Damaged data** screen (from the banner's Review; back arrow in the top bar): each damaged file as what it means for
 the person: settings → *Your settings were reset to the defaults. Check your alert levels and mutes.* with *Open alert
 settings* (opens Settings › Alerts); readings / treatments may be
@@ -449,7 +462,7 @@ pill) → *Alert me anyway* / *Unmute*, *Alert settings*, or back / swipe down /
 last day* → *Pair new sensor* (or keep the sensor; it leaves when the new one runs); *no data* → the reason's action (or wait: warming up,
 core missing explains why); *banner* → its action, or close (non-safety), safety banners leave when fixed; *muted* →
 Unmute (button and TalkBack action); *treatment deleted* → Undo (5 s) or let it go; *damaged data* → Review → Got it /
-Back; *not set up* → the reason panel's Set up; invite links open setup over home (Back returns home).
+Back; *not set up* → the reason panel's Set up; invite links open setup over home (Back returns home). *Glucose report* → another period (the picker), or scroll past it; nothing to undo (it changes nothing).
 
 ## Untested sensor banner
 
@@ -922,7 +935,23 @@ past the other app's event; blocks again if it's still running) or *Help*.
   256 KiB a minute → error and disconnect;
   more than 30 messages a minute → dropped), sends one backlog per device per 5 s (a sooner `HELLO` is answered when due),
   and never re-sends an expired event from its backlog.
-- Not included yet: *Pair nearby* / *Find phones nearby* (joining over Bluetooth without a link).
+- **Pair nearby** (Android wearer, Settings › Sharing › Bluetooth, shown while Bluetooth can serve): a switch that opens
+  a single-use invite for 10 minutes (`OwnerEngine.openNearbyPairing`; no link and no invite wrap on the relays, the
+  backup records the token). While open the phone advertises even with no follower and its `INFO` carries `i`, `relays`
+  and `pair` (token, expiry, the wearer's profile; B§7.3); the summary counts down (*Open · closes in 9:41*). It closes
+  at the first request with it, after 10 minutes, with the switch (*Stop*), when *Share over Bluetooth* is turned off
+  or when sharing stops or the app restarts; each drops the unclaimed invite (a restore keeps an invite nearby). A request made
+  with it is marked nearby: the approve dialog says anyone in Bluetooth range could have asked and Allow needs the code
+  typed from the follower's phone (never compare-only), and its notification has no Allow (*Open Sukrara and type the
+  code*).
+- **Find phones nearby** (Android follower, setup's join step, under the link field): looks over Bluetooth while the list
+  shows (`FollowerEngine.findNearby`): each phone found is connected in turn, sent a `HELLO` without a proof, its `INFO`
+  read and the phone left for 15 s (nothing else is written: with no identity every phone is "unknown", B§6); phones with
+  an open, unexpired `pair` are listed with the wearer's picture and name (by invite; a phone not seen for 30 s leaves
+  the list). A follow that ended never asks again over Bluetooth. A tap joins with that offer (no relay lookup)
+  as the name typed above; the follow's own Bluetooth link then sends the request to the phone whose `INFO` names that
+  identity, and to the relays. The join step shows the match code as for a link. The Mac follower does the same from its
+  follow window.
 - Mac follower: gift wraps (access request, rekey, history request) carry an absolute expiration (7 d; history 1 d); a key
   delivery naming another stream id is rejected; a chunk whose `c`/`d` tags don't match its hour is rejected; a rekey
   request goes out only for an unknown key on an event from the wearer's identity or device.
@@ -932,7 +961,10 @@ back returns and the page looks again); permission missing → *Allow Nearby dev
 stays, and its next tap opens the app's Android settings page); no follower yet → serves once someone follows; unsupported → nothing to do, sharing goes on over the internet. A
 device in *Nearby devices* → its follower dialog (*Close*, *Remove* → confirm → removed and disconnected). Follower:
 the Bluetooth line follows the link by itself; Bluetooth off → *Turn on Bluetooth*; permission missing → *Allow Nearby
-devices*; *Stop following* ends Bluetooth with the relays. Every state works with TalkBack (rows are buttons with text).
+devices*; *Stop following* ends Bluetooth with the relays. *Pair nearby* open → its switch (*Stop*), or it closes by
+itself (first request, 10 minutes); the request it brings → the approve dialog (*Later*, *Deny*, *Allow* with the typed
+code). *Find phones nearby* → *Stop looking*, a phone (asks to follow → waiting with the code), Bluetooth off / permission
+missing → the same fix rows; leaving the join step stops looking. Every state works with TalkBack (rows are buttons with text).
 
 ## Share with apps on this phone (investigation 22)
 
@@ -1149,6 +1181,6 @@ page.
 - Android settings pages: settings export / import / reset, settings search, the follower's *Settings from* page, relay / epoch / statistics / log pages, battery-lab knobs, mmol/L in the settings pages (thresholds and ranges are shown and typed in mg/dL; schema `general.unit` is set elsewhere), and icons on every row. Reason: only what daily use needs; the defaults are the owner's own values.
 - Mac: Juggluco over Wi-Fi (LAN source and subnet discovery) and the Nostr v1 `cgmnostr:` follow link (v1 links carried plaintext secrets and had no UI). Follow the wearer with a protocol v2 invite instead.
 - Sensors: the Libre 3 experiment preferences (minimal subscription set, connection priority, screen-off skip). Reason: no hardware to test them, the owner uses a Libre 3.
-- Planned (issues filed): scanning an invite's QR code on Android and the follower's *Settings from* page, the glucose report card, the Nightscout API on the home network (`apps.nightscoutLan`), Health Connect and broadcasts, the rest of insulin pens (see its section), the calendar event, nearby pairing over Bluetooth. The sections above that describe them are the behaviour to build. Reason: what daily use needs comes first.
+- Planned (issues filed): scanning an invite's QR code on Android and the follower's *Settings from* page, the Nightscout API on the home network (`apps.nightscoutLan`), Health Connect and broadcasts, the rest of insulin pens (see its section), the calendar event. The sections above that describe them are the behaviour to build. Reason: what daily use needs comes first.
 
 **States and exits**: none (these features aren't in the app).

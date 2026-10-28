@@ -70,6 +70,7 @@ import app.mauri.sukrara.designsystem.rows.whyRes
 import app.mauri.sukrara.feature.sharing.R
 import app.mauri.sukrara.feature.sharing.restore.IdentityStep
 import app.mauri.sukrara.protocol.event.Profile
+import app.mauri.sukrara.share.follower.NearbyOffer
 import androidx.compose.ui.semantics.Role as SemanticsRole
 
 /**
@@ -92,7 +93,8 @@ fun SetupScreen(
         onPauseOrDispose { }
     }
     val ui by viewModel.ui.collectAsStateWithLifecycle()
-    val u = ui ?: return
+    val search by viewModel.nearbySearch.collectAsStateWithLifecycle()
+    val u = ui?.copy(nearby = search) ?: return
     val haptics = rememberHaptics()
     // opened from home after setup was finished: show the first Finish-setup row's step; finishing setup goes home
     val openedFinished = remember { u.step == null }
@@ -123,6 +125,11 @@ data class SetupActions(
     val chooseRole: (Role) -> Unit = {},
     val join: (link: String, name: String) -> Unit = { _, _ -> },
     val clearJoinError: () -> Unit = {},
+    /** *Find phones nearby* on / *Stop looking*. */
+    val findNearby: (Boolean) -> Unit = {},
+    val joinNearby: (NearbyOffer, name: String) -> Unit = { _, _ -> },
+    /** Bluetooth turned on / Nearby devices allowed: look again. */
+    val refreshNearby: () -> Unit = {},
     val completeJoin: () -> Unit = {},
     val completePermissions: () -> Unit = {},
     val fix: (AlertRequirement) -> Unit = {},
@@ -153,6 +160,9 @@ private fun SetupViewModel.actions(
             chooseRole = ::chooseRole,
             join = ::join,
             clearJoinError = ::clearJoinError,
+            findNearby = ::findNearby,
+            joinNearby = ::joinNearby,
+            refreshNearby = ::refreshNearby,
             completeJoin = ::completeJoin,
             completePermissions = ::completePermissions,
             fix = { r -> readinessFix(r) },

@@ -42,6 +42,36 @@ class CreateInvite(private val ctx: OwnerContext) {
     }
 }
 
+/**
+ * *Pair nearby*: a single-use invite offered only in the Bluetooth INFO for [TTL] (no link, no invite wrap on the
+ * relays); the backup records the token like any invite. A request with it always needs the typed code.
+ */
+class OpenNearbyPairing(private val ctx: OwnerContext) {
+    data class Opened(val step: Step, val token: String, val expiry: Long)
+
+    operator fun invoke(s: OwnerState, now: Long): Opened {
+        val expiry = now + TTL
+        val token = InviteLink.of(s.identity(ctx.crypto).public, ctx.random.next(InviteLink.SECRET_LEN)).token
+        val invite = InviteRecord(token, expiry, sentAt = now, nearby = true)
+        // one nearby offer at a time: an earlier unclaimed one ends here
+        val kept = s.invites.filter { it.expiry >= now && !(it.nearby && it.claimedBy == null) }
+        return Opened(ControlEvents.backup(ctx, s.copy(invites = kept + invite), now), token, expiry)
+    }
+
+    companion object {
+        const val TTL = 10 * 60L
+    }
+}
+
+/** *Stop* on an open nearby pairing: its invite goes, unless someone already asked with it (the request stays). */
+class CloseNearbyPairing(private val ctx: OwnerContext) {
+    operator fun invoke(s: OwnerState, token: String, now: Long): Step? {
+        val invite = s.invites.firstOrNull { it.token == token } ?: return null
+        if (invite.claimedBy != null) return null
+        return ControlEvents.backup(ctx, s.copy(invites = s.invites - invite), now)
+    }
+}
+
 /** What an incoming gift wrap asked for, beyond the state change (the engine shows / notifies it). */
 sealed interface InboxSignal {
     data class NewRequest(val request: PendingRequest) : InboxSignal
@@ -134,6 +164,7 @@ class HandleInbox(private val ctx: OwnerContext) {
                         ?.toString(),
                 label = invite.label,
                 inviteSentAt = invite.sentAt,
+                nearby = invite.nearby,
             )
         val next =
             s.copy(

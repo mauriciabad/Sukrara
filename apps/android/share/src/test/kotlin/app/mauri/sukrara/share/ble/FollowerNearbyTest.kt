@@ -21,6 +21,8 @@ import app.mauri.sukrara.share.follower.FollowState
 import app.mauri.sukrara.share.follower.FollowerEngine
 import app.mauri.sukrara.share.follower.FollowerStore
 import app.mauri.sukrara.share.follower.JoinResult
+import app.mauri.sukrara.share.follower.NearbyOffer
+import app.mauri.sukrara.share.follower.NearbySearch
 import app.mauri.sukrara.share.owner.usecase.ApproveRequest
 import app.mauri.sukrara.share.owner.usecase.CreateIdentity
 import app.mauri.sukrara.share.owner.usecase.CreateInvite
@@ -137,6 +139,57 @@ class FollowerNearbyTest {
             runCurrent()
             assertTrue(nb.stopped)
             assertEquals(NearbyStatus.Stopped, e.nearbyStatus.value)
+        }
+
+    @Test fun findPhonesNearbyListsOffersAndJoiningSendsTheRequestOverBluetooth() =
+        runTest {
+            val e = engine()
+            val wearerKey = wearer0.identity(crypto).public
+            val pairing = BleMessages.Pairing(wearerKey, emptyList(), created.link.token, NOW + 600, Profile("Ana", null))
+            var search: NearbySearch? = null
+            val finding = backgroundScope.launch { e.findNearby().collect { search = it } }
+            runCurrent()
+            val finder = nearbys.single()
+            assertNull("the finder knows no identity: it writes nothing but HELLO", finder.identity.identity)
+            finder.info(BleMessages.Owner.Unknown, phone = "ana", pairing = pairing)
+            finder.info(BleMessages.Owner.Unknown, phone = "other")
+            runCurrent()
+            assertEquals(listOf(NearbyOffer("ana", pairing)), search!!.offers)
+            // each phone is left for a while so the scan moves on to the next
+            assertEquals(listOf("ana" to FollowerEngine.NEARBY_RECHECK_S, "other" to FollowerEngine.NEARBY_RECHECK_S), finder.left)
+            // the offer closes on the phone: gone from the list at its next check
+            finder.info(BleMessages.Owner.Unknown, phone = "ana")
+            runCurrent()
+            assertTrue(search!!.offers.isEmpty())
+            finding.cancel()
+            runCurrent()
+            assertTrue(finder.stopped)
+
+            assertEquals(JoinResult.Joined, e.joinNearby(NearbyOffer("ana", pairing), Profile("Bea", null)))
+            assertTrue("no relay lookup", lookupFirst)
+            backgroundScope.launch { e.readings.collect { received += it } }
+            runCurrent()
+            val nb = nearbys.last()
+            assertEquals(wearerKey, nb.identity.identity)
+            nb.sent.clear()
+            // the phone's INFO names our wearer (`i` while pairing is open): the request goes over Bluetooth
+            nb.info(BleMessages.Owner.Ours)
+            runCurrent()
+            val request = nb.sent.single { it.kind == Wire.KIND_WRAP }
+            val handled = HandleInbox(ctx)(created.step.state, request, NOW)
+            assertEquals(
+                "Bea",
+                handled.step.state.pending
+                    .single()
+                    .name,
+            )
+        }
+
+    @Test fun anExpiredOfferIsNotJoined() =
+        runTest {
+            val e = engine()
+            val pairing = BleMessages.Pairing(wearer0.identity(crypto).public, emptyList(), created.link.token, NOW, null)
+            assertEquals(JoinResult.Expired, e.joinNearby(NearbyOffer("ana", pairing), null))
         }
 
     @Test fun theAccessRequestGoesToTheRelaysAndOverBluetooth() =

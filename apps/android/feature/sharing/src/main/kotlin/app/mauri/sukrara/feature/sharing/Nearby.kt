@@ -8,10 +8,13 @@ import app.mauri.sukrara.share.ble.NearbyStatus
 
 /**
  * Bluetooth nearby on the wearer's sharing page: the switch ([on], Settings › Sharing › Bluetooth), what the server
- * says ([status]) and the follower devices connected now whose identity proof named a follower ([links]).
+ * says ([status]), the follower devices connected now whose identity proof named a follower ([links]) and
+ * whether *Pair nearby* is open ([pairingUntil]).
  */
 data class NearbyUi(
     val on: Boolean = true,
     val status: NearbyStatus = NearbyStatus.Stopped,
     val links: List<NearbyServerCore.Named> = emptyList(),
+    /** *Pair nearby* is open until this epoch second (null = closed). */
+    val pairingUntil: Long? = null,
 )

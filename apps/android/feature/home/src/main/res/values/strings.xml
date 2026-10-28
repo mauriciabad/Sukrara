@@ -162,4 +162,35 @@
     <string name="banner_pens_text">Android doesn\'t let pen taps reach Sukrara, so your pen doses aren\'t read or logged.</string>
     <string name="banner_pens_allow">Allow</string>
     <string name="banner_pens_turn_off">Turn off</string>
+    <!-- Glucose report card on home -->
+    <string name="report_title">Glucose report</string>
+    <string name="report_days_short">%1$d d</string>
+    <plurals name="report_days">
+        <item quantity="one">%1$d day</item>
+        <item quantity="other">%1$d days</item>
+    </plurals>
+    <plurals name="report_empty">
+        <item quantity="one">No readings in the last day. Choose a longer period.</item>
+        <item quantity="other">No readings in the last %1$d days.</item>
+    </plurals>
+    <string name="report_low_coverage">Readings cover only %1$s %% of this period. Doctors need at least 70 %% for these numbers to count.</string>
+    <string name="report_very_high">Very high</string>
+    <string name="report_high">High</string>
+    <string name="report_above">Above range</string>
+    <string name="report_above_detail">Very high + high</string>
+    <string name="report_in_range">In range</string>
+    <string name="report_very_good">Very good</string>
+    <string name="report_very_good_detail">%1$s mg/dL, inside the range</string>
+    <string name="report_low">Low</string>
+    <string name="report_very_low">Very low</string>
+    <string name="report_below">Below range</string>
+    <string name="report_below_detail">Low + very low</string>
+    <string name="report_average">Average glucose</string>
+    <string name="report_gmi">GMI</string>
+    <string name="report_gmi_caption">Glucose management indicator: an estimate of your HbA1c</string>
+    <string name="report_cv">Glucose variability (CV)</string>
+    <string name="report_goal">Goal %1$s</string>
+    <string name="report_goal_met">goal met</string>
+    <string name="report_goal_missed">goal not met</string>
+    <string name="report_footer">Sensor data for %1$s %% of the period. Ranges and goals of the international consensus.</string>
 </resources>

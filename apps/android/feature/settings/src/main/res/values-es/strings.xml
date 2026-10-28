@@ -551,4 +551,18 @@
     <string name="st_clinic_title">Comparte tus datos con tu clínica</string>
     <string name="st_clinic_text">Sube tus lecturas y anotaciones a LibreView para que tu equipo médico las vea.</string>
     <string name="st_clinic_action">Configurar</string>
+    <!-- Settings › Alerts › Lately: the alerts' recent history -->
+    <string name="st_lately_title">Últimamente</string>
+    <string name="st_note_fired">%1$s · %2$d mg/dL</string>
+    <string name="st_note_remote">%1$s (de quien lleva el sensor)</string>
+    <string name="st_note_cleared">Terminó: %1$s</string>
+    <string name="st_note_cleared_remote">Terminó: %1$s (por quien lleva el sensor)</string>
+    <string name="st_note_muted">Alertas %1$s silenciadas durante %2$s</string>
+    <string name="st_note_unmuted">Alertas %1$s activadas de nuevo</string>
+    <string name="st_note_remind_less">Alertas %1$s: recordar menos</string>
+    <string name="st_note_remind_as_usual">Alertas %1$s: recordar como siempre</string>
+    <string name="st_note_back">Alertas %1$s: de vuelta en rango, como siempre</string>
+    <string name="st_note_all_muted">Todas las alertas silenciadas durante %1$s</string>
+    <string name="st_note_all_muted_off">Todas las alertas silenciadas hasta que lo desactives</string>
+    <string name="st_note_all_unmuted">Alertas activadas de nuevo</string>
 </resources>

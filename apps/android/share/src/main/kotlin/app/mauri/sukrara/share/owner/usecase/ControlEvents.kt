@@ -93,7 +93,7 @@ internal object ControlEvents {
             sid = s.sid,
             epochs = s.epochs.sortedBy { it.n }.map { BackupEpoch(it.n, crypto.nsec(SecretKey.ofHex(it.secretHex)!!)) },
             followers = s.followers.map { BackupFollower(it.key, it.name, avatar(it.avatarJson), it.since, it.revoked) },
-            invites = s.invites.map { BackupInvite(it.token, it.expiry, it.label, false, it.sentAt, it.claimedBy, it.done) },
+            invites = s.invites.map { BackupInvite(it.token, it.expiry, it.label, it.nearby, it.sentAt, it.claimedBy, it.done) },
             relays = s.relays,
             writers = s.writers.toList(),
             profile = profile(s),
@@ -109,7 +109,7 @@ internal object ControlEvents {
             sid = b.sid,
             epochs = epochs.sortedBy { it.n },
             followers = b.followers.map { FollowerRecord(it.key, it.name, it.since, it.revoked, it.avatar?.json?.toString()) },
-            invites = b.invites.map { InviteRecord(it.token, it.expiry, it.label, it.sentAt, it.claimedBy, it.done) },
+            invites = b.invites.map { InviteRecord(it.token, it.expiry, it.label, it.sentAt, it.claimedBy, it.done, nearby = it.nearby) },
             writers = b.writers.toSet(),
             profileJson = b.profile?.toJson()?.toString(),
         )

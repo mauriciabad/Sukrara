@@ -41,8 +41,10 @@ import app.mauri.sukrara.designsystem.rows.InfoRow
 import app.mauri.sukrara.designsystem.rows.NavigationRow
 import app.mauri.sukrara.designsystem.rows.SettingsGroup
 import app.mauri.sukrara.designsystem.rows.SwitchRow
+import app.mauri.sukrara.feature.sharing.BLOCKED
 import app.mauri.sukrara.feature.sharing.NearbyFixRow
 import app.mauri.sukrara.feature.sharing.NearbyUi
+import app.mauri.sukrara.feature.sharing.PairNearbyRow
 import app.mauri.sukrara.feature.sharing.R
 import app.mauri.sukrara.feature.sharing.nearbySummary
 import app.mauri.sukrara.feature.sharing.share.shownName
@@ -67,6 +69,8 @@ class FollowersActions(
     val setNearby: (Boolean) -> Unit = {},
     /** Bluetooth turned on / Nearby devices allowed: look again. */
     val refreshNearby: () -> Unit = {},
+    /** *Pair nearby* on (10 min) / *Stop*. */
+    val pairNearby: (Boolean) -> Unit = {},
 )
 
 /**
@@ -81,6 +85,8 @@ fun FollowersPage(
     modifier: Modifier = Modifier,
     writerRefused: String? = null,
     nearby: NearbyUi = NearbyUi(),
+    /** The clock for *Pair nearby*'s countdown (epoch s; screenshot tests fix it). */
+    now: () -> Long = { System.currentTimeMillis() / 1000 },
 ) {
     var open by rememberSaveable { mutableStateOf<String?>(null) }
     var showRemoved by rememberSaveable { mutableStateOf(false) }
@@ -124,6 +130,12 @@ fun FollowersPage(
                 summary = nearbySummary(nearby.status, nearby.on, wearer = true),
             )
             if (nearby.on) NearbyFixRow(nearby.status, AndroidNearbyServer.PERMISSIONS, actions.refreshNearby)
+            // an open pairing always keeps its switch (the way to stop it)
+            if ((nearby.on && nearby.status !in BLOCKED) ||
+                nearby.pairingUntil != null
+            ) {
+                PairNearbyRow(nearby.pairingUntil, actions.pairNearby, now)
+            }
         }
         // only links whose identity proof named an active follower: an unnamed one is never listed (no made-up name)
         val devices = nearby.links.mapNotNull { l -> active.firstOrNull { it.key == l.follower }?.let { it to l } }

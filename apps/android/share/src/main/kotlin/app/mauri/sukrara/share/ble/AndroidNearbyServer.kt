@@ -129,7 +129,8 @@ class AndroidNearbyServer(
     private fun evaluate() {
         val h = host ?: return
         val adapter = manager?.adapter
-        val wanted = switchOn && h.followers().isNotEmpty() && h.sid() != null
+        // advertise while someone follows, or while *Pair nearby* is open (B§3)
+        val wanted = switchOn && h.sid() != null && (h.followers().isNotEmpty() || h.pairing() != null)
         val next =
             when {
                 !wanted -> NearbyStatus.Stopped

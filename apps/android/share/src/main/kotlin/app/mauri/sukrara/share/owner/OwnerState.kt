@@ -38,6 +38,8 @@ data class InviteRecord(
     val sentAt: Long = 0,
     val claimedBy: String? = null,
     val done: Boolean = false,
+    /** Offered over Bluetooth by *Pair nearby* (10 min): anyone in range can ask, so Allow needs the typed code. */
+    val nearby: Boolean = false,
 )
 
 /** An access request waiting for the wearer. [others] = later phones that tried the same invite (a leaked link). */
@@ -53,7 +55,12 @@ data class PendingRequest(
     val others: Int = 0,
     /** When the invite this request used was made (the approve dialog's "sent … · asked …"); 0 = unknown. */
     val inviteSentAt: Long = 0,
-)
+    /** Asked with the *Pair nearby* invite: anyone in Bluetooth range could have, so the wearer types the code. */
+    val nearby: Boolean = false,
+) {
+    /** Allow only with the code typed from the follower's phone (a leaked link, or nearby pairing; B§7.3). */
+    val needsTypedCode: Boolean get() = others > 0 || nearby
+}
 
 /** Another app publishes roster / backup as this identity; persisted so the block survives a restart. */
 @Serializable

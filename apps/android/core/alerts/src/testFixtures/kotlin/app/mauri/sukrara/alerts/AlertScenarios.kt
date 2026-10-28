@@ -266,7 +266,7 @@ object AlertScenarios {
             )
 
         var glucose = 0
-        var rate = 0.0
+        var rate: Double? = null
         var age = 0
         var sensorOn = true
         var every = 1
@@ -292,7 +292,7 @@ object AlertScenarios {
                 when (w[0]) {
                     "glucose" -> {
                         glucose = w[1].toInt()
-                        rate = w.indexOf("rate").takeIf { it > 0 }?.let { w[it + 1].toDouble() } ?: 0.0
+                        rate = w.indexOf("rate").takeIf { it > 0 }?.let { w[it + 1].toDouble() }
                         age = w.indexOf("age").takeIf { it > 0 }?.let { w[it + 1].toInt() } ?: 0
                         if (nextReading == null) nextReading = t
                     }
