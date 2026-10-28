@@ -35,6 +35,7 @@ import androidx.compose.material3.rememberTopAppBarState
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
@@ -43,6 +44,9 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import app.mauri.sukrara.alerts.AlertKind
 import app.mauri.sukrara.core.designsystem.R as DsR
+import app.mauri.sukrara.core.model.DurationWords
+import app.mauri.sukrara.core.model.Durations
+import app.mauri.sukrara.graph.CardWords
 import app.mauri.sukrara.graph.Clock
 import app.mauri.sukrara.settings.NumberSpec
 import java.time.Instant
@@ -143,10 +147,25 @@ fun numberLabeler(): (NumberSpec, Double) -> String {
             "min" to stringResource(DsR.string.ds_unit_min),
             "s" to stringResource(DsR.string.ds_unit_s),
         )
+    val durations = CardWords.of(LocalContext.current.resources).durations
     return { spec, value ->
         spec.specialOf(value)?.let { words[it] ?: it }
+            ?: minutesText(spec, value, durations)
             ?: listOf(spec.text(value), units[spec.unit] ?: spec.unit).filter { it.isNotEmpty() }.joinToString(" ")
     }
+}
+
+/**
+ * A whole number of minutes in words through THE duration formatter ("30 min", "1 h", "1 h 30 min"; FEATURES
+ * "Durations": never "60 min"); null for any other unit.
+ */
+internal fun minutesText(
+    spec: NumberSpec,
+    value: Double,
+    words: DurationWords,
+): String? {
+    if (spec.unit != "min" || spec.scale != 1.0 || value < 0 || value != Math.rint(value)) return null
+    return Durations.text(value.toLong(), words)
 }
 
 /** One number value's label (see [numberLabeler]). */
