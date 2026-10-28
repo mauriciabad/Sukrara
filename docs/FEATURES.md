@@ -459,11 +459,12 @@ a safety, setup or data banner) and the top of the Settings overview. While Libr
 (`IntegrationsModule.clinicUploadSet`; a follower's phone feeds null, so it never shows there), a card says *Share your
 data with your clinic* · "Upload your readings and entries to LibreView so your care team sees them." with *Set up*
 (opens Settings → Share with apps → LibreView) and a close button. Not red. Signing in with the upload on hides it.
-Close hides it on both places for good (the home-banners memory). Mac: none.
+Close hides it on both places (the home-banners memory); there is no Undo or *Show closed tips* yet (issue filed).
+Mac: none.
 
 **States and exits**: *shown* (LibreView not set up) → *Set up* opens the LibreView page; it leaves once LibreView is
-signed in and on. *Closed* → stays closed; LibreView stays reachable in Settings → Share with apps. Follower → never
-shown.
+signed in and on. *Closed* → stays closed (restoring closed tips: issue); LibreView stays reachable in Settings →
+Share with apps. Follower → never shown. Before the app knows whether LibreView is signed in (start-up) → not shown.
 
 ## Home screen widgets
 
@@ -996,8 +997,8 @@ Android (`apps/android/pen`: `opennov/` reader, `engine/PenEngine`, `Pens` runti
   cloud after each entry the upload covers, by the uploader's own rules (`LibreViewQueue.mark`): cloud with a tick =
   "In LibreView" (the version LibreView has), cloud with an arrow = "Not in LibreView yet" (a new entry) or "LibreView
   has an older version: updating" (edited), crossed-out cloud = "LibreView upload stopped" (sign in again, or LibreView
-  refused the last upload). Entries changed before the upload was switched on, or older than 30 days, get none.
-  Deleting an entry LibreView has (while the upload runs) says "Treatment deleted. It will be removed from LibreView
+  refused the last upload; tapping it opens the LibreView page). Entries changed before the upload was switched on, or
+  older than 30 days, get none. Deleting an entry LibreView has while the upload runs (not stopped) says "Treatment deleted. It will be removed from LibreView
   too." in the Undo snackbar; Undo sends it up again as a new record (a retracted entry has no live record to retract).
 
 **States and exits**: *Signed out* → *Account* → dialog (*Cancel* keeps nothing). *Another device uploads* → *Take

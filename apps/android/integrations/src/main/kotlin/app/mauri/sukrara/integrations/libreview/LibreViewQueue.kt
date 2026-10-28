@@ -95,7 +95,8 @@ object LibreViewQueue {
             .map { it to it.treatment }
             .filter { (_, t) ->
                 // what LibreView has is always corrected (edited, moved or deleted), whenever it happened
-                t.id in ledger ||
+                // (a retracted one, v = 0, has nothing live there: it goes up again only as a new entry would)
+                (ledger[t.id]?.v ?: 0L) != 0L ||
                     (t.at.epochSecond >= nowS - WINDOW_S && t.modifiedAt.epochSecond >= from)
             }.filter { (r, t) ->
                 // another device's entry: give it a moment to settle
@@ -108,7 +109,7 @@ object LibreViewQueue {
             .take(MAX_ENTRIES)
             .flatMap { e ->
                 val had = ledger[e.id]
-                if (had != null && had.k.isNotEmpty() && had.k != e.k) {
+                if (had != null && had.v != 0L && had.k.isNotEmpty() && had.k != e.k) {
                     // the kind changed: retract it under the kind LibreView has, then send it as new (unless deleted)
                     listOfNotNull(e.copy(k = had.k, del = true), e.copy(lv = 0L).takeIf { !e.del })
                 } else {

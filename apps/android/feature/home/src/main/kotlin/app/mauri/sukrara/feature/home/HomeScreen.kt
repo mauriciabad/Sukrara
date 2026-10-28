@@ -199,7 +199,7 @@ fun HomeContent(
                 haptics.confirm()
                 callbacks.onUnmute()
             }
-            Treatments(state.treatments, state.readOnly, state.marks, state.now) {
+            Treatments(state.treatments, state.readOnly, state.marks, state.now, { callbacks.onAction(HomeAction.OpenClinicUpload) }) {
                 haptics.confirm()
                 callbacks.onDelete(it)
             }
@@ -727,6 +727,7 @@ private fun Treatments(
     readOnly: Set<String>,
     marks: Map<String, UploadMark>,
     now: Instant,
+    openClinicUpload: () -> Unit,
     onDelete: (Treatment) -> Unit,
 ) {
     val resources = LocalContext.current.resources
@@ -749,7 +750,14 @@ private fun Treatments(
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
-                marks[t.id]?.let { UploadMarkIcon(it) }
+                marks[t.id]?.let { mark ->
+                    if (mark == UploadMark.Stopped) {
+                        // the way out: the LibreView page (sign in again, or see why it refused)
+                        IconButton(onClick = openClinicUpload) { UploadMarkIcon(mark) }
+                    } else {
+                        UploadMarkIcon(mark)
+                    }
+                }
                 if (t.id !in readOnly) {
                     IconButton(onClick = { onDelete(t) }) {
                         Icon(

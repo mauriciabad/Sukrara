@@ -116,7 +116,10 @@ class IntegrationsModule(
      * clinic* banner; null on a follower's phone (it never shows there).
      */
     val clinicUploadSet: Flow<Boolean?> =
-        combine(wearer, libreView.page) { w, lv -> if (w) lv.settings.on && lv.signedIn else null }.distinctUntilChanged()
+        combine(wearer, libreView.settingsFlow, libreView.signedInKnown) { w, s, signed ->
+            // unknown until the secure store was read: never a "not set up" banner for someone signed in
+            if (w && signed != null) s.on && signed else null
+        }.distinctUntilChanged()
 
     suspend fun load() {
         nightscout.load()

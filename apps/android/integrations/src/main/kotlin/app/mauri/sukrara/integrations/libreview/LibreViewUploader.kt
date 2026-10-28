@@ -117,7 +117,8 @@ class LibreViewUploader(
     private val io: CoroutineDispatcher,
     private val log: (String) -> Unit = {},
 ) {
-    private val signedIn = MutableStateFlow(false)
+    /** Null until [load] read the secure store: nothing claims "signed out" before that (no clinic banner flash). */
+    private val signedIn = MutableStateFlow<Boolean?>(null)
     private val loop = UploadLoop(INTERVAL_MS, io, { e -> log("libreview cycle: ${e.javaClass.simpleName}") }) { cycle() }
     private val mutex = Mutex()
 
@@ -129,19 +130,23 @@ class LibreViewUploader(
     val settingsFlow: Flow<LvSettings> = settings.flow(SETTING).map(::decode)
 
     val page: Flow<LvPageState> =
-        combine(settingsFlow, signedIn, store.data, role) { s, signed, st, r ->
+        combine(settingsFlow, signedIn, store.data, role) { s, known, st, r ->
+            val signed = known == true
             LvPageState(s, signed, st.email, status(s, signed, st, r), st.glucoseFrom.takeIf { it > 0 }?.let(Instant::ofEpochSecond))
         }
 
     /** What LibreView has of the entries while the upload runs (home's cloud marks); null while it's off. */
     val entryMarks: Flow<LvEntryMarks?> =
         combine(settingsFlow, signedIn, store.data, role) { s, signed, st, r ->
-            if (s.on && signed && r == Role.Wearer) {
+            if (s.on && signed == true && r == Role.Wearer) {
                 LvEntryMarks(st.ledger, if (s.treatments) st.entriesFrom else 0L, st.authFailed || st.refused)
             } else {
                 null
             }
         }.distinctUntilChanged()
+
+    /** Whether a token is saved; null until [load] ran. */
+    val signedInKnown: Flow<Boolean?> = signedIn
 
     /** Reads whether a token is saved; call once from the app's load step. */
     suspend fun load() {

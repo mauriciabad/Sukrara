@@ -250,6 +250,19 @@ class LibreViewUploaderTest {
         }
 
     @Test
+    fun `a retracted entry brought back goes up only as a new entry would, and the mark agrees`() {
+        val back = treatment("x", 5, modified = now).treatment
+        val ledger = mapOf("x" to LvSent(0L, back.at.epochSecond, "rapid"))
+        // entries switched off: nothing goes up, no mark
+        assertTrue(LibreViewQueue.entries(listOf(TreatmentRecord(back)), ledger, Long.MAX_VALUE, now.epochSecond).isEmpty())
+        assertEquals(null, LibreViewQueue.mark(back, ledger, 0L, now.epochSecond))
+        // entries on: a new record, no retraction
+        val sent = LibreViewQueue.entries(listOf(TreatmentRecord(back)), ledger, now.epochSecond - 60, now.epochSecond)
+        assertEquals(listOf(0L), sent.map { it.lv })
+        assertEquals(LvMark.Pending, LibreViewQueue.mark(back, ledger, now.epochSecond - 60, now.epochSecond))
+    }
+
+    @Test
     fun `home's marks follow the ledger, and a stopped upload marks nothing as on its way`() =
         runBlocking {
             signedInAndOn()
