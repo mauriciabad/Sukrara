@@ -55,7 +55,7 @@ The full catalog, with every rule and number, is [docs/FEATURES.md](docs/FEATURE
   icon you choose and first in line when the status bar is crowded (Settings › Status bar › With root).
 - **Alerts**: very low, low, high, very high, rising / falling fast and no data; each on its own channel,
   "like an alarm" ones pass Do Not Disturb. *Mute…*, *Remind less*, *Unmute* and *Change time* on the notification,
-  in the app and with TalkBack; *Mute all* with a visible strip to undo it. The no-data check runs from an exact alarm,
+  in the app and with TalkBack; *Mute all* with a visible strip to undo it. Settings › Alerts › *Lately* shows what alerted and what you muted in the last day. The no-data check runs from an exact alarm,
   independent of the monitoring service.
 - **Sensor end**: reminders you set (up to six, 0–3 days before at a time; earlier at the first unlock; one the
   evening before a night-time end), a live countdown in the sensor's last hours, a warm-up countdown with *Sensor

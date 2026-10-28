@@ -116,6 +116,7 @@ fun AlertsSettingsContent(
                 { dialog = "muteAll" },
             )
         }
+        AlertsLately(ui.alerts.lately, clock)
         // each alert: the row opens its page, the switch turns it on or off (very low / no data off asks first)
         for ((title, kinds) in KindGroups) {
             SettingsGroup(title = stringResource(title)) {
