@@ -31,7 +31,8 @@ Rules: [poc/spikes/alerts/SPEC.md](../poc/spikes/alerts/SPEC.md); timelines: [po
 - "Very low" (id `very_low`) replaced "urgent low" everywhere (settings JSON, channels, sounds, events); no migration.
 - Level alerts: one at a time, the most severe wins; a worse kind of the same side alerts at once; getting better
   (very low → low) doesn't alert.
-- Rate alerts (falling/rising fast) run next to level alerts; no data runs on a timer and clears on the next reading. The Android timer is an elapsed-time alarm, so a clock change (`TIME_SET`) re-checks at once and plans it again (round 22: with the clock moved forward the old high stayed up and no "no data" came; a real gap alerts on time, scenario *A high with no more readings…*).
+- Rate alerts (falling/rising fast) run next to level alerts; a reading without a rate (a LO / HI has none) keeps an
+  open falling / rising fast as it is (alert up, repeat due, a Mute not back by it): a LO isn't a sign the fall stopped; no data runs on a timer and clears on the next reading. The Android timer is an elapsed-time alarm, so a clock change (`TIME_SET`) re-checks at once and plans it again (round 22: with the clock moved forward the old high stayed up and no "no data" came; a real gap alerts on time, scenario *A high with no more readings…*).
 - Readings older than 15 min never alert; the alert clears when the reading gets that old.
 - Episodes: one per group and side; a brief exit (back in range for less than the repeat interval, at least 5 min)
   clears the notification but keeps the episode, its repeat count and its treatments; no new "first" alert.

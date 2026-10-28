@@ -155,8 +155,9 @@ public struct SideSnoozes: Codable, Equatable, Sendable {
 
 /// The margin rule (SPEC §2): `reading` is back in range by the margin for `side`. Lows at least `backMgdl` above the
 /// highest enabled low-side threshold, highs below the lowest enabled high-side threshold minus `backMgdl`, a rate
-/// side while its rate doesn't match; no data always (a reading came).
-public func isBackByMargin(_ side: AlertSide, _ reading: GlucoseSample, _ s: AlertSettings) -> Bool {
+/// side while its rate doesn't match; no data always (a reading came). Nil = `reading` can't tell: a rate side and a
+/// reading without a rate (a LO / HI is sent without one) is no sign the fast change stopped (SPEC §1).
+public func isBackByMargin(_ side: AlertSide, _ reading: GlucoseSample, _ s: AlertSettings) -> Bool? {
     let m = Double(s.notificationActions.backMgdl)
     switch side {
     // a LO / HI is beyond every threshold: never back in range, whatever the margin's edge
@@ -174,8 +175,8 @@ public func isBackByMargin(_ side: AlertSide, _ reading: GlucoseSample, _ s: Ale
             return true
         }
         return reading.mgdl < edge - m
-    case .fallingFast: return !s[.fallingFast].on || (reading.rate ?? 0) > -s[.fallingFast].threshold
-    case .risingFast: return !s[.risingFast].on || (reading.rate ?? 0) < s[.risingFast].threshold
+    case .fallingFast: return !s[.fallingFast].on ? true : reading.rate.map { $0 > -s[.fallingFast].threshold }
+    case .risingFast: return !s[.risingFast].on ? true : reading.rate.map { $0 < s[.risingFast].threshold }
     case .noData: return true
     }
 }

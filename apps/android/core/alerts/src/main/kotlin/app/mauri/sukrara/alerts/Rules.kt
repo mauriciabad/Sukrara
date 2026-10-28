@@ -115,9 +115,10 @@ object Rules {
     /**
      * [r] is back in range by the margin for [side] (SPEC §2 "Scope and end"): lows at least `backMgdl` above the highest
      * enabled low threshold, highs below the lowest enabled high threshold minus it, a rate side when [r]'s rate
-     * doesn't match it. No data is judged by the caller (readings coming).
+     * doesn't match it. No data is judged by the caller (readings coming). Null = [r] can't tell: a rate side and a
+     * reading without a rate (a LO / HI is sent without one) is no sign the fast change stopped (SPEC §1).
      */
-    fun backBy(side: Side, r: AlertReading, s: AlertSettings): Boolean {
+    fun backBy(side: Side, r: AlertReading, s: AlertSettings): Boolean? {
         val margin = s.actions.backMgdl
         return when (side) {
             // a LO / HI is beyond every threshold: never back in range, whatever the margin's edge
@@ -138,11 +139,11 @@ object Rules {
             }
 
             Side.FALLING_FAST -> {
-                s.rule(AlertKind.FALLING_FAST).let { !it.on || (r.rate ?: 0.0) > -it.threshold }
+                s.rule(AlertKind.FALLING_FAST).let { if (!it.on) true else r.rate?.let { v -> v > -it.threshold } }
             }
 
             Side.RISING_FAST -> {
-                s.rule(AlertKind.RISING_FAST).let { !it.on || (r.rate ?: 0.0) < it.threshold }
+                s.rule(AlertKind.RISING_FAST).let { if (!it.on) true else r.rate?.let { v -> v < it.threshold } }
             }
 
             Side.NO_DATA -> {

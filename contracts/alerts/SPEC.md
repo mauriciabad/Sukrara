@@ -25,7 +25,10 @@ extremely high) alerts at once. The card shows "LO" / "HI" (scenarios `levels.tx
 
 - **Level alerts** (`very_low`, `low`, `high`, `very_high`, `extremely_high`): at most one is active, the most severe
   that matches. **Rate alerts** are independent of level alerts; `rate` is the reading's trend in mg/dL/min. No rate →
-  no rate alert. `no_data` is checked by a timer, cleared by the next reading.
+  no rate alert, but a fresh reading without a rate (a LO / HI is sent without one) is no sign the fast change stopped:
+  an open rate episode stays as it is (its alert stays up, its repeat stays due, its hold doesn't run down) and a rate
+  side's Mute / Remind less isn't back by it (scenarios `other.txt`). `no_data` is checked by a timer, cleared by the
+  next reading.
 - **Episodes.** Each group (level, rate, no data) has at most one episode: a stretch of time on one *side* (lows,
   highs, falling fast, rising fast, no data). It starts when a kind of that side matches and ends once nothing of that
   side has matched for the **hold time** = the kind's `repeatMin`, at least 5 min. A reading back in range for a
@@ -274,7 +277,7 @@ settings low.repeat=5 carbs.mute=5          # on top of the defaults (§3)
 ```
 
 - A line is `<minute>[:<ss>] [events, …] [=> expectations; …]`. Events: `glucose <mg/dL> [rate <mg/dL/min>]
-  [age <min>]` (what the sensor reads from now on), `readings every <n>` (default 1 min), `sensor off|on`,
+  [age <min>]` (what the sensor reads from now on; without `rate` the readings have no rate), `readings every <n>` (default 1 min), `sensor off|on`,
   `sensor ended` (the sensor reaches its end now; readings stop), `sensor started` (a new sensor starts now, 60 min
   warm-up; readings stay off until `sensor on`),
   `carbs <g>`, `insulin <u>` (rapid, logged now), `delete carbs|insulin` (the newest one), `set <key>=<value> …`,

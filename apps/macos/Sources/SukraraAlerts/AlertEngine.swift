@@ -189,13 +189,15 @@ public struct AlertEngine: Sendable {
             switch side {
             case .noData: return !noData
             case _ where !fresh: return nil
-            case .low, .high: return r.map { isBackByMargin(side, $0, s) } ?? false
-            case .fallingFast, .risingFast: return rate?.side != side
+            case .low, .high: return r.flatMap { isBackByMargin(side, $0, s) } ?? false
+            case .fallingFast, .risingFast: return r?.rate == nil ? nil : rate?.side != side  // no rate: can't tell
             }
         }
         out += backSides.map(AlertEffect.back)
         step(.level, rules ? Self.level(of: r, s, at: t) : nil, at: t, rng: &rng, out: &out)
-        step(.rate, rate, at: t, rng: &rng, out: &out)
+        // a fresh reading without a rate (a LO / HI is sent without one) is no sign the fast change stopped: the rate
+        // episode stays as it is: its alert showing, its repeat due, its hold not running down (SPEC §1)
+        if !(rules && fresh && r?.rate == nil) { step(.rate, rate, at: t, rng: &rng, out: &out) }
         step(.noData, noData ? .noData : nil, at: t, rng: &rng, out: &out)
     }
 

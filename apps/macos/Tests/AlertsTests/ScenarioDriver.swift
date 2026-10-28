@@ -207,7 +207,7 @@ func runScenario(_ sc: Scenario) throws -> [String] {
     }
 
     var glucose = 0.0
-    var rate = 0.0
+    var rate: Double?
     var age = 0
     var sensorOn = true
     var every = 1
@@ -229,7 +229,7 @@ func runScenario(_ sc: Scenario) throws -> [String] {
             switch w[0] {
             case "glucose":
                 glucose = Double(w[1]) ?? 0
-                rate = after("rate").flatMap(Double.init) ?? 0
+                rate = after("rate").flatMap(Double.init)
                 age = after("age").flatMap(Int.init) ?? 0
                 if nextReading == nil { nextReading = t }
             case "readings": every = Int(w[2]) ?? 1

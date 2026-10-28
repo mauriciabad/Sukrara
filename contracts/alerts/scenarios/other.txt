@@ -27,6 +27,27 @@ settings falling_fast=on
 16                       => Low glucose · eat more; Falling fast
 17
 
+scenario Falling fast into a LO: the LO has no rate, so the fall's alert and its repeats go on
+settings falling_fast=on falling_fast.repeat=10
+ 0  glucose 60 rate -3   => Low glucose; Falling fast
+ 1  glucose 39           => clear low; Very low glucose   # LO, sent without a rate: no sign the fall stopped
+ 2  glucose 41 rate -3                                    # the same fall: no new first alert
+ 6                       => Very low glucose
+10                       => Falling fast                  # its repeat, counted from minute 0
+11                       => Very low glucose
+12
+
+scenario LO readings don't end a falling-fast Mute: no rate is no sign the fall stopped
+mirror
+settings falling_fast=on
+ 0  glucose 60 rate -3              => Low glucose; Falling fast; follower Low glucose; follower Falling fast
+ 1  mute falling_fast 2h, follower mute falling_fast 2h   => clear falling_fast; follower clear falling_fast
+ 2  glucose 39                      => clear low; Very low glucose; follower clear low; follower Very low glucose
+ 7                                  => Very low glucose; follower Very low glucose
+12                                  => Very low glucose; follower Very low glucose   # 10 min of LO: no back falling_fast
+14  glucose 41 rate -3                                                               # still falling: still muted
+15
+
 scenario Rising fast; insulin quiets it
 settings rising_fast=on
  0  glucose 150 rate 3   => Rising fast
