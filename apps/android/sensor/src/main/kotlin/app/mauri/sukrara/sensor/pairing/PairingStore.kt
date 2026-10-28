@@ -6,6 +6,7 @@ package app.mauri.sukrara.sensor.pairing
 import app.mauri.sukrara.core.model.storage.SecretUnreadableException
 import app.mauri.sukrara.core.model.storage.SecureStore
 import app.mauri.sukrara.sensor.SensorProfile
+import app.mauri.sukrara.sensor.SensorSetup
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.Serializable
@@ -52,6 +53,8 @@ class PairingStore(private val secure: SecureStore) {
         val pinHex: String,
         val kAuthHex: String? = null,
         val ended: Boolean = false,
+        val deviceName: String = "",
+        val pairedAt: Long = 0,
     )
 
     suspend fun load(): PairingLoad {
@@ -67,17 +70,27 @@ class PairingStore(private val secure: SecureStore) {
             val r = json.decodeFromString(Record.serializer(), bytes.decodeToString())
             val pin = r.pinHex.hexToByteArray()
             val kAuth = r.kAuthHex?.hexToByteArray()
+            val problem =
+                if (r.profile == SensorProfile.Libre3) {
+                    when {
+                        pin.size != PIN_BYTES -> "PIN has ${pin.size} bytes"
+                        kAuth != null && kAuth.size != KAUTH_BYTES -> "authorization has ${kAuth.size} bytes"
+                        r.serial.isEmpty() || r.address.isEmpty() -> "serial or address missing"
+                        else -> null
+                    }
+                } else {
+                    // a scanned family: no PIN; the id, if the family has one, is what every key comes from
+                    val setup = r.profile.setup
+                    when {
+                        !r.profile.needsScan -> "${r.profile.id} can't be paired"
+                        pin.isNotEmpty() || kAuth != null -> "secrets on a ${r.profile.id} record"
+                        setup is SensorSetup.TypedId && !setup.valid(r.serial) -> "${r.profile.id} id has the wrong form"
+                        else -> null
+                    }
+                }
             when {
-                pin.size != PIN_BYTES -> {
-                    PairingLoad.Corrupt("PIN has ${pin.size} bytes")
-                }
-
-                kAuth != null && kAuth.size != KAUTH_BYTES -> {
-                    PairingLoad.Corrupt("authorization has ${kAuth.size} bytes")
-                }
-
-                r.serial.isEmpty() || r.address.isEmpty() -> {
-                    PairingLoad.Corrupt("serial or address missing")
+                problem != null -> {
+                    PairingLoad.Corrupt(problem)
                 }
 
                 else -> {
@@ -93,6 +106,8 @@ class PairingStore(private val secure: SecureStore) {
                             pin,
                             kAuth,
                             r.ended,
+                            r.deviceName,
+                            r.pairedAt,
                         ),
                     )
                 }
@@ -119,6 +134,8 @@ class PairingStore(private val secure: SecureStore) {
                 p.pin.toHexString(),
                 p.kAuth?.toHexString(),
                 p.ended,
+                p.deviceName,
+                p.pairedAt,
             )
         secure.write(NAME, json.encodeToString(Record.serializer(), r).encodeToByteArray())
     }
@@ -130,8 +147,19 @@ class PairingStore(private val secure: SecureStore) {
      */
     suspend fun setAuthorization(ranWith: Pairing, kAuth: ByteArray) = updateIf({ it.sameSession(ranWith) }) { it.copy(kAuth = kAuth) }
 
+    /**
+     * A scan found the sensor [ranWith] describes: keep its address (later connections go straight to it, no more
+     * scanning) and advertised name. Ignored when another sensor was paired meanwhile.
+     */
+    suspend fun setFound(ranWith: Pairing, address: String, name: String) =
+        updateIf({ it.sameScanned(ranWith) }) { it.copy(address = address.uppercase(), deviceName = name) }
+
+    /** The sensor said when its session started (a scanned family): the warm-up and the end count from it. */
+    suspend fun setStart(ranWith: Pairing, startEpoch: Long) = updateIf({ it.sameScanned(ranWith) }) { it.copy(startEpoch = startEpoch) }
+
     /** The sensor has ended for good: don't connect to it again until a new scan. */
-    suspend fun markEnded(serial: String) = updateIf({ it.serial == serial }) { it.copy(ended = true) }
+    suspend fun markEnded(ranWith: Pairing) =
+        updateIf({ if (it.profile.needsScan) it.sameScanned(ranWith) else it.serial == ranWith.serial }) { it.copy(ended = true) }
 
     suspend fun forget() = writes.withLock { secure.delete(NAME) }
 
@@ -140,6 +168,9 @@ class PairingStore(private val secure: SecureStore) {
             val current = (load() as? PairingLoad.Ok)?.pairing ?: return@withLock
             if (matches(current)) write(change(current))
         }
+
+    /** The same pairing (family, id and when it was made): a late call from a replaced driver changes nothing. */
+    private fun Pairing.sameScanned(o: Pairing) = profile == o.profile && serial == o.serial && pairedAt == o.pairedAt
 
     private fun Pairing.sameSession(o: Pairing) = serial == o.serial && startEpoch == o.startEpoch && pin.contentEquals(o.pin)
 }

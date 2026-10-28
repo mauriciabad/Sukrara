@@ -138,6 +138,7 @@ data class SettingsKey(
             "graph" -> SettingsRoute.Graph
             "marks" -> SettingsRoute.GraphMarks
             "lock" -> SettingsRoute.LockScreen
+            "pens" -> SettingsRoute.Pens
             "reliability" -> SettingsRoute.Reliability
             "statusbar" -> SettingsRoute.StatusBar
             "sensorend" -> SettingsRoute.SensorEnd
@@ -156,6 +157,7 @@ data class SettingsKey(
                 SettingsRoute.Graph -> SettingsKey("graph")
                 SettingsRoute.GraphMarks -> SettingsKey("marks")
                 SettingsRoute.LockScreen -> SettingsKey("lock")
+                SettingsRoute.Pens -> SettingsKey("pens")
                 SettingsRoute.Reliability -> SettingsKey("reliability")
                 SettingsRoute.StatusBar -> SettingsKey("statusbar")
                 SettingsRoute.SensorEnd -> SettingsKey("sensorend")
