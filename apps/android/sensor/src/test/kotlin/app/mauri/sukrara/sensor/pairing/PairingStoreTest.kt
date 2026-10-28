@@ -36,7 +36,7 @@ class PairingStoreTest {
             store.setAuthorization(pairing.copy(pin = byteArrayOf(1, 2, 3, 4)), ByteArray(149) { 1 })
             assertEquals(null, (store.load() as PairingLoad.Ok).pairing.kAuth)
             store.setAuthorization(pairing, ByteArray(149) { 1 })
-            store.markEnded("3MH0001")
+            store.markEnded(pairing)
             val p = (store.load() as PairingLoad.Ok).pairing
             assertEquals(149, p.kAuth?.size)
             assertTrue(p.ended)

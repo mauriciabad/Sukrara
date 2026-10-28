@@ -24,8 +24,10 @@ import app.mauri.sukrara.feature.sensor.newsensor.NewSensorPort
 import app.mauri.sukrara.feature.sensor.newsensor.NewSensorViewModel
 import app.mauri.sukrara.feature.sensor.newsensor.SensorEnv
 import app.mauri.sukrara.sensor.SensorModule
+import app.mauri.sukrara.sensor.SensorProfile
 import app.mauri.sukrara.sensor.libreview.SignInResult
 import app.mauri.sukrara.sensor.pairing.PairOutcome
+import app.mauri.sukrara.sensor.pairing.Pairing
 import app.mauri.sukrara.sensor.source.SensorSourceKind
 import app.mauri.sukrara.sensor.source.SensorStatus
 import kotlinx.coroutines.CoroutineScope
@@ -63,10 +65,23 @@ class SensorUiModule(
                     bluetoothPermission = granted(Manifest.permission.BLUETOOTH_CONNECT),
                     bluetoothOn = app.getSystemService(BluetoothManager::class.java)?.adapter?.isEnabled == true,
                     notificationsAllowed = NotificationManagerCompat.from(app).areNotificationsEnabled(),
+                    scanPermission = granted(Manifest.permission.BLUETOOTH_SCAN),
                 )
             }
 
             override suspend fun pair(tag: Tag): PairOutcome = sensors.nfc.pair(tag)
+
+            override suspend fun pairScanned(
+                profile: SensorProfile,
+                id: String,
+            ): String {
+                val pairing = Pairing.scanned(profile, id, clock.now().toEpochMilli())
+                sensors.pairings.save(pairing)
+                settings.set(SOURCE, SensorSourceKind.Direct.id)
+                sensors.source.retry() // the source starts over with the new pairing (scan, then connect)
+                startMonitoring()
+                return SensorStatus.Direct.keyOf(pairing)
+            }
 
             override val detail: StateFlow<SensorStatus> get() = sensors.source.detail
             override val sensor: StateFlow<SensorState> get() = sensors.source.sensor
@@ -79,7 +94,7 @@ class SensorUiModule(
             }
 
             override suspend fun onPaired() {
-                settings.set(SOURCE, SensorSourceKind.Libre3.id)
+                settings.set(SOURCE, SensorSourceKind.Direct.id)
                 startMonitoring()
             }
         }
@@ -108,6 +123,6 @@ class SensorUiModule(
 
     private companion object {
         /** The glucose source setting (schema `source.source`); the source manager follows it. */
-        val SOURCE = SchemaSettings.text("source.source", SensorSourceKind.Libre3.id, SensorSourceKind.entries.map { it.id }.toSet())
+        val SOURCE = SchemaSettings.text("source.source", SensorSourceKind.Direct.id, SensorSourceKind.entries.map { it.id }.toSet())
     }
 }

@@ -12,4 +12,11 @@
     <string name="share_request_deny">Deny</string>
     <string name="share_request_failed_title">Couldn\'t give access</string>
     <string name="share_request_failed_text">The invite expired, the request is no longer waiting or sharing is paused. Open Sukrara to send a new invite.</string>
+    <string name="share_follow_someone">The person you follow</string>
+    <string name="share_follow_used_title">Invite already used</string>
+    <string name="share_follow_used_text">Another phone used this invite from %1$s first. Ask them for a new link, then join again in Settings › Sharing.</string>
+    <string name="share_follow_declined_title">%1$s didn\'t allow you</string>
+    <string name="share_follow_declined_text">Your request to follow %1$s was declined. Ask them for a new link if this was a mistake.</string>
+    <string name="share_follow_revoked_title">You no longer follow %1$s</string>
+    <string name="share_follow_revoked_text">%1$s stopped sharing with you. Their readings no longer reach this phone.</string>
 </resources>

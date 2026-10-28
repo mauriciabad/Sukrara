@@ -4,6 +4,12 @@
      SPDX-License-Identifier: GPL-3.0-or-later -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
+    <!-- Share with apps: Garmin Connect / Connect IQ read the xDrip+ server for the watch ("read by …") -->
+    <queries>
+        <package android:name="com.garmin.android.apps.connectmobile" />
+        <package android:name="com.garmin.connectiq" />
+    </queries>
+
     <application>
         <!-- Export data: the CSV handed to the share sheet, from cache/export/ only -->
         <provider

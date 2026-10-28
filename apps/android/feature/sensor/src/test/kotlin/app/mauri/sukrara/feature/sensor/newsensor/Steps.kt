@@ -3,6 +3,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.feature.sensor.newsensor
 
+import app.mauri.sukrara.sensor.SensorProfile
+import app.mauri.sukrara.sensor.ble.LinkStatus
 import java.time.Duration
 import java.time.Instant
 
@@ -14,6 +16,25 @@ internal object Steps {
     val all: List<Pair<String, NewSensorStep>> =
         listOf(
             "idle" to NewSensorStep.Idle,
+            "choose" to NewSensorStep.ChooseSensor(SensorProfile.Libre3),
+            "choose-untested" to NewSensorStep.ChooseSensor(SensorProfile.DexcomG7),
+            "confirm-untested" to NewSensorStep.ConfirmUntested(SensorProfile.DexcomG7, NOW.minusSeconds(3)),
+            "setup-transmitter" to NewSensorStep.SensorSetupStep(SensorProfile.DexcomG6, "8GAB"),
+            "setup-serial" to NewSensorStep.SensorSetupStep(SensorProfile.AidexX, "22222A2WC8"),
+            "setup-vendor-app" to NewSensorStep.SensorSetupStep(SensorProfile.DexcomG7),
+            "setup-pin" to NewSensorStep.SensorSetupStep(SensorProfile.SmartGuide),
+            "connecting-scanning" to
+                NewSensorStep.ConnectingBle("k", NOW, activated = false, SensorProfile.DexcomG6, LinkStatus.Scanning),
+            "connecting-not-found" to
+                NewSensorStep.ConnectingBle("k", NOW, activated = false, SensorProfile.AidexX, LinkStatus.SensorNotFound),
+            "connecting-pin" to NewSensorStep.ConnectingBle("k", NOW, activated = false, SensorProfile.SmartGuide, LinkStatus.EnterPin),
+            "connecting-vendor-app" to
+                NewSensorStep.ConnectingBle("k", NOW, activated = false, SensorProfile.DexcomG7, LinkStatus.WaitingForVendorApp),
+            "connecting-no-session" to
+                NewSensorStep.ConnectingBle("k", NOW, activated = false, SensorProfile.DexcomG6, LinkStatus.NoSession),
+            "ble-failed-wrong-id" to NewSensorStep.BleFailed("k", BleFailure.WrongId),
+            "ble-failed-refused" to NewSensorStep.BleFailed("k", BleFailure.Refused),
+            "ble-failed-bond" to NewSensorStep.BleFailed("k", BleFailure.BondFailed),
             "core-missing" to NewSensorStep.CoreMissing,
             "no-nfc" to NewSensorStep.NoNfc,
             "nfc-off" to NewSensorStep.NfcOff,

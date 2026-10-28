@@ -33,7 +33,7 @@
     <string name="newsensor_failed_moved_title">The tap didn\'t finish</string>
     <string name="newsensor_failed_moved_text">Hold the phone on the sensor a little longer. Trying again is safe.</string>
     <string name="newsensor_failed_not_libre3_title">This isn\'t a Libre 3</string>
-    <string name="newsensor_failed_not_libre3_text">Sukrara reads FreeStyle Libre 3 and 3 Plus sensors. For other sensors, read glucose from Juggluco.</string>
+    <string name="newsensor_failed_not_libre3_text">This isn\'t a FreeStyle Libre 3 or 3 Plus. For another sensor, go back and choose its brand, or read glucose from Juggluco.</string>
     <string name="newsensor_failed_ended_title">This sensor has ended</string>
     <string name="newsensor_failed_ended_text">Put on a new sensor, then hold the phone to it.</string>
     <string name="newsensor_takeover_title">Another app has this sensor</string>
@@ -86,4 +86,32 @@
     <string name="libreview_error_wrong_password">Wrong email or password.</string>
     <string name="libreview_error_accept_terms">LibreView has new terms. Accept them in the LibreView or Libre app, then sign in again.</string>
     <string name="libreview_error_failed">Couldn\'t sign in to LibreView. Check the connection and try again.</string>
+    <!-- choosing the sensor family; brand names are not translated -->
+    <string name="newsensor_choose_title">Which sensor?</string>
+    <string name="newsensor_choose_text">Pick the sensor you are wearing. Sukrara reads it on this phone.</string>
+    <string name="newsensor_untested_tag">Untested</string>
+    <string name="newsensor_untested_tag_description">untested with real sensors</string>
+    <string name="newsensor_untested_title">Untested with real sensors</string>
+    <string name="newsensor_untested_text">Sukrara has never been tested with a real %1$s. It may not connect, and readings may be wrong or missing. Keep your official app or a meter at hand and check every value before you act on it.</string>
+    <string name="newsensor_action_continue_anyway">Continue anyway</string>
+    <string name="newsensor_action_continue_anyway_wait">Continue anyway (%1$d)</string>
+    <string name="newsensor_action_pair">Pair</string>
+    <!-- a scanned family\'s setup -->
+    <string name="newsensor_setup_title">Set up %1$s</string>
+    <string name="newsensor_setup_transmitter_text">Type the 6-character transmitter ID printed on the transmitter or its box. The Dexcom app or receiver must have started the sensor session.</string>
+    <string name="newsensor_setup_serial_text">Type the 10-character serial number printed on the sensor\'s box.</string>
+    <string name="newsensor_setup_vendor_text">Pair the sensor in the Dexcom app first and keep the Dexcom app installed and running. Sukrara reads along with it and sends nothing to the sensor.</string>
+    <string name="newsensor_setup_pin_text">Have the sensor cap at hand: when Android asks, type the 6-digit PIN printed on it.</string>
+    <string name="newsensor_setup_id_label">ID</string>
+    <string name="newsensor_setup_id_invalid">%1$d letters and digits</string>
+    <!-- a scanned family connecting -->
+    <string name="newsensor_scanning_text">Looking for the sensor. Keep the phone close to it.</string>
+    <string name="newsensor_not_found_text">The sensor hasn\'t shown up yet. Check the ID you typed and keep the phone close. Sukrara keeps looking.</string>
+    <string name="newsensor_enter_pin_text">Type the PIN from the sensor\'s cap in Android\'s pairing dialog.</string>
+    <string name="newsensor_vendor_app_text">Connected. Waiting for the Dexcom app: open it so it connects to the sensor.</string>
+    <string name="newsensor_no_session_text">The sensor has no session running. Start it in the Dexcom app or receiver.</string>
+    <string name="newsensor_pair_failed_title">Pairing didn\'t work</string>
+    <string name="newsensor_wrong_id_text">The ID doesn\'t belong to this sensor. Check it and pair again.</string>
+    <string name="newsensor_refused_text">The sensor refused the connection. Pair again; if it keeps refusing, the official app may be holding it.</string>
+    <string name="newsensor_bond_failed_text">Android\'s Bluetooth pairing didn\'t finish. Pair again and type the PIN from the cap when asked.</string>
 </resources>

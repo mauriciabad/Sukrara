@@ -92,7 +92,7 @@ class SensorSettingsTest {
     fun `the current source is selected and tapping it does nothing`() {
         val chosen = mutableListOf<SourceChoice>()
         show(working, SensorSettingsActions(setSource = { chosen += it }))
-        compose.onNodeWithText("Libre 3 directly").performScrollTo().performClick()
+        compose.onNodeWithText("This phone reads the sensor").performScrollTo().performClick()
         compose.onNodeWithText("Read the sensor directly?").assertDoesNotExist()
         assertTrue(chosen.isEmpty())
     }

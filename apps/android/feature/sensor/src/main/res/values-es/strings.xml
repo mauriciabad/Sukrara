@@ -32,7 +32,7 @@
     <string name="newsensor_failed_moved_title">No se terminó de leer</string>
     <string name="newsensor_failed_moved_text">Mantén el móvil sobre el sensor un poco más. Volver a intentarlo es seguro.</string>
     <string name="newsensor_failed_not_libre3_title">No es un Libre 3</string>
-    <string name="newsensor_failed_not_libre3_text">Sukrara lee sensores FreeStyle Libre 3 y 3 Plus. Para otros sensores, lee la glucosa desde Juggluco.</string>
+    <string name="newsensor_failed_not_libre3_text">No es un FreeStyle Libre 3 ni 3 Plus. Para otro sensor, vuelve atrás y elige su marca, o lee la glucosa desde Juggluco.</string>
     <string name="newsensor_failed_ended_title">Este sensor ha terminado</string>
     <string name="newsensor_failed_ended_text">Ponte un sensor nuevo y acércale el móvil.</string>
     <string name="newsensor_takeover_title">Otra app tiene este sensor</string>
@@ -83,4 +83,32 @@
     <string name="libreview_error_wrong_password">Correo o contraseña incorrectos.</string>
     <string name="libreview_error_accept_terms">LibreView tiene condiciones nuevas. Acéptalas en la app LibreView o Libre y vuelve a iniciar sesión.</string>
     <string name="libreview_error_failed">No se pudo iniciar sesión en LibreView. Revisa la conexión y vuelve a intentarlo.</string>
+    <!-- elegir el tipo de sensor; las marcas no se traducen -->
+    <string name="newsensor_choose_title">¿Qué sensor?</string>
+    <string name="newsensor_choose_text">Elige el sensor que llevas. Sukrara lo lee en este móvil.</string>
+    <string name="newsensor_untested_tag">Sin probar</string>
+    <string name="newsensor_untested_tag_description">sin probar con sensores reales</string>
+    <string name="newsensor_untested_title">Sin probar con sensores reales</string>
+    <string name="newsensor_untested_text">Sukrara nunca se ha probado con un %1$s real. Puede que no conecte y que las lecturas sean erróneas o falten. Ten a mano la app oficial o un glucómetro y comprueba cada valor antes de actuar.</string>
+    <string name="newsensor_action_continue_anyway">Continuar de todos modos</string>
+    <string name="newsensor_action_continue_anyway_wait">Continuar de todos modos (%1$d)</string>
+    <string name="newsensor_action_pair">Emparejar</string>
+    <!-- configuración de un sensor que se busca por Bluetooth -->
+    <string name="newsensor_setup_title">Configurar %1$s</string>
+    <string name="newsensor_setup_transmitter_text">Escribe el ID de 6 caracteres impreso en el transmisor o en su caja. La app de Dexcom o el receptor deben haber iniciado la sesión del sensor.</string>
+    <string name="newsensor_setup_serial_text">Escribe el número de serie de 10 caracteres impreso en la caja del sensor.</string>
+    <string name="newsensor_setup_vendor_text">Empareja primero el sensor en la app de Dexcom y mantenla instalada y abierta. Sukrara lee a la vez que ella y no envía nada al sensor.</string>
+    <string name="newsensor_setup_pin_text">Ten a mano la tapa del sensor: cuando Android lo pida, escribe el PIN de 6 cifras impreso en ella.</string>
+    <string name="newsensor_setup_id_label">ID</string>
+    <string name="newsensor_setup_id_invalid">%1$d letras y números</string>
+    <!-- un sensor que se busca por Bluetooth, conectando -->
+    <string name="newsensor_scanning_text">Buscando el sensor. Mantén el móvil cerca.</string>
+    <string name="newsensor_not_found_text">El sensor aún no aparece. Comprueba el ID que escribiste y mantén el móvil cerca. Sukrara sigue buscando.</string>
+    <string name="newsensor_enter_pin_text">Escribe el PIN de la tapa del sensor en el diálogo de emparejamiento de Android.</string>
+    <string name="newsensor_vendor_app_text">Conectado. Esperando a la app de Dexcom: ábrela para que se conecte al sensor.</string>
+    <string name="newsensor_no_session_text">El sensor no tiene ninguna sesión en marcha. Iníciala en la app de Dexcom o en el receptor.</string>
+    <string name="newsensor_pair_failed_title">No se ha podido emparejar</string>
+    <string name="newsensor_wrong_id_text">El ID no es de este sensor. Compruébalo y vuelve a emparejar.</string>
+    <string name="newsensor_refused_text">El sensor ha rechazado la conexión. Vuelve a emparejar; si sigue rechazándola, puede que la app oficial lo esté usando.</string>
+    <string name="newsensor_bond_failed_text">El emparejamiento Bluetooth de Android no ha terminado. Vuelve a emparejar y escribe el PIN de la tapa cuando te lo pida.</string>
 </resources>

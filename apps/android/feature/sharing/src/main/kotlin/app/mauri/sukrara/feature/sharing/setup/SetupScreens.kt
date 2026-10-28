@@ -121,6 +121,9 @@ data class SetupActions(
     val back: () -> Unit = {},
     val continueWelcome: () -> Unit = {},
     val chooseRole: (Role) -> Unit = {},
+    val join: (link: String, name: String) -> Unit = { _, _ -> },
+    val clearJoinError: () -> Unit = {},
+    val completeJoin: () -> Unit = {},
     val completePermissions: () -> Unit = {},
     val fix: (AlertRequirement) -> Unit = {},
     val openSensorSetup: () -> Unit = {},
@@ -148,6 +151,9 @@ private fun SetupViewModel.actions(
             back = { back(onDone) },
             continueWelcome = ::continueWelcome,
             chooseRole = ::chooseRole,
+            join = ::join,
+            clearJoinError = ::clearJoinError,
+            completeJoin = ::completeJoin,
             completePermissions = ::completePermissions,
             fix = { r -> readinessFix(r) },
             openSensorSetup = onOpenSensorSetup,
@@ -199,6 +205,7 @@ fun SetupContent(
                     when (s) {
                         SetupStep.Welcome -> WelcomeStep(actions)
                         SetupStep.Role -> RoleStep(u, actions)
+                        SetupStep.Join -> JoinStep(u, actions)
                         SetupStep.Permissions -> PermissionsStep(u, actions)
                         SetupStep.Sensor -> SensorStep(u, actions)
                         SetupStep.Alerts -> AlertConfirmStep(u, actions)
@@ -295,13 +302,10 @@ private fun ColumnScope.RoleStep(
             selected = Role.Follower
         }
     }
-    if (selected == Role.Follower && !u.facts.followerAvailable) {
-        NoteCard(stringResource(R.string.sh_setup_role_follower_later))
-    }
     StepButtons(
         stringResource(R.string.sh_setup_continue),
         onPrimary = { confirming = true },
-        enabled = selected == Role.Wearer || (selected == Role.Follower && u.facts.followerAvailable),
+        enabled = selected != null,
     )
     val role = selected
     if (confirming && role != null) {

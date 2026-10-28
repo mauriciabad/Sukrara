@@ -4,8 +4,10 @@
 package app.mauri.sukrara
 
 import android.app.Application
+import app.mauri.sukrara.alerts.AlertEvent
 import app.mauri.sukrara.alerts.AlertKind
 import app.mauri.sukrara.alerts.AlertSettings
+import app.mauri.sukrara.alerts.AlertSettingsCodec
 import app.mauri.sukrara.core.data.DataModule
 import app.mauri.sukrara.core.data.settings.SchemaSettings
 import app.mauri.sukrara.core.model.Clock
@@ -19,15 +21,20 @@ import app.mauri.sukrara.core.model.storage.TreatmentRecord
 import app.mauri.sukrara.feature.sensor.SensorUiModule
 import app.mauri.sukrara.feature.settings.AlertPlayback
 import app.mauri.sukrara.feature.settings.AlertSettingsStore
+import app.mauri.sukrara.feature.settings.AppOutput
 import app.mauri.sukrara.feature.settings.SettingsModule
 import app.mauri.sukrara.feature.sharing.EngineOwnerSharing
 import app.mauri.sukrara.feature.sharing.SetupModule
 import app.mauri.sukrara.feature.sharing.SharingDeps
+import app.mauri.sukrara.feature.sharing.ended
 import app.mauri.sukrara.feature.sharing.setup.SetupRecord
 import app.mauri.sukrara.feature.sharing.setup.label
 import app.mauri.sukrara.feature.treatments.TreatmentsModule
 import app.mauri.sukrara.graph.GraphConfig
 import app.mauri.sukrara.graph.GraphSettings
+import app.mauri.sukrara.integrations.CurrentSensor
+import app.mauri.sukrara.integrations.IntegrationsModule
+import app.mauri.sukrara.integrations.nightscout.NsState
 import app.mauri.sukrara.monitor.MonitorModule
 import app.mauri.sukrara.monitor.alerts.AlertRecord
 import app.mauri.sukrara.monitor.alerts.AlertsModule
@@ -41,11 +48,15 @@ import app.mauri.sukrara.pen.PenLog
 import app.mauri.sukrara.pen.PenNotificationPorts
 import app.mauri.sukrara.pen.PensModule
 import app.mauri.sukrara.pen.engine.Ledger
+import app.mauri.sukrara.protocol.event.AlertCodec
 import app.mauri.sukrara.sensor.SensorModule
 import app.mauri.sukrara.sensor.pairing.PairingLoad
 import app.mauri.sukrara.sensor.pairing.ReceiverIdState
 import app.mauri.sukrara.sensor.source.SensorSourceKind
+import app.mauri.sukrara.share.FollowerModule
 import app.mauri.sukrara.share.ShareOwnerModule
+import app.mauri.sukrara.share.follower.FollowState
+import app.mauri.sukrara.share.follower.FollowerNotifications
 import app.mauri.sukrara.share.owner.followRole
 import app.mauri.sukrara.share.owner.requests.AndroidRequestNotifications
 import app.mauri.sukrara.widgets.WidgetPlacements
@@ -61,10 +72,13 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.mapNotNull
 import kotlinx.coroutines.flow.shareIn
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -159,6 +173,12 @@ class AppGraph(
             scope = scope,
             dispatchers = dispatchers,
             needsBluetooth = needsBluetooth(),
+            // a follower's runtime: the wearer's mirrored settings and its `alert` events (its own mute stays here)
+            wearerSettings =
+                flow { emitAll(follower.engine.wearerSettings) }.map { p ->
+                    p?.let { AlertSettingsCodec.decode(it.alerts.toString()) }
+                },
+            remoteEvents = flow { emitAll(follower.engine.alerts) }.mapNotNull { AlertEvent.decode(AlertCodec.encode(it)) },
         )
     }
 
@@ -208,6 +228,33 @@ class AppGraph(
                         alarm: Boolean,
                     ) = alerts.tryOut.channelId(kind, alarm)
                 },
+            appsShared =
+                integrations.summary.map { s ->
+                    setOfNotNull(AppOutput.NightscoutUpload.takeIf { s.nightscoutUpload }, AppOutput.XdripServer.takeIf { s.xdripServer })
+                },
+        )
+    }
+
+    /** Uploads, the local xDrip+ server and export (each off until switched on in Settings › Share with apps). */
+    val integrations by lazy {
+        IntegrationsModule(
+            context = app,
+            settings = data.settings,
+            secure = data.secureStore,
+            // losing it only costs one comparison with the site (nothing is sent twice: the site is checked first)
+            nightscoutState = data.typedStore("nightscout-upload", NsState.serializer(), NsState(), whenCorrupt = NsState()),
+            readings = data.readings,
+            treatments = data.treatments,
+            sensor =
+                sensor.source.sensorInfo.map { info ->
+                    info?.let { CurrentSensor(it.serial, Instant.ofEpochSecond(it.startEpoch), Instant.ofEpochSecond(it.endEpoch)) }
+                },
+            role = role.data.map { it.role },
+            jugglucoIsSource = data.settings.flow(SensorSource).map { SensorSourceKind.fromId(it) == SensorSourceKind.Juggluco },
+            http = data.http,
+            clock = clock,
+            dispatchers = dispatchers,
+            log = { data.diagLog.log("integrations", it) },
         )
     }
 
@@ -236,7 +283,30 @@ class AppGraph(
             // THE alert checklist: the same instance home's reliability row and Settings › Alert reliability read
             readiness = alerts.readiness,
             clock = clock,
+            follower =
+                AppFollowerSharing(
+                    follower.engine,
+                    resetMonitoring = ::resetMonitoring,
+                    startMonitoring = { startMonitoring(StartReason.App) },
+                    clearRole = { role.update { it.copy(role = null) } },
+                ),
         )
+    }
+
+    /** The follower role: joins, the wearer's stream while the service runs, Stop following. */
+    val follower by lazy {
+        val info = NotificationGroups.Group.INFO
+        val notifications =
+            FollowerNotifications(app, Channels.REQUESTS, info.key) {
+                NotificationGroups.post(app, NotificationIds.FOLLOWING, it, info, Channels.REQUESTS)
+            }
+        FollowerModule(app, data, monitor.hub, clock, dispatchers, notifications::show)
+    }
+
+    /** No alarm armed from what came before (a previous role, a follow that ended): alert state and "monitoring since" go. */
+    private suspend fun resetMonitoring() {
+        alerts.reset()
+        monitor.hubImpl.resetMonitoring()
     }
 
     val sensorSettings by lazy { SensorSettingsBridge(sensor, data.settings, SensorSource, scope) { startMonitoring(StartReason.App) } }
@@ -320,7 +390,7 @@ class AppGraph(
     val treatments: TreatmentsModule by lazy {
         TreatmentsModule(
             data.treatments,
-            ShareTreatmentSync(shareOwner),
+            ShareTreatmentSync(shareOwner, follower.engine, role.data.map { it.role }, scope),
             clock,
             home.glucose,
             data.settings,
@@ -385,9 +455,22 @@ class AppGraph(
             step("role") { role.heal() }
             step("monitor") { monitor.ready() }
             step("widgets") { widgets.start() }
+            step("integrations") {
+                integrations.load()
+                integrations.start(scope)
+            }
             step("pens") { pens.start() }
             // sharing runs while this phone is the wearer (needs an identity: created / restored in Settings › Sharing)
             step("share") { scope.launch { shareOwner.ownerEngine.followRole(role.data.map { it.role }, scope) } }
+            step("follower") {
+                follower.engine.load()
+                // a follow that ended (declined, invite used, removed) arms no "no data" alarm for a stream that won't come
+                scope.launch {
+                    follower.engine.state.map { it.ended }.distinctUntilChanged().collect { ended ->
+                        if (ended && role.data.first().role == Role.Follower) resetMonitoring()
+                    }
+                }
+            }
         }
 
     /**
@@ -398,7 +481,7 @@ class AppGraph(
     private suspend fun readingSource(role: Role): ReadingSource? =
         when (role) {
             Role.Wearer -> BuildVariant.wearerSource(this) ?: sensorSource()
-            Role.Follower -> null
+            Role.Follower -> follower.engine.takeIf { it.isFollowing() }
         }
 
     /** Whether the role's source talks to the sensor over Bluetooth: the wearer's own sensor (not Juggluco). */
@@ -442,6 +525,6 @@ class AppGraph(
 
         /** A config nobody draws with stops being read after this (a screen rotation keeps it). */
         const val SHARE_STOP_MS = 5_000L
-        val SensorSource = SchemaSettings.text("source.source", SensorSourceKind.Libre3.id, SensorSourceKind.entries.map { it.id }.toSet())
+        val SensorSource = SchemaSettings.text("source.source", SensorSourceKind.Direct.id, SensorSourceKind.entries.map { it.id }.toSet())
     }
 }

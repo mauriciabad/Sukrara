@@ -2,4 +2,112 @@
 <!-- Sukrara — https://github.com/mauriciabad/sukrara
      Copyright (C) 2026 Maurici Abad
      SPDX-License-Identifier: GPL-3.0-or-later -->
-<resources />
+<resources>
+    <string name="in_cancel">Cancel</string>
+
+    <!-- Export data -->
+    <string name="in_export_title">Export data</string>
+    <string name="in_export_intro">Your readings and entries as one spreadsheet file in LibreView\'s layout, for your clinic, Tidepool or a spreadsheet. Only what is on this phone.</string>
+    <string name="in_export_intro_follower">The readings and entries of the person you follow, as one spreadsheet file in LibreView\'s layout. Only what this phone has received: it is their data, not yours.</string>
+    <string name="in_export_period">Period</string>
+    <string name="in_export_period_sensor">This sensor</string>
+    <string name="in_export_period_all">Everything on this phone</string>
+    <plurals name="in_export_period_days">
+        <item quantity="one">Last %d day</item>
+        <item quantity="other">Last %d days</item>
+    </plurals>
+    <string name="in_export_contents">In the file</string>
+    <string name="in_export_counting">Counting…</string>
+    <plurals name="in_export_readings">
+        <item quantity="one">%d reading</item>
+        <item quantity="other">%d readings</item>
+    </plurals>
+    <plurals name="in_export_treatments">
+        <item quantity="one">%d entry</item>
+        <item quantity="other">%d entries</item>
+    </plurals>
+    <string name="in_export_save">Save file</string>
+    <string name="in_export_share">Share</string>
+    <string name="in_export_share_chooser">Share glucose data</string>
+    <string name="in_export_saved">File saved</string>
+    <string name="in_export_failed">Couldn\'t write the file</string>
+    <string name="in_export_footer">One row every 5 minutes, oldest first, with insulin, carbs and notes. The file name has only the dates, never a name. Tidepool Uploader\'s LibreView import reads it.</string>
+
+    <!-- Share with apps -->
+    <string name="in_apps_title">Share with apps</string>
+    <string name="in_apps_intro_wearer">Your glucose in other apps: your own Nightscout site, Garmin watches through the xDrip+ server, and a file for your clinic.</string>
+    <string name="in_apps_intro_follower">The glucose of the person you follow in other apps: Garmin watches through the xDrip+ server, and a file.</string>
+    <string name="in_apps_nightscout_group" translatable="false">Nightscout</string>
+    <string name="in_apps_watch_group">Watches</string>
+    <string name="in_apps_xdrip">xDrip+ server</string>
+    <string name="in_apps_xdrip_off">For Garmin watches · any app on this phone can read it while it\'s on</string>
+    <string name="in_apps_xdrip_on">On · 127.0.0.1:17580</string>
+    <string name="in_apps_xdrip_busy">Another app uses port 17580 · turn its server off, then this one off and on</string>
+    <string name="in_apps_xdrip_juggluco">Juggluco is the source, so Juggluco serves the watch</string>
+    <string name="in_apps_xdrip_read_by">read by %1$s</string>
+    <string name="in_apps_xdrip_last_asked">last asked %1$s</string>
+    <string name="in_apps_xdrip_not_asked">not asked yet</string>
+    <string name="in_apps_files_group">Files</string>
+    <string name="in_apps_export_summary">A CSV file for your clinic or a spreadsheet</string>
+    <string name="in_apps_footer">The xDrip+ server listens only on this phone (127.0.0.1:17580), like xDrip+ itself, so Garmin watch faces and data fields made for xDrip+ read it through Garmin Connect. While it is on, any app on this phone can read your last 24 hours of glucose from it.</string>
+
+    <!-- Upload status (every upload page) -->
+    <string name="in_status_off">Off</string>
+    <string name="in_status_setup">Set up the site first</string>
+    <string name="in_status_auth">The site refused the token or secret: change it</string>
+    <string name="in_status_paused">Paused: another app (%1$s) uploads to this site</string>
+    <string name="in_status_waiting">On · nothing sent yet</string>
+    <plurals name="in_status_ok">
+        <item quantity="one">Last upload %1$s · %2$d item</item>
+        <item quantity="other">Last upload %1$s · %2$d items</item>
+    </plurals>
+    <string name="in_status_failing">Trying again soon · %1$s</string>
+    <string name="in_status_follower">Only the phone that wears the sensor uploads</string>
+
+    <!-- Nightscout upload -->
+    <string name="in_ns_title">Nightscout upload</string>
+    <string name="in_ns_intro">Send your glucose, entries and sensor changes to your own Nightscout site, so LoopFollow, Nightguard, Nightscout reports and Home Assistant see them from anywhere.</string>
+    <string name="in_ns_site">Site</string>
+    <string name="in_ns_site_none">Not set up</string>
+    <string name="in_ns_main">Upload to my Nightscout</string>
+    <string name="in_ns_main_needs_site">Set up the site first</string>
+    <string name="in_ns_status">Status</string>
+    <string name="in_ns_anyway">Upload anyway</string>
+    <string name="in_ns_anyway_summary">Readings from both apps will show up on the site</string>
+    <string name="in_ns_what">What to send</string>
+    <string name="in_ns_unavailable">Turn the upload on first</string>
+    <string name="in_ns_readings">Glucose readings</string>
+    <string name="in_ns_readings_summary">Every reading, the last 30 days included</string>
+    <string name="in_ns_entries">Insulin, carbs and notes</string>
+    <string name="in_ns_entries_summary">Edits and deletions too</string>
+    <string name="in_ns_sensor">Sensor changes</string>
+    <string name="in_ns_sensor_summary">For the sensor age</string>
+    <string name="in_ns_battery">Phone battery</string>
+    <string name="in_ns_battery_summary">Shown in Nightscout and LoopFollow</string>
+    <string name="in_ns_advanced">Advanced</string>
+    <string name="in_ns_api">API</string>
+    <string name="in_ns_api_v1">API v1 (recommended)</string>
+    <string name="in_ns_api_v1_sub">Sends readings in batches; every Nightscout has it</string>
+    <string name="in_ns_api_v3">API v3</string>
+    <string name="in_ns_api_v3_sub">One request per reading; needs an access token</string>
+    <string name="in_ns_remove">Remove this site</string>
+    <string name="in_ns_remove_title">Remove this site?</string>
+    <string name="in_ns_remove_text">Sukrara stops uploading and forgets the address and the token. What is already on the site stays there.</string>
+    <string name="in_ns_remove_action">Remove</string>
+    <string name="in_ns_footer">Sukrara only uploads: it never reads your data back. Prefer an access token with only the upload permissions (Nightscout › Admin tools › Subjects) over the API secret, which can change everything on the site. Either is kept encrypted on this phone. The site needs https:// with a certificate from a public authority: a self-signed or private certificate isn\'t trusted. If another app such as Juggluco or xDrip+ uploads to the same site, turn its upload off.</string>
+    <string name="in_ns_dialog_title">Nightscout site</string>
+    <string name="in_ns_dialog_url">Address</string>
+    <string name="in_ns_dialog_token">Access token</string>
+    <string name="in_ns_dialog_secret">API secret</string>
+    <string name="in_ns_dialog_credential">Token or secret</string>
+    <string name="in_ns_dialog_keep">Leave it empty to keep the saved one</string>
+    <string name="in_ns_dialog_test">Test</string>
+    <string name="in_ns_dialog_save">Save</string>
+    <string name="in_ns_testing">Testing…</string>
+    <string name="in_ns_test_ok">Connected · Nightscout %1$s</string>
+    <string name="in_ns_test_ok_plain">Connected</string>
+    <string name="in_ns_test_auth">The site refused this token or secret</string>
+    <string name="in_ns_test_failed">Couldn\'t reach the site (%1$s)</string>
+    <string name="in_ns_problem_https">Use https://: Sukrara sends your data only encrypted</string>
+    <string name="in_ns_problem_url">This isn\'t a web address</string>
+</resources>

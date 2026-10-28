@@ -10,6 +10,7 @@ import app.mauri.sukrara.core.model.DispatcherProvider
 import app.mauri.sukrara.core.model.storage.SecureStore
 import app.mauri.sukrara.core.model.storage.StateStore
 import app.mauri.sukrara.sensor.ble.AndroidGatt
+import app.mauri.sukrara.sensor.ble.AndroidScanner
 import app.mauri.sukrara.sensor.juggluco.JugglucoSource
 import app.mauri.sukrara.sensor.libre3.Libre3Crypto
 import app.mauri.sukrara.sensor.libreview.LibreViewAccount
@@ -55,6 +56,7 @@ class SensorModule(
             pairings = pairings,
             security = Libre3Crypto.takeIf { it.isAvailable },
             connector = AndroidGatt(app),
+            scanner = AndroidScanner(app),
             juggluco = { JugglucoSource(http, zone = { clock.zone }) },
             clock = clock,
             dispatcher = dispatchers.default.limitedParallelism(1),

@@ -119,6 +119,10 @@
     <string name="st_sensor_summary">Sensor actual, origen de las lecturas, LibreView</string>
     <string name="st_sharing">Compartir</string>
     <string name="st_sharing_summary">Seguidores y dispositivos</string>
+    <string name="st_apps">Compartir con apps</string>
+    <string name="st_apps_summary">Nightscout, relojes Garmin, un archivo para tu clínica</string>
+    <string name="st_apps_nightscout">Subir a Nightscout</string>
+    <string name="st_apps_xdrip">Servidor xDrip+</string>
     <string name="st_about_title">Acerca de</string>
     <string name="st_about_version">Versión</string>
     <string name="st_update_checking">Buscando actualizaciones…</string>
@@ -147,8 +151,8 @@
     <string name="st_sensor_ends">Termina</string>
     <string name="st_sensor_ends_in">%1$s · en %2$s</string>
     <string name="st_sensor_pair_new">Emparejar sensor nuevo</string>
-    <string name="st_sensor_pair_new_summary">Escanea un Libre 3 nuevo con el móvil</string>
-    <string name="st_sensor_pair_new_juggluco">Escanea un Libre 3 para que Sukrara lo lea directamente en vez de Juggluco</string>
+    <string name="st_sensor_pair_new_summary">Empareja un sensor nuevo con este móvil</string>
+    <string name="st_sensor_pair_new_juggluco">Empareja un sensor para que Sukrara lo lea directamente en vez de Juggluco</string>
     <string name="st_sensor_status_none">Aún no hay ningún sensor emparejado</string>
     <string name="st_sensor_status_waiting_juggluco">Esperando a Juggluco</string>
     <string name="st_sensor_status_warming">Calentando · primera lectura a las %1$s</string>
@@ -157,13 +161,13 @@
     <string name="st_sensor_status_ended">Terminado</string>
     <string name="st_sensor_status_core_missing">Esta versión no puede leer sensores Libre 3</string>
     <string name="st_sensor_status_bluetooth_off">El Bluetooth está apagado: no hay lecturas hasta que lo enciendas</string>
-    <string name="st_sensor_none_text">Aún no hay sensor. Empareja un Libre 3 para empezar a recibir lecturas.</string>
+    <string name="st_sensor_none_text">Aún no hay sensor. Empareja un sensor para empezar a recibir lecturas.</string>
     <string name="st_sensor_ended_text">Este sensor ha terminado. Ponte uno nuevo y emparéjalo.</string>
     <string name="st_sensor_sign_in_needed">Inicia sesión en LibreView para que Sukrara pueda iniciar el sensor o tomar el control.</string>
     <string name="st_sensor_bluetooth_permission_text">Sukrara necesita el permiso de Dispositivos cercanos para leer el sensor. Emparejar sensor nuevo lo pide.</string>
     <string name="st_sensor_scan_again_text">Sukrara no puede usar el emparejamiento guardado. Vuelve a escanear el sensor: sigue funcionando y no se pierde nada.</string>
     <string name="st_sensor_source">Origen de las lecturas</string>
-    <string name="st_sensor_source_direct">Libre 3 directamente</string>
+    <string name="st_sensor_source_direct">Este móvil lee el sensor</string>
     <string name="st_sensor_source_direct_why">Sukrara se conecta al sensor por Bluetooth.</string>
     <string name="st_sensor_source_juggluco">Juggluco</string>
     <string name="st_sensor_source_juggluco_why">Juggluco lee el sensor en este móvil; Sukrara recibe la glucosa del servidor web de Juggluco.</string>
@@ -187,7 +191,7 @@
     <string name="st_sensor_status_scan_again">Hay que volver a escanear el sensor</string>
     <string name="st_sensor_status_sign_in">Hay que iniciar sesión en LibreView</string>
     <string name="st_sensor_status_permission">Falta el permiso de Dispositivos cercanos</string>
-    <string name="st_sensor_juggluco_unreachable_text">Juggluco no responde, así que Sukrara no recibe lecturas. Abre Juggluco y activa su servidor web (Ajustes › Servidor web), o elige Libre 3 directamente abajo.</string>
+    <string name="st_sensor_juggluco_unreachable_text">Juggluco no responde, así que Sukrara no recibe lecturas. Abre Juggluco y activa su servidor web (Ajustes › Servidor web), o elige Este móvil lee el sensor abajo.</string>
     <string name="st_sensor_open_juggluco">Abrir Juggluco</string>
     <string name="st_sensor_bluetooth_off_text">El Bluetooth está apagado, así que Sukrara no recibe lecturas. Enciéndelo y se reconecta enseguida.</string>
     <string name="st_sensor_open_bluetooth">Abrir ajustes de Bluetooth</string>

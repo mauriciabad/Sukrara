@@ -2,4 +2,111 @@
 <!-- Sukrara — https://github.com/mauriciabad/sukrara
      Copyright (C) 2026 Maurici Abad
      SPDX-License-Identifier: GPL-3.0-or-later -->
-<resources />
+<resources>
+    <string name="in_cancel">Cancelar</string>
+
+    <!-- Export data -->
+    <string name="in_export_title">Exportar datos</string>
+    <string name="in_export_intro">Tus lecturas y registros en un archivo de hoja de cálculo con el formato de LibreView, para tu clínica, Tidepool o una hoja de cálculo. Solo lo que hay en este móvil.</string>
+    <string name="in_export_intro_follower">Las lecturas y registros de la persona a la que sigues, en un archivo de hoja de cálculo con el formato de LibreView. Solo lo que ha recibido este móvil: son sus datos, no los tuyos.</string>
+    <string name="in_export_period">Periodo</string>
+    <string name="in_export_period_sensor">Este sensor</string>
+    <string name="in_export_period_all">Todo lo que hay en este móvil</string>
+    <plurals name="in_export_period_days">
+        <item quantity="one">Último %d día</item>
+        <item quantity="other">Últimos %d días</item>
+    </plurals>
+    <string name="in_export_contents">En el archivo</string>
+    <string name="in_export_counting">Contando…</string>
+    <plurals name="in_export_readings">
+        <item quantity="one">%d lectura</item>
+        <item quantity="other">%d lecturas</item>
+    </plurals>
+    <plurals name="in_export_treatments">
+        <item quantity="one">%d registro</item>
+        <item quantity="other">%d registros</item>
+    </plurals>
+    <string name="in_export_save">Guardar archivo</string>
+    <string name="in_export_share">Compartir</string>
+    <string name="in_export_share_chooser">Compartir datos de glucosa</string>
+    <string name="in_export_saved">Archivo guardado</string>
+    <string name="in_export_failed">No se ha podido escribir el archivo</string>
+    <string name="in_export_footer">Una fila cada 5 minutos, de la más antigua a la más reciente, con insulina, carbohidratos y notas. El nombre del archivo solo lleva las fechas, nunca un nombre. La importación de LibreView de Tidepool Uploader lo lee.</string>
+
+    <!-- Share with apps -->
+    <string name="in_apps_title">Compartir con apps</string>
+    <string name="in_apps_intro_wearer">Tu glucosa en otras apps: tu propio sitio de Nightscout, relojes Garmin a través del servidor xDrip+ y un archivo para tu clínica.</string>
+    <string name="in_apps_intro_follower">La glucosa de la persona a la que sigues en otras apps: relojes Garmin a través del servidor xDrip+ y un archivo.</string>
+    <string name="in_apps_watch_group">Relojes</string>
+    <string name="in_apps_xdrip">Servidor xDrip+</string>
+    <string name="in_apps_xdrip_off">Para relojes Garmin · mientras está activado, cualquier app de este móvil puede leerlo</string>
+    <string name="in_apps_xdrip_on">Activado · 127.0.0.1:17580</string>
+    <string name="in_apps_xdrip_busy">Otra app usa el puerto 17580 · desactiva su servidor y luego desactiva y activa este</string>
+    <string name="in_apps_xdrip_juggluco">Juggluco es la fuente, así que Juggluco da los datos al reloj</string>
+    <string name="in_apps_xdrip_read_by">lo lee %1$s</string>
+    <string name="in_apps_xdrip_last_asked">última consulta %1$s</string>
+    <string name="in_apps_xdrip_not_asked">aún sin consultas</string>
+    <string name="in_apps_files_group">Archivos</string>
+    <string name="in_apps_export_summary">Un archivo CSV para tu clínica o una hoja de cálculo</string>
+    <string name="in_apps_footer">El servidor xDrip+ solo escucha en este móvil (127.0.0.1:17580), como el propio xDrip+, así que las esferas y campos de datos de Garmin hechos para xDrip+ lo leen a través de Garmin Connect. Mientras está activado, cualquier app de este móvil puede leer tus últimas 24 horas de glucosa.</string>
+
+    <!-- Upload status (every upload page) -->
+    <string name="in_status_off">Desactivado</string>
+    <string name="in_status_setup">Primero configura el sitio</string>
+    <string name="in_status_auth">El sitio ha rechazado el token o el secreto: cámbialo</string>
+    <string name="in_status_paused">En pausa: otra app (%1$s) sube datos a este sitio</string>
+    <string name="in_status_waiting">Activado · aún no se ha enviado nada</string>
+    <plurals name="in_status_ok">
+        <item quantity="one">Última subida %1$s · %2$d elemento</item>
+        <item quantity="other">Última subida %1$s · %2$d elementos</item>
+    </plurals>
+    <string name="in_status_failing">Se reintentará pronto · %1$s</string>
+    <string name="in_status_follower">Solo sube datos el móvil que lleva el sensor</string>
+
+    <!-- Nightscout upload -->
+    <string name="in_ns_title">Subir a Nightscout</string>
+    <string name="in_ns_intro">Envía tu glucosa, tus registros y los cambios de sensor a tu propio sitio de Nightscout, para que LoopFollow, Nightguard, los informes de Nightscout y Home Assistant los vean desde cualquier lugar.</string>
+    <string name="in_ns_site">Sitio</string>
+    <string name="in_ns_site_none">Sin configurar</string>
+    <string name="in_ns_main">Subir a mi Nightscout</string>
+    <string name="in_ns_main_needs_site">Primero configura el sitio</string>
+    <string name="in_ns_status">Estado</string>
+    <string name="in_ns_anyway">Subir de todos modos</string>
+    <string name="in_ns_anyway_summary">En el sitio aparecerán las lecturas de las dos apps</string>
+    <string name="in_ns_what">Qué enviar</string>
+    <string name="in_ns_unavailable">Primero activa la subida</string>
+    <string name="in_ns_readings">Lecturas de glucosa</string>
+    <string name="in_ns_readings_summary">Todas, incluidos los últimos 30 días</string>
+    <string name="in_ns_entries">Insulina, carbohidratos y notas</string>
+    <string name="in_ns_entries_summary">También los cambios y borrados</string>
+    <string name="in_ns_sensor">Cambios de sensor</string>
+    <string name="in_ns_sensor_summary">Para la edad del sensor</string>
+    <string name="in_ns_battery">Batería del móvil</string>
+    <string name="in_ns_battery_summary">Se ve en Nightscout y LoopFollow</string>
+    <string name="in_ns_advanced">Avanzado</string>
+    <string name="in_ns_api">API</string>
+    <string name="in_ns_api_v1">API v1 (recomendada)</string>
+    <string name="in_ns_api_v1_sub">Envía las lecturas en lotes; todos los Nightscout la tienen</string>
+    <string name="in_ns_api_v3">API v3</string>
+    <string name="in_ns_api_v3_sub">Una petición por lectura; necesita un token de acceso</string>
+    <string name="in_ns_remove">Quitar este sitio</string>
+    <string name="in_ns_remove_title">¿Quitar este sitio?</string>
+    <string name="in_ns_remove_text">Sukrara deja de subir datos y olvida la dirección y el token. Lo que ya está en el sitio se queda allí.</string>
+    <string name="in_ns_remove_action">Quitar</string>
+    <string name="in_ns_footer">Sukrara solo sube datos: nunca los vuelve a leer. Mejor un token de acceso con solo los permisos de subida (Nightscout › Herramientas de administración › Sujetos) que el secreto de API, que puede cambiarlo todo en el sitio. Los dos se guardan cifrados en este móvil. El sitio necesita https:// con un certificado de una autoridad pública: un certificado propio o privado no se acepta. Si otra app como Juggluco o xDrip+ sube datos al mismo sitio, desactiva su subida.</string>
+    <string name="in_ns_dialog_title">Sitio de Nightscout</string>
+    <string name="in_ns_dialog_url">Dirección</string>
+    <string name="in_ns_dialog_token">Token de acceso</string>
+    <string name="in_ns_dialog_secret">Secreto de API</string>
+    <string name="in_ns_dialog_credential">Token o secreto</string>
+    <string name="in_ns_dialog_keep">Déjalo vacío para mantener el guardado</string>
+    <string name="in_ns_dialog_test">Probar</string>
+    <string name="in_ns_dialog_save">Guardar</string>
+    <string name="in_ns_testing">Probando…</string>
+    <string name="in_ns_test_ok">Conectado · Nightscout %1$s</string>
+    <string name="in_ns_test_ok_plain">Conectado</string>
+    <string name="in_ns_test_auth">El sitio ha rechazado este token o secreto</string>
+    <string name="in_ns_test_failed">No se ha podido conectar con el sitio (%1$s)</string>
+    <string name="in_ns_problem_https">Usa https://: Sukrara solo envía tus datos cifrados</string>
+    <string name="in_ns_problem_url">Esto no es una dirección web</string>
+</resources>

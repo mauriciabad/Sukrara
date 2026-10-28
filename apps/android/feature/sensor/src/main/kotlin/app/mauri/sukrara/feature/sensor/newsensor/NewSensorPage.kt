@@ -5,6 +5,9 @@ package app.mauri.sukrara.feature.sensor.newsensor
 
 import androidx.annotation.StringRes
 import app.mauri.sukrara.feature.sensor.R
+import app.mauri.sukrara.sensor.IdKind
+import app.mauri.sukrara.sensor.SensorSetup
+import app.mauri.sukrara.sensor.ble.LinkStatus
 
 /** A button on a new-sensor page. The screen turns each into an intent, a permission request or a machine event. */
 enum class NewSensorAction(
@@ -18,6 +21,8 @@ enum class NewSensorAction(
     AllowNotifications(R.string.newsensor_action_allow),
     AppSettings(R.string.newsensor_action_app_settings),
     Continue(R.string.newsensor_action_continue),
+    ContinueAnyway(R.string.newsensor_action_continue_anyway),
+    Pair(R.string.newsensor_action_pair),
     NotNow(R.string.newsensor_action_not_now),
     UseJuggluco(R.string.newsensor_action_use_juggluco),
     Cancel(R.string.newsensor_action_cancel),
@@ -39,12 +44,61 @@ data class NewSensorPage(
     val actions: List<NewSensorAction>,
     @param:StringRes val note: Int? = null,
     val busy: Boolean = false,
+    /** Filled into the title's and the text's `%1$s` (a family's brand name, not translated). */
+    val arg: String? = null,
+    /** The warning look (the untested-sensor confirmation). */
+    val warning: Boolean = false,
 )
 
 fun NewSensorStep.page(): NewSensorPage =
     when (this) {
         NewSensorStep.Idle -> {
             NewSensorPage(R.string.newsensor_checking_title, R.string.newsensor_checking_text, listOf(NewSensorAction.Cancel), busy = true)
+        }
+
+        is NewSensorStep.ChooseSensor -> {
+            NewSensorPage(
+                R.string.newsensor_choose_title,
+                R.string.newsensor_choose_text,
+                listOf(NewSensorAction.Continue, NewSensorAction.Cancel),
+            )
+        }
+
+        is NewSensorStep.ConfirmUntested -> {
+            NewSensorPage(
+                R.string.newsensor_untested_title,
+                R.string.newsensor_untested_text,
+                listOf(NewSensorAction.ContinueAnyway, NewSensorAction.Cancel),
+                arg = profile.label,
+                warning = true,
+            )
+        }
+
+        is NewSensorStep.SensorSetupStep -> {
+            NewSensorPage(
+                R.string.newsensor_setup_title,
+                when (val setup = profile.setup) {
+                    is SensorSetup.TypedId -> {
+                        if (setup.kind ==
+                            IdKind.TransmitterId
+                        ) {
+                            R.string.newsensor_setup_transmitter_text
+                        } else {
+                            R.string.newsensor_setup_serial_text
+                        }
+                    }
+
+                    is SensorSetup.BlePasskey -> {
+                        R.string.newsensor_setup_pin_text
+                    }
+
+                    else -> {
+                        R.string.newsensor_setup_vendor_text
+                    }
+                },
+                listOf(NewSensorAction.Pair, NewSensorAction.Cancel),
+                arg = profile.label,
+            )
         }
 
         NewSensorStep.CoreMissing -> {
@@ -159,7 +213,16 @@ fun NewSensorStep.page(): NewSensorPage =
         is NewSensorStep.ConnectingBle -> {
             NewSensorPage(
                 R.string.newsensor_connecting_title,
-                if (activated) R.string.newsensor_connecting_started_text else R.string.newsensor_connecting_paired_text,
+                when {
+                    link == LinkStatus.Scanning -> R.string.newsensor_scanning_text
+                    link == LinkStatus.SensorNotFound -> R.string.newsensor_not_found_text
+                    link == LinkStatus.EnterPin -> R.string.newsensor_enter_pin_text
+                    link == LinkStatus.WaitingForVendorApp -> R.string.newsensor_vendor_app_text
+                    link == LinkStatus.NoSession -> R.string.newsensor_no_session_text
+                    profile.needsScan -> R.string.newsensor_scanning_text
+                    activated -> R.string.newsensor_connecting_started_text
+                    else -> R.string.newsensor_connecting_paired_text
+                },
                 listOf(NewSensorAction.Close),
                 note = R.string.newsensor_keeps_going,
                 busy = true,
@@ -181,6 +244,18 @@ fun NewSensorStep.page(): NewSensorPage =
                         R.string.newsensor_bt_permission_title,
                         R.string.newsensor_ble_permission_text,
                         listOf(NewSensorAction.AllowBluetooth, NewSensorAction.AppSettings, NewSensorAction.Close),
+                    )
+                }
+
+                BleFailure.WrongId, BleFailure.Refused, BleFailure.BondFailed -> {
+                    NewSensorPage(
+                        R.string.newsensor_pair_failed_title,
+                        when (cause) {
+                            BleFailure.WrongId -> R.string.newsensor_wrong_id_text
+                            BleFailure.Refused -> R.string.newsensor_refused_text
+                            else -> R.string.newsensor_bond_failed_text
+                        },
+                        listOf(NewSensorAction.TryAgain, NewSensorAction.Close),
                     )
                 }
 

@@ -30,8 +30,11 @@ The full catalog, with every rule and number, is [docs/FEATURES.md](docs/FEATURE
   (NFC), then Sukrara keeps it connected over Bluetooth by itself, with 24 h backfill and automatic reconnects. It
   uses your **LibreView account's receiver ID** (sign in once, only to get the ID), so a sensor can move between
   Sukrara and Abbott's app. Or read from **Juggluco's local web server** if Juggluco keeps the sensor.
-- A guided **new sensor** screen: where the NFC antenna is, warm-up countdown, every failure handled on the same screen
-  (ended sensor, Libre 1/2, another app holding the sensor, Bluetooth off).
+- **Other sensors, untested**: Dexcom G7 / ONE+ / Stelo (read along with the Dexcom app), Dexcom G6 / ONE, Accu-Chek
+  SmartGuide and Aidex X / LinX / GlucoRx. They were never tested with a real sensor: the new sensor screen tags them
+  *Untested* and asks you to confirm before pairing.
+- A guided **new sensor** screen: which sensor, warm-up countdown, every failure handled on the same screen
+  (ended sensor, Libre 1/2, another app holding the sensor, Bluetooth off, a wrong ID or PIN).
 - **Settings › Sensor**: the current sensor (status, serial, start, end and time left), the reading source (Libre 3
   directly or Juggluco, saying first what changes), the LibreView account (email and receiver ID, sign in / out; the
   password is never stored) and *Pair new sensor*.
@@ -81,6 +84,13 @@ The full catalog, with every rule and number, is [docs/FEATURES.md](docs/FEATURE
   pictures, let one *add entries*, remove them (confirmed; removed ones fold away), **Backup** to your password manager
   or a recovery code (home says *Not backed up* until then; setup restores from either), and a clear screen when another
   device is sharing as you.
+- **Follow someone from an Android phone**: paste (or open) the wearer's invite link, wait for them to allow you (with
+  the 4-digit code they may ask for), then their readings, sensor, entries and alerts arrive over the relays and drive
+  home, widgets, the live notification and your own alerts (including *no data*). Add entries when they let you;
+  notifications say when an invite was used, declined or your access removed; *Stop following* in Settings › Sharing.
+- **Share with apps**: upload to your own **Nightscout** site (https, access token kept encrypted; 30-day catch-up,
+  pauses when another app uploads to the same site), an **xDrip+-compatible server** on this phone for **Garmin**
+  watches (off until you switch it on; loopback only), and **Export data** as a LibreView-layout CSV to save or share.
 - English and Spanish (Spain) everywhere.
 
 **Mac (you follow someone, from the menu bar)**
@@ -106,13 +116,14 @@ The full catalog, with every rule and number, is [docs/FEATURES.md](docs/FEATURE
   through at 5 min, the graph dimmed with the reading's time, no value at 20 min) and a tap opens Add treatment.
 - VoiceOver reads the value as one sentence with the range in words.
 
-**Not included**: the LSPosed lock-screen widget, Dexcom / Aidex / SmartGuide (untested) sensors, Garmin via the local xDrip+
-server, Nightscout / Tidepool / LibreView uploads, Health Connect and broadcasts, the pen list and dose review, the sensor-end
-calendar event, the glucose report and CSV export, settings export / import, following on
-Android and Bluetooth sharing from the phone, and the Mac's Juggluco-over-Wi-Fi source.
+**Not included**: the LSPosed lock-screen widget, Dexcom / Aidex / SmartGuide (untested) sensors, Tidepool /
+LibreView uploads, the phone's Nightscout read API, Health Connect and broadcasts, the pen list and dose review, the sensor-end
+calendar event, the glucose report, settings export / import, scanning an invite's QR code on Android and the Android
+follower's *Settings from* page, Bluetooth sharing from the phone, and the Mac's Juggluco-over-Wi-Fi source.
 
-**Garmin watch:** Sukrara has no watch server yet. A watch fed by **Juggluco** keeps working while Juggluco reads the
-sensor: pick Juggluco as Sukrara's source (*Settings › Sensor › Juggluco*).
+**Garmin watch:** switch on *Settings › Share with apps › xDrip+ server*; watch faces and data fields made for xDrip+
+read it through Garmin Connect. While **Juggluco** is Sukrara's source, Juggluco keeps its own server and feeds the
+watch. Upload uses a new device name per install (`Sukrara-…`), so a Nightscout site shows Sukrara as a new uploader.
 
 ## Install
 

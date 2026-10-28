@@ -68,7 +68,7 @@ class SensorSettingsBridge(
                 }
             }
 
-            is SensorStatus.Libre3 -> {
+            is SensorStatus.Direct -> {
                 when (detail.link) {
                     LinkStatus.Live, is LinkStatus.WarmingUp, LinkStatus.SensorEnded, LinkStatus.WaitingForBluetooth,
                     LinkStatus.PermissionMissing,
@@ -84,7 +84,7 @@ class SensorSettingsBridge(
         }
 
     override fun setSource(source: SourceChoice) {
-        val kind = if (source == SourceChoice.Juggluco) SensorSourceKind.Juggluco else SensorSourceKind.Libre3
+        val kind = if (source == SourceChoice.Juggluco) SensorSourceKind.Juggluco else SensorSourceKind.Direct
         scope.launch {
             settings.set(sourceSetting, kind.id)
             startMonitoring() // Juggluco is a source to monitor even with no sensor paired here

@@ -81,6 +81,7 @@ fun SettingsScreen(
     onBack: () -> Unit,
     openSensor: () -> Unit,
     openSharing: () -> Unit,
+    openApps: () -> Unit = {},
     onReviewFinish: (ThresholdReviewResult) -> Unit = { onBack() },
     /** The live card the Ranges and Graph pages show on top (the app's own panel; nothing in tests). */
     preview: @Composable () -> Unit = {},
@@ -91,13 +92,22 @@ fun SettingsScreen(
             val vm = alertsViewModel(deps)
             val ui by vm.ui.collectAsStateWithLifecycle()
             val readiness by deps.readiness.readiness.collectAsStateWithLifecycle()
+            val apps by deps.appsShared.collectAsStateWithLifecycle(emptySet())
             LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { deps.readiness.refresh() }
             SettingsOverviewContent(
                 ui?.settings?.on ?: true,
                 ui?.alerts ?: AlertUiState(),
                 readiness,
                 clock,
-                OverviewActions(navigate, openSensor, openSharing, vm::unmuteAll, pens = deps.pensAvailable()),
+                OverviewActions(
+                    open = navigate,
+                    openSensor = openSensor,
+                    openSharing = openSharing,
+                    openApps = openApps,
+                    unmuteAll = vm::unmuteAll,
+                    pens = deps.pensAvailable(),
+                ),
+                apps,
                 onBack,
             )
         }

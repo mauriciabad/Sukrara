@@ -31,6 +31,21 @@ internal interface GattConnection {
     /** Write with response; completes with [GattEvent.OperationDone]. False = not issued. */
     fun write(characteristic: UUID, value: ByteArray): Boolean
 
+    /** Enable indications (CCCD write); completes with [GattEvent.OperationDone]. False = not issued. */
+    fun enableIndications(characteristic: UUID): Boolean = false
+
+    /** Write without response; completes with [GattEvent.OperationDone] once handed to the controller. */
+    fun writeNoResponse(characteristic: UUID, value: ByteArray): Boolean = false
+
+    /** Read; completes with [GattEvent.Read]. False = not issued. */
+    fun read(characteristic: UUID): Boolean = false
+
+    /** This phone has a bond with the device. */
+    val isBonded: Boolean get() = false
+
+    /** Start Android's bonding (its PIN dialog when the device asks for one); settles with [GattEvent.BondChanged]. */
+    fun bond(): Boolean = false
+
     /** Disconnect and release the client slot; no callbacks are expected afterwards (late ones are ignored). */
     fun close()
 }
@@ -47,4 +62,10 @@ internal sealed interface GattEvent {
     data class OperationDone(override val generation: Int, val characteristic: UUID, val status: Int) : GattEvent
 
     class Notification(override val generation: Int, val characteristic: UUID, val value: ByteArray) : GattEvent
+
+    /** A read finished; [status] 0 = success. */
+    class Read(override val generation: Int, val characteristic: UUID, val value: ByteArray, val status: Int) : GattEvent
+
+    /** Android's bond with the device settled (bonded, or back to none). */
+    data class BondChanged(override val generation: Int, val bonded: Boolean) : GattEvent
 }

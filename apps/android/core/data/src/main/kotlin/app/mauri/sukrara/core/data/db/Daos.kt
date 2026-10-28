@@ -79,6 +79,9 @@ interface TreatmentDao {
     @Upsert
     suspend fun upsert(treatment: TreatmentEntity)
 
+    @Query("DELETE FROM treatments")
+    suspend fun deleteAll()
+
     /** Last writer wins: stores [treatment] only if nothing with the same or a later `modifiedAt` is stored. */
     @Transaction
     suspend fun upsertIfNewer(treatment: TreatmentEntity): Boolean {
