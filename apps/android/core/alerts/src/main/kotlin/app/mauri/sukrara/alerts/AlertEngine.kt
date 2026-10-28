@@ -183,9 +183,9 @@ class AlertEngine(private val newId: () -> String = ::randomId) {
             if (!fresh && side != Side.NO_DATA) continue // nothing new to judge the margin by
             val back =
                 when (side) {
-                    Side.LOW, Side.HIGH -> r != null && Rules.backBy(side, r, s)
+                    Side.LOW, Side.HIGH -> r != null && Rules.backBy(side, r, s) == true
                     Side.NO_DATA -> !noData
-                    else -> rateKind?.side != side
+                    else -> if (r?.rate == null) continue else rateKind?.side != side // no rate: can't tell
                 }
             if (!back) {
                 snoozes[side] = cur.copy(backSince = 0)
@@ -200,7 +200,9 @@ class AlertEngine(private val newId: () -> String = ::randomId) {
             }
         }
         step(AlertGroup.LEVEL, level, s, d, now, out)
-        step(AlertGroup.RATE, rateKind, s, d, now, out)
+        // a fresh reading without a rate (a LO / HI is sent without one) is no sign the fast change stopped: the rate
+        // episode stays as it is: its alert showing, its repeat due, its hold not running down (SPEC §1)
+        if (!fresh || r?.rate != null) step(AlertGroup.RATE, rateKind, s, d, now, out)
         step(AlertGroup.NO_DATA, if (noData) AlertKind.NO_DATA else null, s, d, now, out)
         return out
     }
