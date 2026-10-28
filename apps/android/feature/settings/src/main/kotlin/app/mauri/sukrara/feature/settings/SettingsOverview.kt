@@ -7,9 +7,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.res.stringResource
 import app.mauri.sukrara.core.model.AlertReadiness
 import app.mauri.sukrara.core.model.AlertUiState
+import app.mauri.sukrara.core.model.Clock
 import app.mauri.sukrara.designsystem.rows.NavigationRow
 import app.mauri.sukrara.designsystem.rows.SettingsGroup
-import java.time.ZoneId
 
 /** Where the overview's rows lead. */
 class OverviewActions(
@@ -25,12 +25,12 @@ fun SettingsOverviewContent(
     alertsOn: Boolean,
     alerts: AlertUiState,
     readiness: AlertReadiness,
-    zone: ZoneId,
+    clock: Clock,
     actions: OverviewActions,
     onBack: () -> Unit,
 ) {
     SettingsPage(stringResource(R.string.st_settings_title), onBack) {
-        MuteAllStrip(alerts, zone, actions.unmuteAll) { actions.open(SettingsRoute.Alerts) }
+        MuteAllStrip(alerts, clock, actions.unmuteAll) { actions.open(SettingsRoute.Alerts) }
         SettingsGroup {
             NavigationRow(
                 stringResource(R.string.st_alerts_title),

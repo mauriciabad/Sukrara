@@ -11,6 +11,7 @@ import android.graphics.Path
 import android.graphics.Typeface
 import androidx.core.graphics.ColorUtils
 import androidx.core.graphics.PathParser
+import app.mauri.sukrara.core.model.CardStatus
 import app.mauri.sukrara.core.model.Treatment
 import app.mauri.sukrara.settings.SettingsSpec
 import java.util.Locale

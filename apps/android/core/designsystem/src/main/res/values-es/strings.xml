@@ -26,4 +26,28 @@
     <string name="ds_req_channel_why">Las categorías de alerta deben conservar su sonido y poder saltarse No molestar.</string>
     <string name="ds_req_bluetooth">Bluetooth</string>
     <string name="ds_req_bluetooth_why">El sensor envía las lecturas por Bluetooth.</string>
+
+    <!-- Mute / remind-less lines (contracts/alerts/copy.json; MuteText, AlertCopyTest). Side names fill %1$s. -->
+    <string name="side_low">de glucosa baja</string>
+    <string name="side_high">de glucosa alta</string>
+    <string name="side_falling_fast">de bajada rápida</string>
+    <string name="side_rising_fast">de subida rápida</string>
+    <string name="side_no_data">sin datos</string>
+    <string name="mute_side">Alertas %1$s silenciadas</string>
+    <string name="mute_side_left_one">Alertas %1$s silenciadas · queda %2$s</string>
+    <string name="mute_side_left_other">Alertas %1$s silenciadas · quedan %2$s</string>
+    <string name="mute_after_carbs_one">Alertas %1$s silenciadas tras los hidratos · queda %2$s</string>
+    <string name="mute_after_carbs_other">Alertas %1$s silenciadas tras los hidratos · quedan %2$s</string>
+    <string name="mute_after_insulin_one">Alertas %1$s silenciadas tras la insulina · queda %2$s</string>
+    <string name="mute_after_insulin_other">Alertas %1$s silenciadas tras la insulina · quedan %2$s</string>
+    <string name="mute_falling">Alertas %1$s silenciadas mientras baja hacia el rango</string>
+    <string name="mute_less">Avisos %1$s cada %2$s</string>
+    <string name="mute_all_left_one">Alertas silenciadas · queda %1$s</string>
+    <string name="mute_all_left_other">Alertas silenciadas · quedan %1$s</string>
+    <string name="mute_all_forever">Alertas silenciadas hasta que lo desactives</string>
+    <string name="mute_notif_until">Hasta las %1$s</string>
+    <string name="mute_pill">Silenciadas · %1$s</string>
+    <string name="mute_pill_forever">Silenciadas</string>
+    <string name="mute_choice">Durante %1$s</string>
+    <string name="mute_choice_forever">Hasta que lo desactives</string>
 </resources>

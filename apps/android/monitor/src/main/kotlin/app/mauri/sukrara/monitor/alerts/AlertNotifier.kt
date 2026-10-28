@@ -16,8 +16,9 @@ import app.mauri.sukrara.alerts.Firing
 import app.mauri.sukrara.alerts.MuteLine
 import app.mauri.sukrara.alerts.Side
 import app.mauri.sukrara.core.model.AlertDeliveryProblem
-import app.mauri.sukrara.core.model.DurationWords
 import app.mauri.sukrara.core.model.Durations
+import app.mauri.sukrara.designsystem.alerts.AlertWords
+import app.mauri.sukrara.designsystem.alerts.MuteText
 import app.mauri.sukrara.graph.Clock
 import app.mauri.sukrara.monitor.AlertActionReceiver
 import app.mauri.sukrara.monitor.R
@@ -34,20 +35,7 @@ import app.mauri.sukrara.monitor.notify.NotificationIds
  */
 class AlertNotifier(private val ctx: Context) : AlertPresenter {
     private val nm get() = ctx.getSystemService(NotificationManager::class.java)
-    private val words = object : AlertWords {
-        override fun get(name: String) = ctx.getString(ctx.resources.getIdentifier(name, "string", ctx.packageName))
-
-        // read each time: the app's language may have changed since this notifier was made
-        override val durations: DurationWords get() = DurationWords(
-            minutes = get("duration_minutes"),
-            hours = get("duration_hours"),
-            hoursMinutes = get("duration_hours_minutes"),
-            days = get("duration_days"),
-            textMinutes = get("duration_text_minutes"),
-            textHours = get("duration_text_hours"),
-            textHoursMinutes = get("duration_text_hours_minutes"),
-        )
-    }
+    private val words = AlertWords.of(ctx)
 
     override fun show(firing: Firing, settings: AlertSettings, silent: Boolean, who: String?, relaxedMin: Int) {
         val kind = firing.kind
@@ -72,8 +60,8 @@ class AlertNotifier(private val ctx: Context) : AlertPresenter {
     override fun showMuted(group: AlertGroup, side: Side, kind: AlertKind, until: Long, settings: AlertSettings, now: Long) {
         val alarm = settings.rule(kind).alarm
         val b = base(kind, alarm, silent = true)
-            .setContentTitle(AlertCopy.line(MuteLine.SideMuted(side, null), words))
-            .setContentText(AlertCopy.line(MuteLine.NotifUntil(until), words, ::clockTime))
+            .setContentTitle(MuteText.line(MuteLine.SideMuted(side, null), words))
+            .setContentText(MuteText.line(MuteLine.NotifUntil(until), words, ::clockTime))
             .setWhen(until * 1000)
             .setShowWhen(true)
             .setUsesChronometer(true)

@@ -84,8 +84,6 @@
     <string name="banner_clinic_action">Set up</string>
 
     <!-- Mute strip and sensor line -->
-    <string name="home_muted_for">Alerts muted · %1$s</string>
-    <string name="home_muted_forever">Alerts muted until you turn them on</string>
     <string name="home_unmute">Unmute</string>
     <string name="home_sensor_ends">Sensor ends %1$s</string>
 
@@ -97,9 +95,9 @@
 
     <!-- Treatments -->
     <string name="home_treatments">Last 24 hours</string>
-    <string name="home_treatment_rapid">%1$s u rapid insulin</string>
-    <string name="home_treatment_long">%1$s u long insulin</string>
-    <string name="home_treatment_carbs">%1$s g carbs</string>
+    <string name="home_treatment_rapid">%1$s rapid insulin</string>
+    <string name="home_treatment_long">%1$s long insulin</string>
+    <string name="home_treatment_carbs">%1$s carbs</string>
     <string name="home_treatment_note">Note</string>
     <string name="home_treatment_delete">Delete %1$s at %2$s</string>
     <string name="home_treatment_deleted">Treatment deleted</string>

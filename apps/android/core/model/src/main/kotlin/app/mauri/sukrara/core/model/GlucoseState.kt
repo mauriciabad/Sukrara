@@ -125,10 +125,11 @@ sealed interface SourceStatus {
 /**
  * What the alert runtime shows: which alert kinds are firing (contract kind ids), *Mute all* ([mutedUntil] null = off,
  * [UNTIL_TURNED_OFF] = until the person turns it off) and the sides that are quiet or remind less ([quiet]), each with
- * its way out ([AlertControls]).
+ * its way out ([AlertControls]), and the badge's answer for the card ([status], every card surface draws it).
  */
 data class AlertUiState(
     val firingKinds: Set<String> = emptySet(),
+    val status: CardStatus = CardStatus.None,
     val mutedUntil: Instant? = null,
     val quiet: List<AlertQuietSide> = emptyList(),
     /** What stops alerts from ringing as set up right now (home shows a banner with the fix). */
