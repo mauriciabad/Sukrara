@@ -30,6 +30,10 @@ sections your change touches.
   (`// Sukrara — https://github.com/mauriciabad/sukrara` / `// Copyright (C) 2026 Maurici Abad` /
   `// SPDX-License-Identifier: GPL-3.0-or-later`; `#` for py / sh / yml, `<!-- -->` for xml).
   *(checks `java`, `header`: new source files, and files moved out of `poc/`)*
+- **Formatted code:** Kotlin through Spotless (ktlint + Compose rules, `apps/android/.editorconfig`; `./gradlew
+  spotlessApply` fixes), Swift through `swift format` (`apps/macos/.swift-format`; `swift format --in-place
+  --recursive Sources Tests`). Generated `SettingsSpec` files are left as the generator writes them.
+  *(Spotless in `./gradlew check`; check `format`: changed Swift files; CI mac job; `run.sh --format` for both)*
 - **Strings:** every user-visible Android text in the owning module's `res/values/strings.xml` and
   `res/values-es/strings.xml` (docs/DEVELOPMENT.md "Strings"). *(check `strings`: new hardcoded `Text("…")` etc.,
   each module's en/es keys; `StringsParityTest`)*

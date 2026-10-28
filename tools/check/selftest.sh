@@ -49,9 +49,9 @@ let flag = \"-debugsend\"
 func debugsend() {}"
 case_ "Mac debugsend inside #if DEBUG passes" pass "" apps/macos/Sources/SukraraApp/Launch.swift "$HDR
 #if DEBUG
-func debugsend() {}
+    func debugsend() {}
 #else
-let x = 1
+    let x = 1
 #endif"
 case_ "a hand-written DataStore key fails" fail settings apps/android/core/data/src/main/kotlin/app/mauri/sukrara/Store.kt "$HDR
 val k = booleanPreferencesKey(\"graphHours\")"
@@ -64,5 +64,11 @@ case_ "an image in the frozen PoC passes" pass "" poc/spikes/brand/assets/x/icon
 case_ "an nsec in app code fails" fail secrets apps/android/x/src/main/kotlin/K.kt "$HDR
 val k = \"nsec1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq\""
 
+if command -v swift >/dev/null 2>&1; then  # the format check needs a Swift toolchain (NOTE without one)
+  case_ "unformatted Mac Swift fails" fail format apps/macos/Sources/SukraraCore/F.swift "$HDR
+let  x=1"
+  case_ "formatted Mac Swift passes" pass "" apps/macos/Sources/SukraraCore/F.swift "$HDR
+let x = 1"
+fi
 if [ "$fails" -gt 0 ]; then echo "$fails self-test case(s) failed"; exit 1; fi
 echo "all check self-tests passed"

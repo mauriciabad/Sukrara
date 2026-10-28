@@ -66,12 +66,17 @@ Checks
               (Kotlin, Swift), a minutes placeholder in strings.xml outside the duration_* keys, the Words duration
               formats used outside Durations. Logs and data are exempt (log calls, tests, a line marked
               '// duration-ok: <why>', allow.json 'durations_ok' files with the reason). Whole tree.
+  format      changed Mac Swift files pass `swift format lint --strict` (apps/macos/.swift-format; fix with
+              `swift format --in-place`). Skipped with a NOTE where no Swift toolchain is installed (the Linux CI
+              rules job: the mac job lints the whole package). Kotlin formatting is Spotless in `./gradlew check`;
+              `run.sh --format` runs both platforms over the whole tree.
   qa          prints the docs/QA.md sections the change touches
 """
 import fnmatch
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 
@@ -415,9 +420,9 @@ def code_lines(text):
     return out
 
 
-def call_text(code, k, start=0, limit=8):
+def call_text(code, k, start=0, limit=24):
     """The text of the call starting on code line index k at column start, up to its closing parenthesis (at most limit
-    lines)."""
+    lines: the formatters put one argument per line)."""
     joined, depth, started = "", 0, False
     for i, (_, l) in enumerate(code[k:k + limit]):
         if i == 0:
@@ -885,6 +890,29 @@ def check_states(ch, rep):
             rep.add("FAIL", "states", "tools/check/allow.json states_pending lists '## %s', which docs/FEATURES.md doesn't have." % name)
 
 
+SWIFT_FORMATTED = ("apps/macos/Sources/*.swift", "apps/macos/Tests/*.swift")
+
+
+def check_format(ch, rep):
+    """format: see the module doc."""
+    files = [p for p in ch.live() if match(p, SWIFT_FORMATTED)]
+    if not files:
+        return
+    swift = shutil.which("swift")
+    if swift is None:
+        rep.add("NOTE", "format", "%d Swift file(s) not linted: no Swift toolchain here (CI's mac job lints them)." % len(files))
+        return
+    # from this file, not ROOT: inside a hook GIT_DIR is set and ROOT can resolve to tools/check
+    config = os.path.normpath(os.path.join(HERE, "..", "..", "apps/macos/.swift-format"))
+    for p in files:
+        r = subprocess.run([swift, "format", "lint", "--strict", "--configuration", config, "--assume-filename", p, "-"],
+                           input=ch.blob(p), capture_output=True, text=True)
+        if r.returncode != 0:
+            found = (r.stderr or r.stdout).strip().splitlines()
+            rep.add("FAIL", "format", "%s is not formatted (swift format --in-place --recursive Sources Tests in apps/macos):\n%s"
+                    % (p, "\n".join(found[:5])))
+
+
 def qa(ch):
     out = []
     for entry in load("qa.json")["map"]:
@@ -965,6 +993,7 @@ def main(argv):
         check_settings(ch, rep)
         check_states(ch, rep)
         check_durations(ch, rep)
+        check_format(ch, rep)
     rep.show()
     if only in (None, "coupling"):
         qa(ch)
