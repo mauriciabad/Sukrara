@@ -103,10 +103,21 @@ struct SettingsFromPicker: View {
 struct FollowingPane: View {
     @Bindable var model: SettingsModel
     var openFollow: () -> Void
+    /// Reconnect the relays and Bluetooth now (nil when this run has no follower runtime).
+    var reconnect: (() -> Void)?
 
     var body: some View {
         Form {
             Section { FollowingRows(follow: model.follow, openFollow: openFollow) }
+            if case .following = model.follow.status, let reconnect {
+                Section {
+                    HStack {
+                        Spacer()
+                        Button(L10n.t("Reconnect Now"), action: reconnect)
+                            .help(L10n.t("Reconnect to the relays and to the phone over Bluetooth now"))
+                    }
+                }
+            }
         }
         .formStyle(.grouped)
     }
@@ -218,6 +229,7 @@ struct SettingsView: View {
     var updateResult: String?
     var checkForUpdates: () -> Void
     var openFollow: () -> Void
+    var reconnect: (() -> Void)? = nil
 
     var body: some View {
         TabView(selection: $model.pane) {
@@ -236,7 +248,7 @@ struct SettingsView: View {
             AlertsRangesPane(model: model)
                 .tabItem { Label(L10n.t("Alerts"), systemImage: "bell") }
                 .tag(SettingsModel.Pane.alerts)
-            FollowingPane(model: model, openFollow: openFollow)
+            FollowingPane(model: model, openFollow: openFollow, reconnect: reconnect)
                 .tabItem { Label(L10n.t("Following"), systemImage: "person.2") }
                 .tag(SettingsModel.Pane.following)
         }

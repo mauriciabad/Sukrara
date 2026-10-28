@@ -69,6 +69,7 @@ public final class AppDelegate: NSObject, NSApplicationDelegate {
         windows.openPanel = { [weak statusItem] in statusItem?.showPanel() }
         services.permissionChanged = { [weak self] in self?.refreshNotificationPermission() }
         observeSystemTime()
+        observeClockStyle()
         observeNetwork()
         refreshNotificationPermission()
         model.run()
@@ -123,6 +124,19 @@ public final class AppDelegate: NSObject, NSApplicationDelegate {
                 [weak self] _ in
                 Task { @MainActor in self?.model.systemTimeChanged() }
             })
+    }
+
+    /// System Settings › 24-hour time or the time zone changed: every time on screen and in the widgets follows.
+    private func observeClockStyle() {
+        for name in Clock.changeNotifications {
+            observers.append(
+                NotificationCenter.default.addObserver(forName: name, object: nil, queue: .main) { [weak self] _ in
+                    Task { @MainActor in
+                        self?.model.clockStyleChanged()
+                        self?.windows?.treatments.clockStyle += 1
+                    }
+                })
+        }
     }
 
     /// The network came back: reconnect the relays now instead of waiting for the pool's watchdog (up to 270 s).

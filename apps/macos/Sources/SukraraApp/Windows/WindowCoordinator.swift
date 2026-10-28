@@ -150,7 +150,8 @@ private struct SettingsWindowContent: View {
             loginItem: app.loginItem,
             updateResult: app.updates.flatMap { Self.text($0.state) },
             checkForUpdates: { [updates = app.updates] in Task { await updates?.check(userAsked: true) } },
-            openFollow: openFollow)
+            openFollow: openFollow,
+            reconnect: app.follower == nil ? nil : { [weak app] in app?.networkCameBack() })
     }
 
     static func text(_ state: UpdateCheck.State) -> String? {

@@ -4352,6 +4352,38 @@
           }
         }
       }
+    },
+    "Reconnect Now" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reconnect Now"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reconectar ahora"
+          }
+        }
+      }
+    },
+    "Reconnect to the relays and to the phone over Bluetooth now" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reconnect to the relays and to the phone over Bluetooth now"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reconectar ahora con los relés y con el móvil por Bluetooth"
+          }
+        }
+      }
     }
   },
   "version" : "1.0"

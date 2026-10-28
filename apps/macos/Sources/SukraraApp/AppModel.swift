@@ -224,6 +224,12 @@ public final class AppModel {
         restartTicker()
     }
 
+    /// The clock's look changed (24-hour time, time zone): the card's times and the widgets are drawn again.
+    func clockStyleChanged() {
+        now = clock.now
+        feedWidget(settingsChanged: true)
+    }
+
     /// The Mac woke: the time moved and the sockets are likely dead; reconnect now instead of after the watchdog.
     func didWake() {
         systemTimeChanged()
