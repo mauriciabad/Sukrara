@@ -64,7 +64,8 @@ The full catalog, with every rule and number, is [docs/FEATURES.md](docs/FEATURE
   independent of the monitoring service.
 - **Sensor end**: reminders you set (up to six, 0–3 days before at a time; earlier at the first unlock; one the
   evening before a night-time end), a live countdown in the sensor's last hours, a warm-up countdown with *Sensor
-  ready*, and *Sensor ended* with *Replace sensor* (Settings › Sensor end).
+  ready*, *Sensor ended* with *Replace sensor* (it opens the new-sensor flow), and optionally the sensor's end as an
+  event in Sukrara's own calendar or one you pick (Settings › Sensor end).
 - **Monitoring** in one foreground service that comes back by itself (boot, update, a 15 min health check); before the
   first reading every surface says *Not monitoring: no sensor yet* and no no-data alarm is armed.
 - **Treatments**: a quick dialog for rapid / long insulin, carbs and a note (from the notification, the Quick
@@ -147,8 +148,8 @@ The full catalog, with every rule and number, is [docs/FEATURES.md](docs/FEATURE
   through at 5 min, the graph dimmed with the reading's time, no value at 20 min) and a tap opens Add treatment.
 - VoiceOver reads the value as one sentence with the range in words.
 
-**Not included**: the LSPosed lock-screen widget, Dexcom / Aidex / SmartGuide (untested) sensors, the pen list and dose review, the sensor-end
-calendar event, and the Mac's Juggluco-over-Wi-Fi source.
+**Not included**: the LSPosed lock-screen widget, Dexcom / Aidex / SmartGuide (untested) sensors, the pen list and dose review, and the Mac's
+Juggluco-over-Wi-Fi source.
 
 **Garmin watch:** switch on *Settings › Share with apps › xDrip+ server*; watch faces and data fields made for xDrip+
 read it through Garmin Connect. While **Juggluco** is Sukrara's source, Juggluco keeps its own server and feeds the

@@ -660,4 +660,16 @@
     <string name="st_from_footer">Los sonidos, el volumen de alarma, las alertas sin datos, los botones de la notificación y el tiempo mostrado en cada sitio son siempre de este móvil.</string>
     <string name="st_from_note">En uso: %1$s</string>
     <string name="st_from_note_summary">Los cambios aquí se guardan para Personalizados. Toca para elegir</string>
+    <string name="st_calendar_group">Calendario</string>
+    <string name="st_calendar_title">Fin del sensor en el calendario</string>
+    <string name="st_calendar_on">Activado · %1$s</string>
+    <string name="st_calendar_off">Desactivado · un evento cuando termina cada sensor</string>
+    <string name="st_calendar_denied">Desactivado · necesita acceso a tu calendario</string>
+    <string name="st_calendar_blocked">Desactivado · acceso bloqueado, toca para permitirlo en los ajustes de Android</string>
+    <string name="st_calendar_where">Calendario</string>
+    <string name="st_calendar_own">Sukrara (solo en este teléfono)</string>
+    <string name="st_calendar_own_sub">Su propio calendario, no se sincroniza con tus otros dispositivos</string>
+    <string name="st_calendar_picked_sub">%1$s · se sincroniza con tus otros dispositivos</string>
+    <string name="st_calendar_gcal_title">Mostrar en Google Calendar</string>
+    <string name="st_calendar_gcal_hint">Google Calendar → Ajustes → Gestionar cuentas → Sukrara</string>
 </resources>

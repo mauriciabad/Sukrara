@@ -299,7 +299,16 @@ fun SettingsScreen(
         SettingsRoute.SensorEnd -> {
             val vm = viewModel { SensorEndViewModel(deps.settings, deps.sensor) }
             val prefs by vm.prefs.collectAsStateWithLifecycle()
-            prefs?.let { SensorEndContent(it, clock.now(), SensorEndActions(vm::change, vm::setCountdownHours), onBack) }
+            val calendar by deps.sensorCalendar.state.collectAsStateWithLifecycle(null)
+            prefs?.let {
+                SensorEndContent(
+                    it,
+                    clock.now(),
+                    SensorEndActions(vm::change, vm::setCountdownHours),
+                    onBack,
+                    calendar = calendar?.let { c -> c to deps.sensorCalendar },
+                )
+            }
         }
 
         SettingsRoute.About -> {

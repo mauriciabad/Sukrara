@@ -52,6 +52,8 @@ import app.mauri.sukrara.feature.settings.sensor.SensorSettingsState
 import app.mauri.sukrara.feature.settings.sensor.SensorSummary
 import app.mauri.sukrara.feature.settings.sensor.SourceChoice
 import app.mauri.sukrara.feature.settings.sensor.SourceLink
+import app.mauri.sukrara.feature.settings.sensorend.SensorCalendarPort
+import app.mauri.sukrara.feature.settings.sensorend.SensorCalendarState
 import app.mauri.sukrara.feature.settings.sensorend.SensorEndActions
 import app.mauri.sukrara.feature.settings.sensorend.SensorEndContent
 import app.mauri.sukrara.feature.settings.sensorend.SensorEndPrefs
@@ -331,6 +333,15 @@ class SettingsGallery {
                     now,
                     SensorEndActions(),
                     onBack = {},
+                )
+            },
+            "sensorend-calendar" to {
+                SensorEndContent(
+                    SensorEndPrefs(SensorEndConfig(), 8, SensorState.Active(now.plusSeconds(86_400 + 3600))),
+                    now,
+                    SensorEndActions(),
+                    onBack = {},
+                    calendar = SensorCalendarState(on = true, own = true, googleCalendar = true) to SensorCalendarPort.None,
                 )
             },
             "sensorend-custom" to {

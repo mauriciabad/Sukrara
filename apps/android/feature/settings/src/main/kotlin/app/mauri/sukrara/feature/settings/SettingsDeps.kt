@@ -15,6 +15,7 @@ import app.mauri.sukrara.core.model.SystemAccessPort
 import app.mauri.sukrara.core.model.storage.SettingsRepository
 import app.mauri.sukrara.feature.settings.advanced.AdvancedPort
 import app.mauri.sukrara.feature.settings.follower.SettingsFromPort
+import app.mauri.sukrara.feature.settings.sensorend.SensorCalendarPort
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
 
@@ -78,6 +79,9 @@ interface SettingsDeps {
 
     /** An alert's sound preview and *Send a test alert* (the alert runtime's notifier); nothing in screenshots. */
     val alertPlayback: AlertPlayback get() = AlertPlayback.None
+
+    /** Settings › Sensor end › Calendar (the wearer's phone); nothing in screenshots. */
+    val sensorCalendar: SensorCalendarPort get() = SensorCalendarPort.None
 
     /** Settings › Advanced: relays, *Reconnect now*, the log, the identity and the settings file. */
     val advanced: AdvancedPort get() = AdvancedPort.None

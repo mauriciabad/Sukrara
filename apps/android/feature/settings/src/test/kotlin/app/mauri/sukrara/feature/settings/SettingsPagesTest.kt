@@ -89,6 +89,9 @@ class SettingsPagesTest {
             "statusbar.hideNotifIcon",
             "sensor.reminders",
             "sensor.countdownHours",
+            // Settings › Sensor end › Calendar
+            "sensorCalendar.on",
+            "sensorCalendar.calendarId",
             // Settings › Settings from (a follower)
             "follower.settingsFrom",
         )
@@ -101,7 +104,7 @@ class SettingsPagesTest {
             "home.uploadBanner",
             "widget.overrides",
         ) + SettingsSpec.SETTINGS.map { it.id }.filter { it.startsWith("pens.") || it.startsWith("apps.") } +
-            setOf("sensorCalendar.on", "sensorCalendar.calendarId", "healthConnect.on")
+            setOf("healthConnect.on")
 
     /** Not on a settings page, or internal format / state with no row. */
     private val pending =

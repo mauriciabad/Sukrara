@@ -106,7 +106,8 @@ fun reminderDays(d: Int): String =
 /**
  * Settings › Sensor end (the wearer): this sensor's end, the reminders (rows; a row opens its dialog with Remove,
  * *Add reminder* below the list up to six), first-unlock delivery, the night (evening reminder, bedtime, wake-up:
- * Android doesn't share its Bedtime schedule) and the live countdowns (end countdown and its hours, warm-up).
+ * Android doesn't share its Bedtime schedule), the live countdowns (end countdown and its hours, warm-up) and the
+ * sensor's end in the calendar ([calendar]: null = not offered).
  */
 @Composable
 fun SensorEndContent(
@@ -115,6 +116,7 @@ fun SensorEndContent(
     actions: SensorEndActions,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
+    calendar: Pair<SensorCalendarState, SensorCalendarPort>? = null,
 ) {
     val c = prefs.config
     // null = closed; -1 = a new reminder
@@ -202,6 +204,7 @@ fun SensorEndContent(
                 icon = DsR.drawable.ds_ic_hourglass_top,
             )
         }
+        calendar?.let { (state, port) -> SensorCalendarGroup(state, port) }
         FooterText(stringResource(R.string.st_sensorend_footer))
     }
     editing?.let { i ->

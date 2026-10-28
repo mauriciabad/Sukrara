@@ -804,20 +804,39 @@ Wearer only (`sensorend/`; rules in `SensorEndPlan`, tests `SensorEndPlanTest`);
 
 ## Sensor end in calendar
 
-- **Not included**: no calendar events; the *Sensor ends in …* / *Sensor ended* notifications are the reminder.
-- Setting "Sensor end in calendar" (wearer only, off by default; Settings → Sensor end, its own group): turning it on asks for READ_CALENDAR + WRITE_CALENDAR; refused → stays off with "needs access to your calendar"; refused for good → the next tap opens the app's system settings. Permission revoked later → the setting turns itself off.
-- Summary: "On · <calendar>" or "Off".
-- Default calendar: Sukrara's own **"Sukrara"** calendar (`ACCOUNT_TYPE_LOCAL`, account "Sukrara", brand colour #1BB5C9, read-only for the user), created when needed and found by account (never twice). It shows in the phone's calendar apps but is **not synced** to other devices (local calendars never sync; an app can't create a calendar in a Google account without the Google Calendar API).
-- **Google Calendar hides it by default** (seen 2026-10-18 on the user's Pixel, Google Calendar 2026.39, with the event correctly in the provider): Google Calendar shows a non-Google account's calendars only after the user turns the account on under Google Calendar → Settings → Manage accounts → "Non-Google Accounts" → Sukrara (On this device), and that switch starts off. Its decompiled code (`ica.b`) keeps the state in its private prefs as `account:<name>:type:<type>|account_enabled_state`; with no stored state the account is hidden (Exchange excepted), so Sukrara can't turn it on. Hence the hint row below.
-- "Show in Google Calendar" row (only while on, with Sukrara's own calendar, and when Google Calendar `com.google.android.calendar` is installed; manifest `<queries>`): "Turn on Sukrara in Google Calendar → Settings → Manage accounts, or the events won't show there"; tapping it opens Google Calendar (its launch intent; no deep link to that page is known).
-- "Calendar" row: pick Sukrara's own calendar or any writable calendar on the phone (e.g. the user's Google calendar, "syncs to your other devices"); events in a picked calendar are written as a normal app so the account syncs them, and their ids are remembered for updates. Changing the choice moves the events (removes them from the old place).
-- One event per sensor: title "Sensor ends", description "Libre sensor <serial>, started <date>. Sukrara keeps this event up to date.", 30 minutes long from the sensor's end (SensorLife), busy = free, no reminder of its own (Sukrara notifies). Not a point event: Google Calendar drew start = end as a title-less sliver. No RSVP: Google Calendar read the event out as "Response: Not responded" (its `SELF_ATTENDEE_STATUS` was 0). Setting `ORGANIZER` = the calendar's `OWNER_ACCOUNT` ("Sukrara" for the own calendar, read from the picked calendar otherwise) with `HAS_ATTENDEE_DATA` 1 was not enough (verified on the phone), and the provider refuses a direct `SELF_ATTENDEE_STATUS` update. So each event also gets exactly one Attendees row for that owner (email and name = owner, accepted, relationship organizer, type required; sync-adapter URI for the own calendar, plain URI for a picked one): the provider then sets `SELF_ATTENDEE_STATUS` 1 and Google Calendar reads "Sensor ends, 7:08 pm – 7:38 pm, Sukrara" with no guest list or RSVP. Every write checks all of Sukrara's events in the target calendar (past ones too) and inserts the row only when none with that email exists (never a second one); skipped when the calendar has no owner account. ORGANIZER and HAS_ATTENDEE_DATA stay set. The current sensor's existing event gets the 30 minutes on the next write while it is still ahead (a past event keeps its start and end). Keyed by serial (`_SYNC_ID` "sensor:<serial>" in the own calendar), so restarts and repeated updates update it instead of adding another.
-- When the sensor ends early (SensorLife pulls its end to now) a still-future event moves to the real end; once an event's time has passed it never moves again (start and end stay).
-- Changing the calendar carries only the current sensor's event to the new place.
-- Past sensors' events stay (a history of sensor changes); a sensor's event still in the future is deleted once another sensor is the current one (replaced early, that end won't come).
-- Turning it off deletes the Sukrara calendar with all its events, or Sukrara's events in the picked calendar (as deletions the account syncs).
-- Only the wearer's app writes events; followers never do (no serial on the wire).
-- Research and options weighed (Juggluco's ACTION_INSERT, local vs Google account vs picked calendar vs Google Calendar API): `features/SensorCalendar.kt` header.
+Android (`monitor/sensorend/SensorCalendar.kt` writes, `app/AppSensorCalendar.kt` keeps it in line, Settings ›
+Sensor end › *Calendar* group `feature/settings/sensorend/SensorCalendarGroup.kt`; `SensorCalendarPlanTest`). The
+*Sensor ends in …* / *Sensor ended* notifications stay the reminder; the event is for planning a change around the day.
+
+- Setting *Sensor end in calendar* (`sensorCalendar.on`; wearer only, off by default; hidden on a follower). Turning
+  it on asks for READ_CALENDAR + WRITE_CALENDAR; refused → stays off with *Off · needs access to your calendar*;
+  refused for good → *Off · access blocked, tap to allow in Android's settings* and the next tap opens Sukrara's page
+  in Android's settings; coming back re-reads it. A permission revoked later turns the setting off (on the page's
+  return; the writer writes nothing without it).
+- Summary: *On · <calendar>* or *Off · an event when each sensor ends*.
+- Where (`sensorCalendar.calendarId`, *Calendar* row, enabled while on): **Sukrara's own calendar** by default
+  (`ACCOUNT_TYPE_LOCAL`, account "Sukrara", brand colour, read-only for the person, created when needed and found by
+  account, never twice; it never syncs, so it stays on this phone), or **any writable calendar on the phone** (e.g. the
+  person's Google calendar, *syncs to your other devices*), written as a normal app so the account syncs the events and
+  their deletions; their ids are kept in `files/state/sensor-calendar.json`. Changing the choice removes the events from
+  the old place and writes the current sensor's event in the new one. A picked calendar that is gone (or its account)
+  → back to Sukrara's own.
+- *Show in Google Calendar* row (on, own calendar, Google Calendar installed): *Google Calendar → Settings → Manage
+  accounts → Sukrara*; tapping it opens Google Calendar. Google Calendar hides a non-Google account's calendars until
+  the person turns the account on there, and no other app can.
+- One event per sensor: *Sensor ends*, *Sensor <serial>, started <date>. Sukrara keeps this event up to date.*, 30
+  minutes from the sensor's end (calendar apps draw a block with its title), free, no reminder of its own, one accepted
+  organizer attendee for the calendar's owner (no RSVP in Google Calendar). Keyed by serial, so restarts update it. A
+  future event follows the end; once its time has passed it stays put. Past sensors' events stay (a history); a
+  replaced sensor's event still ahead is removed.
+- Turning it off deletes Sukrara's calendar with its events, or Sukrara's events in the picked calendar.
+- Only the wearer's phone writes; followers never do.
+
+**States and exits**: *Off* → switch on → Android's permission dialog → *Allow* (on, the event appears) / *Don't
+allow* (off, says why; switch again to ask again) / refused for good (switch opens Android's app page; back → switch
+again). *On* → switch off (events removed). *Calendar* → dialog with Sukrara's own calendar and every writable one →
+pick (events move) / *Cancel*. *Show in Google Calendar* → Google Calendar (back returns). Permission revoked in
+Android → off on return. TalkBack reads the switch with its summary and the calendar dialog as radio buttons.
 
 ## Share with followers (wearer)
 
@@ -1268,6 +1287,6 @@ page.
 - Android settings pages: the sent / stored statistics rows, battery-lab knobs, mmol/L in the settings pages (thresholds and ranges are shown and typed in mg/dL; schema `general.unit` is set elsewhere). Reason: only what daily use needs; the defaults are the owner's own values.
 - Mac: Juggluco over Wi-Fi (LAN source and subnet discovery) and the Nostr v1 `cgmnostr:` follow link (v1 links carried plaintext secrets and had no UI). Follow the wearer with a protocol v2 invite instead.
 - Sensors: the Libre 3 experiment preferences (minimal subscription set, connection priority, screen-off skip). Reason: no hardware to test them, the owner uses a Libre 3.
-- Planned (issues filed): the rest of insulin pens (see its section), the calendar event. The sections above that describe them are the behaviour to build. Reason: what daily use needs comes first.
+- Planned (issues filed): the rest of insulin pens (see its section). The sections above that describe it are the behaviour to build. Reason: what daily use needs comes first.
 
 **States and exits**: none (these features aren't in the app).
