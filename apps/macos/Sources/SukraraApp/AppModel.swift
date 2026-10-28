@@ -55,6 +55,8 @@ public final class AppModel {
     /// The wearer's last 24 hours (while `followMonitoring`).
     @ObservationIgnored private var followReadings: [Reading] = []
     private var wearerName: String?
+    /// The follower's first snapshot arrived (whether this Mac follows someone is known).
+    @ObservationIgnored private var followerKnown = false
     /// Juggluco's readings feed the card and the alert rules: switched on, not following, and reached at least once.
     private var lanMonitoring: Bool { !followMonitoring && lanSent != nil && lanSnapshot.monitoring }
     private var monitoring: Bool { followMonitoring || lanMonitoring }
@@ -136,6 +138,7 @@ public final class AppModel {
         followMonitoring = link.isFollowing || (snapshot.keychainUnreadable && !snapshot.readings.isEmpty)
         followReadings = followMonitoring ? snapshot.readings : []
         wearerName = snapshot.wearer?.name
+        followerKnown = true
         syncLan()
         monitoringChanged(from: wasMonitoring)
         if let alerts {
@@ -183,8 +186,11 @@ public final class AppModel {
     /// Monitoring started, stopped or moved to the other source: the alert rules forget the old one and the history
     /// is loaded from the new one.
     private func monitoringChanged(from wasMonitoring: Bool) {
-        if wasMonitoring && !monitoring { alerts?.resetMonitoring() }
         let source: HistorySource = followMonitoring ? .follow : lanMonitoring ? .lan : .none
+        // stopped, or straight from Juggluco to a wearer (or back): the episodes were about the other readings
+        if wasMonitoring && (!monitoring || (historySource != .none && source != historySource)) {
+            alerts?.resetMonitoring()
+        }
         guard source != historySource else { return }
         historySource = source
         history = []
@@ -192,15 +198,23 @@ public final class AppModel {
     }
 
     /// Hands the switch's state to the Juggluco source: on with its config while nobody is followed, else off.
+    /// Waits for the follower's first snapshot (when there is a follower), so a launch while following never starts
+    /// Juggluco first.
     private func syncLan() {
-        guard let lan else { return }
-        let want = followMonitoring ? nil : lanConfig
+        guard lan != nil else { return }
+        let want = followMonitoring || (follower != nil && !followerKnown) ? nil : lanConfig
         guard want != lanSent else { return }
         lanSent = want
+        toLan { await $0.set(want) }
+    }
+
+    /// Runs `step` on the Juggluco source after every earlier one (switching, Try Again and stop stay in order).
+    private func toLan(_ step: @escaping @Sendable (any LanSourcing) async -> Void) {
+        guard let lan else { return }
         let previous = lanTask
         lanTask = Task {
             await previous?.value
-            await lan.set(want)
+            await step(lan)
         }
     }
 
@@ -211,8 +225,8 @@ public final class AppModel {
 
     /// Try Again on the Juggluco source.
     func retryLan() {
-        guard let lan else { return }
-        Task { await lan.retry() }
+        guard lanSent != nil else { return }
+        toLan { await $0.retry() }
     }
 
     /// Hands the card's current input to the widgets: every follower snapshot, every alert badge change, and the unit
@@ -237,7 +251,17 @@ public final class AppModel {
     /// New readings (the stored history at launch, then each new one). The alert rules get the newest, also an old
     /// one: "no data" is measured from it.
     func apply(readings new: [Reading]) {
-        readings = new.sorted { $0.t < $1.t }
+        let sorted = new.sorted { $0.t < $1.t }
+        // readings leaving the last 24 hours join the history, so the month stays whole while the panel stays shut
+        if historySource != .none, let first = sorted.first?.t {
+            let after = history.last?.t ?? .distantPast
+            history += readings.filter { $0.t < first && $0.t > after }
+            let oldest = clock.now.addingTimeInterval(-ChartView.maxSpan)
+            if let firstKept = history.firstIndex(where: { $0.t >= oldest }), firstKept > 0 {
+                history.removeFirst(firstKept)
+            }
+        }
+        readings = sorted
         now = clock.now
         if let latest = readings.last { alerts?.reading(latest) }
         refreshSlots()
@@ -300,7 +324,7 @@ public final class AppModel {
         let new =
             all.isEmpty
             ? nil
-            : SlotNumbers.of(Self.graph(all), now: clock.now.timeIntervalSince1970, configs: [graph, widgetGraph])
+            : SlotNumbers.of(Self.graph(all), now: now.timeIntervalSince1970, configs: [graph, widgetGraph])
         if new != slots { slots = new }
     }
 
@@ -362,7 +386,7 @@ public final class AppModel {
             return L10n.t("Not monitoring: offline dev build (no sensor, relays or alerts)")
         }
         // shown over the stored readings too: with the Keychain unreadable no new reading can arrive
-        if case .broken(let why) = link { return L10n.t("Not monitoring: \(why)") }
+        if case .broken(let why) = link, !lanMonitoring { return L10n.t("Not monitoring: \(why)") }
         guard readings.isEmpty else { return nil }
         if !followMonitoring, lanSent != nil, let why = Self.lanReason(lanSnapshot.state) { return why }
         switch link {
@@ -438,6 +462,7 @@ public final class AppModel {
     /// The Mac woke or the clock changed: re-read the time, re-check the alerts.
     func networkCameBack() {
         if let follower { Task { await follower.reconnect() } }
+        retryLan()  // Juggluco's stream died with the network too: look again now, not after the backoff
     }
 
     /// The clock changed (also small NTP corrections): re-read the time and re-check the alerts; the connections stay.
@@ -464,7 +489,8 @@ public final class AppModel {
         feeds.forEach { $0.cancel() }
         alerts?.stop()
         if let follower { Task { await follower.stop() } }
-        if let lan { Task { await lan.set(nil) } }
+        lanSent = nil
+        toLan { await $0.set(nil) }
     }
 }
 

@@ -174,7 +174,7 @@ public final class AppDelegate: NSObject, NSApplicationDelegate {
 
     /// The network came back: reconnect the relays now instead of waiting for the pool's watchdog (up to 270 s).
     private func observeNetwork() {
-        guard model.follower != nil else { return }
+        guard model.follower != nil || model.lan != nil else { return }
         // only a transition to satisfied: the monitor's first callback (at start) reports the current path, and the
         // runtime is connecting then anyway
         network.pathUpdateHandler = { [weak self] path in

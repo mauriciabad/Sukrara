@@ -1253,12 +1253,12 @@ page.
   for `/api/v1/status.json` saying `juggluco` on :17580. The probes carry no secret; a set secret goes only to hosts
   that refused for want of one. A typed address must be such an IPv4 address (with an optional `:port`); anything
   else (a name, a public address) is refused and never contacted. Then the history
-  (`/api/v1/entries.json?count=1600&interval=0`, 180 after a reconnect; rate = `delta` / 5, none when `direction` is
+  (`/api/v1/entries.json?interval=0`, `count` = the minutes since the newest stored reading, 180 to 1600; rate = `delta` / 5, none when `direction` is
   empty) and the live stream (`/x/live`, `glucose` events), header `api-secret: sha1hex(secret)`. A value that isn't a
   measurement (0, negative, above 1000, NaN) or from the future is dropped; below 40 / above 400 becomes LO / HI;
   entries written by Sukrara are refused (that server isn't Juggluco). Readings go into their own 31-day store
   (`juggluco/readings.csv`), apart from a followed wearer's. Reconnects with backoff 5 s → 60 s; a sweep that found
-  nothing runs again every minute; the found address is swept for again after three failed connections. macOS asks
+  nothing runs again every minute (a sweep that found only a Juggluco asking for another secret says so); the found address is swept for again after three failed connections; a wake or the network coming back tries again at once. macOS asks
   once for Local Network access (`NSLocalNetworkUsageDescription`).
 - The readings feed the card, the rings, the widgets, the report and the alerts exactly as a followed wearer's do
   (this Mac's own alert rules, no mirroring). Following someone always wins: while following, the source is paused

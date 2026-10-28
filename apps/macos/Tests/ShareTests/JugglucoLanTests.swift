@@ -196,6 +196,34 @@ import Testing
         #expect(http.requests.isEmpty)
     }
 
+    @Test func aSweepThatFindsOnlyALockedJugglucoAsksForTheSecret() async {
+        let source = source(Self.network(clock.now, secret: "right"))
+        await source.set(LanConfig())
+        #expect(await wait(source) { $0.state == .unauthorized(Self.phone) } != nil)
+        await source.set(LanConfig(secret: "wrong"))
+        #expect(await wait(source) { $0.state == .unauthorized(Self.phone) } != nil)
+        await source.set(nil)
+    }
+
+    /// The history asked covers the time since the newest stored reading: a whole first day, a short gap after that.
+    @Test func historyAskedCoversTheGap() async {
+        func count(_ store: InMemoryReadingsStore) async -> String? {
+            let http = Self.network(clock.now)
+            let source = source(http, store: store)
+            await source.set(LanConfig(address: Self.phone))
+            _ = await wait(source) { $0.state == .connected(Self.phone) }
+            await source.set(nil)
+            let url = http.requests.first { $0.url.path().hasSuffix("entries.json") }?.url
+            return url.flatMap { URLComponents(url: $0, resolvingAgainstBaseURL: false) }?
+                .queryItems?.first { $0.name == "count" }?.value
+        }
+        #expect(await count(InMemoryReadingsStore()) == "1600")
+        let recent = InMemoryReadingsStore([Reading(t: clock.now.addingTimeInterval(-120), mgdl: 100)])
+        #expect(await count(recent) == "180")
+        let night = InMemoryReadingsStore([Reading(t: clock.now.addingTimeInterval(-8 * 3600), mgdl: 100)])
+        #expect(await count(night) == "490")
+    }
+
     @Test func aDroppedStreamIsUnreachableButStillMonitored() async {
         let http = Self.network(clock.now)
         let source = source(http)

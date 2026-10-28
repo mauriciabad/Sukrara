@@ -77,7 +77,9 @@ public final class JugglucoModel {
         case .looking: (L10n.t("Looking for Juggluco on this network…"), "magnifyingglass", false)
         case .notFound:
             (
-                L10n.t("Not found. Check that Juggluco's web server is on with Local only off, or type its address."),
+                L10n.t(
+                    "Not found. Check that Juggluco's web server is on with Local only off and that Sukrara may use the local network (System Settings › Privacy & Security › Local Network), or type its address."
+                ),
                 "exclamationmark.triangle", true
             )
         case .connected(let host): (L10n.t("Reading Juggluco at \(host)"), "checkmark.circle", false)

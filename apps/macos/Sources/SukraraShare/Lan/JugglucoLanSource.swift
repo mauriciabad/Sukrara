@@ -92,6 +92,9 @@ public actor JugglucoLanSource: LanSourcing {
     private var subscribers: [UUID: AsyncStream<LanSnapshot>.Continuation] = [:]
     /// The address the last sweep found (tried first again; forgotten after repeated failures).
     private var found: URL?
+    /// Bumped by every switch, config change and Try Again: a run of an older generation publishes nothing (it may
+    /// still be finishing an await after it was cancelled).
+    private var generation = 0
 
     public init(
         http: any LanHTTP, store: any ReadingsStoring, clock: any TimeSource = SystemClock(),
@@ -125,6 +128,7 @@ public actor JugglucoLanSource: LanSourcing {
         if addressChanged { found = nil }
         task?.cancel()
         task = nil
+        generation += 1
         guard let config else {
             publish(LanSnapshot.off)
             return
@@ -135,6 +139,7 @@ public actor JugglucoLanSource: LanSourcing {
     public func retry() async {
         guard let config else { return }
         task?.cancel()
+        generation += 1
         start(config)
     }
 
@@ -143,7 +148,8 @@ public actor JugglucoLanSource: LanSourcing {
     }
 
     private func start(_ config: LanConfig) {
-        task = Task { [weak self] in await self?.run(config) }
+        let gen = generation
+        task = Task { [weak self] in await self?.run(config, gen: gen) }
     }
 
     private func publish(_ snapshot: LanSnapshot) {
@@ -151,36 +157,43 @@ public actor JugglucoLanSource: LanSourcing {
         for c in subscribers.values { c.yield(snapshot) }
     }
 
-    private func publish(state: LanState) {
+    /// Publishes for the run of generation `gen` only while it is the current one.
+    private func publish(_ snapshot: LanSnapshot, gen: Int) {
+        guard gen == generation else { return }
+        publish(snapshot)
+    }
+
+    private func publish(state: LanState, gen: Int) {
         var s = current
         s.state = state
-        publish(s)
+        publish(s, gen: gen)
     }
 
     // MARK: - the loop
 
-    private func run(_ config: LanConfig) async {
+    private func run(_ config: LanConfig, gen: Int) async {
         var attempt = 0
         var failures = 0
-        var first = true
         let headers = JugglucoApi.headers(secret: config.secret)
-        await refreshReadings()
-        while !Task.isCancelled {
+        await refreshReadings(gen: gen)
+        while !Task.isCancelled && gen == generation {
             let base: URL
             let typed = config.address.trimmingCharacters(in: .whitespaces)
             if !typed.isEmpty {
                 guard let b = Self.base(typed) else {
-                    publish(state: .refused(typed))
+                    publish(state: .refused(typed), gen: gen)
                     return
                 }
                 base = b
             } else if let found {
                 base = found
             } else {
-                if current.state != .notFound { publish(state: .looking) }
-                guard let b = await find(secret: config.secret) else {
+                if current.state != .notFound { publish(state: .looking, gen: gen) }
+                let sweep = await find(secret: config.secret)
+                guard let b = sweep.hit else {
                     guard !Task.isCancelled else { return }
-                    publish(state: .notFound)
+                    // Juggluco answered but wants a (different) API secret: say so, not "not found"
+                    publish(state: sweep.locked.map { .unauthorized(Self.hostText($0)) } ?? .notFound, gen: gen)
                     try? await sleep(Self.sweepAgain)
                     continue
                 }
@@ -190,29 +203,27 @@ public actor JugglucoLanSource: LanSourcing {
             let host = Self.hostText(base)
             do {
                 let (status, body) = try await http.get(
-                    JugglucoApi.entriesURL(base, count: first ? JugglucoApi.firstCount : JugglucoApi.againCount),
-                    headers: headers, timeout: 15)
+                    JugglucoApi.entriesURL(base, count: await historyCount()), headers: headers, timeout: 15)
                 try Self.check(status)
-                try await merge(JugglucoApi.entries(body, now: clock.now))
-                first = false
+                try await merge(JugglucoApi.entries(body, now: clock.now), gen: gen)
                 failures = 0
                 var s = current
                 s.state = .connected(host)
                 s.monitoring = true
-                publish(s)
+                publish(s, gen: gen)
                 let (liveStatus, lines) = try await http.lines(JugglucoApi.liveURL(base), headers: headers)
                 try Self.check(liveStatus)
                 var parser = SseParser()
                 for try await line in lines {
                     attempt = 0
                     if let data = parser.feed(line), let r = JugglucoApi.live(data, now: clock.now) {
-                        try await merge([r])
+                        try await merge([r], gen: gen)
                     }
                 }
                 Self.log.info("live stream ended")
             } catch JugglucoError.unauthorized {
                 guard !Task.isCancelled else { return }
-                publish(state: .unauthorized(host))
+                publish(state: .unauthorized(host), gen: gen)
                 try? await sleep(Self.sweepAgain)
                 continue
             } catch {
@@ -223,35 +234,45 @@ public actor JugglucoLanSource: LanSourcing {
                 if typed.isEmpty && (failures >= 3 || error as? JugglucoError == .notJuggluco) { found = nil }
             }
             guard !Task.isCancelled else { return }
-            publish(state: .unreachable(host))
+            publish(state: .unreachable(host), gen: gen)
             try? await sleep(backoff.delay(attempt: attempt, jitter: Double.random(in: 0.5...1)))
             attempt += 1
         }
     }
 
-    private func merge(_ readings: [Reading]) async throws {
+    private func merge(_ readings: [Reading], gen: Int) async throws {
         guard !readings.isEmpty else { return }
         try await store.merge(readings)
-        await refreshReadings()
+        await refreshReadings(gen: gen)
     }
 
-    private func refreshReadings() async {
+    private func refreshReadings(gen: Int) async {
         let day = (try? await store.load(since: clock.now.addingTimeInterval(-86_400))) ?? []
         guard day != current.readings else { return }
         var s = current
         s.readings = day
-        publish(s)
+        publish(s, gen: gen)
     }
 
-    /// The first host on this Mac's networks whose status says Juggluco. Probed without the secret first; a secret
-    /// set in Sukrara goes only to the hosts that refused for want of one.
-    private func find(secret: String) async -> URL? {
+    /// How many minutes of history to ask for: everything since the newest stored reading (a night asleep included),
+    /// at least `againCount`, at most `firstCount`.
+    private func historyCount() async -> Int {
+        let since = clock.now.addingTimeInterval(-Double(JugglucoApi.firstCount) * 60)
+        guard let newest = (try? await store.load(since: since))?.last else { return JugglucoApi.firstCount }
+        let minutes = Int(clock.now.timeIntervalSince(newest.t) / 60) + 10
+        return min(JugglucoApi.firstCount, max(JugglucoApi.againCount, minutes))
+    }
+
+    /// The first host on this Mac's networks whose status says Juggluco, or else one that refused for want of the
+    /// right secret. Probed without the secret first; a secret set in Sukrara goes only to the hosts that refused.
+    private func find(secret: String) async -> (hit: URL?, locked: URL?) {
         let hosts = LanInterface.hosts(interfaces()).compactMap { JugglucoApi.base($0) }
         Self.log.info("sweeping \(hosts.count) hosts")
         let (hit, locked) = await probe(hosts, headers: [:])
-        if let hit { return hit }
-        guard !secret.isEmpty, !locked.isEmpty else { return nil }
-        return await probe(locked, headers: JugglucoApi.headers(secret: secret)).hit
+        if let hit { return (hit, nil) }
+        guard !secret.isEmpty, !locked.isEmpty else { return (nil, locked.first) }
+        let retried = await probe(locked, headers: JugglucoApi.headers(secret: secret))
+        return (retried.hit, retried.locked.first)
     }
 
     private func probe(_ bases: [URL], headers: [String: String]) async -> (hit: URL?, locked: [URL]) {

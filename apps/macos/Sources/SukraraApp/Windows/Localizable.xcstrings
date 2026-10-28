@@ -6833,18 +6833,18 @@
         }
       }
     },
-    "Not found. Check that Juggluco's web server is on with Local only off, or type its address." : {
+    "Not found. Check that Juggluco's web server is on with Local only off and that Sukrara may use the local network (System Settings › Privacy & Security › Local Network), or type its address." : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Not found. Check that Juggluco's web server is on with Local only off, or type its address."
+            "value" : "Not found. Check that Juggluco's web server is on with Local only off and that Sukrara may use the local network (System Settings › Privacy & Security › Local Network), or type its address."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "No encontrado. Comprueba que el servidor web de Juggluco está activado con «Local only» desactivado, o escribe su dirección."
+            "value" : "No encontrado. Comprueba que el servidor web de Juggluco está activado con «Local only» desactivado y que Sukrara puede usar la red local (Ajustes del Sistema › Privacidad y seguridad › Red local), o escribe su dirección."
           }
         }
       }
