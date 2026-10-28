@@ -175,4 +175,11 @@ struct Case: @unchecked Sendable, CustomTestStringConvertible {
         #expect(Trend(rate: -1.5) == .falling && Trend(rate: -2) == .fallingFast)
         #expect(Trend.words(rate: nil) == "trend unknown")
     }
+
+    @Test func loAndHiAreStoredAsTheFlags() {
+        let t = Date(timeIntervalSince1970: 1000)
+        #expect(GlucoseRange.normalised(Reading(t: t, mgdl: 35, rate: -2)) == Reading(t: t, mgdl: 39, rate: nil))
+        #expect(GlucoseRange.normalised(Reading(t: t, mgdl: 450, rate: 1)) == Reading(t: t, mgdl: 401, rate: nil))
+        #expect(GlucoseRange.normalised(Reading(t: t, mgdl: 120, rate: 1)) == Reading(t: t, mgdl: 120, rate: 1))
+    }
 }

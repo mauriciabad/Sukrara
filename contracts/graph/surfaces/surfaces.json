@@ -16,7 +16,8 @@
         "draw",
         "face",
         "observer",
-        "yRange"
+        "yRange",
+        "slotTexts"
       ],
       "ValueGlyphs": [
         "arrow",
@@ -213,7 +214,7 @@
         "id": "notification-text",
         "kind": "glyph",
         "entry": "build",
-        "what": "title, Live Update chip text, MetricStyle value and small icon (the number icon included); the custom card's value row is the renderer's header: 'notification'",
+        "what": "title, Live Update chip text, MetricStyle value, the card's slots as MetricStyle words (GlucoseCard.slotTexts) and small icon (the number icon included); the custom card's value row is the renderer's header: 'notification'",
         "files": [
           "apps/android/monitor/src/main/kotlin/app/mauri/sukrara/monitor/LiveNotification.kt"
         ]

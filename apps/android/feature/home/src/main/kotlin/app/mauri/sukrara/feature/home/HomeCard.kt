@@ -5,6 +5,7 @@ package app.mauri.sukrara.feature.home
 
 import android.content.res.Resources
 import android.graphics.RectF
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.VectorConverter
 import androidx.compose.animation.core.animateFloatAsState
@@ -45,9 +46,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.nativeCanvas
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.input.pointer.PointerInputScope
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.util.VelocityTracker
@@ -72,6 +75,7 @@ import app.mauri.sukrara.designsystem.motion.LocalReducedMotion
 import app.mauri.sukrara.designsystem.motion.Motion
 import app.mauri.sukrara.graph.CardLayout
 import app.mauri.sukrara.graph.CardModel
+import app.mauri.sukrara.graph.CardMotion
 import app.mauri.sukrara.graph.CardPart
 import app.mauri.sukrara.graph.CardSurface
 import app.mauri.sukrara.graph.CardWords
@@ -84,6 +88,7 @@ import app.mauri.sukrara.graph.GraphPlace
 import app.mauri.sukrara.graph.SensorBadge
 import app.mauri.sukrara.graph.SensorInfo
 import app.mauri.sukrara.graph.SensorLife
+import app.mauri.sukrara.graph.TrendAngle
 import app.mauri.sukrara.graph.TrendMark
 import app.mauri.sukrara.graph.stats.Band
 import app.mauri.sukrara.graph.stats.MetricsCache
@@ -198,6 +203,7 @@ fun PanelCard(
             )
         }
     val style = remember(config) { config.appPanelStyle() }
+    val motion = panelMotion(glucose, now, config, palette, reduced)
     val base = style.graph
     val default = base?.windowS ?: 0L
     val latestNow by rememberUpdatedState(nowS)
@@ -330,6 +336,7 @@ fun PanelCard(
                         density,
                         CardSurface.APP_PANEL,
                         CardPart.ALL,
+                        motion = motion,
                         view = view,
                     )
                 laid.read(rec)
@@ -340,6 +347,50 @@ fun PanelCard(
             PillButton(box, pillWords.orEmpty(), pillLabel(pill)) { onPill(pill) }
         }
     }
+}
+
+/**
+ * The panel's value motion (paint only, never layout): a new number rolls in from the previous one (up for a rising
+ * value), the arrow turns to the new rate and the value's range colour fades. Reduced motion: drawn still (null).
+ */
+@Composable
+private fun panelMotion(
+    glucose: GlucoseState,
+    now: Instant,
+    config: GraphConfig,
+    palette: GraphPalette,
+    reduced: Boolean,
+): CardMotion? {
+    val look = homeLook(glucose, now)
+    val number = look.text.takeIf { look.state == GlucoseLook.State.VALUE && !look.strike }
+    val roll = remember { Animatable(1f) }
+    var from by remember { mutableStateOf<String?>(null) }
+    var shown by remember { mutableStateOf(number) }
+    var up by remember { mutableStateOf(true) }
+    // the mg/dL behind the shown text (LO / HI are 39 / 401): LO → 45 rolls up
+    var shownMgdl by remember { mutableStateOf(glucose.latest?.mgdl) }
+    LaunchedEffect(number, reduced) {
+        val last = shown
+        val lastMgdl = shownMgdl
+        val newMgdl = glucose.latest?.mgdl
+        shown = number
+        shownMgdl = newMgdl
+        if (!reduced && number != null && last != null && number != last) {
+            up = lastMgdl == null || newMgdl == null || lastMgdl < newMgdl
+            from = last
+            roll.snapTo(0f)
+            roll.animateTo(1f, Motion.defaultSpatial())
+        } else {
+            roll.snapTo(1f)
+        }
+    }
+    val rate = glucose.latest?.rateMgdlPerMin
+    val angle by animateFloatAsState(rate?.let { TrendAngle.deg(it) } ?: 0f, Motion.defaultSpatial(reduced), label = "trend")
+    val latest = glucose.latest
+    val target = if (latest == null || look.strike) palette.inkSoft else palette.at(config.bands, latest.mgdl)
+    val color by animateColorAsState(Color(target), Motion.defaultEffects(reduced), label = "range")
+    if (reduced) return null
+    return CardMotion(from, roll.value, up, rate?.let { angle }, color.toArgb())
 }
 
 /** TalkBack's "double-tap to …" for [action]. */

@@ -11,6 +11,10 @@ A case: `name`; `zone` (IANA id); `generated`, `from`, `to` (epoch s; rows with 
 `sensor` `{serial, start, end}` or null; `readings` `[{t, sgv, rate?}]`; `treatments` `[{id, k: rapid|long|carbs|note,
 a, t, n?, o, del?}]`. `expect` = the file's lines without their CRLF (a line may hold a `\n` inside a quoted note).
 
+LO / HI readings are written as the stored 39 / 401 mg/dL (2.2 / 22.3 mmol/L), the Nightscout convention, not as
+"LO" / "HI": Tidepool Uploader's LibreView driver throws "Could not parse value" on a non-numeric glucose cell (and
+annotates values below 41 as out-of-range low). Every way in stores LO / HI as exactly these two values.
+
 `generate.py` is the reference writer that produced `expect`; edit the cases there and regenerate
 (`python3 -I generate.py > libreview-csv.json`), then review the diff by hand.
 

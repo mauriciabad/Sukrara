@@ -28,6 +28,7 @@ import app.mauri.sukrara.graph.GraphConfig
 import app.mauri.sukrara.graph.SensorBadge
 import app.mauri.sukrara.graph.ValueGlyphs
 import app.mauri.sukrara.graph.cardModelOf
+import app.mauri.sukrara.graph.notificationCardStyle
 import app.mauri.sukrara.graph.stats.Bands
 import app.mauri.sukrara.graph.stats.toPoint
 import app.mauri.sukrara.monitor.notify.CardFrame
@@ -126,19 +127,22 @@ class LiveNotification(
         content.sharing?.let { builder.setSubText(sharingText(it)) }
         content.actions.forEach { builder.addAction(Notification.Action.Builder(null, resolve(it.label, now), pending(it.target)).build()) }
         when (content.layout) {
-            Layout.LIVE_UPDATE -> liveUpdate(builder, content, now, frame?.config?.bands ?: Bands())
+            Layout.LIVE_UPDATE -> liveUpdate(builder, content, now, frame)
             Layout.CARD -> card(builder, content, now, frame)
             Layout.TEXT -> Unit
         }
         return builder.build()
     }
 
-    /** The chip; on Android 17 the expanded card is a MetricStyle (the value by range, the late reading's time). */
+    /**
+     * The chip; on Android 17 the expanded card is a MetricStyle (the value by range, the late reading's time, then the
+     * card's slots as words).
+     */
     private fun liveUpdate(
         b: Notification.Builder,
         content: LiveNotificationContent,
         now: Instant,
-        bands: Bands,
+        frame: CardFrame?,
     ) {
         val chip = content.chip ?: return
         if (Build.VERSION.SDK_INT_FULL < Build.VERSION_CODES_FULL.BAKLAVA_1) return
@@ -146,21 +150,24 @@ class LiveNotification(
         runCatching { b.setRequestPromotedOngoing(true).setShortCriticalText(resolve(chip, now)) }.onFailure { return }
         val look = content.look ?: return
         if (Build.VERSION.SDK_INT >= METRIC_STYLE_SDK) {
-            runCatching { b.setStyle(metricStyle(content, look, now, bands)) }
+            runCatching { b.setStyle(metricStyle(content, look, now, frame)) }
                 .onFailure { Log.w(TAG, "metric style: ${it.javaClass.simpleName}") }
         }
     }
 
     /**
      * MetricStyle: the value as the face writes it (LO / HI included; never a number of its own), styled by its range
-     * while fresh and plain once struck through; the reading's time as a second metric once it's late.
+     * while fresh and plain once struck through; the reading's time as a second metric once it's late; the rest of the
+     * [MAX_METRICS] are the card's slots as the notification card shows them (`GlucoseCard.slotTexts`: time in range,
+     * average, the last treatment, over the same windows as home), only while the value is a reading.
      */
     private fun metricStyle(
         content: LiveNotificationContent,
         look: GlucoseLook,
         now: Instant,
-        bands: Bands,
+        frame: CardFrame?,
     ): Notification.MetricStyle {
+        val bands = frame?.config?.bands ?: Bands()
         val unit = context.getString(R.string.monitor_metric_unit)
         val value =
             if (look.strike || content.mgdl == null) {
@@ -176,6 +183,13 @@ class LiveNotification(
                     context.getString(R.string.monitor_metric_reading),
                 ),
             )
+        }
+        val room = MAX_METRICS - style.metrics.size
+        if (frame != null && content.mgdl != null && room > 0) {
+            val model = cardModelOf(frame.state, frame.treatments, now, CardWords.of(context.resources), frame.slots(now))
+            GlucoseCard.slotTexts(model, notificationCardStyle(frame.config), room).forEach { (value, label) ->
+                style.addMetric(Notification.Metric(Notification.Metric.FixedText(value), label))
+            }
         }
         return style.setCriticalMetric(0)
     }
@@ -243,13 +257,14 @@ class LiveNotification(
         bg: Int,
         now: Instant,
     ): NotificationArt? {
-        val key = listOf(content.cardKey, content.look, bg, frame.config, frame.dark, frame.state.latest, frame.state.sensor)
+        val key =
+            listOf(content.cardKey, content.look, bg, frame.config, frame.dark, frame.state.latest, frame.state.sensor, frame.stored.size)
         val gKey = listOf(frame.config, frame.dark, frame.state.latest, frame.treatments, now.epochSecond / GRAPH_EVERY_S)
         val cached = artCache
         if (cached != null && key == artKey && gKey == graphKey) return cached
         if (!context.getSystemService(PowerManager::class.java).isInteractive) return null
         return runCatching {
-            val model = cardModelOf(frame.state, frame.treatments, now, CardWords.of(context.resources))
+            val model = cardModelOf(frame.state, frame.treatments, now, CardWords.of(context.resources), frame.slots(now))
             val redrawGraph = cached?.graph == null || gKey != graphKey
             val drawn =
                 NotificationCard.renderNotificationArt(
@@ -371,6 +386,9 @@ class LiveNotification(
 
         /** Android 17: `Notification.MetricStyle`. */
         private const val METRIC_STYLE_SDK = 37
+
+        /** MetricStyle shows up to three metrics. */
+        private const val MAX_METRICS = 3
 
         /** The chart is redrawn at most this often without a new reading. */
         private const val GRAPH_EVERY_S = 300L

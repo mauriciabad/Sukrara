@@ -9,6 +9,7 @@ import android.graphics.Paint
 import android.graphics.RectF
 import androidx.core.graphics.ColorUtils
 import app.mauri.sukrara.graph.stats.Bands
+import app.mauri.sukrara.graph.stats.GlucoseMetrics
 import app.mauri.sukrara.graph.stats.GlucosePoint
 import app.mauri.sukrara.graph.stats.GlucoseStats
 import kotlin.math.min
@@ -225,6 +226,45 @@ object GlucoseCard {
             else -> SensorSpot.NONE
         }
 
+    /** The user's rings with enough data and the fallback ring (shown when no recent treatment takes its place). */
+    private fun slotInputs(
+        st: CardStyle,
+        last: LastTreatment.Info?,
+        model: CardModel,
+        bands: Bands,
+    ): Pair<List<Triple<Int, RingSpec, GlucoseMetrics>>, Pair<RingSpec, GlucoseMetrics>?> {
+        val rings =
+            st.rings.take(3).mapIndexedNotNull { i, spec ->
+                model.metrics(spec, bands).takeIf { it.tir.coverage >= MIN_COVERAGE }?.let { Triple(i, spec, it) }
+            }
+        val fallback =
+            if (st.last != LastPlace.OFF && last == null) {
+                st.lastElse?.let { s -> model.metrics(s, bands).takeIf { it.tir.coverage >= MIN_COVERAGE }?.let { s to it } }
+            } else {
+                null
+            }
+        return rings to fallback
+    }
+
+    /**
+     * The slots a card [st] shows for [model], as words for a text-only place (`Slots.text`: value, short label), in
+     * priority order (main ring, a recent treatment, second ring, …), at most [max]: the same choice the drawn card
+     * makes, for a place that can only write text (Android 17's MetricStyle).
+     */
+    fun slotTexts(
+        model: CardModel,
+        st: CardStyle,
+        max: Int,
+    ): List<Pair<String, String>> {
+        val bands = st.bands.sane()
+        val last = if (st.last != LastPlace.OFF) LastTreatment.of(model.treatments, model.muteRule, model.status, model.nowS) else null
+        val (rings, fallback) = slotInputs(st, last, model, bands)
+        val items = Slots.arrange(rings, st.last, last, fallback, max)
+        val main = Slots.mainIndex(items)
+        val ordered = if (main > 0) listOf(items[main]) + items.filterIndexed { i, _ -> i != main } else items
+        return ordered.mapNotNull { Slots.text(it, model.nowS, model.words) }
+    }
+
     /**
      * Slots right-aligned in [box] (main rightmost); returns the width used. Beside the value ([dedicated] false) at
      * most 55 % of the row; in a box of their own as many as fit whole. [CardStyle.slotDisc]: each slot on a disc.
@@ -249,16 +289,7 @@ object GlucoseCard {
         val gap = if (st.slotDisc != null) 6 * d else size * 0.14f
         val fit = ((box.width() * (if (dedicated) 1f else 0.55f) + gap) / (size + gap)).toInt().coerceAtMost(4)
         if (fit < 1) return 0f
-        val rings =
-            st.rings.take(3).mapIndexedNotNull { i, spec ->
-                model.metrics(spec, bands).takeIf { it.tir.coverage >= MIN_COVERAGE }?.let { Triple(i, spec, it) }
-            }
-        val fallback =
-            if (st.last != LastPlace.OFF && last == null) {
-                st.lastElse?.let { s -> model.metrics(s, bands).takeIf { it.tir.coverage >= MIN_COVERAGE }?.let { s to it } }
-            } else {
-                null
-            }
+        val (rings, fallback) = slotInputs(st, last, model, bands)
         var items = Slots.arrange(rings, st.last, last, fallback, fit)
         // in a box of their own every slot fits whole, the laurels' extra room included
         if (dedicated) {

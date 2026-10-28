@@ -40,6 +40,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.shareIn
 
 /**
@@ -106,8 +107,9 @@ class MonitorModule(
     private val screenOn = MutableSharedFlow<Unit>(extraBufferCapacity = 1, onBufferOverflow = BufferOverflow.DROP_OLDEST)
 
     /**
-     * What the glucose notification draws besides the hub state: the status-bar settings, the treatments and the graph
-     * settings (the custom card), as one value that changes when any of them does.
+     * What the glucose notification draws besides the hub state: the status-bar settings, the treatments, the graph
+     * settings and the stored days (the custom card and its 7–30-day slots, the same windows as home and the widgets),
+     * as one value that changes when any of them does. The stored days start empty so a slow read never holds the post.
      */
     val notificationInputs: Flow<NotificationInputs> =
         combine(
@@ -117,6 +119,7 @@ class MonitorModule(
             graphConfig,
             sharing.catch { emit(null) },
         ) { chip, icon, list, config, line -> NotificationInputs(chip, icon, list, config, line) }
+            .combine(storedHistory.onStart { emit(emptyList()) }) { inputs, stored -> inputs.copy(stored = stored) }
             .distinctUntilChanged()
             // a failing store must never stop the foreground notification: it goes on with the defaults
             .catch {
@@ -174,6 +177,8 @@ data class NotificationInputs(
     val treatments: List<Treatment>,
     val config: GraphConfig,
     val sharing: SharingLine? = null,
+    /** The stored days before the live window (the multi-day slots count them). */
+    val stored: List<Reading> = emptyList(),
 )
 
 /** The `Application` gives the monitor's Android components (service, receivers) their module. */

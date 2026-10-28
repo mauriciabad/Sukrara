@@ -522,4 +522,18 @@
     <string name="st_clinic_title">Share your data with your clinic</string>
     <string name="st_clinic_text">Upload your readings and entries to LibreView so your care team sees them.</string>
     <string name="st_clinic_action">Set up</string>
+    <!-- Settings › Alerts › Lately: the alerts' recent history -->
+    <string name="st_lately_title">Lately</string>
+    <string name="st_note_fired">%1$s · %2$d mg/dL</string>
+    <string name="st_note_remote">%1$s (from the wearer)</string>
+    <string name="st_note_cleared">%1$s cleared</string>
+    <string name="st_note_cleared_remote">%1$s cleared (by the wearer)</string>
+    <string name="st_note_muted">%1$s alerts muted for %2$s</string>
+    <string name="st_note_unmuted">%1$s alerts unmuted</string>
+    <string name="st_note_remind_less">%1$s alerts: remind less</string>
+    <string name="st_note_remind_as_usual">%1$s alerts: remind as usual</string>
+    <string name="st_note_back">%1$s back in range: alerts as usual</string>
+    <string name="st_note_all_muted">All alerts muted for %1$s</string>
+    <string name="st_note_all_muted_off">All alerts muted until you turn it off</string>
+    <string name="st_note_all_unmuted">Alerts unmuted</string>
 </resources>

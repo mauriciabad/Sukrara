@@ -148,4 +148,35 @@
     <string name="banner_pens_text">Android no deja que los toques de pluma lleguen a Sukrara, así que tus dosis no se leen ni se registran.</string>
     <string name="banner_pens_allow">Permitir</string>
     <string name="banner_pens_turn_off">Desactivar</string>
+    <!-- Glucose report card on home -->
+    <string name="report_title">Informe de glucosa</string>
+    <string name="report_days_short">%1$d d</string>
+    <plurals name="report_days">
+        <item quantity="one">%1$d día</item>
+        <item quantity="other">%1$d días</item>
+    </plurals>
+    <plurals name="report_empty">
+        <item quantity="one">No hay lecturas del último día. Elige un periodo más largo.</item>
+        <item quantity="other">No hay lecturas de los últimos %1$d días.</item>
+    </plurals>
+    <string name="report_low_coverage">Las lecturas cubren solo el %1$s %% de este periodo. Los médicos necesitan al menos un 70 %% para que estos números cuenten.</string>
+    <string name="report_very_high">Muy alta</string>
+    <string name="report_high">Alta</string>
+    <string name="report_above">Por encima del rango</string>
+    <string name="report_above_detail">Muy alta + alta</string>
+    <string name="report_in_range">En rango</string>
+    <string name="report_very_good">Muy bien</string>
+    <string name="report_very_good_detail">%1$s mg/dL, dentro del rango</string>
+    <string name="report_low">Baja</string>
+    <string name="report_very_low">Muy baja</string>
+    <string name="report_below">Por debajo del rango</string>
+    <string name="report_below_detail">Baja + muy baja</string>
+    <string name="report_average">Glucosa media</string>
+    <string name="report_gmi">GMI</string>
+    <string name="report_gmi_caption">Indicador de gestión de la glucosa: una estimación de tu HbA1c</string>
+    <string name="report_cv">Variabilidad de la glucosa (CV)</string>
+    <string name="report_goal">Objetivo %1$s</string>
+    <string name="report_goal_met">objetivo cumplido</string>
+    <string name="report_goal_missed">objetivo no cumplido</string>
+    <string name="report_footer">Datos del sensor durante el %1$s %% del periodo. Rangos y objetivos del consenso internacional.</string>
 </resources>

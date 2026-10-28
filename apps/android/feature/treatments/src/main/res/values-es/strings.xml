@@ -24,6 +24,11 @@
     <string name="treatment_unlock">Desbloquear</string>
     <string name="treatment_lock_closes">Se cierra sin guardar en %1$d s</string>
     <string name="treatment_lock_not_saved">No guardado: el diálogo se cerró en la pantalla de bloqueo</string>
+    <plurals name="treatment_lock_closes_in">
+        <item quantity="one">Se cierra en %1$d segundo</item>
+        <item quantity="many">Se cierra en %1$d segundos</item>
+        <item quantity="other">Se cierra en %1$d segundos</item>
+    </plurals>
     <plurals name="treatment_saved">
         <item quantity="one">%1$d entrada guardada</item>
         <item quantity="many">%1$d entradas guardadas</item>

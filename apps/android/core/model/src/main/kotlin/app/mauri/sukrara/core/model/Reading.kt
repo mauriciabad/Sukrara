@@ -50,6 +50,22 @@ object GlucoseRange {
     fun isLo(mgdl: Int): Boolean = mgdl < FLOOR
 
     fun isHi(mgdl: Int): Boolean = mgdl > CEILING
+
+    /** What a glucose value can be at all: anything else (0, negative, absurd) is malformed and dropped. */
+    val PLAUSIBLE = 1..1000
+
+    /**
+     * [r] as it is stored, at the one way in (the hub): a malformed value is null (dropped), any number below the floor
+     * becomes [LO] and any above the ceiling [HI], without a rate. Every source (sensor, Juggluco, relay, Nearby) then
+     * reaches the card, the graph, uploads and the export with the same two flags, never a raw 35 or 450.
+     */
+    fun normalise(r: Reading): Reading? =
+        when {
+            r.mgdl !in PLAUSIBLE -> null
+            isLo(r.mgdl) -> if (r.mgdl == LO && r.rateMgdlPerMin == null) r else Reading.lo(r.t, r.source)
+            isHi(r.mgdl) -> if (r.mgdl == HI && r.rateMgdlPerMin == null) r else Reading.hi(r.t, r.source)
+            else -> r
+        }
 }
 
 /** Where readings come from. A value class so new sources are added without touching every `when`. */

@@ -15,6 +15,8 @@ import androidx.compose.ui.unit.Density
 import app.mauri.sukrara.alerts.AlertKind
 import app.mauri.sukrara.alerts.AlertSettings
 import app.mauri.sukrara.core.data.settings.HookPosition
+import app.mauri.sukrara.core.model.AlertNote
+import app.mauri.sukrara.core.model.AlertNoteType
 import app.mauri.sukrara.core.model.AlertQuietReason
 import app.mauri.sukrara.core.model.AlertQuietSide
 import app.mauri.sukrara.core.model.AlertReadiness
@@ -126,6 +128,17 @@ class SettingsGallery {
             },
             "overview-muted" to { SettingsOverviewContent(true, muted, AlertReadiness.Ready, clock, OverviewActions()) {} },
             "alerts" to { AlertsSettingsContent(AlertsUi(AlertSettings(), AlertUiState()), null, clock, AlertsActions()) {} },
+            "alerts-lately" to {
+                val lately =
+                    listOf(
+                        AlertNote(now.minusSeconds(120), AlertNoteType.AllUnmuted),
+                        AlertNote(now.minusSeconds(900), AlertNoteType.Muted, "low", minutes = 30),
+                        AlertNote(now.minusSeconds(960), AlertNoteType.Fired, "low", mgdl = 66),
+                        AlertNote(now.minusSeconds(7200), AlertNoteType.Cleared, "high", remote = true),
+                        AlertNote(now.minusSeconds(9000), AlertNoteType.AllMuted),
+                    )
+                AlertsSettingsContent(AlertsUi(AlertSettings(), AlertUiState(lately = lately)), null, clock, AlertsActions()) {}
+            },
             "alerts-muted-forever" to {
                 AlertsSettingsContent(
                     AlertsUi(AlertSettings(), AlertUiState(mutedUntil = AlertUiState.UNTIL_TURNED_OFF)),

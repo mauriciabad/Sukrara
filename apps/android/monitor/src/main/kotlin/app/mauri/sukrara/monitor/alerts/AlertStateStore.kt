@@ -30,6 +30,8 @@ data class AlertRecord(
     val who: String? = null,
     /** The sensor's life (no `no_data` while it is warming up or has ended), also for the receiver. */
     val sensor: SavedSensor? = null,
+    /** The alerts' recent history, oldest first ([AlertNotes.MAX] lines). */
+    val notes: List<SavedNote> = emptyList(),
 )
 
 /** [SensorWindow] as saved. */

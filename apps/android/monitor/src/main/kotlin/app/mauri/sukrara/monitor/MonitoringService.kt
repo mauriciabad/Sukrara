@@ -152,7 +152,7 @@ class MonitoringService : Service() {
         val now = m.clock.now()
         m.freshnessTicker.plan(state.latest?.t, now)
         val dark = (resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES
-        val frame = CardFrame(state, inputs.treatments, inputs.config, dark)
+        val frame = CardFrame(state, inputs.treatments, inputs.config, dark, inputs.stored)
         val prefs =
             NotificationPrefs(
                 chip = inputs.chip,

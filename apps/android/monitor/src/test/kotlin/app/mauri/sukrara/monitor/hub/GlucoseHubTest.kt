@@ -165,19 +165,23 @@ class GlucoseHubTest {
         }
 
     @Test
-    fun `LO and HI readings are kept, malformed and far-future ones dropped`() =
+    fun `LO and HI readings are stored as the flags, malformed and far-future ones dropped`() =
         runTest {
             val hub = hub()
             val source = FakeSource()
             backgroundScope.launch { hub.attach(source) }
             runCurrent()
             val future = Reading(clock.now() + Duration.ofHours(1), 130, null, SourceId.Libre3)
-            source.emitted.emit(listOf(reading(0, agoMin = 3), reading(38, agoMin = 2), reading(450, agoMin = 1), future))
+            source.emitted.emit(
+                listOf(reading(0, agoMin = 5), reading(1200, agoMin = 4), reading(38, agoMin = 3), reading(450, agoMin = 2), future),
+            )
+            // Juggluco, the relay and Nearby pass raw numbers: the hub stores every LO / HI the same way, rate dropped
+            hub.ingest(listOf(reading(12, agoMin = 1), reading(401, agoMin = 0)), SourceId.Relay)
             runCurrent()
             assertEquals(
-                listOf(38, 450),
+                listOf(39 to null, 401 to null, 39 to null, 401 to null),
                 hub.state.value.recent
-                    .map { it.mgdl },
+                    .map { it.mgdl to it.rateMgdlPerMin },
             )
         }
 

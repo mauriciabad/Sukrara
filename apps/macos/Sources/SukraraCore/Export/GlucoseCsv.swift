@@ -6,6 +6,7 @@ import Foundation
 /// Readings and treatments as one CSV in LibreView's "Glucose Data" layout, byte for byte what Android's
 /// `GlucoseCsv.kt` writes (both run contracts/export). Tidepool Uploader's LibreView import reads it; four columns of
 /// our own at the end: ISO 8601 time with offset, trend, who entered a treatment, a pen entry's primed units.
+/// LO / HI rows carry the stored 39 / 401 mg/dL (never "LO" / "HI": Tidepool's driver refuses a non-numeric cell).
 /// Pure: the save panel belongs to the app.
 public enum GlucoseCsv {
     /// Readings closer than this (s) to the previous row are skipped (5-minute rows from 1-minute data).

@@ -64,7 +64,7 @@ Rules: [poc/spikes/alerts/SPEC.md](../poc/spikes/alerts/SPEC.md); timelines: [po
   - *Side relaxed*: Android chip under the card *Low reminders every 30 min* (es *Avisos de glucosa baja cada 30 min*), the notification's **Remind as usual**, sheet / Active now; Mac panel row, pill menu, Active now. Out: Remind as usual (an overdue repeat at once), back by the margin.
   - *Muted + relaxed*: both lines and both exits; the margin ends both.
   - *All alerts muted (time / Never)*: Android under the card *Alerts muted · 1 h 12 min left* (counting down) / *Alerts muted until you turn it off* (es *Alertas silenciadas · quedan 1 h 12 min* / *… hasta que lo desactives*) with **Unmute** (es *Reactivar*) and **Change**, the muted pill everywhere, Active now, TalkBack actions on the card (*Alerts: Unmute*, *Alerts: Change time*); Mac dropdown row with **Unmute** and **Change Time**, the menu bar's bell.slash (tooltip and VoiceOver *Alerts muted …*), the pill's menu, Settings › Alerts › Active now. Out: Unmute (what matches alerts at once), its end (never with Never), Change.
-  - History lines (Android; the Mac logs them): *Low alerts muted for 1 h*, *Low reminders every 30 min*, *Low alerts unmuted*, *Low reminders as usual (every 5 min)*, *Low back in range: alerts as usual*, *All alerts muted for 2 h* / *… until you turn it off*, *Alerts unmuted*.
+  - History lines (Android; the Mac logs them): Settings › Alerts › **Lately** lists the newest 5 of the last 24 h with their time (es *Últimamente*): *Low · 66 mg/dL* (an alert's first ring; repeats and silent re-posts after a restart aren't lines; *(from the wearer)* when mirrored), *High cleared* (the rules ended it, not a mute), *Low alerts muted for 30 min*, *Low alerts unmuted*, *Low alerts: remind less* / *remind as usual*, *Low back in range: alerts as usual*, *All alerts muted for 2 h* / *… until you turn it off*, *Alerts unmuted*. The runtime keeps the last 20 lines in the alert record (`AlertNotes`, saved with the rules' state, so a restart keeps them; *Start fresh* clears them). The group shows only while it has lines; it is read-only (the strips and pages above are the ways out).
 
 - Falling-high mute (default 20 min): no high/very high alert while `sgv + rate × min < high`; it only postpones (a
   repeat that came due fires when it ends).
@@ -106,7 +106,7 @@ Rules: [poc/spikes/alerts/SPEC.md](../poc/spikes/alerts/SPEC.md); timelines: [po
 or when the card's *Eat carbs* pill opened it), *Now* / *Earlier…* (*When*: *Time* picker or *Minutes ago* with 5 / 15
 / 30 / 60 chips, resolved when saving; the chip then reads *16 min ago*), the quiet line (*Highs quiet for 44 min ·
 lows quiet for 14 min*: what the entries quiet on this phone from the chosen time; none while alerts are off or a
-follower mirrors the wearer's alerts), the limits line, *Open Sukrara*, and the lock-screen countdown (*Closes unsaved in N s* + *Unlock*; same rules, `LockCountdownTest`). Saves go through `TreatmentLog` (each version strictly newer, undo = a newer version, `WriterScope`) and the share layer's `TreatmentSync`. Not included: the countdown ring on Cancel, the pen duplicate question, editing from the list (the log supports it), the tile's glucose subtitle.
+follower mirrors the wearer's alerts), the limits line, *Open Sukrara*, and the lock-screen countdown (*Closes unsaved in N s* + *Unlock*; same rules, `LockCountdownTest`). Saves go through `TreatmentLog` (each version strictly newer, undo = a newer version, `WriterScope`) and the share layer's `TreatmentSync`. *Cancel* carries the countdown ring (24 dp, seconds inside, empties every frame, fills in with the dialog, pulses once at 5 s with one `SEGMENT_TICK` haptic only if something was typed, shrinks and fades away after an unlock; reduced motion: steps once a second, no fill-in, no pulse; TalkBack: digits hidden, Cancel's state *Closes in N seconds* in 5 s steps). Not included: the ring on the *When?* picker's Cancel and the one polite *Closes in 10 seconds* announcement, the pen duplicate question, editing from the list (the log supports it), the tile's glucose subtitle.
 - Every writer sends `o: follower` (the Mac too; its own rows stay `mac` locally). Mac following someone: Delete (context menu, ⌫, Undo) works only on entries made on this Mac; the wearer's and other followers' rows are read-only.
 
 ## Mac menu and windows
@@ -438,6 +438,18 @@ Role kept safe (Android): the role is stored twice (`role.json`, `role-backup.js
 *Some saved data was damaged* banner and the other copy keeps the phone monitoring (never back to setup with the service
 silently stopped); the copies are brought back in line at start.
 
+**Glucose report** card (Android, `ReportCard`, at the bottom of home for wearer and follower once any reading is
+stored; tests `ReportCardTest`, `HistoryGallery.reportCard`): the clinic report's numbers over home's stored 31 days
+(`GlucoseMetrics`, time-weighted like the rings, re-counted every 5 minutes): a 1 d / 7 d / 14 d / 30 d segmented
+picker (opens on 14 days; a view control, not a setting — schema `report.days` is the Mac's remembered window; a tick
+haptic on change), the stacked bar of the six bands beside time very high / high / above range, in range / very good,
+low / very low / below range, each with its share (`ShareText`) and, where the international consensus sets one, its
+goal as a chip (green with a check when met, orange when not); average glucose (< 154 mg/dL), GMI in % and mmol/mol
+(< 7 % / < 53 mmol/mol) and CV (≤ 36 %); a note when readings cover less than 70 % of the period, and the coverage in
+the footer. No readings in the period → *No readings in the last day. Choose a longer period.* TalkBack reads each
+row as one line with its goal and *goal met* / *goal not met*; the bar animates to new shares (snaps with reduced
+motion). Ranges are in mg/dL like the chart axis.
+
 **Damaged data** screen (from the banner's Review; back arrow in the top bar): each damaged file as what it means for
 the person: settings → *Your settings were reset to the defaults. Check your alert levels and mutes.* with *Open alert
 settings* (opens Settings › Alerts); readings / treatments may be
@@ -450,7 +462,7 @@ pill) → *Alert me anyway* / *Unmute*, *Alert settings*, or back / swipe down /
 last day* → *Pair new sensor* (or keep the sensor; it leaves when the new one runs); *no data* → the reason's action (or wait: warming up,
 core missing explains why); *banner* → its action, or close (non-safety), safety banners leave when fixed; *muted* →
 Unmute (button and TalkBack action); *treatment deleted* → Undo (5 s) or let it go; *damaged data* → Review → Got it /
-Back; *not set up* → the reason panel's Set up; invite links open setup over home (Back returns home).
+Back; *not set up* → the reason panel's Set up; invite links open setup over home (Back returns home). *Glucose report* → another period (the picker), or scroll past it; nothing to undo (it changes nothing).
 
 ## Untested sensor banner
 
@@ -633,16 +645,20 @@ Android (`:monitor`, `LiveNotification` = registered surface `notification-text`
   colorized foreground-service card in the value's range colour (grey once struck through), drawn by the renderer
   (registered card surface `notification`, `NotificationCard`, `notificationCardStyle`): the card's header row
   (value, trend, late time, status pill, slots on discs) collapsed, header + the chart (the Notification place's
-  window) expanded. Small icon = the number itself (`ValueGlyphs.icon`, struck at half strength) when *Number as
+  window) expanded. The slots count the stored days and the live window (`CardFrame.slots`, the 31-day history), so
+  the 7–30-day rings match home and the widgets. Roborazzi goldens `NotificationCardShotsTest` (light / dark × fresh,
+  struck, status pill). Small icon = the number itself (`ValueGlyphs.icon`, struck at half strength) when *Number as
   notification icon* is on, else the arrow. Pictures are drawn at most at 2× density, cached (header per minute, chart
   per 5 min / reading), never drawn while the screen is off (an out-of-date card posts as text and screen on redraws
   it); a drawing failure posts the same notification as text, and the foreground start never draws.
 - **Android 17 Live Update card**: MetricStyle with the face's value (`mg/dL`, styled danger / caution / safe by the
-  person's low and high bands; plain once struck through) and the late reading's time.
+  person's low and high bands; plain once struck through), the late reading's time, then the card's slots as words
+  up to three metrics (`GlucoseCard.slotTexts`, the notification card's choice and order: *74%* · *in range 1d*,
+  *4.5u* · *12m ago*), only while the value is a reading.
 - Settings › **Status bar**: *Live Update chip* (default on), *Allow Live Updates for Sukrara* (shown while the chip
   is on and Android refuses it; opens Android's per-app Live Updates setting, re-read on return), *Number as
   notification icon* (default on; disabled with "The chip already shows the value" while the chip shows).
-- Not included (issues): MetricStyle slots on Android 17, mmol/L.
+- Not included (issues): mmol/L.
 - **States and exits**: *Live Update chip* → turn off in Settings › Status bar (or Android's per-app Live Updates
   setting, or demote it from the chip) → the colorized card; back on in the same places (*Allow Live Updates* row when
   Android refuses it). *Number icon* → Settings › Status bar. *Notification swiped away* → it comes back (it is the
@@ -661,7 +677,11 @@ tests `GlucoseHubTest`, `MonitorServiceLogicTest`).
 - **Monitoring starts at the first reading** of the current source (remembered across restarts). Before that every
   surface says *Not monitoring: no sensor yet* and no "no data" alarm can be armed. Only removing the
   sensor or changing the role (explicit actions) go back to *Not monitoring*.
-- Readings: LO / HI kept (never dropped); a reading stamped more than 5 min ahead of the phone's clock is dropped
+- Readings: LO / HI kept (never dropped) and stored as the flags at the one way in (Android hub `GlucoseRange.normalise`,
+  Mac follower `GlucoseRange.normalised`): any number below 40 from any source (sensor, Juggluco, relay, Nearby) is
+  stored as 39 and any above 400 as 401, without a rate, so the follower's card shows *LO* / *HI* and the graph, uploads
+  and the CSV export (39 / 401, never "LO" / "HI": Tidepool's LibreView import refuses a non-numeric cell) all agree;
+  0, negatives and values above 1000 are dropped as malformed; a reading stamped more than 5 min ahead of the phone's clock is dropped
   (it would look fresh for too long); the gap then shows and alarms as no data. The hub keeps the last 24 h for every surface.
 - Bluetooth off → the wearer sees *Bluetooth is off*; on → the source reconnects with a fresh connection.
 - **Monitoring stopped**: when Android refuses to start the service (background start not allowed, permission) the
@@ -1106,6 +1126,6 @@ page.
 - Android settings pages: settings export / import / reset, settings search, the follower's *Settings from* page, relay / epoch / statistics / log pages, battery-lab knobs, mmol/L in the settings pages (thresholds and ranges are shown and typed in mg/dL; schema `general.unit` is set elsewhere),, the ▶ beside each sound in the Sound dialog (the alert's page has *Play sound*) and icons on every row. Reason: only what daily use needs; the defaults are the owner's own values.
 - Mac: Juggluco over Wi-Fi (LAN source and subnet discovery) and the Nostr v1 `cgmnostr:` follow link (v1 links carried plaintext secrets and had no UI). Follow the wearer with a protocol v2 invite instead.
 - Sensors: the untested-sensor banner and its *Send feedback* (the families themselves are read, see *Sensor life*); the Libre 3 experiment preferences (minimal subscription set, connection priority, screen-off skip). Reason: no hardware to test them, the owner uses a Libre 3.
-- Planned (issues filed): scanning an invite's QR code on Android and the follower's *Settings from* page, the glucose report card, the Tidepool upload, the phone's Nightscout read API, Health Connect and broadcasts, the rest of insulin pens (see its section), the calendar event. The sections above that describe them are the behaviour to build. Reason: what daily use needs comes first.
+- Planned (issues filed): scanning an invite's QR code on Android and the follower's *Settings from* page, the Tidepool upload, the phone's Nightscout read API, Health Connect and broadcasts, the rest of insulin pens (see its section), the calendar event. The sections above that describe them are the behaviour to build. Reason: what daily use needs comes first.
 
 **States and exits**: none (these features aren't in the app).
