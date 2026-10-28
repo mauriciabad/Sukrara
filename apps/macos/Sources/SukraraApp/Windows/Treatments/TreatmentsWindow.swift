@@ -97,7 +97,7 @@ public struct TreatmentsView: View {
             if model.rows.isEmpty {
                 ContentUnavailableView(L10n.t("No treatments yet"), systemImage: "syringe")
             } else {
-                List(model.rows) { row in rowView(row) }
+                List(model.rows) { row in rowView(row) }.id(model.clockStyle)
             }
             if !model.canWrite {
                 Label(

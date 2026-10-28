@@ -192,6 +192,13 @@ final class AlertController {
         notifier.post(f, sound: true, category: category(f.kind))
     }
 
+    /// This Mac's Mute of each side on the wearer's mirrored alerts, in force at `t`.
+    func mirroredSideMutes(at t: Date) -> [AlertSide: Date] {
+        Dictionary(
+            uniqueKeysWithValues: AlertSide.allCases.compactMap { s in mirror.snoozes.muteEnd(s, at: t).map { (s, $0) }
+            })
+    }
+
     /// Recomputes `ui` (also from the panel's countdown, so an ended mute disappears).
     func refreshUI() {
         var state = engine.uiState(at: clock.now)

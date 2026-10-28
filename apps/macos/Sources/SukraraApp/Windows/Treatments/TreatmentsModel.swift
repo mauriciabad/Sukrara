@@ -32,6 +32,8 @@ public final class TreatmentsModel {
     }
 
     public private(set) var rows: [Row]
+    /// Counts changes of the clock's look (24-hour time, time zone): the rows' times are drawn again.
+    public var clockStyle = 0
     /// The entry the toast offers to bring back, and when the offer ends.
     public private(set) var undo: (row: Row, until: Date)?
     /// The wearer allowed this Mac to add treatments.
