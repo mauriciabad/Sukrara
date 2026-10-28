@@ -57,8 +57,12 @@ public final class AppDelegate: NSObject, NSApplicationDelegate {
             openReport: { [weak self] in self?.fromPanel { $0.openReport() } },
             openSettings: { [weak self] in self?.fromPanel { $0.openSettings() } })
         let statusItem = StatusItemController(model: model, menu: contextMenu, links: links)
-        statusItem.onOpen = { [weak self] in self?.refreshNotificationPermission() }
+        statusItem.onOpen = { [weak self, weak model] in
+            self?.refreshNotificationPermission()
+            model?.loadHistory()
+        }
         self.statusItem = statusItem
+        windows.statusItemFrame = { [weak statusItem] in statusItem?.screenFrame }
         if let updates = model.updates {
             // the result shows in the panel: open it once the check is done
             contextMenu.checkForUpdates = { [weak statusItem] in

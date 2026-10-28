@@ -6,6 +6,7 @@
     import ServiceManagement
     import SukraraCore
     import SukraraGraph
+    import SukraraShare
     import SwiftUI
 
     /// `sukrara-snap windows <dir>`: every window state with synthetic data, light + dark, default + large text.
@@ -39,7 +40,11 @@
             let store = DefaultsSettingsStore(defaults: UserDefaults(suiteName: suite)!)
             func follow(_ s: FollowStatus, failure: String? = nil, nearby: Bool = false) -> FollowModel {
                 let m = FollowModel(status: s, actions: nil, macName: "Ana's MacBook")
-                if nearby { m.nearby = NearbyPhone(wearer: "Marta") }
+                if nearby { m.nearby = NearbyPhone(wearer: "Marta", avatar: .v1(c: 6, s: "dots", a: 45, n: 11)) }
+                if case .following = s {
+                    m.wearer = Profile(name: "Marta", avatar: .v1(c: 6, s: "dots", a: 45, n: 11))
+                    m.me = Profile(name: "Ana's MacBook", avatar: .v1(c: 5, s: "drop", a: 45, n: 7))
+                }
                 return m
             }
             var out: [(String, AnyView)] = []
@@ -57,6 +62,22 @@
             out.append(("follow-nearby", AnyView(FollowStep(follow: nearbyModel).padding().frame(width: 520))))
             let waiting = follow(.waiting(wearer: "Marta", code: nil), nearby: true)
             out.append(("follow-nearby-waiting", AnyView(FollowStep(follow: waiting).padding().frame(width: 520))))
+            let draft = IdentityDraft(name: "Ana's MacBook", avatar: .v1(c: 5, s: "drop", a: 45, n: 7))
+            out.append(
+                (
+                    "identity-sheet",
+                    AnyView(IdentitySheet(draft: draft, wearer: "Marta", onSave: { _, _ in }, onCancel: {}))
+                ))
+            let open = IdentityDraft(name: "Ana's MacBook", avatar: .v1(c: 1, s: "rings", a: 90, n: 7))
+            open.customizing = true
+            out.append(
+                (
+                    "identity-customize",
+                    AnyView(IdentitySheet(draft: open, wearer: "Marta", onSave: { _, _ in }, onCancel: {}))
+                ))
+            out.append(
+                ("follow-not-following", AnyView(FollowStep(follow: follow(.notFollowing)).padding().frame(width: 520)))
+            )
             let bad = follow(.notFollowing)
             bad.linkText = "hello"
             Task { await bad.follow() }

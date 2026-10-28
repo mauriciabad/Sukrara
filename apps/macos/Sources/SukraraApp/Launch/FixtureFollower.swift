@@ -12,12 +12,15 @@
     /// bundle smoke test can check with `lsof` that nothing opens a connection.
     actor FixtureFollower: FollowerService {
         private let snapshot: FollowerSnapshot
+        /// A synthetic week: the panel's chart scrolls and zooms past the snapshot's 24 hours.
+        private let history: [Reading]
 
         init(now: Date = Date()) {
             let t = now.timeIntervalSince1970
-            let readings = RealisticSynthetic.readings(until: t - 60, days: 1).map {
+            history = RealisticSynthetic.readings(until: t - 60, days: 7).map {
                 Reading(t: Date(timeIntervalSince1970: $0.t), mgdl: Int($0.v.rounded()), rate: $0.rate)
             }
+            let readings = history.filter { $0.t.timeIntervalSince1970 >= t - 86400 }
             let start = Int(t) - 6 * 86400
             var snapshot = FollowerSnapshot.empty
             snapshot.link = .following(wearer: "Fixture", canWrite: true)
@@ -28,6 +31,8 @@
                 Treatment(id: "fixture-2", k: .carbs, a: 45, t: Int64(t) - 1320, u: 1, o: .mac),
             ]
             snapshot.deliveries = ["fixture-2": .accepted]
+            snapshot.wearer = Profile(name: "Fixture", avatar: .v1(c: 0, s: "drop", a: 45, n: 7))
+            snapshot.me = Profile(name: "Test Mac", avatar: .v1(c: 5, s: "cube", a: 90, n: 3))
             self.snapshot = snapshot
         }
 
@@ -45,6 +50,8 @@
         func cancelJoin() async {}
         func joinNearby(_ offer: NearbyOffer) async throws(FollowerJoinError) { throw .alreadyFollowing }
         func searchNearby(_ on: Bool) async {}
+        func setProfile(name: String, avatar: Avatar?) async {}
+        func readings(since: Date) async -> [Reading] { history.filter { $0.t >= since } }
         func unfollow() async {}
         func send(_ treatment: Treatment) async -> TreatmentSendResult { .notAllowed }
     }
