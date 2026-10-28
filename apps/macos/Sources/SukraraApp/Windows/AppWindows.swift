@@ -8,11 +8,14 @@ import SwiftUI
 /// from an accessory menu bar app). One window per kind, frames remembered under `app.mauri.sukrara.<kind>`; the
 /// app shows in the Dock and the app switcher while one is open, so keyboard users can reach it.
 public final class AppWindows: NSObject, NSWindowDelegate {
-    public enum Kind: String, Sendable { case settings, setup, treatments, addTreatment }
+    public enum Kind: String, Sendable { case settings, setup, treatments, addTreatment, report }
 
     private var windows: [Kind: NSWindow] = [:]
 
-    public func show(_ kind: Kind, title: String, @ViewBuilder content: () -> some View) {
+    /// `nearMenuBar`: a new window opens under the menu bar at the top right (Add Treatment), not where it was.
+    public func show(
+        _ kind: Kind, title: String, nearMenuBar: Bool = false, @ViewBuilder content: () -> some View
+    ) {
         if let w = windows[kind] {
             w.makeKeyAndOrderFront(nil)
             NSApp.activate()
@@ -23,7 +26,12 @@ public final class AppWindows: NSObject, NSWindowDelegate {
         w.styleMask.insert(.closable)
         w.isReleasedWhenClosed = false
         w.delegate = self
-        w.setFrameAutosaveName("app.mauri.sukrara.\(kind.rawValue)")
+        if nearMenuBar, let screen = NSScreen.main ?? NSScreen.screens.first {
+            let area = screen.visibleFrame
+            w.setFrameTopLeftPoint(NSPoint(x: area.maxX - w.frame.width - 12, y: area.maxY - 6))
+        } else {
+            w.setFrameAutosaveName("app.mauri.sukrara.\(kind.rawValue)")
+        }
         windows[kind] = w
         NSApp.setActivationPolicy(.regular)
         w.makeKeyAndOrderFront(nil)

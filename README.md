@@ -77,16 +77,22 @@ The full catalog, with every rule and number, is [docs/FEATURES.md](docs/FEATURE
 - English and Spanish (Spain) everywhere.
 
 **Mac (you follow someone, from the menu bar)**
-- The value, trend arrow and mute bell in the **menu bar**, struck through when old; click for the **panel** with the
-  card and chart (drawn by the same renderer rules as Android, tested against the same fixtures).
+- The value in its range colour, the card's trend arrow at its angle and the mute bell in the **menu bar**, struck
+  through when old, a symbol when readings stop or the sensor ends, with a tooltip; click for the **panel** with the
+  card and chart (drawn by the same renderer rules as Android, tested against the same fixtures). The card's pill is
+  pressable (Eat carbs / Take insulin open Add Treatment; a mute opens its ways out).
 - **Follow** a wearer with an invite link, a QR code image or **nearby** Bluetooth pairing; readings, alerts and
   treatments arrive end-to-end encrypted. A setup window walks Welcome → Follow → Alerts → Notifications → Open at
   login.
-- **Alerts** with sound packs and the same rules and timeline scenarios as Android; mute and unmute from the menu.
-- **Treatments**: add rapid / long / carbs / note, see the phone's entries, delete your own with undo.
+- **Alerts** with sound packs and the same rules and timeline scenarios as Android; mute, change the time, a custom
+  length, Alert Me Anyway, Remind Less and unmute from the panel; Send Test Alert.
+- **Treatments**: add rapid / long / carbs / note with *When?* (a time or minutes ago) and the quiet line, see the last
+  7 days by day with the phone's entries, delete your own with undo.
+- **Glucose Report** (1 / 7 / 14 / 30 days: time in ranges with goals, average, GMI, CV) and **Export CSV…** by period.
 - **Settings** in five panes: General (*Settings from* Wearer / Default / Custom, unit, open at login, update check,
   Quit), Graph (time shown per place, treatments on the graph, lines, ranges, sensor countdown and time left), Rings
-  (rings and numbers, ring order you drag, last treatment), Alerts (per alert, quiet times, sounds) and Following.
+  (rings and numbers, ring order you drag, last treatment), Alerts (per alert with its summary and details, quiet times, the notification's buttons, sounds with preview, what's
+  quiet now) and Following.
 - The card shows the wearer's treatments on the chart with their mute lines, the last treatment beside the value and
   a pill that counts down while a treatment quiets the alert; the widgets too.
 - **Desktop widgets** (Glucose, Glucose graph, Glucose + graph) with the same card; they age by themselves (struck

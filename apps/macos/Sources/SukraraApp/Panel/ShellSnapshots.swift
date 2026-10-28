@@ -77,8 +77,9 @@
                 treatments.isFollowing = link.isFollowing
                 if case .following(_, true) = link { treatments.canWrite = true }
                 let links = PanelLinks(
-                    setup: setupModel, treatments: treatments, openSetup: {}, openFollow: {}, openAddTreatment: {},
-                    openTreatments: {}, openSettings: {})
+                    setup: setupModel, treatments: treatments, openSetup: {}, openFollow: {},
+                    openAddTreatment: { _ in },
+                    openTreatments: {}, openReport: {}, openSettings: {})
                 return Scene(
                     view: AnyView(
                         VStack(alignment: .leading, spacing: 8) {
@@ -124,9 +125,11 @@
         let title: MenubarTitle
 
         var body: some View {
-            HStack(spacing: 4) {
+            HStack(spacing: 3) {
                 Text(AttributedString(StatusItemController.attributed(title)))
-                if title.muted { Image(systemName: "bell.slash") }
+                if let image = StatusItemController.image(title) {
+                    Image(nsImage: image).renderingMode(image.isTemplate ? .template : .original)
+                }
             }
             .padding(.horizontal, 10)
             .frame(height: 24)
@@ -146,6 +149,7 @@
         func clear(_ group: AlertGroup) {}
         func postMuted(_ side: AlertSide, until: Date) {}
         func removeMuted(_ side: AlertSide) {}
+        func postTest(_ kind: AlertKind) {}
     }
 
     private struct NoWake: WakeScheduling {

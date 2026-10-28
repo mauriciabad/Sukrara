@@ -53,6 +53,41 @@ public enum TreatmentForm {
         case valid(Int?)
     }
 
+    /// When the entries happened (the form's *When?* chip): now, a picked clock time, or minutes before the moment of
+    /// saving (resolved then, so a form left open keeps "15 min ago" true).
+    public enum When: Equatable, Sendable {
+        case now
+        /// Epoch seconds (`pick`).
+        case at(Int64)
+        /// Minutes before saving, 1…`maxAgoMinutes`.
+        case ago(Int)
+
+        /// The entries' time at `now` (epoch s).
+        public func resolve(now: Int64) -> Int64 {
+            switch self {
+            case .now: now
+            case .at(let t): min(t, now)
+            case .ago(let m): now - Int64(m) * 60
+            }
+        }
+
+        /// The chip's choice from the picker: a clock time, or typed minutes ago ("" or 0 = now; nil = not valid).
+        public static func fromPicker(minutesAgo text: String) -> When? {
+            switch minutesAgo(text) {
+            case .invalid: nil
+            case .valid(nil): .now
+            case .valid(let s?): .ago(s / 60)
+            }
+        }
+
+        public static func fromPicker(hour: Int, minute: Int, now: Date, calendar: Calendar = .current) -> When {
+            pick(hour: hour, minute: minute, now: now, calendar: calendar).map { .at($0) } ?? .now
+        }
+    }
+
+    /// The minutes-ago presets the *When?* picker offers.
+    public static let agoPresets = [5, 15, 30, 60]
+
     /// The picked hour:minute today, or yesterday when that is later than `now` (entries are logged after the fact,
     /// never ahead); nil = within the current minute, i.e. now. Epoch seconds.
     public static func pick(hour: Int, minute: Int, now: Date, calendar: Calendar = .current) -> Int64? {
