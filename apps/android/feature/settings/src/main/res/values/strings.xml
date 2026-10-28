@@ -147,8 +147,8 @@
     <string name="st_sensor_ends">Ends</string>
     <string name="st_sensor_ends_in">%1$s · in %2$s</string>
     <string name="st_sensor_pair_new">Pair new sensor</string>
-    <string name="st_sensor_pair_new_summary">Scan a new Libre 3 with the phone</string>
-    <string name="st_sensor_pair_new_juggluco">Scan a Libre 3 so Sukrara reads it directly instead of Juggluco</string>
+    <string name="st_sensor_pair_new_summary">Pair a new sensor with this phone</string>
+    <string name="st_sensor_pair_new_juggluco">Pair a sensor so Sukrara reads it directly instead of Juggluco</string>
     <string name="st_sensor_status_none">No sensor paired yet</string>
     <string name="st_sensor_status_waiting_juggluco">Waiting for Juggluco</string>
     <string name="st_sensor_status_warming">Warming up · first reading at %1$s</string>
@@ -157,13 +157,13 @@
     <string name="st_sensor_status_ended">Ended</string>
     <string name="st_sensor_status_core_missing">This build can’t read Libre 3 sensors</string>
     <string name="st_sensor_status_bluetooth_off">Bluetooth is off: no readings until it’s on</string>
-    <string name="st_sensor_none_text">No sensor yet. Pair a Libre 3 to start getting readings.</string>
+    <string name="st_sensor_none_text">No sensor yet. Pair a sensor to start getting readings.</string>
     <string name="st_sensor_ended_text">This sensor has ended. Apply a new one and pair it.</string>
     <string name="st_sensor_sign_in_needed">Sign in to LibreView so Sukrara can start or take over the sensor.</string>
     <string name="st_sensor_bluetooth_permission_text">Sukrara needs the Nearby devices permission to read the sensor. Pair new sensor asks for it.</string>
     <string name="st_sensor_scan_again_text">Sukrara can’t use the saved pairing. Scan the sensor again: it keeps running and nothing is lost.</string>
     <string name="st_sensor_source">Reading source</string>
-    <string name="st_sensor_source_direct">Libre 3 directly</string>
+    <string name="st_sensor_source_direct">This phone reads the sensor</string>
     <string name="st_sensor_source_direct_why">Sukrara connects to the sensor itself over Bluetooth.</string>
     <string name="st_sensor_source_juggluco">Juggluco</string>
     <string name="st_sensor_source_juggluco_why">Juggluco on this phone reads the sensor; Sukrara gets glucose from Juggluco’s web server.</string>
@@ -187,7 +187,7 @@
     <string name="st_sensor_status_scan_again">Needs a new scan of the sensor</string>
     <string name="st_sensor_status_sign_in">Needs the LibreView sign-in</string>
     <string name="st_sensor_status_permission">Needs the Nearby devices permission</string>
-    <string name="st_sensor_juggluco_unreachable_text">Juggluco doesn’t answer, so Sukrara gets no readings. Open Juggluco and turn on its web server (Settings › Web server), or choose Libre 3 directly below.</string>
+    <string name="st_sensor_juggluco_unreachable_text">Juggluco doesn’t answer, so Sukrara gets no readings. Open Juggluco and turn on its web server (Settings › Web server), or choose This phone reads the sensor below.</string>
     <string name="st_sensor_open_juggluco">Open Juggluco</string>
     <string name="st_sensor_bluetooth_off_text">Bluetooth is off, so Sukrara gets no readings. Turn it on and it reconnects at once.</string>
     <string name="st_sensor_open_bluetooth">Open Bluetooth settings</string>
