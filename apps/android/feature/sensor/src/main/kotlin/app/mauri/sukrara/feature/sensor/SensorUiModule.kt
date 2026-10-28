@@ -1,4 +1,4 @@
-// Sukrara — https://github.com/mauriciabad/Sukrara
+// Sukrara — https://github.com/mauriciabad/sukrara
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.feature.sensor
@@ -34,7 +34,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
 
 /**
- * The sensor screens' wiring (DI A4: `AppGraph` composes it with one line from chunk 12's [SensorModule]). Implements
+ * The sensor screens' wiring (DI: `AppGraph` composes it with one line from the [SensorModule]). Implements
  * the flows' ports over the sensor source, the NFC pairing and the LibreView account, and reads the phone's state
  * (NFC, Bluetooth, permissions, installed apps) fresh at every gate. [appScope] outlives screens: an NFC start runs
  * to the end there even if the person leaves.
@@ -58,7 +58,6 @@ class SensorUiModule(
                 nfcAvailable = nfc != null,
                 nfcOn = nfc?.isEnabled == true,
                 signedIn = sensors.libreView.email.first() != null,
-                showcaseInstalled = sensors.showcaseInstalled(),
                 officialAppInstalled = OfficialApps.anyInstalled(app.packageManager),
                 bluetoothPermission = granted(Manifest.permission.BLUETOOTH_CONNECT),
                 bluetoothOn = app.getSystemService(BluetoothManager::class.java)?.adapter?.isEnabled == true,

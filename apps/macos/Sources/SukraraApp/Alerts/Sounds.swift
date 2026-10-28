@@ -1,4 +1,4 @@
-// Sukrara — https://github.com/mauriciabad/Sukrara
+// Sukrara — https://github.com/mauriciabad/sukrara
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
 import Foundation
@@ -17,11 +17,11 @@ enum AlertSound: Equatable {
 
 /// The alert sound packs and where Notification Center finds them.
 ///
-/// Notification Center plays a custom sound only from `~/Library/Sounds` (the PoC proved the bundle lookup unreliable
+/// Notification Center plays a custom sound only from `~/Library/Sounds` (the bundle lookup is unreliable
 /// for a menu bar app with several registered copies), so the sounds that can ring are copied there as
 /// `app.mauri.sukrara.<pack>_<kind>_<n>.caf` (`SukraraPaths.soundFileName`): at launch, when the sound settings change
 /// and again right before a notification names one. Only those — every file in that folder shows in System Settings'
-/// alert-sound list. Files without the prefix (the Showcase's, other apps') are never touched.
+/// alert-sound list. Files without the prefix (other apps') are never touched.
 struct SoundLibrary {
     static let variants = 3
     private static let log = Logger(subsystem: SukraraIDs.appBundleID, category: "sounds")

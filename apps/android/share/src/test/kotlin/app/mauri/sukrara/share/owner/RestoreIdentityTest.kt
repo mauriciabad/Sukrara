@@ -1,4 +1,4 @@
-// Sukrara — https://github.com/mauriciabad/Sukrara
+// Sukrara — https://github.com/mauriciabad/sukrara
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.share.owner
@@ -27,7 +27,7 @@ class RestoreIdentityTest {
     private val use = RestoreIdentity(ctx)
     private val follower = crypto.generate()
 
-    /** The old phone (or the showcase): identity, one approved follower, its published roster + backup. */
+    /** The old phone: identity, one approved follower, its published roster + backup. */
     private val identityStep = CreateIdentity(ctx)(null, NOW - 50)
     private val old = run {
         val created = CreateInvite(ctx)(identityStep.state, "Mac", NOW)

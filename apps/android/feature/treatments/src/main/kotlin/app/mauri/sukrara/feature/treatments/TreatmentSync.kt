@@ -1,4 +1,4 @@
-// Sukrara — https://github.com/mauriciabad/Sukrara
+// Sukrara — https://github.com/mauriciabad/sukrara
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.feature.treatments
@@ -18,7 +18,7 @@ data class TreatmentWriter(
 )
 
 /**
- * The share layer's side of treatments (`:share` implements it, chunk 13): whether and as whom this phone may add
+ * The share layer's side of treatments (`:share` implements it): whether and as whom this phone may add
  * entries, and the hand-off of every stored version (new, edited, deleted, undone) for publishing in the treatments
  * wire format of contracts/protocol.
  */

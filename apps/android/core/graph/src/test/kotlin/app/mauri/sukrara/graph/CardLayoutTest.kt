@@ -1,4 +1,4 @@
-// Sukrara — https://github.com/mauriciabad/Sukrara
+// Sukrara — https://github.com/mauriciabad/sukrara
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.graph
@@ -35,7 +35,7 @@ import kotlin.math.abs
 
 /**
  * The layout rules of contracts/graph/layout (rules.json over scenes.json; expect.json = the answers the Mac checks
- * too), run on the renderer itself. The V1 surfaces are built by later chunks, so each registered card surface is
+ * too), run on the renderer itself. Each registered card surface is
  * stood in for by its shape (parts and sizes from surfaces.json, its place's settings): every rule must hold across
  * all of them, and every shared answer they produce must equal expect.json (this test never rewrites it). Once the
  * surfaces exist, their real entry paths replace the stand-ins.
@@ -223,7 +223,7 @@ class CardLayoutTest {
             Shape("app-panel", GraphPlace.APP, listOf(CardPart.HEADER to 120f, CardPart.GRAPH to 180f), sizes("app-panel")) {
                 full(it, GraphPlace.APP)
             },
-            // Layout coverage only, not registered surfaces (cut from V1; surfaces.json "about"): the shapes the Mac
+            // Layout coverage only, not registered surfaces (not in the app; surfaces.json "about"): the shapes the Mac
             // shares answers with in expect.json (a wide 3-ring lock-screen card, a value-only card, the notification's
             // header + graph). Drop one only together with the expect.json answers it alone produces.
             Shape("lockscreen-shape", GraphPlace.WIDGETS, listOf(CardPart.ALL to 0f), listOf(380f to 200f, 360f to 170f)) {
@@ -248,7 +248,7 @@ class CardLayoutTest {
         }
 
     /**
-     * What the alert runtime (chunk 11) says for a scene with the default thresholds, reduced to what these scenes
+     * What the alert runtime says for a scene with the default thresholds, reduced to what these scenes
      * need: a current reading past the low / high threshold needs action; nothing covers or mutes it here.
      */
     private fun standInStatus(sc: Scene): CardStatus {

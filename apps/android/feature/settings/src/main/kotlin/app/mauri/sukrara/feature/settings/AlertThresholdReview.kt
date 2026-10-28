@@ -1,4 +1,4 @@
-// Sukrara — https://github.com/mauriciabad/Sukrara
+// Sukrara — https://github.com/mauriciabad/sukrara
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.feature.settings
@@ -34,7 +34,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
-/** The result chunk 24's setup step gets back. */
+/** The result the setup step gets back. */
 sealed interface ThresholdReviewResult {
     data class Confirmed(val settings: AlertSettings) : ThresholdReviewResult
 
@@ -42,7 +42,7 @@ sealed interface ThresholdReviewResult {
 }
 
 /**
- * Review alert thresholds (CHANGES P4: never silently defaulted). Shows the thresholds in use as a draft; changes
+ * Review alert thresholds (never silently defaulted). Shows the thresholds in use as a draft; changes
  * stay in the draft until *Use these thresholds*, which saves them and the confirmation time together. Leaving
  * (Cancel / back) stores nothing.
  */
@@ -96,30 +96,43 @@ fun AlertThresholdReviewContent(
     onConfirm: () -> Unit,
     onCancel: () -> Unit,
 ) {
-    var editing by rememberSaveable { mutableStateOf<AlertKind?>(null) }
     SettingsPage(stringResource(R.string.st_review_title), onCancel) {
         Text(
             stringResource(R.string.st_review_intro),
             Modifier.fillMaxWidth().padding(horizontal = 32.dp, vertical = 8.dp),
             style = MaterialTheme.typography.bodyLarge,
         )
-        SettingsGroup {
-            for (kind in ThresholdReviewViewModel.ReviewedKinds) {
-                val rule = draft.rule(kind)
-                val sentence = thresholdSentence(kind, rule.threshold)
-                ValueRow(
-                    kindName(kind),
-                    if (rule.on) sentence else stringResource(R.string.st_review_off, sentence),
-                    { editing = kind },
-                )
-            }
-        }
+        AlertThresholdRows(draft, onThreshold)
         FlowRow(
             Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 16.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp, androidx.compose.ui.Alignment.End),
         ) {
             TextButton(onClick = onCancel) { Text(stringResource(R.string.st_cancel)) }
             Button(onClick = onConfirm) { Text(stringResource(R.string.st_review_confirm)) }
+        }
+    }
+}
+
+/**
+ * The reviewed thresholds of [draft]: one row per kind ("Low — Below 70 mg/dL", "Off (…)"), each opening THE number
+ * dialog limited to the values that keep the levels in order. This review and setup's alert step (the app passes it
+ * in) show the same rows.
+ */
+@Composable
+fun AlertThresholdRows(
+    draft: AlertSettings,
+    onThreshold: (AlertKind, Double) -> Unit,
+) {
+    var editing by rememberSaveable { mutableStateOf<AlertKind?>(null) }
+    SettingsGroup {
+        for (kind in ThresholdReviewViewModel.ReviewedKinds) {
+            val rule = draft.rule(kind)
+            val sentence = thresholdSentence(kind, rule.threshold)
+            ValueRow(
+                kindName(kind),
+                if (rule.on) sentence else stringResource(R.string.st_review_off, sentence),
+                { editing = kind },
+            )
         }
     }
     editing?.let { kind ->

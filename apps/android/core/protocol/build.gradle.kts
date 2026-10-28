@@ -1,8 +1,8 @@
-// Sukrara — https://github.com/mauriciabad/Sukrara
+// Sukrara — https://github.com/mauriciabad/sukrara
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-// Nostr protocol v2 wire formats, pure JVM, no nostr-sdk (chunk 06). Crypto is the NostrCrypto interface: `:share`
+// Nostr protocol v2 wire formats, pure JVM, no nostr-sdk. Crypto is the NostrCrypto interface: `:share`
 // implements it with the Android AAR; the tests here use the JVM build of the same library (test classpath only), and
 // `testFixtures` ships NostrCryptoContractTest for every implementation.
 plugins {

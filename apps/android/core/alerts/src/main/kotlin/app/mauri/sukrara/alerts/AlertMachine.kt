@@ -1,4 +1,4 @@
-// Sukrara — https://github.com/mauriciabad/Sukrara
+// Sukrara — https://github.com/mauriciabad/sukrara
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.alerts
@@ -33,7 +33,7 @@ sealed interface AlertInput {
     data class Remote(val event: AlertEvent) : AlertInput
 }
 
-/** What the runtime does (chunk 11), in order; [Schedule] is always the last effect of a call. */
+/** What the runtime does, in order; [Schedule] is always the last effect of a call. */
 sealed interface AlertEffect {
     /** Post [firing]'s notification ([silent]: shown again after a restart, no sound). */
     data class Fire(val firing: Firing, val silent: Boolean = false) : AlertEffect

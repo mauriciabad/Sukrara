@@ -1,4 +1,4 @@
-// Sukrara — https://github.com/mauriciabad/Sukrara
+// Sukrara — https://github.com/mauriciabad/sukrara
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
 import Foundation
@@ -33,7 +33,7 @@ final class FakeCenter: NotificationPosting {
         Notifier(center: center, sounds: nil, text: AlertText(language: lang), clock: clock, settings: { settings })
     }
 
-    @Test func categoryIDsAreTheCleanV1Ones() {
+    @Test func categoryIDsAreTheAppOnes() {
         let ids = Set(Notifier.categories(AlertText(language: .en)).map(\.identifier))
         #expect(
             ids == [

@@ -1,4 +1,4 @@
-// Sukrara — https://github.com/mauriciabad/Sukrara
+// Sukrara — https://github.com/mauriciabad/sukrara
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.monitor.service
@@ -20,7 +20,7 @@ interface Alarms {
  * The health check: every [INTERVAL] a wake-up asks the starter to (re)start the service, so a service Android killed
  * comes back even when nothing else happens (no reading, no app open). Rescheduled on every fire, boot, update and
  * time change; the alarm is on the monotonic clock, so a clock change never pushes it away. It never evaluates
- * alerts: chunk 11's alert check runs on its own alarm without the service and calls the starter too.
+ * alerts: the alert check runs on its own alarm without the service and calls the starter too.
  */
 class HealthCheck(
     private val alarms: Alarms,

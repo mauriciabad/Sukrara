@@ -1,4 +1,4 @@
-// Sukrara — https://github.com/mauriciabad/Sukrara
+// Sukrara — https://github.com/mauriciabad/sukrara
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
 import AppKit
@@ -6,7 +6,7 @@ import AppKit
 /// The status item's right-click menu: Treatments…, Settings…, Check for Updates…, Quit. An item whose window or
 /// service this run doesn't have (an offline dev run has no update check) is disabled rather than doing nothing.
 final class ContextMenu: NSObject {
-    /// What the window layer opens (chunk 23 sets these).
+    /// What the window layer opens (set by the window layer).
     var openTreatments: (() -> Void)?
     var openSettings: (() -> Void)?
     var checkForUpdates: (() -> Void)?

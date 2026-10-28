@@ -1,11 +1,11 @@
-// Sukrara — https://github.com/mauriciabad/Sukrara
+// Sukrara — https://github.com/mauriciabad/sukrara
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.alerts
 
 /**
  * THE mute / remind-less state lines (contracts/alerts/copy.json `state`s), as data: which line and its arguments.
- * The platform words them from its own strings (Android resources en + es, chunk 11; Mac MuteCopy) and formats
+ * The platform words them from its own strings (Android resources en + es; Mac MuteCopy) and formats
  * minutes with the one duration formatter. A side is named by its main alert: very low inside a low mute is "Low".
  */
 sealed interface MuteLine {

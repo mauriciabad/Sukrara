@@ -1,10 +1,10 @@
-// Sukrara — https://github.com/mauriciabad/Sukrara
+// Sukrara — https://github.com/mauriciabad/sukrara
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
 import app.mauri.sukrara.buildlogic.NativeCore
 
 // The sensor: Bluetooth link, Libre 3 driver and its native security core, pairing, LibreView receiver ID, Juggluco
-// source (chunk 12).
+// source.
 plugins {
     id("sukrara.android.library")
     id("sukrara.contracts")

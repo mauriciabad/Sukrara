@@ -1,4 +1,4 @@
-// Sukrara — https://github.com/mauriciabad/Sukrara
+// Sukrara — https://github.com/mauriciabad/sukrara
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.designsystem.banner
@@ -42,7 +42,7 @@ import app.mauri.sukrara.designsystem.motion.Swap
 enum class BannerSeverity { Safety, Info }
 
 /**
- * One non-glucose banner (set up X, permission missing, the showcase still installed). [id] keys the cross-fade
+ * One non-glucose banner (set up X, permission missing). [id] keys the cross-fade
  * from one banner to the next; [onDismiss] null = it can't be dismissed (it goes away only when fixed through
  * [action], e.g. a missing permission that makes alerts unreliable) — so every banner has an action or a dismiss.
  */

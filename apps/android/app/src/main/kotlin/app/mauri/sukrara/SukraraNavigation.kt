@@ -1,4 +1,4 @@
-// Sukrara — https://github.com/mauriciabad/Sukrara
+// Sukrara — https://github.com/mauriciabad/sukrara
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara
@@ -20,6 +20,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.navigation3.rememberViewModelStoreNavEntryDecorator
@@ -37,16 +38,20 @@ import app.mauri.sukrara.feature.home.HomeScreen
 import app.mauri.sukrara.feature.home.HomeViewModel
 import app.mauri.sukrara.feature.sensor.libreview.LibreViewSignInRoute
 import app.mauri.sukrara.feature.sensor.newsensor.NewSensorRoute
+import app.mauri.sukrara.feature.settings.AlertThresholdRows
+import app.mauri.sukrara.feature.settings.SettingsPage
 import app.mauri.sukrara.feature.settings.SettingsRoute
 import app.mauri.sukrara.feature.settings.SettingsScreen
 import app.mauri.sukrara.feature.settings.sensor.SensorSettingsScreen
 import app.mauri.sukrara.feature.settings.sensor.SensorSettingsViewModel
 import app.mauri.sukrara.feature.sharing.setup.SetupScreen
+import app.mauri.sukrara.feature.sharing.setup.SetupStep
 import app.mauri.sukrara.feature.sharing.setup.SetupViewModel
 import app.mauri.sukrara.feature.sharing.share.ShareScreen
 import app.mauri.sukrara.feature.sharing.share.SharingScreen
 import app.mauri.sukrara.feature.sharing.share.SharingViewModel
 import app.mauri.sukrara.monitor.sensorend.AndroidSensorEndPresenter
+import app.mauri.sukrara.feature.settings.R as SettingsR
 import kotlinx.coroutines.flow.first
 import kotlinx.serialization.Serializable
 
@@ -57,12 +62,18 @@ data object HomeRoute : NavKey
 @Serializable
 data object SetupRoute : NavKey
 
-/** Settings › Sharing: followers, requests, the identity conflict (chunk 24). */
+/** Settings › Sharing: followers, requests, the identity conflict. */
 @Serializable
 data object SharingRoute : NavKey
 
 @Serializable
 data object ShareRoute : NavKey
+
+/** Setup opened on one [step] (Settings › Sharing's Set up opens the identity step); Back returns where it was opened. */
+@Serializable
+data class SetupStepRoute(
+    val step: SetupStep,
+) : NavKey
 
 @Serializable
 data object DataProblemsRoute : NavKey
@@ -100,7 +111,7 @@ data class SettingsKey(
     }
 }
 
-/** The new-sensor flow (chunk 18): home's Pair sensor, the "Sensor ended" notification, [NavTargets.ACTION_SENSOR_SETUP]. */
+/** The new-sensor flow: home's Pair sensor, the "Sensor ended" notification, [NavTargets.ACTION_SENSOR_SETUP]. */
 @Serializable
 data object NewSensorKey : NavKey
 
@@ -115,7 +126,7 @@ data object SensorSettingsKey : NavKey
 fun opensNewSensor(action: String?): Boolean =
     action == NavTargets.ACTION_SENSOR_SETUP || action == AndroidSensorEndPresenter.ACTION_PAIR_SENSOR
 
-/** Invite links (`sukrara:` / `https://sukrara.mauri.app/join…`) open setup's join step (chunk 24). */
+/** Invite links (`sukrara:` / `https://sukrara.mauri.app/join…`) open setup's join step. */
 fun isInviteLink(uri: Uri?): Boolean =
     uri != null &&
         (uri.scheme == "sukrara" || (uri.scheme == "https" && uri.host == "sukrara.mauri.app" && uri.path.orEmpty().startsWith("/join")))
@@ -166,12 +177,16 @@ fun SukraraNavigation(
                     )
                 }
                 entry<SharingRoute> {
-                    SharingScreen(
-                        viewModel = viewModel(factory = SharingViewModel.factory(graph.setup.sharing)),
-                        onSetUpSharing = { backStack.add(SetupRoute) },
-                        onShare = { backStack.add(ShareRoute) },
-                        onClose = { backStack.removeLastOrNull() },
-                    )
+                    val close = { backStack.pop(SharingRoute) }
+                    // the settings page's title and Back (system / predictive back comes with NavDisplay)
+                    SettingsPage(stringResource(SettingsR.string.st_sharing), close, scroll = false) {
+                        SharingScreen(
+                            viewModel = viewModel(factory = SharingViewModel.factory(graph.setup.sharing)),
+                            onSetUpSharing = { backStack.push(SetupStepRoute(SetupStep.Identity)) },
+                            onShare = { backStack.push(ShareRoute) },
+                            onClose = close,
+                        )
+                    }
                 }
                 entry<ShareRoute> {
                     val vm: SharingViewModel = viewModel(factory = SharingViewModel.factory(graph.setup.sharing))
@@ -181,9 +196,18 @@ fun SukraraNavigation(
                 entry<SetupRoute> {
                     SetupScreen(
                         viewModel = viewModel(factory = SetupViewModel.factory(graph.setup)),
-                        // the sensor step embeds chunk 18's new-sensor flow; its Done / Cancel lands back on setup
+                        // the sensor step embeds the new-sensor flow; its Done / Cancel lands back on setup
                         onOpenSensorSetup = { backStack.add(NewSensorKey) },
+                        thresholdRows = { settings, onThreshold -> AlertThresholdRows(settings, onThreshold) },
                         onDone = { backStack.remove(SetupRoute) },
+                    )
+                }
+                entry<SetupStepRoute> { key ->
+                    SetupScreen(
+                        viewModel = viewModel(factory = SetupViewModel.factory(graph.setup, startAt = key.step)),
+                        onOpenSensorSetup = { backStack.add(NewSensorKey) },
+                        thresholdRows = { settings, onThreshold -> AlertThresholdRows(settings, onThreshold) },
+                        onDone = { backStack.pop(key) },
                     )
                 }
                 entry<NewSensorKey> {

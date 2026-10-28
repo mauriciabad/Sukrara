@@ -1,4 +1,4 @@
-// Sukrara — https://github.com/mauriciabad/Sukrara
+// Sukrara — https://github.com/mauriciabad/sukrara
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.core.model
@@ -23,7 +23,7 @@ data class GlucoseState(
     val link: LinkState?,
     /**
      * When monitoring started: the first reading from the current source (persisted; cleared only when the person
-     * removes the sensor or changes the role). Null = not monitoring yet, so no "no data" alarm can be armed (CHANGES P3).
+     * removes the sensor or changes the role). Null = not monitoring yet, so no "no data" alarm can be armed.
      */
     val monitoringStartedAt: Instant? = null,
     /** Whether the monitoring service runs. */
@@ -69,7 +69,7 @@ sealed interface SensorState {
 
     data object BluetoothOff : SensorState
 
-    /** The sensor can't be read until the person does something (added by chunk 12; the UI words live in chunk 18). */
+    /** The sensor can't be read until the person does something (the UI words live in the new-sensor flow and Settings › Sensor). */
     data class ActionNeeded(val action: SensorAction) : SensorState
 }
 
@@ -78,11 +78,8 @@ enum class SensorAction {
     /** Scan the sensor with the phone (NFC): a new sensor, a lost or unreadable pairing, or taking it over. */
     ScanSensor,
 
-    /** Sign in to LibreView so V1 can start / take over the sensor with the account's receiver ID. */
+    /** Sign in to LibreView so Sukrara can start / take over the sensor with the account's receiver ID. */
     SignInLibreView,
-
-    /** Another app (the Sukrara showcase) owns the sensor: stop it there or uninstall it, then scan again. */
-    StopOtherApp,
 
     /** Grant the Nearby devices (Bluetooth) permission. */
     GrantBluetooth,

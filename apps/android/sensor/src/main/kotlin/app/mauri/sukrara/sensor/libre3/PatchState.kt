@@ -1,4 +1,4 @@
-// Sukrara — https://github.com/mauriciabad/Sukrara
+// Sukrara — https://github.com/mauriciabad/sukrara
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.sensor.libre3
@@ -8,8 +8,8 @@ package app.mauri.sukrara.sensor.libre3
  * Values as in DiaBLE / Juggluco (`appcurve.cpp`: state > 4 = "stopped working"): 1 storage (never started),
  * 2 insertion detection, 3 insertion failed, 4 paired / running, 5 expired, 6 terminated, 7 error, 8 error terminated.
  *
- * Seen 2026-10-18 on the owner's Libre 3 Plus at its end: `state=5 currentLifeCount=21635`, then no glucose — the PoC
- * kept reconnecting every 2 minutes for ever until this rule.
+ * Seen 2026-10-18 on the owner's Libre 3 Plus at its end: `state=5 currentLifeCount=21635`, then no glucose — without
+ * this rule the link reconnects every 2 minutes for ever.
  */
 internal object PatchState {
     const val NEVER_STARTED = 1

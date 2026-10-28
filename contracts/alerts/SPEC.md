@@ -247,13 +247,13 @@ because Notification Center didn't find the bundled file and played the default 
 
 ## 7. Scenarios (the regression guard)
 
-The rules are pinned down as **timelines** in [`scenarios/*.txt`](scenarios/), the one source of truth both
-implementations run: Android `AlertScenarioTest` (JUnit, one test per scenario) and the Mac `-alerts-selftest`.
-**Every change to the alert rules adds or updates a scenario**, and both suites must pass:
+The rules are pinned down as **timelines** in [`scenarios/*.txt`](scenarios/), the one source of truth every
+implementation runs: Android `AlertScenarioTest` (JUnit, one test per scenario) and the Mac `AlertsTests`.
+**Every change to the alert rules adds or updates a scenario**, and every suite must pass:
 
 ```sh
-cd spikes/showcase-android && ./gradlew :app:testDebugUnitTest --tests 'app.mauri.sukrara.alerts.*'
-cd spikes/menubar && swift run GlucoseBar -alerts-selftest
+cd apps/android && ./gradlew :core:alerts:test
+cd apps/macos && swift test --filter AlertsTests
 ```
 
 Format (one scenario per `scenario` line; `#` starts a comment):

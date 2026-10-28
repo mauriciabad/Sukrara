@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Sukrara — https://github.com/mauriciabad/Sukrara
+<!-- Sukrara — https://github.com/mauriciabad/sukrara
      Copyright (C) 2026 Maurici Abad
      SPDX-License-Identifier: GPL-3.0-or-later -->
 <resources>
@@ -136,7 +136,6 @@
     <string name="st_report_problem_summary">Opens the project\'s issues on GitHub</string>
     <string name="st_source_code">Source code</string>
     <string name="st_license">Free software, GPL-3.0-or-later</string>
-    <string name="st_showcase_note">This app is separate from Sukrara Showcase. After switching, uninstall the showcase so you don\'t get double alerts.</string>
     <string name="st_alarm_off_title">Stop the %1$s alarm?</string>
     <string name="st_alarm_off_text">It will ring as a normal notification: quieter, and it won\'t open over the lock screen.</string>
     <string name="st_threshold_between">Must be above %1$s and below %2$s (the neighbouring alerts)</string>
@@ -161,7 +160,6 @@
     <string name="st_sensor_none_text">No sensor yet. Pair a Libre 3 to start getting readings.</string>
     <string name="st_sensor_ended_text">This sensor has ended. Apply a new one and pair it.</string>
     <string name="st_sensor_sign_in_needed">Sign in to LibreView so Sukrara can start or take over the sensor.</string>
-    <string name="st_sensor_other_app_text">Another app (Juggluco or Abbott’s app) reads the sensor, so Sukrara gets no readings. Stop it there, then scan the sensor again.</string>
     <string name="st_sensor_bluetooth_permission_text">Sukrara needs the Nearby devices permission to read the sensor. Pair new sensor asks for it.</string>
     <string name="st_sensor_scan_again_text">Sukrara can’t use the saved pairing. Scan the sensor again: it keeps running and nothing is lost.</string>
     <string name="st_sensor_source">Reading source</string>
@@ -188,11 +186,9 @@
     <string name="st_sensor_status_juggluco_unreachable">Juggluco isn’t answering: no readings</string>
     <string name="st_sensor_status_scan_again">Needs a new scan of the sensor</string>
     <string name="st_sensor_status_sign_in">Needs the LibreView sign-in</string>
-    <string name="st_sensor_status_other_app">Another app reads the sensor: no readings</string>
     <string name="st_sensor_status_permission">Needs the Nearby devices permission</string>
     <string name="st_sensor_juggluco_unreachable_text">Juggluco doesn’t answer, so Sukrara gets no readings. Open Juggluco and turn on its web server (Settings › Web server), or choose Libre 3 directly below.</string>
     <string name="st_sensor_open_juggluco">Open Juggluco</string>
-    <string name="st_sensor_showcase_app_text">Sukrara Showcase reads the sensor, so Sukrara gets no readings. In the showcase open Settings › Glucose source › Forget this sensor and turn off its Glucose alerts, then scan the sensor again.</string>
     <string name="st_sensor_bluetooth_off_text">Bluetooth is off, so Sukrara gets no readings. Turn it on and it reconnects at once.</string>
     <string name="st_sensor_open_bluetooth">Open Bluetooth settings</string>
     <string name="st_sensor_core_missing_text">This build can’t read the Libre 3 itself. Juggluco can read it for Sukrara.</string>

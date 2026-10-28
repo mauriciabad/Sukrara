@@ -1,4 +1,4 @@
-// Sukrara — https://github.com/mauriciabad/Sukrara
+// Sukrara — https://github.com/mauriciabad/sukrara
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.feature.sharing.setup
@@ -115,6 +115,14 @@ class SetupMachineTest {
         assertEquals(Alerts, m.next(r, facts))
         r = m.skip(r, Alerts)
         assertNull(m.next(r, facts))
+    }
+
+    @Test
+    fun `Settings › Sharing's Set up reopens an identity step completed earlier (the identity is gone)`() {
+        val r = m.completeIdentity(wearer(), facts.copy(hasIdentity = true))
+        assertTrue(Identity in r.completed)
+        val reopened = m.reopen(r, Identity)
+        assertTrue(Identity !in reopened.completed && Identity !in reopened.skipped)
     }
 
     @Test

@@ -1,4 +1,4 @@
-// Sukrara — https://github.com/mauriciabad/Sukrara
+// Sukrara — https://github.com/mauriciabad/sukrara
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.share.owner.requests
@@ -11,7 +11,7 @@ import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-/** The `Application` gives the receiver the wearer's sharing graph (A4: AppGraph composes it). */
+/** The `Application` gives the receiver the wearer's sharing graph (AppGraph composes it). */
 interface ShareOwnerHost {
     val shareOwner: ShareOwnerModule
 }

@@ -1,4 +1,4 @@
-// Sukrara — https://github.com/mauriciabad/Sukrara
+// Sukrara — https://github.com/mauriciabad/sukrara
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
 import Foundation
@@ -19,8 +19,8 @@ public enum LinkStatus: String, Codable, Sendable {
     case declined
 }
 
-/// Persistent follower state, V1 format (`v` 1). Holds the follower secret and the read keys: stored only in the
-/// Keychain (service `app.mauri.sukrara`, account `follower`, chunk 15). Readings and treatments themselves are not
+/// Persistent follower state, format `v` 1. Holds the follower secret and the read keys: stored only in the
+/// Keychain (service `app.mauri.sukrara`, account `follower`). Readings and treatments themselves are not
 /// here (the session hands them out as deltas); what is here is everything trust decisions depend on.
 public struct FollowerState: Codable, Equatable, Sendable {
     public static let formatVersion = 1

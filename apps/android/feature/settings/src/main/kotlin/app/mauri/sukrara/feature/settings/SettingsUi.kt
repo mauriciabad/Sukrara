@@ -1,4 +1,4 @@
-// Sukrara — https://github.com/mauriciabad/Sukrara
+// Sukrara — https://github.com/mauriciabad/sukrara
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.feature.settings
@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -52,17 +53,21 @@ import app.mauri.sukrara.settings.NumberSpec
 import java.time.Instant
 import java.time.ZoneId
 
-/** A settings page: large collapsing title, a back button, the groups scrolling below. */
+/**
+ * A settings page: large collapsing title, a back button, the groups scrolling below. [scroll] false: the content
+ * scrolls itself (a page from another feature, placed here by the app) and fills the space below the bar.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsPage(
     title: String,
     onBack: () -> Unit,
+    scroll: Boolean = true,
     content: @Composable ColumnScope.() -> Unit,
 ) {
-    val scroll = TopAppBarDefaults.exitUntilCollapsedScrollBehavior(rememberTopAppBarState())
+    val bar = TopAppBarDefaults.exitUntilCollapsedScrollBehavior(rememberTopAppBarState())
     Scaffold(
-        modifier = Modifier.fillMaxSize().nestedScroll(scroll.nestedScrollConnection),
+        modifier = Modifier.fillMaxSize().nestedScroll(bar.nestedScrollConnection),
         containerColor = MaterialTheme.colorScheme.surfaceContainer,
         topBar = {
             LargeTopAppBar(
@@ -72,14 +77,19 @@ fun SettingsPage(
                         Icon(painterResource(R.drawable.st_ic_arrow_back), contentDescription = stringResource(R.string.st_back))
                     }
                 },
-                scrollBehavior = scroll,
+                scrollBehavior = bar,
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
             )
         },
     ) { padding ->
-        Column(Modifier.padding(padding).verticalScroll(rememberScrollState())) {
-            content()
-            Spacer(Modifier.height(24.dp))
+        if (scroll) {
+            Column(Modifier.padding(padding).verticalScroll(rememberScrollState())) {
+                content()
+                Spacer(Modifier.height(24.dp))
+            }
+        } else {
+            // the bar and the system bars are already padded: the page's own inset padding adds nothing twice
+            Column(Modifier.padding(padding).consumeWindowInsets(padding).fillMaxSize(), content = content)
         }
     }
 }

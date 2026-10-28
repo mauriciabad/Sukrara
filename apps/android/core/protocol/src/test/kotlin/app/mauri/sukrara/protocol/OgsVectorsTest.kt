@@ -1,4 +1,4 @@
-// Sukrara — https://github.com/mauriciabad/Sukrara
+// Sukrara — https://github.com/mauriciabad/sukrara
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.protocol
@@ -43,7 +43,7 @@ class OgsVectorsTest {
         assertEquals(d.str("d_treatment(sid, carbs.id)"), Wire.treatmentD(v.sid, carbs.id))
     }
 
-    /** Decode → encode gives back the reference's exact plaintext bytes: our encoders write what the PoC writes. */
+    /** Decode → encode gives back the reference's exact plaintext bytes: our encoders write what the reference writes. */
     @Test fun payloadsReEncodeToTheReferenceBytes() {
         var checked = 0
         v.plaintexts.forEach { (name, p) ->
@@ -58,7 +58,7 @@ class OgsVectorsTest {
                 ev.tag("c") == Wire.treatmentsC(v.sid) -> TreatmentCodec.encode(TreatmentCodec.decode(content))
                 else -> RosterCodec.encode(RosterCodec.decode(content))
             }
-            // The reference writes a roster without a wearer profile as `"profile":null`; the PoC (and V1) leave it out.
+            // The reference writes a roster without a wearer profile as `"profile":null`; Sukrara leaves it out.
             assertEquals(name, content.replace(",\"profile\":null}", "}"), again)
             checked++
         }

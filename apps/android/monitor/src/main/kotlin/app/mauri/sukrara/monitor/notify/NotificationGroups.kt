@@ -1,4 +1,4 @@
-// Sukrara — https://github.com/mauriciabad/Sukrara
+// Sukrara — https://github.com/mauriciabad/sukrara
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.monitor.notify
@@ -14,7 +14,7 @@ import app.mauri.sukrara.monitor.R
  * ≥ 3 *sparse* app groups (1–2 children each) are merged too. So every alerting notification of Sukrara is in one of
  * two app groups, each with its own summary: [Group.ALERTS] (every alert and muted card; two alerts at once still
  * each ring and show their own title, the summary never alerts: `GROUP_ALERT_CHILDREN`) and [Group.INFO] (sensor end,
- * status). One group per alert would be sparse groups and get merged with anything (measured on API 36/37 in the PoC).
+ * status). One group per alert would be sparse groups and get merged with anything (measured on API 36/37).
  * The ongoing glucose notification stays ungrouped (alone in the silent section; a promoted Live Update can't be in
  * a group).
  */

@@ -1,4 +1,4 @@
-// Sukrara — https://github.com/mauriciabad/Sukrara
+// Sukrara — https://github.com/mauriciabad/sukrara
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
 import Foundation
@@ -6,7 +6,7 @@ import SukraraCore
 
 // The one gate between a launch and the user's real devices and data (CLAUDE.md: test and snapshot runs never
 // touch the user's devices). Pure: everything it decides on is passed in, so `LaunchModeTests` covers every case.
-// The PoC needed this after a stale debug binary followed the wearer with the real Keychain item (2026-10-19) and a
+// It exists because a stale debug binary once followed the wearer with the real Keychain item (2026-10-19) and a
 // snapshot run joined the phone over Bluetooth (2026-10-21).
 
 /// What this process is for.

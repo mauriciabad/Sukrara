@@ -1,3 +1,3 @@
 # Branches whose work must be on the owner's devices (tools/install.sh refuses a HEAD that lacks one).
 # One branch per line; the current integration branch goes here while a round is open. Missing branches are skipped.
-# Empty for V1: next is the integration branch and main is checked by install.sh itself.
+# Empty: next is the integration branch and main is checked by install.sh itself.

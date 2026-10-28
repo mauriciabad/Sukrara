@@ -1,4 +1,4 @@
-// Sukrara — https://github.com/mauriciabad/Sukrara
+// Sukrara — https://github.com/mauriciabad/sukrara
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
 import Foundation
@@ -22,7 +22,7 @@ final class FollowerAdapter: FollowActions, TreatmentActions {
         }
     }
 
-    /// The runtime names this Mac with the profile it was made with; the edited name isn't sent (V1).
+    /// The runtime names this Mac with the profile it was made with; the edited name isn't sent.
     func joinNearby(name: String) async throws(FollowFailure) {
         guard let offer else { throw .notFound }
         do {

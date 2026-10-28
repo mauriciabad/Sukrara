@@ -1,5 +1,5 @@
 #!/bin/sh
-# Sukrara — https://github.com/mauriciabad/Sukrara
+# Sukrara — https://github.com/mauriciabad/sukrara
 # Copyright (C) 2026 Maurici Abad
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
@@ -7,7 +7,7 @@
 # arrow and an Applications shortcut; needs dmgbuild: `uv tool install dmgbuild`, else a plain image with the same
 # two items) and build/Sukrara-mac-<version>.zip (ditto, keeps the signature). The dmg is signed with the app's
 # identity and checked by mounting it and verifying the app inside.
-# NOTARY_PROFILE=<profile>: notarize + staple the dmg (needs a Developer ID build; not used for 0.90.x). Without it,
+# NOTARY_PROFILE=<profile>: notarize + staple the dmg (needs a Developer ID build). Without it,
 # Gatekeeper asks on first launch (System Settings → Privacy & Security → Open Anyway).
 set -eu
 HERE=$(cd "$(dirname "$0")" && pwd)

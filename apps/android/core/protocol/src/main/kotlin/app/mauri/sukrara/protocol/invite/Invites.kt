@@ -1,4 +1,4 @@
-// Sukrara — https://github.com/mauriciabad/Sukrara
+// Sukrara — https://github.com/mauriciabad/sukrara
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.protocol.invite
@@ -83,7 +83,7 @@ object Invites {
     ): Pair<InviteLink, SignedEvent> {
         val link = InviteLink.of(identity.public, secret)
         val recipient = crypto.keyPair(Derive.inviteKey(secret))!!.public
-        // the wrap lives until the invite expires, at least a minute (PoC)
+        // the wrap lives until the invite expires, at least a minute
         val wrapExpiry = maxOf(now + 60, expiry)
         val wrap = crypto.giftWrap(identity, recipient, Wire.KIND_INVITE, RumorCodec.encode(Rumor.Invite(expiry, relays, profile)), now, wrapExpiry)
         return link to wrap

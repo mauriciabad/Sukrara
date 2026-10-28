@@ -1,4 +1,4 @@
-// Sukrara — https://github.com/mauriciabad/Sukrara
+// Sukrara — https://github.com/mauriciabad/sukrara
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.sensor.pairing
@@ -28,7 +28,7 @@ sealed interface PairingLoad {
 /**
  * The saved sensor. The WHOLE record (address, start, PIN, authorization) is one SecureStore entry [NAME] (AES-GCM with
  * the Keystore key `sukrara.sensor`): one atomic write, so a crash can never leave a PIN or authorization that belongs
- * to another sensor. V1's own format (no PoC compatibility, D1).
+ * to another sensor. Sukrara's own format.
  */
 class PairingStore(private val secure: SecureStore) {
     private val writes = Mutex()

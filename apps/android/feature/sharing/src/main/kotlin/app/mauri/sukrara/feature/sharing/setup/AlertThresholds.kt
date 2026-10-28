@@ -1,4 +1,4 @@
-// Sukrara — https://github.com/mauriciabad/Sukrara
+// Sukrara — https://github.com/mauriciabad/sukrara
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.feature.sharing.setup
@@ -47,7 +47,7 @@ data class AlertThresholds(val settings: AlertSettings) {
 }
 
 /**
- * The alert settings the runtime reads (chunk 11's store, `alerts:alerts`): `AppGraph` passes its flow and writer, so
+ * The alert settings the runtime reads (the alert runtime's store, `alerts:alerts`): `AppGraph` passes its flow and writer, so
  * a confirmed threshold is exactly what the next reading is checked against.
  */
 interface AlertSettingsAccess {

@@ -1,4 +1,4 @@
-// Sukrara — https://github.com/mauriciabad/Sukrara
+// Sukrara — https://github.com/mauriciabad/sukrara
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
 import Foundation
@@ -6,7 +6,7 @@ import SukraraShare
 import SukraraTesting
 import Testing
 
-/// The follower session over the fake relay: what chunk 15 will wire, end to end, without a network.
+/// The follower session over the fake relay, end to end, without a network.
 struct FakeRelayTests {
     let v = OgsVectors.shared
     let crypto = NostrSDKCrypto()

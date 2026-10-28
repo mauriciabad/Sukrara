@@ -1,4 +1,4 @@
-// Sukrara — https://github.com/mauriciabad/Sukrara
+// Sukrara — https://github.com/mauriciabad/sukrara
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.protocol.testing
@@ -23,7 +23,7 @@ import kotlinx.serialization.json.put
 
 /**
  * What a follower engine stores from [StreamFollower]'s accepted items — the minimal reducer the fixtures' expected
- * state is written against (chunk 25 does the same into Room): first reading per `t` wins, the newest live event's
+ * state is written against (the follower engine does the same into Room): first reading per `t` wins, the newest live event's
  * sensor, treatments merged by `(u, o)` unless overridden, newest settings, every accepted alert.
  */
 class FollowerModel(private val crypto: NostrCrypto, initial: FollowerState) {

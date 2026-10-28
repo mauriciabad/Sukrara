@@ -1,4 +1,4 @@
-// Sukrara — https://github.com/mauriciabad/Sukrara
+// Sukrara — https://github.com/mauriciabad/sukrara
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.feature.sharing
@@ -47,10 +47,10 @@ interface SharingDeps {
  *
  * - [setupStore]: typed store `setup` ([SetupRecord]); a damaged file only shows skipped steps again (the role is
  *   in [roles]).
- * - [resetAlerts]: chunk 11's `AlertsModule.reset()`, called when the role is chosen or changed — before any
+ * - [resetAlerts]: the alert runtime's `AlertsModule.reset()`, called when the role is chosen or changed — before any
  *   monitoring — so no phantom no-data alarm survives. Not on identity "Start fresh": by then the sensor runs, and a
  *   reset stops alerts until the hub reports a role again.
- * - [readiness]: THE alert checklist (CHANGES P5), the same instance home's reliability row reads.
+ * - [readiness]: THE alert checklist, the same instance home's reliability row reads.
  */
 class SetupModule(
     context: Context,
@@ -66,10 +66,10 @@ class SetupModule(
     val startMonitoring: () -> Unit,
     val readiness: AlertReadinessSource,
     val clock: Clock,
-    /** Following on Android (chunk 25) is in this build. */
+    /** Following on Android is in this build. */
     val followerAvailable: Boolean = false,
 ) {
-    /** When the alert thresholds were confirmed (setup or Settings › Alerts), null = never (CHANGES P4). */
+    /** When the alert thresholds were confirmed (setup or Settings › Alerts), null = never. */
     val alertsConfirmedAt: Flow<Instant?> by lazy {
         settings.flow(THRESHOLDS_CONFIRMED_AT).map { text -> text.takeIf { it.isNotEmpty() }?.let { runCatching { Instant.parse(it) }.getOrNull() } }
     }

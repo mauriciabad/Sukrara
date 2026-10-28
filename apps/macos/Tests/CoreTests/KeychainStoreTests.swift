@@ -1,4 +1,4 @@
-// Sukrara — https://github.com/mauriciabad/Sukrara
+// Sukrara — https://github.com/mauriciabad/sukrara
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
 import Foundation
@@ -28,7 +28,7 @@ struct KeychainStoreTests {
         try store.delete(account: "follower")  // deleting a missing item is fine
     }
 
-    @Test func defaultServiceIsTheV1One() {
+    @Test func defaultServiceIsTheAppOne() {
         #expect(KeychainStore().service == "app.mauri.sukrara")
         #expect(!KeychainStore().useDataProtectionKeychain)
     }

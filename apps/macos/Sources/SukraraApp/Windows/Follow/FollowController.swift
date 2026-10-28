@@ -1,11 +1,11 @@
-// Sukrara — https://github.com/mauriciabad/Sukrara
+// Sukrara — https://github.com/mauriciabad/sukrara
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
 import Foundation
 import Observation
 import SukraraShare
 
-/// Why following didn't start (chunk 15's `FollowerJoinError`, mapped by the runtime adapter).
+/// Why following didn't start (`FollowerJoinError`, mapped by the runtime adapter).
 public enum FollowFailure: Error, Equatable, Sendable {
     case invalidLink, notFound, expired, used, offline, fingerprintMismatch, alreadyFollowing, keychain, noQRCode
 
@@ -26,7 +26,7 @@ public enum FollowFailure: Error, Equatable, Sendable {
     }
 }
 
-/// The link with the wearer as the windows show it (chunk 15's `LinkState`, mapped by the adapter).
+/// The link with the wearer as the windows show it (`LinkState`, mapped by the adapter).
 public enum FollowStatus: Equatable, Sendable {
     case notFollowing
     case joining
@@ -36,14 +36,14 @@ public enum FollowStatus: Equatable, Sendable {
     case broken(String)
 }
 
-/// A phone nearby offering pairing (chunk 15's `NearbyOffer`).
+/// A phone nearby offering pairing (`NearbyOffer`).
 public struct NearbyPhone: Equatable, Sendable {
     public var wearer: String
     public var avatarInitial: String { String(wearer.prefix(1)).uppercased() }
     public init(wearer: String) { self.wearer = wearer }
 }
 
-/// What the follow UI needs from the follower runtime (chunk 15's `FollowerService`, behind an adapter).
+/// What the follow UI needs from the follower runtime (`FollowerService`, behind an adapter).
 public protocol FollowActions: AnyObject {
     func join(link: String) async throws(FollowFailure)
     func joinNearby(name: String) async throws(FollowFailure)

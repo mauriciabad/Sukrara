@@ -1,4 +1,4 @@
-// Sukrara — https://github.com/mauriciabad/Sukrara
+// Sukrara — https://github.com/mauriciabad/sukrara
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.feature.sharing
@@ -14,7 +14,7 @@ import kotlinx.coroutines.flow.StateFlow
 data class Invite(val link: String, val label: String, val expiresAt: Long)
 
 /**
- * What the sharing screens do with the wearer's sharing (chunk 13's [OwnerEngine]); a port so screens and view models
+ * What the sharing screens do with the wearer's sharing (the [OwnerEngine]); a port so screens and view models
  * are tested with a fake engine and never touch relays.
  */
 interface OwnerSharing {
@@ -41,7 +41,7 @@ interface OwnerSharing {
     suspend fun retryConflict()
 }
 
-/** [OwnerSharing] on chunk 13's engine; [scope] = the app's process scope (the engine's relay work outlives screens). */
+/** [OwnerSharing] on the engine; [scope] = the app's process scope (the engine's relay work outlives screens). */
 class EngineOwnerSharing(
     private val engine: OwnerEngine,
     private val scope: CoroutineScope,

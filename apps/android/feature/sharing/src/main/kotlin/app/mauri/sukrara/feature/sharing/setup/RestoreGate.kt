@@ -1,4 +1,4 @@
-// Sukrara — https://github.com/mauriciabad/Sukrara
+// Sukrara — https://github.com/mauriciabad/sukrara
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.feature.sharing.setup
@@ -16,7 +16,7 @@ enum class RestoreBlock {
 }
 
 /**
- * The restore gate (CHANGES P2). Restoring moves the stream to this phone, so the phone that shared until now stops
+ * The restore gate. Restoring moves the stream to this phone, so the phone that shared until now stops
  * reaching the followers: allowed only once this phone has the sensor. The screen always shows the warning sentence.
  */
 data class RestoreGate(val blocks: Set<RestoreBlock>) {

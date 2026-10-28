@@ -1,4 +1,4 @@
-// Sukrara — https://github.com/mauriciabad/Sukrara
+// Sukrara — https://github.com/mauriciabad/sukrara
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.feature.sharing
@@ -27,7 +27,7 @@ import app.mauri.sukrara.feature.sharing.setup.RestoreUi
 import app.mauri.sukrara.feature.sharing.setup.SetupRecord
 import app.mauri.sukrara.feature.sharing.setup.SetupStep
 import app.mauri.sukrara.feature.sharing.setup.SetupViewModel
-import app.mauri.sukrara.feature.sharing.setup.ThresholdField
+import app.mauri.sukrara.share.owner.OwnerShareState
 import app.mauri.sukrara.share.owner.usecase.RestoreIdentity
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -61,7 +61,7 @@ class SetupViewModelTest {
     private val settings = InMemorySettingsRepository()
     private val readiness = FakeReadiness()
 
-    private fun vm(): SetupViewModel {
+    private fun vm(startAt: SetupStep? = null): SetupViewModel {
         val module =
             SetupModule(
                 ApplicationProvider.getApplicationContext<Application>(),
@@ -76,7 +76,7 @@ class SetupViewModelTest {
                 readiness = readiness,
                 clock = clock,
             )
-        return SetupViewModel(module)
+        return SetupViewModel(module, startAt)
     }
 
     @Before
@@ -126,7 +126,7 @@ class SetupViewModelTest {
             val vm = vm()
             vm.ui.launchIn(backgroundScope)
             vm.ui.first { it != null }
-            vm.editThreshold(ThresholdField.Low, 75.0)
+            vm.editThreshold(AlertKind.LOW, 75.0)
             assertEquals(70.0, alerts.settings.value.rule(AlertKind.LOW).threshold, 0.0)
             vm.confirmAlerts()
             assertEquals(75.0, alerts.settings.value.rule(AlertKind.LOW).threshold, 0.0)
@@ -159,6 +159,45 @@ class SetupViewModelTest {
             assertEquals(RestoreUi.Failed(RestoreIdentity.Result.WrongPassword), vm.ui.first { it?.restore is RestoreUi.Failed }!!.restore)
             assertTrue(SetupStep.Identity !in record.data.first().completed)
             assertTrue("startFresh" !in sharing.calls)
+        }
+
+    @Test
+    fun `opened from Settings › Sharing, setup shows the identity step alone, then leaves`() =
+        runTest {
+            roles.role.value = Role.Wearer
+            // setup finished with the alerts still to confirm and the identity skipped
+            record.update { SetupRecord(completed = setOf(SetupStep.Welcome, SetupStep.Permissions, SetupStep.Sensor), skipped = setOf(SetupStep.Identity)) }
+            val vm = vm(startAt = SetupStep.Identity)
+            vm.ui.launchIn(backgroundScope)
+            val u = vm.ui.first { it != null }!!
+            assertEquals(SetupStep.Identity, u.step)
+            assertTrue(u.single)
+            vm.startFresh()
+            assertEquals(null, vm.ui.first { it?.step != SetupStep.Identity }!!.step)
+        }
+
+    @Test
+    fun `Finish setup walks every skipped step, alerts first, and Later keeps each on the card`() =
+        runTest {
+            roles.role.value = Role.Wearer
+            sharing.state.value = OwnerShareState.Sharing(1, emptyList(), emptyList(), emptyMap(), 0, 0)
+            val skipped = setOf(SetupStep.Sensor, SetupStep.Alerts)
+            record.update { SetupRecord(completed = setOf(SetupStep.Welcome, SetupStep.Permissions, SetupStep.Identity), skipped = skipped) }
+            val vm = vm()
+            vm.ui.launchIn(backgroundScope)
+            assertEquals(null, vm.ui.first { it != null }!!.step)
+            assertTrue(vm.reopenFirstUnfinished())
+            assertEquals(SetupStep.Alerts, vm.ui.first { it?.step != null }!!.step)
+            vm.skip(SetupStep.Alerts)
+            vm.ui.first { it?.step == null }
+            assertTrue(vm.reopenFirstUnfinished())
+            assertEquals(SetupStep.Sensor, vm.ui.first { it?.step != null }!!.step)
+            // Back on a reopened step leaves it skipped and opens nothing else
+            var left = false
+            vm.back { left = true }
+            assertTrue(left)
+            assertEquals(skipped, record.data.first { it.skipped == skipped }.skipped)
+            assertEquals(false, vm.reopenFirstUnfinished())
         }
 
     private inner class FakeRoles : RoleStore {

@@ -1,4 +1,4 @@
-// Sukrara — https://github.com/mauriciabad/Sukrara
+// Sukrara — https://github.com/mauriciabad/sukrara
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.sensor.ble
@@ -14,7 +14,7 @@ import java.util.UUID
  * A [BleLink] to one device known by address (the Libre 3's NFC tap gave it). It connects with autoConnect, discovers
  * services, runs GATT operations one at a time and hands everything else to the [driver].
  *
- * Reliability (what the PoC's link lacked):
+ * Reliability:
  * - every operation and the service discovery time out after [opTimeoutMs] → the driver is told and drops the link;
  * - a dropped link is closed at once and a NEW connection is made after a backoff (1 s, doubling to 30 s, reset when
  *   the sensor sends data) — never `connect()` on a stale `BluetoothGatt`;
@@ -65,7 +65,7 @@ internal class GattLink(
 
     fun start() = connectNow()
 
-    /** Bluetooth went off (chunk 10's BluetoothStateReceiver, via the source): close now, no retries. */
+    /** Bluetooth went off (BluetoothStateReceiver, via the source): close now, no retries. */
     fun bluetoothOff() {
         if (closed) return
         bluetoothOff = true

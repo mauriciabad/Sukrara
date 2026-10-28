@@ -1,4 +1,4 @@
-// Sukrara — https://github.com/mauriciabad/Sukrara
+// Sukrara — https://github.com/mauriciabad/sukrara
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
 import SukraraAlerts
@@ -12,7 +12,7 @@ public final class SetupModel {
     public let follow: FollowModel
     public let alerts: AlertSettingsStore
     @ObservationIgnored let store: any SettingsStoring
-    /// Asks for notification permission / registers the login item (chunk 21's services); true = granted.
+    /// Asks for notification permission / registers the login item; true = granted.
     @ObservationIgnored var requestNotifications: () async -> Bool = { false }
     @ObservationIgnored var setOpenAtLogin: (Bool) -> Void = { _ in }
 

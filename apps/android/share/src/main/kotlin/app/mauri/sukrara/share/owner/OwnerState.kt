@@ -1,4 +1,4 @@
-// Sukrara — https://github.com/mauriciabad/Sukrara
+// Sukrara — https://github.com/mauriciabad/sukrara
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.share.owner
@@ -53,7 +53,7 @@ data class PendingRequest(
     val others: Int = 0,
 )
 
-/** Another app publishes roster / backup as this identity (A3); persisted so the block survives a restart. */
+/** Another app publishes roster / backup as this identity; persisted so the block survives a restart. */
 @Serializable
 data class ConflictRecord(val reason: IdentityCheck.Reason, val seenAt: Long, val eventCreatedAt: Long)
 
@@ -66,8 +66,8 @@ data class ConflictRecord(val reason: IdentityCheck.Reason, val seenAt: Long, va
 data class PendingControl(val key: String, val eventId: String, val eventJson: String, val follower: String? = null)
 
 /**
- * Everything the wearer's phone knows about sharing (V1 format, new app id: no migration from the showcase — a
- * restore from the recovery code brings the identity over). Encrypted at rest by [OwnerIdentityStore]; holds I, D and
+ * Everything the wearer's phone knows about sharing (a restore from the recovery code brings the identity over
+ * from another phone). Encrypted at rest by [OwnerIdentityStore]; holds I, D and
  * every G_n, so [toString] is redacted. The owner backup carries the subset in `BackupPayload` (never D).
  */
 @Serializable
@@ -97,7 +97,7 @@ data class OwnerState(
     val current: EpochKey get() = epochs.maxBy { it.n }
 
     /**
-     * Always the current default set (as in the PoC; not stored, not taken from a backup), so the relays the roster,
+     * Always the current default set (not stored, not taken from a backup), so the relays the roster,
      * key deliveries and invites announce are the ones the pool talks to.
      */
     val relays: List<String> get() = Wire.DEFAULT_RELAYS

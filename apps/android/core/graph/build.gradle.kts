@@ -1,8 +1,8 @@
-// Sukrara — https://github.com/mauriciabad/Sukrara
+// Sukrara — https://github.com/mauriciabad/sukrara
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-// The one card renderer: GlucoseCard, graph, layout, freshness (chunk 08).
+// The one card renderer: GlucoseCard, graph, layout, freshness.
 plugins {
     id("sukrara.android.library")
     id("sukrara.android.compose")

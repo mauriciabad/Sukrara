@@ -1,4 +1,4 @@
-// Sukrara — https://github.com/mauriciabad/Sukrara
+// Sukrara — https://github.com/mauriciabad/sukrara
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.sensor.pairing
@@ -10,7 +10,7 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
 
-/** What one NFC tap did (chunk 18's new-sensor flow turns it into words and next steps). */
+/** What one NFC tap did (new-sensor flow turns it into words and next steps). */
 sealed interface PairOutcome {
     /** Paired; [activated] = a new sensor started now (warms up for an hour), else taken over. Readings follow. */
     data class Paired(val serial: String, val activated: Boolean) : PairOutcome
@@ -19,11 +19,10 @@ sealed interface PairOutcome {
     data class NeedsLibreViewSignIn(val serial: String, val neverStarted: Boolean) : PairOutcome
 
     /**
-     * The sensor is bound to a receiver ID V1 doesn't have (another app or account started it). Nothing changed on the
-     * sensor. If [showcaseInstalled]: "Stop the sensor in Sukrara Showcase first (Settings › Sensor › Stop) or uninstall
-     * it", else sign in with the LibreView account that started it — or keep the other app until the next sensor.
+     * The sensor is bound to a receiver ID Sukrara doesn't have (another app or account started it). Nothing changed on
+     * the sensor: sign in with the LibreView account that started it — or keep the other app until the next sensor.
      */
-    data class OwnedByAnotherApp(val serial: String, val showcaseInstalled: Boolean) : PairOutcome
+    data class OwnedByAnotherApp(val serial: String) : PairOutcome
 
     data class Ended(val serial: String) : PairOutcome
 
@@ -44,7 +43,6 @@ sealed interface PairOutcome {
 class NfcPairing internal constructor(
     private val pairings: PairingStore,
     private val ids: StateStore<ReceiverIdState>,
-    private val showcaseInstalled: () -> Boolean,
     private val onPaired: () -> Unit,
     private val io: CoroutineDispatcher,
     private val log: (String) -> Unit = {},
@@ -54,7 +52,7 @@ class NfcPairing internal constructor(
         handle(Libre3Nfc.scan(tag, account, own, log))
     }
 
-    /** The account's receiver ID and V1's own one (made once, on the first tap). */
+    /** The account's receiver ID and Sukrara's own one (made once, on the first tap). */
     internal suspend fun receiverIds(): Pair<Long?, Long> {
         ids.update { if (it.own == null) it.copy(own = ReceiverIds.newOwn()) else it }
         val s = ids.data.first()
@@ -68,7 +66,7 @@ class NfcPairing internal constructor(
             PairOutcome.Paired(result.pairing.serial, result.activated)
         }
         is Libre3Nfc.Result.NeedsAccount -> PairOutcome.NeedsLibreViewSignIn(result.serial, result.neverStarted)
-        is Libre3Nfc.Result.OwnedByAnotherReceiver -> PairOutcome.OwnedByAnotherApp(result.serial, showcaseInstalled())
+        is Libre3Nfc.Result.OwnedByAnotherReceiver -> PairOutcome.OwnedByAnotherApp(result.serial)
         is Libre3Nfc.Result.Ended -> PairOutcome.Ended(result.serial)
         Libre3Nfc.Result.Libre2 -> PairOutcome.Libre2Unsupported
         is Libre3Nfc.Result.Unsupported -> PairOutcome.Unsupported(result.why)

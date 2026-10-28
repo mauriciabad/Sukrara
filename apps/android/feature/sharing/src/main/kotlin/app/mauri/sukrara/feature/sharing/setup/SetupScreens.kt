@@ -1,4 +1,4 @@
-// Sukrara — https://github.com/mauriciabad/Sukrara
+// Sukrara — https://github.com/mauriciabad/sukrara
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.feature.sharing.setup
@@ -57,6 +57,8 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import app.mauri.sukrara.alerts.AlertKind
+import app.mauri.sukrara.alerts.AlertSettings
 import app.mauri.sukrara.core.model.AlertRequirement
 import app.mauri.sukrara.core.model.Role
 import app.mauri.sukrara.designsystem.haptics.rememberHaptics
@@ -72,12 +74,14 @@ import androidx.compose.animation.AnimatedContent
  * The first-run setup (brief 24, binding order): welcome → role → permissions → sensor →
  * alert thresholds → sharing identity → home. Each step says "Step N of M" to TalkBack, has Back (except the first)
  * and Skip / Later where skipping is safe; skipped steps go to the home "Finish setup" card.
- * [onOpenSensorSetup] opens chunk 18's new-sensor flow; [onDone] goes home.
+ * [onOpenSensorSetup] opens the new-sensor flow; [thresholdRows] are Settings' threshold rows (the alert step
+ * shows the same rows as Settings › Review alert thresholds); [onDone] goes home.
  */
 @Composable
 fun SetupScreen(
     viewModel: SetupViewModel,
     onOpenSensorSetup: () -> Unit,
+    thresholdRows: ThresholdRows,
     onDone: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -99,9 +103,15 @@ fun SetupScreen(
         }
         return
     }
-    BackHandler { if (!viewModel.back()) onDone() }
-    SetupContent(u, viewModel.actions(onOpenSensorSetup, onDone), modifier)
+    BackHandler { viewModel.back(onDone) }
+    SetupContent(u, viewModel.actions(onOpenSensorSetup, thresholdRows, onDone), modifier)
 }
+
+/**
+ * The alert thresholds' rows for [AlertSettings] (one row per reviewed kind, each opening the number dialog) and the
+ * edit callback. The app passes Settings' `AlertThresholdRows`: features don't depend on each other.
+ */
+typealias ThresholdRows = @Composable (settings: AlertSettings, onThreshold: (AlertKind, Double) -> Unit) -> Unit
 
 /** What the step screens can do; a plain holder so screenshot tests render every step without a view model. */
 data class SetupActions(
@@ -112,7 +122,8 @@ data class SetupActions(
     val fix: (AlertRequirement) -> Unit = {},
     val openSensorSetup: () -> Unit = {},
     val completeSensor: () -> Unit = {},
-    val editThreshold: (ThresholdField, Double) -> Unit = { _, _ -> },
+    val thresholdRows: ThresholdRows = { _, _ -> },
+    val editThreshold: (AlertKind, Double) -> Unit = { _, _ -> },
     val confirmAlerts: () -> Unit = {},
     val startFresh: () -> Unit = {},
     val completeIdentity: () -> Unit = {},
@@ -125,18 +136,20 @@ data class SetupActions(
 @Composable
 private fun SetupViewModel.actions(
     onOpenSensorSetup: () -> Unit,
+    thresholdRows: ThresholdRows,
     onDone: () -> Unit,
 ): SetupActions {
     val context = LocalContext.current
     return remember(this) {
         SetupActions(
-            back = { if (!back()) onDone() },
+            back = { back(onDone) },
             continueWelcome = ::continueWelcome,
             chooseRole = ::chooseRole,
             completePermissions = ::completePermissions,
             fix = { r -> readinessFix(r) },
             openSensorSetup = onOpenSensorSetup,
             completeSensor = ::completeSensor,
+            thresholdRows = thresholdRows,
             editThreshold = ::editThreshold,
             confirmAlerts = ::confirmAlerts,
             startFresh = ::startFresh,

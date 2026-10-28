@@ -1,4 +1,4 @@
-// Sukrara — https://github.com/mauriciabad/Sukrara
+// Sukrara — https://github.com/mauriciabad/sukrara
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.sensor.source
@@ -25,7 +25,7 @@ enum class SensorSourceKind(val id: String) {
 }
 
 /**
- * The sensor source in detail, for the sensor screen and the new-sensor flow (chunk 18 owns the words). Every state
+ * The sensor source in detail, for the sensor screen and the new-sensor flow (they own the words). Every state
  * that needs the person has an [action]; the hub gets the coarse [SensorState].
  */
 sealed interface SensorStatus {
@@ -56,11 +56,11 @@ sealed interface SensorStatus {
     }
 
     /**
-     * The sensor keeps refusing V1: another app took it over (the showcase, Juggluco, Abbott's app). Readings stopped;
+     * The sensor keeps refusing Sukrara: another app took it over (Juggluco, Abbott's app). Readings stopped;
      * "Try again" (`SourceManager.retry`) or stop the other app and scan the sensor (take over).
      */
-    data class OwnedByAnotherApp(val showcaseInstalled: Boolean) : SensorStatus {
-        override val action get() = if (showcaseInstalled) SensorAction.StopOtherApp else SensorAction.ScanSensor
+    data object OwnedByAnotherApp : SensorStatus {
+        override val action get() = SensorAction.ScanSensor
     }
 
     data object BluetoothPermissionMissing : SensorStatus {

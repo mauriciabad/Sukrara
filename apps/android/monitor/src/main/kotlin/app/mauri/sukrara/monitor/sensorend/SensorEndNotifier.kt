@@ -1,4 +1,4 @@
-// Sukrara — https://github.com/mauriciabad/Sukrara
+// Sukrara — https://github.com/mauriciabad/sukrara
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.monitor.sensorend
@@ -29,7 +29,7 @@ interface SensorEndPresenter {
 }
 
 /**
- * Warns before the sensor ends and says when it has (CHANGES P7): driven by the hub's sensor state while the service
+ * Warns before the sensor ends and says when it has: driven by the hub's sensor state while the service
  * runs ([onSensor]) and by its own exact alarm, boot and clock changes ([check], from `AlertsModule.check`).
  */
 class SensorEndNotifier(
@@ -115,7 +115,7 @@ class AndroidSensorEndPresenter(private val ctx: Context) : SensorEndPresenter {
     private fun post(n: Notification) = NotificationGroups.post(ctx, ID, n, NotificationGroups.Group.INFO, CHANNEL)
 
 
-    /** The app at its start screen, or with [action] (the sensor flow of chunk 18 handles [ACTION_PAIR_SENSOR]). */
+    /** The app at its start screen, or with [action] (the new-sensor flow handles [ACTION_PAIR_SENSOR]). */
     private fun openApp(action: String?): PendingIntent {
         val launch = ctx.packageManager.getLaunchIntentForPackage(ctx.packageName) ?: Intent().setPackage(ctx.packageName)
         action?.let { launch.setAction(it) }

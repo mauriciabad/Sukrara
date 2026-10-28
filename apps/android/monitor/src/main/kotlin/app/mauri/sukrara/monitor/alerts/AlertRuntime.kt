@@ -1,4 +1,4 @@
-// Sukrara — https://github.com/mauriciabad/Sukrara
+// Sukrara — https://github.com/mauriciabad/sukrara
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.monitor.alerts
@@ -48,7 +48,7 @@ import java.time.Duration
 import java.time.Instant
 
 /**
- * THE alert runtime of this process: the one owner of the [AlertMachine] (the rules, chunk 04). The monitoring service
+ * THE alert runtime of this process: the one owner of the [AlertMachine] (the rules). The monitoring service
  * feeds it ([observe]: hub state, settings, treatments, the wearer's mirrored settings and `alert` events), the alarm
  * receiver ticks it with the service dead ([tick]: it resumes from the saved [AlertRecord]), and every surface acts on
  * it ([AlertControls]). Because both paths go through this one object, an alert can't post twice.
@@ -57,7 +57,7 @@ import java.time.Instant
  * followers, the one exact alarm) → the state is saved → the summary is published to the hub. Applying before saving
  * means a process death in between rings again after the restart (the safe failure) instead of resuming silently.
  *
- * No phantom alarms (CHANGES P3): until the hub says monitoring started, `no_data` is off; without a role (setup not
+ * No phantom alarms: until the hub says monitoring started, `no_data` is off; without a role (setup not
  * done, or the hub still loading) nothing runs.
  */
 class AlertRuntime(
@@ -129,7 +129,7 @@ class AlertRuntime(
     }
 
     /**
-     * "Start fresh" / leaving a role (chunk 24): every alert notification goes, the alarm is cancelled, the saved state
+     * "Start fresh" / leaving a role: every alert notification goes, the alarm is cancelled, the saved state
      * is dropped and nothing runs until the hub reports a role again.
      */
     suspend fun reset() {
@@ -344,7 +344,7 @@ class AlertRuntime(
                     unposted.remove(e.kind.group)
                     attempt(Step.Notify, e.kind.group) { presenter.clear(e.kind.group) }
                 }
-                is AlertEffect.Back -> Unit // the history line is chunk 16's (it reads the state)
+                is AlertEffect.Back -> Unit // the history line is the (it reads the state)
                 is AlertEffect.Mirror -> attempt(Step.Mirror) { events.publish(e.event) }
                 is AlertEffect.Schedule -> Unit // applied first, above
             }

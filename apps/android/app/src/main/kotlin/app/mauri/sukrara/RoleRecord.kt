@@ -1,4 +1,4 @@
-// Sukrara — https://github.com/mauriciabad/Sukrara
+// Sukrara — https://github.com/mauriciabad/sukrara
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara
@@ -20,7 +20,7 @@ data class RoleRecord(
  * The role, kept in two files (`role.json` and `role-backup.json`) so one damaged file never stops monitoring: a
  * damaged file is quarantined and reported (home's data-problem banner) and reads as "no role", and then the other
  * copy answers. Without that, a damaged `role.json` would send the phone back to setup and silently stop the service
- * and its alerts. Writers use [update] (chunk 24's setup); it writes the primary first, then the backup.
+ * and its alerts. Writers use [update] (setup); it writes the primary first, then the backup.
  */
 class RoleStore(
     private val primary: StateStore<RoleRecord>,

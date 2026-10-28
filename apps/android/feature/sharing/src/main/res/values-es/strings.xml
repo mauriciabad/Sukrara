@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Sukrara — https://github.com/mauriciabad/Sukrara
+<!-- Sukrara — https://github.com/mauriciabad/sukrara
      Copyright (C) 2026 Maurici Abad
      SPDX-License-Identifier: GPL-3.0-or-later -->
 <resources>
@@ -36,19 +36,8 @@
     <string name="sh_setup_sensor_open">Configurar sensor</string>
     <string name="sh_setup_alerts_title">Revisa tus alertas</string>
     <string name="sh_setup_alerts_body">Sukrara te avisa con estos valores. Toca uno para cambiarlo. Nada cambia hasta que confirmes.</string>
-    <string name="sh_setup_alerts_very_low">Muy bajo</string>
-    <string name="sh_setup_alerts_low">Bajo</string>
-    <string name="sh_setup_alerts_high">Alto</string>
-    <string name="sh_setup_alerts_very_high">Muy alto</string>
-    <string name="sh_setup_alerts_no_data">Sin datos</string>
-    <string name="sh_setup_alerts_value">%1$s %2$s</string>
-    <string name="sh_setup_alerts_off">Desactivada (%1$s)</string>
-    <string name="sh_setup_alerts_no_reading_for">Sin lecturas durante %1$s</string>
-    <string name="sh_setup_alerts_at_or_above">A partir de %1$s</string>
-    <string name="sh_setup_alerts_below">Por debajo de %1$s</string>
-    <string name="sh_setup_alerts_extremely_high">Extremadamente alto</string>
     <string name="sh_setup_alerts_order">Mantén el orden: muy bajo por debajo de bajo, bajo por debajo de alto, alto por debajo de muy alto, muy alto por debajo de extremadamente alto.</string>
-    <string name="sh_setup_alerts_confirm">Confirmar estas alertas</string>
+    <string name="sh_setup_alerts_confirm">Usar estos umbrales</string>
     <string name="sh_identity_title">Tus seguidores</string>
     <string name="sh_identity_body">Recupera a tus seguidores con tu código de recuperación o empieza de cero con invitaciones nuevas.</string>
     <string name="sh_identity_sharing">Compartir está configurado. Seguidores: %1$d.</string>

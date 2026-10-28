@@ -1,4 +1,4 @@
-// Sukrara — https://github.com/mauriciabad/Sukrara
+// Sukrara — https://github.com/mauriciabad/sukrara
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.core.model
@@ -7,7 +7,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
 
 /**
- * One role's glucose input as the hub consumes it (wearer: the sensor's `SourceManager`, chunk 12; follower: chunk 25).
+ * One role's glucose input as the hub consumes it (wearer: the sensor's `SourceManager`; follower: the follower engine).
  * Readings are only ever what the sensor or the followed wearer sent: a source never invents, repeats as new or
  * extrapolates a value.
  */

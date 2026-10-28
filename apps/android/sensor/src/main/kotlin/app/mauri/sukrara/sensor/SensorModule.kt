@@ -1,10 +1,9 @@
-// Sukrara — https://github.com/mauriciabad/Sukrara
+// Sukrara — https://github.com/mauriciabad/sukrara
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.sensor
 
 import android.content.Context
-import android.content.pm.PackageManager
 import android.util.Log
 import app.mauri.sukrara.core.model.Clock
 import app.mauri.sukrara.core.model.DispatcherProvider
@@ -24,7 +23,7 @@ import kotlinx.coroutines.flow.Flow
 import okhttp3.OkHttpClient
 
 /**
- * The sensor's object graph (DI A4: AppGraph composes this; nothing here edits it). [sourceKind] is the `source.source`
+ * The sensor's object graph (DI: AppGraph composes this; nothing here edits it). [sourceKind] is the `source.source`
  * setting; [receiverIds] is a typed DataStore (`receiver-ids.json`); [secure] holds the pairing (`sensor`).
  * The wearer role starts [source] (`SourceManager.start`); the hub reads it as its one [app.mauri.sukrara.core.model.ReadingSource].
  */
@@ -38,23 +37,11 @@ class SensorModule(
     dispatchers: DispatcherProvider,
 ) {
     companion object {
-        /** The Sukrara showcase (PoC) app: it may own the sensor when both are installed (side by side, D1). */
-        const val SHOWCASE_PACKAGE = "app.mauri.sukrara.poc"
         private const val TAG = "Sukrara.sensor"
     }
 
     private val app = context.applicationContext
     private val log: (String) -> Unit = { Log.i(TAG, it) }
-
-    /** True while the showcase is installed (needs the `<queries>` entry in this module's manifest). */
-    val showcaseInstalled: () -> Boolean = {
-        try {
-            app.packageManager.getPackageInfo(SHOWCASE_PACKAGE, 0)
-            true
-        } catch (_: PackageManager.NameNotFoundException) {
-            false
-        }
-    }
 
     val pairings = PairingStore(secure)
 
@@ -68,7 +55,6 @@ class SensorModule(
         security = Libre3Crypto.takeIf { it.isAvailable },
         connector = AndroidGatt(app),
         juggluco = { JugglucoSource(http, zone = { clock.zone }) },
-        showcaseInstalled = showcaseInstalled,
         clock = clock,
         dispatcher = dispatchers.default.limitedParallelism(1),
         io = dispatchers.io,
@@ -77,5 +63,5 @@ class SensorModule(
 
     val libreView = LibreViewAccount(receiverIds, http, dispatchers.io)
 
-    val nfc = NfcPairing(pairings, receiverIds, showcaseInstalled, onPaired = source::retry, io = dispatchers.io, log = log)
+    val nfc = NfcPairing(pairings, receiverIds, onPaired = source::retry, io = dispatchers.io, log = log)
 }

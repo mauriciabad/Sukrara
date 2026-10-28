@@ -1,4 +1,4 @@
-// Sukrara — https://github.com/mauriciabad/Sukrara
+// Sukrara — https://github.com/mauriciabad/sukrara
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.feature.settings
@@ -20,7 +20,7 @@ import java.util.concurrent.TimeUnit
 /** One file of a release ("Sukrara on other devices": the Mac dmg, the APK, …). */
 data class ReleaseAsset(val name: String, val url: String)
 
-/** One GitHub release of mauriciabad/Sukrara. */
+/** One GitHub release of mauriciabad/sukrara. */
 data class Release(
     val tag: String,
     val url: String,
@@ -43,12 +43,12 @@ sealed interface UpdateState {
 }
 
 object UpdateCheck {
-    const val REPO_URL = "https://github.com/mauriciabad/Sukrara"
+    const val REPO_URL = "https://github.com/mauriciabad/sukrara"
     const val RELEASES_URL = "$REPO_URL/releases"
     const val ISSUES_URL = "$REPO_URL/issues"
 
     /** All releases (not `/latest`, which never returns a prerelease). */
-    const val API_URL = "https://api.github.com/repos/mauriciabad/Sukrara/releases"
+    const val API_URL = "https://api.github.com/repos/mauriciabad/sukrara/releases"
 
     /**
      * The release to offer: the newest non-draft one newer than [installed]; prereleases only when the installed
@@ -81,7 +81,7 @@ object UpdateCheck {
     ) = releases.filter { !it.draft && (prerelease || !it.prerelease) }
 
     /**
-     * Compares two versions ("v0.90.1", "0.90.0-rc2") number by number; a version with a pre-release suffix
+     * Compares two versions ("v0.12.1", "0.12.0-rc2") number by number; a version with a pre-release suffix
      * ("-rc1") is older than the same numbers without one.
      */
     fun compare(

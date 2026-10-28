@@ -1,4 +1,4 @@
-// Sukrara — https://github.com/mauriciabad/Sukrara
+// Sukrara — https://github.com/mauriciabad/sukrara
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.sensor
@@ -6,7 +6,7 @@ package app.mauri.sukrara.sensor
 import kotlinx.serialization.Serializable
 
 /**
- * The sensor families V1 reads (Dexcom, Aidex, SmartGuide are cut: no hardware to test them, FEATURES.md "Not in V1").
+ * The sensor families Sukrara reads (Dexcom, Aidex, SmartGuide are out: no hardware to test them).
  * [warmupMin] / [wearMin] are the nominal values used when the sensor doesn't say; a Libre 3's NFC patch info carries
  * both and wins.
  */

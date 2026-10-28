@@ -1,4 +1,4 @@
-// Sukrara — https://github.com/mauriciabad/Sukrara
+// Sukrara — https://github.com/mauriciabad/sukrara
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.feature.settings
@@ -8,7 +8,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import app.mauri.sukrara.designsystem.rows.FooterText
 import app.mauri.sukrara.designsystem.rows.InfoRow
 import app.mauri.sukrara.designsystem.rows.NavigationRow
 import app.mauri.sukrara.designsystem.rows.SettingsGroup
@@ -45,7 +44,7 @@ private fun platformOf(name: String): String =
         else -> name
     }
 
-/** About: version, update check, Sukrara on other devices, report a problem, the showcase note. */
+/** About: version, update check, Sukrara on other devices, report a problem. */
 @Composable
 fun AboutContent(
     installed: String,
@@ -94,6 +93,5 @@ fun AboutContent(
             NavigationRow(stringResource(R.string.st_report_problem), { context.openUrl(UpdateCheck.ISSUES_URL) }, summary = stringResource(R.string.st_report_problem_summary))
             NavigationRow(stringResource(R.string.st_source_code), { context.openUrl(UpdateCheck.REPO_URL) }, summary = stringResource(R.string.st_license))
         }
-        FooterText(stringResource(R.string.st_showcase_note))
     }
 }

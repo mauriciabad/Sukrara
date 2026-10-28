@@ -1,4 +1,4 @@
-// Sukrara — https://github.com/mauriciabad/Sukrara
+// Sukrara — https://github.com/mauriciabad/sukrara
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
 import SukraraCore
@@ -139,9 +139,9 @@ struct FollowingRows: View {
 /// The settings window's content: two panes, the last one chosen is remembered.
 struct SettingsView: View {
     @Bindable var model: SettingsModel
-    /// Open at login (chunk 21's LoginItem over SMAppService.mainApp, schema `general.openAtLogin`).
+    /// Open at login (LoginItem over SMAppService.mainApp, schema `general.openAtLogin`).
     var loginItem: LoginItem?
-    /// The last update check's result in words (chunk 21's UpdateCheck), nil before one ran.
+    /// The last update check's result in words (UpdateCheck), nil before one ran.
     var updateResult: String?
     var checkForUpdates: () -> Void
     var openFollow: () -> Void

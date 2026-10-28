@@ -5,7 +5,7 @@
 <h1 align="center">Sukrara — your sugar, now</h1>
 
 <p align="center">
-  <a href="https://github.com/mauriciabad/Sukrara/releases"><b>Releases</b></a>
+  <a href="https://github.com/mauriciabad/sukrara/releases"><b>Releases</b></a>
   &nbsp;·&nbsp;
   <a href="docs/FEATURES.md">What it does, in detail</a>
   &nbsp;·&nbsp;
@@ -18,9 +18,8 @@ stops arriving, lets you log insulin and carbs in seconds, and shares readings *
 Nostr relays or Bluetooth nearby. There's no cloud account to create and no server to host. The name is
 Catalan-ish: *sucre* (sugar) + *ara* (now).
 
-> **0.90.x: release candidates.** 0.90.x versions are GitHub **prereleases** and haven't been tested on a real
-> sensor yet: keep your current CGM app as a fallback until Sukrara has run a few days for you. **Not a medical
-> device** (see the [disclaimer](#disclaimer)).
+> **Not a medical device** (see the [disclaimer](#disclaimer)). Releases are GitHub **prereleases** until they've been
+> tested on a real sensor.
 
 ## What it does today
 
@@ -80,8 +79,7 @@ The full catalog, with every rule and number, is [docs/FEATURES.md](docs/FEATURE
   through at 5 min, the graph dimmed with the reading's time, no value at 20 min) and a tap opens Add treatment.
 - VoiceOver reads the value as one sentence with the range in words.
 
-**Not in 0.90.0** (see
-[docs/10-showcase.md › V1](docs/10-showcase.md#v1-what-came-in-and-what-was-left-out) for why): the root status-bar
+**Not included**: the root status-bar
 icons and the LSPosed lock-screen widget, Dexcom / Aidex / SmartGuide (untested) sensors, Garmin via the local xDrip+
 server, Nightscout / Tidepool / LibreView uploads, Health Connect and broadcasts, insulin pens, the full sensor
 reminders page and calendar event, the glucose report and CSV export, settings export / import, following on
@@ -92,35 +90,37 @@ sensor: pick Juggluco as Sukrara's source (*Settings › Sensor › Juggluco*).
 
 ## Install
 
-Downloads are on [GitHub releases](https://github.com/mauriciabad/Sukrara/releases) (0.90.x are marked
-*Pre-release*). The app id is `app.mauri.sukrara`.
+Downloads are on [GitHub releases](https://github.com/mauriciabad/sukrara/releases).
 
-- **Android** (Android 16+, arm64): download `Sukrara-0.90.x.apk` on the phone and open it; allow installs from your
-  browser when asked. Updates install over the old version and keep your data. With
+- **Android** (Android 16+, arm64): download `Sukrara-<version>.apk` on the phone and open it; allow installs from
+  your browser when asked. Updates install over the old version and keep your data. With
   [Obtainium](https://obtainium.imranr.dev/), turn on *Include prereleases*.
-- **Mac** (Apple Silicon, macOS 15+): download `Sukrara-0.90.x.dmg` and drag **Sukrara** onto **Applications**. The app
-  isn't notarized yet: the first open is stopped; click **Done**, then **System Settings → Privacy & Security → Open
-  Anyway** ([Apple: open a Mac app from an unknown developer](https://support.apple.com/guide/mac-help/mh40616/mac)).
-  Sukrara lives in the menu bar (no Dock icon). Homebrew only installs stable releases.
+- **Mac** (Apple Silicon, macOS 15+): download `Sukrara-<version>.dmg` and drag **Sukrara** onto **Applications**. The
+  app isn't notarized yet: the first open is stopped; click **Done**, then **System Settings → Privacy & Security →
+  Open Anyway** ([Apple: open a Mac app from an unknown developer](https://support.apple.com/guide/mac-help/mh40616/mac)).
+  Sukrara lives in the menu bar (no Dock icon). Homebrew (`mauriciabad/tap`) installs stable releases only.
 - **From this repo** (the owner's devices): `tools/install.sh phone|mac` builds the release, verifies it and installs
-  it in place. It refuses a dirty tree, unmerged work or failing checks. On the Mac it makes Sukrara the `sukrara:` link
-  handler.
+  it in place. It refuses a dirty tree, unmerged work or failing checks. On the Mac it makes Sukrara the `sukrara:`
+  link handler.
 
 ## Repository layout
 
 ```
 apps/
-  android/       Sukrara V1 for Android (Kotlin, Compose; Gradle root)            → apps/android/README.md
-  macos/         Sukrara V1 for Mac (Swift 6, SwiftPM; menu bar app + widget)      → apps/macos/README.md
-contracts/       what both apps agree on: alert rules + scenarios, card fixtures, settings schema, protocol,
-                 treatments, export, sensor traces (both test suites read it)      → contracts/README.md
+  android/       Sukrara for Android (Kotlin, Compose; Gradle root)               → apps/android/README.md
+  macos/         Sukrara for Mac (Swift 6, SwiftPM; menu bar app + widget)         → apps/macos/README.md
+contracts/       what every app agrees on: alert rules + scenarios, card fixtures, settings schema, protocol,
+                 treatments, export, sensor traces (every app's tests read it)      → contracts/README.md
 assets/brand/    app icons and brand art
 docs/            FEATURES.md (behaviour catalog), ARCHITECTURE.md, DEVELOPMENT.md, QA.md, the investigation
-                 reports (NN-*.md), v1/ (how V1 was built); also the sukrara.mauri.app site
+                 reports (NN-*.md); also the sukrara.mauri.app site
 tools/           check/ (CLAUDE.md as checks), hooks/, install.sh, release/, settings/gen.py
-poc/             the frozen showcase PoC (0.11.x): spikes/ and spec/ (Open Glucose Stream); reference only
+poc/             the frozen research PoC: spikes/ and spec/ (Open Glucose Stream); reference only
 third_party/     local only (gitignored): Juggluco, the Libre 3 native core's source
 ```
+
+Each app is a folder in `apps/` with its own build and README; every app tests itself against the same `contracts/`
+and the same `tools/check` rules, so a new app is one more folder.
 
 ## Build and test
 
@@ -138,14 +138,13 @@ the rules in [CLAUDE.md](CLAUDE.md); the design in [docs/ARCHITECTURE.md](docs/A
 | Settings code after a schema change | `python3 tools/settings/gen.py` |
 | Release builds | `tools/release/android-release.sh`, `tools/release/mac-release.sh` |
 
-Manual checks per surface: [docs/QA.md](docs/QA.md). Release history: [CHANGELOG.md](CHANGELOG.md). How V1 was
-planned, built and reviewed: [docs/v1/](docs/v1/README.md). The showcase's investigations, one report each:
-[docs/10-showcase.md](docs/10-showcase.md) and `docs/NN-*.md`.
+Manual checks per surface: [docs/QA.md](docs/QA.md). Release history: [CHANGELOG.md](CHANGELOG.md). The investigations, one
+report each: `docs/NN-*.md`.
 
 ## Disclaimer
 
 - **Not a medical device.** Values may be wrong, late or missing, and alerts may not ring. Don't make treatment
-  decisions or rely on alarms from anything in this repo. 0.90.x are release candidates.
+  decisions or rely on alarms from anything in this repo.
 - FreeStyle Libre is a trademark of Abbott. This project is not affiliated with Abbott or with Juggluco.
 - The sensor is read for interoperability with the author's own glucose data. Per-sensor pairing data is a secret
   and is never committed here.

@@ -1,4 +1,4 @@
-// Sukrara — https://github.com/mauriciabad/Sukrara
+// Sukrara — https://github.com/mauriciabad/sukrara
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.alerts
@@ -22,7 +22,7 @@ class ClockAndSideTest {
     private fun fire(id: String, k: AlertKind, at: Long = t0) =
         AlertInput.Remote(AlertEvent(id = id, k = k, state = AlertEvent.State.FIRE, at = at, t = at, sgv = 65, th = 70.0, n = 1))
 
-    // region follower mirror: side scope (the PoC hid a showing low on a high's Mute)
+    // region follower mirror: side scope (a high's Mute never hides a showing low)
 
     @Test fun aHighsMuteNeverHidesAShowingLow() {
         val f = machine(AlertRole.FOLLOWER_MIRROR)

@@ -1,4 +1,4 @@
-// Sukrara — https://github.com/mauriciabad/Sukrara
+// Sukrara — https://github.com/mauriciabad/sukrara
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.feature.settings
@@ -57,11 +57,11 @@ class SettingsGallery {
         AlertUiState(quiet = listOf(AlertQuietSide("low", matching = true, reason = AlertQuietReason.Muted, until = now.plusSeconds(1800), relaxMin = 0, canRemindLess = false)))
     private val release =
         Release(
-            "v0.90.1",
+            "v0.12.1",
             "https://example.invalid/r",
             prerelease = true,
             draft = false,
-            assets = listOf(ReleaseAsset("Sukrara-0.90.1.dmg", "https://example.invalid/d"), ReleaseAsset("Sukrara-0.90.1.apk", "https://example.invalid/a")),
+            assets = listOf(ReleaseAsset("Sukrara-0.12.1.dmg", "https://example.invalid/d"), ReleaseAsset("Sukrara-0.12.1.apk", "https://example.invalid/a")),
         )
 
     private val sensorWorking =
@@ -86,8 +86,8 @@ class SettingsGallery {
             "ranges" to { RangesContent(GraphPrefs(), { _, _ -> }) {} },
             "graph" to { GraphBasicsContent(GraphPrefs(), { _, _ -> }, { _, _ -> }) {} },
             "reliability" to { ReliabilityContent(AlertReadiness(setOf(AlertRequirement.FullScreenIntent, AlertRequirement.BatteryExemption)), {}) {} },
-            "about-update" to { AboutContent("0.90.0", UpdateState.Available(release), {}) {} },
-            "about-offline" to { AboutContent("0.90.0", UpdateState.Offline, {}) {} },
+            "about-update" to { AboutContent("0.12.0", UpdateState.Available(release), {}) {} },
+            "about-offline" to { AboutContent("0.12.0", UpdateState.Offline, {}) {} },
             "sensor" to { SensorSettingsContent(sensorWorking, now, zone, SensorSettingsActions()) {} },
             "sensor-ended" to { SensorSettingsContent(sensorWorking.copy(state = SensorState.Ended), now, zone, SensorSettingsActions()) {} },
             "sensor-juggluco-signed-out" to {

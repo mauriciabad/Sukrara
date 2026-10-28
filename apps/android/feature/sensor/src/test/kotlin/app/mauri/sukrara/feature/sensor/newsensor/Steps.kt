@@ -1,4 +1,4 @@
-// Sukrara — https://github.com/mauriciabad/Sukrara
+// Sukrara — https://github.com/mauriciabad/sukrara
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.feature.sensor.newsensor
@@ -17,7 +17,6 @@ internal object Steps {
         "no-nfc" to NewSensorStep.NoNfc,
         "nfc-off" to NewSensorStep.NfcOff,
         "needs-libreview" to NewSensorStep.NeedsLibreViewSignIn,
-        "showcase-warning" to NewSensorStep.ShowcaseWarning,
         "official-app-warning" to NewSensorStep.OfficialAppWarning,
         "needs-bt-permission" to NewSensorStep.NeedsBluetoothPermission,
         "bluetooth-off" to NewSensorStep.BluetoothOff,
@@ -27,8 +26,7 @@ internal object Steps {
         "nfc-failed-moved" to NewSensorStep.NfcFailed(NfcFailure.MovedTooSoon),
         "nfc-failed-not-libre3" to NewSensorStep.NfcFailed(NfcFailure.NotLibre3),
         "nfc-failed-ended" to NewSensorStep.NfcFailed(NfcFailure.SensorEnded),
-        "takeover-failed-showcase" to NewSensorStep.TakeoverFailed(showcaseInstalled = true),
-        "takeover-failed-other" to NewSensorStep.TakeoverFailed(showcaseInstalled = false),
+        "takeover-failed" to NewSensorStep.TakeoverFailed,
         "connecting-started" to NewSensorStep.ConnectingBle(SERIAL, NOW, activated = true),
         "connecting-paired" to NewSensorStep.ConnectingBle(SERIAL, NOW, activated = false),
         "ble-failed-off" to NewSensorStep.BleFailed(SERIAL, BleFailure.BluetoothOff),
