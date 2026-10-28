@@ -4,6 +4,7 @@
 package app.mauri.sukrara.share.owner
 
 import app.mauri.sukrara.protocol.SignedEvent
+import app.mauri.sukrara.protocol.event.Profile
 import app.mauri.sukrara.protocol.owner.IdentityCheck
 import app.mauri.sukrara.share.transport.RelayStatus
 
@@ -27,7 +28,15 @@ sealed interface OwnerShareState {
         val relays: Map<String, RelayStatus>,
         val backupPublishedAt: Long,
         val recoveryExportedAt: Long,
-    ) : OwnerShareState
+        /** How the wearer appears to followers (null = never set). */
+        val profile: Profile? = null,
+        /** Active followers that may add entries ("Can add entries"). */
+        val writers: Set<String> = emptySet(),
+        val passwordManagerSavedAt: Long = 0,
+    ) : OwnerShareState {
+        /** The identity is somewhere besides this phone: the password manager or a recovery code the wearer made. */
+        val backedUp: Boolean get() = passwordManagerSavedAt > 0 || recoveryExportedAt > 0
+    }
 
     /**
      * Another device (e.g. the old phone after a restore) publishes as this identity. Roster / backup / rotation and follower

@@ -18,7 +18,10 @@ import app.mauri.sukrara.core.model.storage.TreatmentRecord
 import app.mauri.sukrara.core.testing.FakeClock
 import app.mauri.sukrara.core.testing.InMemorySecureStore
 import app.mauri.sukrara.core.testing.InMemoryTreatmentsRepository
+import app.mauri.sukrara.protocol.event.Avatar
+import app.mauri.sukrara.protocol.event.Profile
 import app.mauri.sukrara.protocol.event.Rumor
+import app.mauri.sukrara.protocol.invite.InviteLink
 import app.mauri.sukrara.share.FakeRelayTransport
 import app.mauri.sukrara.share.OwnerFixtures
 import app.mauri.sukrara.share.OwnerFixtures.NOW
@@ -32,6 +35,7 @@ import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.time.Instant
@@ -169,6 +173,54 @@ class OwnerEngineTest {
             assertEquals(2, treatmentGks().distinct().size)
             e.remove(ana)
             assertTrue("writers" !in relay.subscriptions)
+            e.stop()
+        }
+
+    @Test fun profileWritersAndBackupReachTheState() =
+        runTest {
+            val e = engine()
+            assertTrue(e.createIdentity(backgroundScope, Profile("Alex", null)))
+            runCurrent()
+            val before = e.state.value as OwnerShareState.Sharing
+            assertEquals("Alex", before.profile?.name)
+            assertFalse(before.backedUp)
+
+            val avatar = Avatar.v1(1, "rings", 0, 3)
+            assertTrue(e.setProfile(Profile("Núria", avatar)))
+            assertEquals(Profile("Núria", avatar), (e.state.value as OwnerShareState.Sharing).profile)
+
+            // a refused save records nothing
+            assertFalse(e.saveToPasswordManager { _, _ -> false })
+            assertFalse((e.state.value as OwnerShareState.Sharing).backedUp)
+            // a code made but not kept isn't a backup either
+            assertTrue(e.exportRecovery("correct horse battery")!!.startsWith("ncryptsec1"))
+            assertFalse((e.state.value as OwnerShareState.Sharing).backedUp)
+            var saved: Pair<String, String>? = null
+            assertTrue(e.saveToPasswordManager { id, secret -> true.also { saved = id to secret } })
+            assertTrue(saved!!.first.startsWith("Sukrara · npub1"))
+            assertTrue(saved!!.second.startsWith("nsec1"))
+            assertTrue((e.state.value as OwnerShareState.Sharing).backedUp)
+            assertEquals(NOW, (store.load() as OwnerIdentityStore.Load.Loaded).state.passwordManagerSavedAt)
+            e.stop()
+        }
+
+    @Test fun aLeakedInviteIsAllowedOnlyWithTheCodeFromTheFollowersPhone() =
+        runTest {
+            val e = engine()
+            assertTrue(e.createIdentity(backgroundScope, null))
+            runCurrent()
+            val link = InviteLink.parse(e.createInvite("Mom")!!)!!
+            val s = (store.load() as OwnerIdentityStore.Load.Loaded).state
+            val mom = crypto.generate()
+            relay.deliver("inbox", OwnerFixtures.request(mom, s, link.token, "Mom"))
+            runCurrent()
+            relay.deliver("inbox", OwnerFixtures.request(crypto.generate(), s, link.token, "Mom"))
+            runCurrent()
+            val request = e.pendingRequest(mom.public.hex)!!
+            assertEquals(1, request.others)
+            assertFalse(e.approve(mom.public.hex))
+            assertFalse(e.approve(mom.public.hex, typedCode = "0000".takeIf { it != request.code } ?: "1111"))
+            assertTrue(e.approve(mom.public.hex, typedCode = request.code))
             e.stop()
         }
 
