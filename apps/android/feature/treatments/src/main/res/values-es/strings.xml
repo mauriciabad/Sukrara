@@ -34,4 +34,12 @@
         <item quantity="many">%1$d entradas se enviarán a quien lleva el sensor</item>
         <item quantity="other">%1$d entradas se enviarán a quien lleva el sensor</item>
     </plurals>
+    <string name="treatment_ago">Hace %1$s</string>
+    <string name="treatment_yesterday">Ayer %1$s</string>
+    <string name="treatment_mode_time">Hora</string>
+    <string name="treatment_mode_ago">Minutos antes</string>
+    <string name="treatment_unit_min">min</string>
+    <string name="treatment_quiet_highs">Altas silenciadas %1$s</string>
+    <string name="treatment_quiet_lows">Bajas silenciadas %1$s</string>
+    <string name="treatment_quiet_both">Altas silenciadas %1$s · bajas silenciadas %2$s</string>
 </resources>

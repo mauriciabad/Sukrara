@@ -119,6 +119,7 @@ class QuickTreatmentActivity : ComponentActivity() {
                         // over the lock screen Unlock takes Open Sukrara's place
                         onOpenApp = if (cd == null) ::openApp else null,
                         lock = cd?.let { LockInfo(it.wholeSeconds(now), ::unlock) },
+                        quiet = module.hints.quiet(),
                         // the card swallows taps so they don't reach the scrim
                         modifier = Modifier.pointerInput(Unit) { detectTapGestures { } },
                     )
