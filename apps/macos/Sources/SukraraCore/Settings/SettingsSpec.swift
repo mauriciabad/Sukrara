@@ -146,6 +146,9 @@ public enum SettingsSpec {
         SettingInfo(id: "general.unit", type: "enum", number: nil, mirror: false, wire: nil, android: "settings:unit", mac: "defaults:unit", path: nil, only: nil, reason: nil),
         SettingInfo(id: "setup.steps", type: "setup", number: nil, mirror: false, wire: nil, android: "", mac: "defaults:setupSteps", path: nil, only: "mac", reason: "The Mac's first-run walk (welcome, follow, alerts, notifications, open at login); Android's first run is its own role / permission flow with its own state"),
         SettingInfo(id: "general.openAtLogin", type: "bool", number: nil, mirror: false, wire: nil, android: "", mac: "system:SMAppService.mainApp", path: nil, only: "mac", reason: "A menu bar app starts as a login item; Android starts Sukrara's service on boot by itself"),
+        SettingInfo(id: "source.jugglucoLan", type: "bool", number: nil, mirror: false, wire: nil, android: "", mac: "defaults:jugglucoLan", path: nil, only: "mac", reason: "The Mac reads Juggluco's web server on the home network as a glucose source; Android reads Juggluco on the phone itself (source.source)"),
+        SettingInfo(id: "source.jugglucoAddress", type: "string", number: nil, mirror: false, wire: nil, android: "", mac: "defaults:jugglucoAddress", path: nil, only: "mac", reason: "The Mac reads Juggluco's web server on the home network as a glucose source; Android reads Juggluco on the phone itself (source.source)"),
+        SettingInfo(id: "source.jugglucoSecret", type: "secret", number: nil, mirror: false, wire: nil, android: "", mac: "keychain:jugglucoSecret", path: nil, only: "mac", reason: "The Mac reads Juggluco's web server on the home network as a glucose source; Android reads Juggluco on the phone itself (source.source)"),
         SettingInfo(id: "settings.pane", type: "enum", number: nil, mirror: false, wire: nil, android: "", mac: "defaults:settingsPane", path: nil, only: "mac", reason: "The Mac Settings window reopens on the last pane it showed (HIG Settings); Android settings are a navigation stack that starts at its top"),
         SettingInfo(id: "report.days", type: "enum", number: nil, mirror: false, wire: nil, android: "", mac: "defaults:reportDays", path: nil, only: "mac", reason: "Both reports offer the same 1 / 7 / 14 / 30-day choice in the report itself; the Mac's report window remembers the last one, Android's card starts at 14 days"),
         SettingInfo(id: "source.source", type: "enum", number: nil, mirror: false, wire: nil, android: "settings:source", mac: "", path: nil, only: "android", reason: "Only the wearer's phone reads a sensor; the Mac follows (its source is the follow link, Settings › General)"),
@@ -218,6 +221,8 @@ public enum SettingsSpec {
         public static let alerts = "alerts"
         public static let unit = "unit"
         public static let setupSteps = "setupSteps"
+        public static let jugglucoLan = "jugglucoLan"
+        public static let jugglucoAddress = "jugglucoAddress"
         public static let settingsPane = "settingsPane"
         public static let reportDays = "reportDays"
     }

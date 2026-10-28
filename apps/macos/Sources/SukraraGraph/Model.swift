@@ -84,7 +84,7 @@ public enum TirRange: String, Codable, CaseIterable, Sendable {
 
 /// Share of time per band in a window (each reading stands for the time until the next one, capped at 15 min).
 /// `low` / `high` are the LOW / HIGH bands only; `below` / `above` include the very low / very high ones.
-struct TimeInRange: Codable, Equatable {
+struct TimeInRange: Codable, Equatable, Sendable {
     var veryLow = 0.0, low = 0.0, tight = 0.0, target = 0.0, high = 0.0, veryHigh = 0.0, coverage = 0.0
     /// Exactly 1 when nothing is below or above (the sum of two shares can miss it; 100 % is the crown, `TirMark`).
     var inRange: Double { below <= 0 && above <= 0 && !empty ? 1 : tight + target }

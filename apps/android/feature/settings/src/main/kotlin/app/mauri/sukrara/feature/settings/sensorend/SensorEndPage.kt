@@ -108,6 +108,8 @@ fun reminderDays(d: Int): String =
  * *Add reminder* below the list up to six), first-unlock delivery, the night (evening reminder, bedtime, wake-up:
  * Android doesn't share its Bedtime schedule), the live countdowns (end countdown and its hours, warm-up) and the
  * sensor's end in the calendar ([calendar]: null = not offered).
+ * [countdownReadOnly] = a follower not in Custom: the countdown's hours are mirrored (*Settings from*), shown in use
+ * under [countdownNote] (why, and the way to change it).
  */
 @Composable
 fun SensorEndContent(
@@ -117,6 +119,8 @@ fun SensorEndContent(
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
     calendar: Pair<SensorCalendarState, SensorCalendarPort>? = null,
+    countdownReadOnly: Boolean = false,
+    countdownNote: @Composable () -> Unit = {},
 ) {
     val c = prefs.config
     // null = closed; -1 = a new reminder
@@ -181,6 +185,7 @@ fun SensorEndContent(
                 icon = DsR.drawable.ds_ic_sunny,
             )
         }
+        if (countdownReadOnly) countdownNote()
         SettingsGroup(title = stringResource(R.string.st_sensorend_countdowns)) {
             SwitchRow(
                 stringResource(R.string.st_sensorend_countdown),
@@ -195,7 +200,9 @@ fun SensorEndContent(
                 { choosingHours = true },
                 enabled = c.countdown,
                 icon = DsR.drawable.ds_ic_hourglass_top,
+                readOnly = countdownReadOnly,
             )
+
             SwitchRow(
                 stringResource(R.string.st_sensorend_warmup),
                 c.warmup,

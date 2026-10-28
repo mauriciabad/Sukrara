@@ -51,6 +51,12 @@ public enum MacSettings {
     public static let reportDays = SettingSpec(key: SettingsSpec.Keys.reportDays, defaultValue: 14)
     public static let settingsFrom = SettingSpec(key: SettingsSpec.Keys.settingsFrom, defaultValue: "wearer")
     public static let unit = SettingSpec(key: SettingsSpec.Keys.unit, defaultValue: GlucoseUnit.mgdl.rawValue)
+    /// Read glucose from Juggluco's web server on the home network (off by default; plain http, private addresses).
+    public static let jugglucoLan = SettingSpec(key: SettingsSpec.Keys.jugglucoLan, defaultValue: false)
+    /// Juggluco's address ("192.168.1.23" or with ":port"); blank = find it on this Mac's networks.
+    public static let jugglucoAddress = SettingSpec(key: SettingsSpec.Keys.jugglucoAddress, defaultValue: "")
+    /// The Keychain account of Juggluco's API secret (schema `source.jugglucoSecret`).
+    public static let jugglucoSecretAccount = "jugglucoSecret"
     /// The alert settings: ONE JSON value (contracts/alerts/SPEC.md §3), owned by the alert settings store.
     public static let alerts = SettingSpec(key: SettingsSpec.Keys.alerts, defaultValue: Data())
     /// The first-run walk's step states (JSON), owned by `SetupFlow`.

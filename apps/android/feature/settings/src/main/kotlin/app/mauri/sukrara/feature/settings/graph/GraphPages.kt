@@ -8,6 +8,7 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -198,15 +199,22 @@ fun bandName(
  * Settings › Graph: the live card on top, then lines across the graph, time shown (default and per place), what sits
  * beside the number (slots, last treatment, ring centre, rewards), the ring order, beside the graph, treatments on the
  * graph, the sensor's time per place and Reset all. Every section has its own Reset while it differs from the defaults.
+ * [readOnly] = a follower not in Custom (*Settings from*): the mirrored sections show the values in use and can't be
+ * changed (no Reset, no Reset all); the time and sensor time per place stay this phone's own and editable.
  */
 @Composable
 fun GraphContent(
     c: GraphConfig,
     actions: GraphActions,
     onBack: () -> Unit,
+    readOnly: Boolean = false,
     preview: @Composable () -> Unit = {},
 ) {
     var dialog by rememberSaveable { mutableStateOf<GraphDialog?>(null) }
+    // a mirrored section's Reset only where this phone's own values are in use
+    val resetIcon: @Composable (GraphSection, String) -> Unit = { section, title ->
+        if (!readOnly) ResetIcon(section, c, title, actions.reset)
+    }
     val label = numberLabeler()
     val period = periodLabeler()
     val mgdl = stringResource(R.string.st_mgdl)
@@ -214,8 +222,10 @@ fun GraphContent(
         PreviewCard(preview)
 
         val linesTitle = stringResource(R.string.st_graph_lines)
-        SettingsGroup(title = linesTitle, titleAction = { ResetIcon(GraphSection.Lines, c, linesTitle, actions.reset) }) {
-            if (c.lines.isNotEmpty()) CardRow { LineChips(c.lines, mgdl) { actions.lines(c.lines - it) } }
+        SettingsGroup(title = linesTitle, titleAction = { resetIcon(GraphSection.Lines, linesTitle) }) {
+            if (c.lines.isNotEmpty()) {
+                CardRow { LineChips(c.lines, mgdl, !readOnly) { actions.lines(c.lines - it) } }
+            }
             val max = SettingsSpec.LINE.maxItems
             ValueRow(
                 stringResource(R.string.st_graph_line_add),
@@ -223,17 +233,23 @@ fun GraphContent(
                 { dialog = GraphDialog.AddLine },
                 icon = DsR.drawable.ds_ic_add,
                 enabled = c.lines.size < max,
+                readOnly = readOnly,
             )
             ValueRow(stringResource(R.string.st_graph_grid), label(SettingsSpec.GRID_HOURS, c.gridHours.toDouble()), {
                 dialog = GraphDialog.Grid
-            }, icon = DsR.drawable.ds_ic_bar_chart)
+            }, icon = DsR.drawable.ds_ic_bar_chart, readOnly = readOnly)
         }
 
         val timeTitle = stringResource(R.string.st_graph_hours)
-        SettingsGroup(title = timeTitle, titleAction = { ResetIcon(GraphSection.Time, c, timeTitle, actions.reset) }) {
-            ValueRow(stringResource(R.string.st_graph_hours_default), label(SettingsSpec.GRAPH_HOURS, c.defaultHours.toDouble()), {
-                dialog = GraphDialog.DefaultHours
-            }, icon = DsR.drawable.ds_ic_schedule)
+        SettingsGroup(title = timeTitle, titleAction = { resetIcon(GraphSection.Time, timeTitle) }) {
+            ValueRow(
+                stringResource(R.string.st_graph_hours_default),
+                label(SettingsSpec.GRAPH_HOURS, c.defaultHours.toDouble()),
+                { dialog = GraphDialog.DefaultHours },
+                icon = DsR.drawable.ds_ic_schedule,
+                readOnly = readOnly,
+            )
+            // the time shown per place is always this phone's own
             for (p in GraphPlace.entries) {
                 val own = c.placeHours[p]
                 ValueRow(
@@ -247,23 +263,23 @@ fun GraphContent(
         }
 
         val besideTitle = stringResource(R.string.st_graph_beside)
-        SettingsGroup(title = besideTitle, titleAction = { ResetIcon(GraphSection.Beside, c, besideTitle, actions.reset) }) {
+        SettingsGroup(title = besideTitle, titleAction = { resetIcon(GraphSection.Beside, besideTitle) }) {
             ValueRow(stringResource(R.string.st_graph_rings), label(SettingsSpec.RING_COUNT, c.ringCount.toDouble()), {
                 dialog = GraphDialog.RingCount
-            }, icon = DsR.drawable.ds_ic_donut_large)
+            }, icon = DsR.drawable.ds_ic_donut_large, readOnly = readOnly)
             for (i in 0 until c.ringCount.coerceIn(0, c.slots.size)) {
                 val slot = c.slots[i]
                 val name = slotName(i)
                 ValueRow(name, slotKindName(slot.kind) + " · " + period(slot.windowS.toDouble()), {
                     dialog = GraphDialog.SlotKindOf(i)
-                }, icon = DsR.drawable.ds_ic_donut_small)
+                }, icon = DsR.drawable.ds_ic_donut_small, readOnly = readOnly)
                 ValueRow(stringResource(R.string.st_slot_period, name), period(slot.windowS.toDouble()), {
                     dialog = GraphDialog.SlotPeriod(i)
-                }, icon = DsR.drawable.ds_ic_schedule)
+                }, icon = DsR.drawable.ds_ic_schedule, readOnly = readOnly)
                 if (i > 0) {
                     SwitchRow(stringResource(R.string.st_slot_faded, name), slot.faded, { on ->
                         actions.slots(c.slots.toMutableList().also { it[i] = slot.copy(faded = on) })
-                    }, icon = DsR.drawable.ds_ic_opacity)
+                    }, icon = DsR.drawable.ds_ic_opacity, readOnly = readOnly)
                 }
             }
             ValueRow(
@@ -271,6 +287,7 @@ fun GraphContent(
                 lastPlaceName(c.lastPlace),
                 { dialog = GraphDialog.Last },
                 icon = DsR.drawable.ds_ic_last_page,
+                readOnly = readOnly,
             )
             if (c.lastPlace != LastPlace.OFF) {
                 val other = c.lastElse
@@ -279,41 +296,48 @@ fun GraphContent(
                     other?.let { slotKindName(it.kind) + " · " + period(it.windowS.toDouble()) } ?: stringResource(R.string.st_nothing),
                     { dialog = GraphDialog.LastElseKind },
                     icon = DsR.drawable.ds_ic_donut_small,
+                    readOnly = readOnly,
                 )
                 if (other != null) {
                     ValueRow(stringResource(R.string.st_last_else_period), period(other.windowS.toDouble()), {
                         dialog = GraphDialog.LastElsePeriod
-                    }, icon = DsR.drawable.ds_ic_schedule)
+                    }, icon = DsR.drawable.ds_ic_schedule, readOnly = readOnly)
                     SwitchRow(
                         stringResource(R.string.st_last_else_faded),
                         other.faded,
                         { on -> actions.lastElse(other.copy(faded = on)) },
                         icon = DsR.drawable.ds_ic_opacity,
+                        readOnly = readOnly,
                     )
                 }
             }
-            ValueRow(stringResource(R.string.st_ring_counts), rangeName(c.ringRange, c), {
-                dialog = GraphDialog.Range
-            }, icon = DsR.drawable.ds_ic_dia_range)
+            ValueRow(
+                stringResource(R.string.st_ring_counts),
+                rangeName(c.ringRange, c),
+                { dialog = GraphDialog.Range },
+                icon = DsR.drawable.ds_ic_dia_range,
+                readOnly = readOnly,
+            )
             SwitchRow(
                 stringResource(R.string.st_graph_marks),
                 c.ringMarks,
                 { actions.bool(GraphSettings.RingMarks, it) },
                 summary = stringResource(R.string.st_graph_marks_summary),
                 icon = DsR.drawable.ds_ic_edit_note,
+                readOnly = readOnly,
             )
         }
 
         val orderTitle = stringResource(R.string.st_ring_order)
-        SettingsGroup(title = orderTitle, titleAction = { ResetIcon(GraphSection.RingOrder, c, orderTitle, actions.reset) }) {
-            CardRow { RingOrderList(c, actions.ringOrder) }
+        SettingsGroup(title = orderTitle, titleAction = { resetIcon(GraphSection.RingOrder, orderTitle) }) {
+            CardRow { RingOrderList(c, actions.ringOrder, !readOnly) }
         }
-        FooterText(stringResource(R.string.st_ring_order_footer))
+        if (!readOnly) FooterText(stringResource(R.string.st_ring_order_footer))
 
         val besideGraphTitle = stringResource(R.string.st_graph_beside_graph)
         SettingsGroup(
             title = besideGraphTitle,
-            titleAction = { ResetIcon(GraphSection.BesideGraph, c, besideGraphTitle, actions.reset) },
+            titleAction = { resetIcon(GraphSection.BesideGraph, besideGraphTitle) },
         ) {
             SwitchRow(
                 stringResource(R.string.st_graph_side),
@@ -321,6 +345,7 @@ fun GraphContent(
                 { actions.bool(GraphSettings.Side, it) },
                 summary = stringResource(R.string.st_graph_side_summary),
                 icon = DsR.drawable.ds_ic_align_horizontal_left,
+                readOnly = readOnly,
             )
             SwitchRow(
                 stringResource(R.string.st_graph_crown),
@@ -328,6 +353,7 @@ fun GraphContent(
                 { actions.bool(GraphSettings.ColumnCrown, it) },
                 enabled = c.side,
                 icon = DsR.drawable.ds_ic_crown,
+                readOnly = readOnly,
             )
         }
 
@@ -345,7 +371,7 @@ fun GraphContent(
             for (p in GraphPlace.entries) SwitchRow(placeName(p), c.sensorTime(p), { actions.sensorTime(p, it) }, icon = placeIcon(p))
         }
 
-        if (GraphSection.All.changed(c)) {
+        if (GraphSection.All.changed(c) && !readOnly) {
             SettingsGroup {
                 DangerRow(
                     stringResource(R.string.st_graph_reset_all),
@@ -527,6 +553,7 @@ private fun CloseLater(close: () -> Unit) {
 private fun LineChips(
     lines: List<Int>,
     mgdl: String,
+    enabled: Boolean,
     onRemove: (Int) -> Unit,
 ) {
     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -536,9 +563,19 @@ private fun LineChips(
                 selected = false,
                 onClick = { onRemove(l) },
                 label = { Text("$l $mgdl") },
-                trailingIcon = {
-                    Icon(painterResource(R.drawable.st_ic_close), contentDescription = remove, Modifier.size(InputChipDefaults.AvatarSize))
-                },
+                enabled = enabled,
+                trailingIcon =
+                    if (enabled) {
+                        {
+                            Icon(
+                                painterResource(R.drawable.st_ic_close),
+                                contentDescription = remove,
+                                Modifier.size(InputChipDefaults.AvatarSize),
+                            )
+                        }
+                    } else {
+                        null
+                    },
             )
         }
     }
@@ -549,14 +586,21 @@ private fun LineChips(
 private fun RingOrderList(
     c: GraphConfig,
     onOrder: (List<Band>) -> Unit,
+    editable: Boolean,
 ) {
     val palette = GraphPalette.of(isSystemInDarkTheme())
-    ReorderList(c.ringOrder, onOrder) { band ->
+    val row: @Composable (Band) -> Unit = { band ->
         Row(verticalAlignment = Alignment.CenterVertically) {
             val color = Color(palette.of(band))
             Canvas(Modifier.padding(end = 12.dp).size(14.dp)) { drawCircle(color) }
             Text(bandName(band, c), style = MaterialTheme.typography.bodyLarge)
         }
+    }
+    if (editable) {
+        ReorderList(c.ringOrder, onOrder, rowContent = row)
+    } else {
+        // the order in use, nothing to drag
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) { c.ringOrder.forEach { row(it) } }
     }
 }
 
@@ -603,26 +647,14 @@ fun GraphMarksContent(
     c: GraphConfig,
     actions: GraphActions,
     onBack: () -> Unit,
+    readOnly: Boolean = false,
     preview: @Composable () -> Unit = {},
 ) {
     val title = stringResource(R.string.st_marks_title)
     SettingsPage(title, onBack) {
         PreviewCard(preview)
-        for (k in MarkShow.KINDS) {
-            SettingsGroup(title = markKindName(k)) {
-                for (p in MarkShow.parts(k)) {
-                    val (name, summary) =
-                        when (p) {
-                            MarkShow.POINT -> stringResource(R.string.st_marks_point) to null
-                            MarkShow.LINE -> stringResource(R.string.st_marks_line) to stringResource(R.string.st_marks_line_summary)
-                            MarkShow.AMOUNT -> stringResource(R.string.st_marks_amount) to null
-                            else -> stringResource(R.string.st_marks_time) to null
-                        }
-                    SwitchRow(name, c.marks.has(k, p), { on -> actions.marks(c.marks.with(k, p, on)) }, summary = summary)
-                }
-            }
-        }
-        if (GraphSection.Marks.changed(c)) {
+        MarkGroups(c, actions, readOnly)
+        if (GraphSection.Marks.changed(c) && !readOnly) {
             SettingsGroup {
                 ValueRow(
                     stringResource(R.string.st_marks_reset),
@@ -633,5 +665,33 @@ fun GraphMarksContent(
             }
         }
         FooterText(stringResource(R.string.st_marks_footer))
+    }
+}
+
+@Composable
+private fun MarkGroups(
+    c: GraphConfig,
+    actions: GraphActions,
+    readOnly: Boolean,
+) {
+    for (k in MarkShow.KINDS) {
+        SettingsGroup(title = markKindName(k)) {
+            for (p in MarkShow.parts(k)) {
+                val (name, summary) =
+                    when (p) {
+                        MarkShow.POINT -> stringResource(R.string.st_marks_point) to null
+                        MarkShow.LINE -> stringResource(R.string.st_marks_line) to stringResource(R.string.st_marks_line_summary)
+                        MarkShow.AMOUNT -> stringResource(R.string.st_marks_amount) to null
+                        else -> stringResource(R.string.st_marks_time) to null
+                    }
+                SwitchRow(
+                    name,
+                    c.marks.has(k, p),
+                    { on -> actions.marks(c.marks.with(k, p, on)) },
+                    summary = summary,
+                    readOnly = readOnly,
+                )
+            }
+        }
     }
 }

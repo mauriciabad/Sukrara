@@ -180,7 +180,8 @@ the standard domain with schema keys, URL scheme `sukrara`, widget kinds `app.ma
   no services, isolated data.
 - `ServicesPlan` is an **upper limit**: the app ANDs it with the user's settings (`limited(by:)`) and starts services
   only through `ServicesPlan.start(using: some ServiceStarting)`. The app's `ServiceStarting` is the only code that
-  creates a Bluetooth central, relay pool, alert engine, widget feed or notification request.
+  creates a Bluetooth central, relay pool, alert engine, widget feed, notification request or the Juggluco source
+  (`lan`).
 
 Test fixtures: `Contracts.url("alerts/scenarios")` (`SukraraTesting`) resolves `SUKRARA_CONTRACTS` or walks up from
 the test source to `contracts/`.
@@ -249,6 +250,11 @@ WidgetFeed (SukraraApp) ── glucose.json in the App Group + WidgetReloadPolic
   OGS `ble` vectors; `NearbyLink` is the per-connection protocol (HELLO, INFO proof, one write in flight, nothing
   written before the phone proved it's the wearer's); `NearbyCentral` is the CoreBluetooth adapter, an actor whose
   executor is the CB queue (delegate callbacks enter with `assumeIsolated`).
+- **Juggluco on this network** (`SukraraShare/Lan`): `JugglucoApi` (pure: URLs, `sha1hex` secret, entries / SSE
+  parsing, `LanAddress` home ranges, `LanInterface.hosts` sweep list) and the `JugglucoLanSource` actor (find → history
+  → live, backoff, its own 31-day `ReadingsFileStore` under `juggluco/`) behind `LanSourcing`; every request goes
+  through `LanHTTP` (`URLSessionLanHTTP`; tests `FakeLanHTTP`). `ServicesPlan.lan` creates it idle; `AppModel` turns
+  it on from the setting while not following and feeds its readings to the card and the alerts.
 - Tests: `FollowerRuntimeTests` (join over a fake relay hub with the OGS invite and key, outbox, unfollow, Keychain
   errors), `ProtocolCompatTests` (every sync fixture through the runtime into file stores, incl. `rotation.json` =
   restore), `NearbyTests`, `StoreTests`, `KeychainStoreTests` (temp service), `WidgetFeedTests`.
@@ -323,7 +329,8 @@ read (new app id, no migration). Nothing is in cloud backup or device transfer (
 |---|---|---|
 | Settings | `datastore/<store>.preferences_pb`, one per schema store, keys from `contracts/settings/settings.json` | `SettingsRepository` + `SchemaSettings.number/bool/text(id)` |
 | Typed state (alert episodes, sensor pairing, the wearer's last mirrored settings `wearer_settings`, …) | `files/state/<name>.json` (DataStore + kotlinx JSON) | `DataModule.typedStore(name, serializer, initial, whenCorrupt)` |
-| A follower's settings in use | the stored settings, the mirrored graph rows resolved per `follower.settingsFrom` (Wearer / Default / Custom) | `FollowerSettingsRepository` (`:core:data`), built by `FollowerSettingsBridge` (`:app`, also the alert runtime's mirrored values and `alerts.source`) |
+| A follower's settings in use | the stored settings, the mirrored graph rows resolved per `follower.settingsFrom` (Wearer / Default / Custom) | `FollowerSettingsRepository` (`:core:data`), built by `FollowerSettingsBridge` (`:app`, also the alert runtime's mirrored values, the alert pages' values in use and `alerts.source`) |
+| The wearer's settings for its followers | this phone's mirrored graph rows under their wire keys + the whole alert settings (SPEC §3); the owner engine keeps the `"mirror": true` rows and publishes the settings event when they change | `WearerSettingsSource` (`:app`) → `MirroredSettingsSource` of `ShareOwnerModule` |
 | Secrets | `files/secure/<name>.bin` = `0x01` ‖ IV ‖ AES-256-GCM (AAD = name); Keystore alias `sukrara.<name>`, one key per purpose: `identity.owner`, `identity.follower`, `nightscout`, `nightscout-api`, `tidepool`, `libreview`, `sensor` | `SecureStore` (`KeystoreSecureStore` on `SecretBox`) |
 | History | `databases/sukrara.db` (Room v1, schema in `core/data/schemas/`): `readings` (PK t+source), `treatments` (LWW on `modified_at`, tombstones), `seen_wraps`, `rejects`, `outbox` | `ReadingsRepository`, `TreatmentsRepository`, DAOs for the sharing ledger |
 | Other files | `files/<path>` atomic tmp + fsync + rename | `DataModule.fileStore(path, codec)` → `Loaded / Missing / Corrupt` |

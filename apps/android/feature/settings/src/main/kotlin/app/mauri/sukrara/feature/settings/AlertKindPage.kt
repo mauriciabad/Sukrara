@@ -75,6 +75,8 @@ fun AlertKindContent(
     ui: AlertsUi,
     clock: Clock,
     actions: AlertKindActions,
+    /** Above the page's groups (a follower's *Settings from* note while [AlertsUi.mirrors] this kind). */
+    header: @Composable () -> Unit = {},
     onBack: () -> Unit,
 ) {
     val rule = ui.settings.rule(kind)
@@ -85,6 +87,7 @@ fun AlertKindContent(
     val label = numberLabeler()
     SettingsPage(kindName(kind), onBack) {
         ui.quietOf(kind)?.let { QuietStrip(kind, it, clock, actions) }
+        header()
         SettingsGroup {
             SwitchRow(
                 stringResource(R.string.st_kind_use, kindName(kind)),
@@ -93,6 +96,7 @@ fun AlertKindContent(
                 enabled = ui.settings.on,
                 summary = if (ui.settings.on) null else stringResource(R.string.st_alerts_main_off),
                 icon = kindIcon(kind),
+                readOnly = ui.mirrors(kind),
             )
         }
         SettingsGroup(title = stringResource(R.string.st_alert_when)) {
@@ -102,6 +106,7 @@ fun AlertKindContent(
                 { dialog = "threshold" },
                 enabled = rule.on,
                 icon = DsR.drawable.ds_ic_dia_range,
+                readOnly = ui.mirrors(kind),
             )
             ValueRow(
                 stringResource(R.string.st_repeat),
@@ -109,8 +114,10 @@ fun AlertKindContent(
                 { dialog = "repeat" },
                 enabled = rule.on,
                 icon = DsR.drawable.ds_ic_repeat,
+                readOnly = ui.mirrors(kind),
             )
         }
+
         SettingsGroup(title = stringResource(R.string.st_sound_title)) {
             SwitchRow(
                 stringResource(R.string.st_alarm),

@@ -36,6 +36,23 @@ struct GeneralPane: View {
                 }
                 .pickerStyle(.segmented)
             }
+            Section {
+                JugglucoRows(model: model.juggluco)
+            } header: {
+                Text(L10n.t("Source"))
+            } footer: {
+                Text(
+                    L10n.t(
+                        "While this Mac follows nobody, it can read glucose from Juggluco's web server on the same network (in Juggluco: Settings › Web server, with Local only off). Plain http on your home network only: readings travel unencrypted between the phone and this Mac."
+                    )
+                )
+                .font(.callout).foregroundStyle(.secondary)
+            }
+            .onAppear(perform: model.juggluco.load)
+            .onDisappear {
+                model.juggluco.saveAddress()
+                model.juggluco.saveSecret()
+            }
             Section(L10n.t("Startup")) {
                 OpenAtLoginRows(loginItem: loginItem)
             }

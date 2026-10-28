@@ -451,7 +451,8 @@ class AndroidNearbyCentral(
             null
         }
 
-    private fun now() = System.currentTimeMillis()
+    /** Monotonic: scan budget, skips and silences never stretch when the wall clock jumps. */
+    private fun now() = android.os.SystemClock.elapsedRealtime()
 
     companion object {
         /** The follower's Bluetooth path needs both (Android 12+; scan is `neverForLocation`). */

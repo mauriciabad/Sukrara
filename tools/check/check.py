@@ -26,7 +26,7 @@ Checks
               captures flagged
   strings     new hardcoded UI text in Android Kotlin; each module's values/ and values-es/ keys in sync
   cleartext   the app permits cleartext only to loopback (network_security_config, for Juggluco): every
-              http:// / ws:// literal or "http"/"ws" scheme in Android Kotlin, and every place that opens a
+              http:// / ws:// literal or "http"/"ws" scheme in Android Kotlin and Mac Swift, and every place that opens a
               connection, must be on allow.json's cleartext_ok / network_ok lists (with the reason). Whole tree.
   card-surface  one graph everywhere and the freshness steps everywhere (the user, 2026-10-21: a badge moved on one
               surface only; the status bar kept a 20-min-old value as if current; "things like this cannot happen
@@ -356,16 +356,20 @@ def check_debug(ch, rep):
 
 CLEARTEXT = re.compile(r"""["'](?:http|ws)(?:["':])""", re.I)
 NETWORK = re.compile(r"openConnection\(|newWebSocket\(|Request\.Builder\(|\.toURL\(")
+MAC_NETWORK = re.compile(r"URLSession\(|URLSession\.shared|webSocketTask\(")
 
 
 def check_cleartext(ch, rep):
-    """cleartext: whole-tree scan of the Android app's main Kotlin (not only the change): a cleartext URL or scheme, or a
-    new place that opens connections, fails unless allow.json lists that exact spot with its reason."""
+    """cleartext: whole-tree scan of the Android app's main Kotlin and the Mac app's Swift (not only the change): a
+    cleartext URL or scheme, or a new place that opens connections, fails unless allow.json lists that exact spot with
+    its reason."""
     allow = load("allow.json")
     clear_ok, net_ok = allow["cleartext_ok"], allow["network_ok"]
     where = ["--cached"] if not ch.rev else []
     out = git("grep", "-n", "-I", "-E", "-i", *where, "-e", r"(\"|')(http|ws)(\"|'|:)|openConnection\(|newWebSocket\(|Request\.Builder\(|\.toURL\(",
               *([ch.rev] if ch.rev else []), "--", ANDROID + "*.kt", ok=True)
+    mac = git("grep", "-n", "-I", "-E", "-i", *where, "-e", r"(\"|')(http|ws)(\"|'|:)|URLSession\(|URLSession\.shared|webSocketTask\(",
+              *([ch.rev] if ch.rev else []), "--", MAC_SOURCES + "*.swift", ok=True)
     files = set(tree_files(ch))
     for e in clear_ok + net_ok:
         rep.pending(files, e["path"], "cleartext", "allow.json entry")
@@ -374,12 +378,12 @@ def check_cleartext(ch, rep):
     if re.search(r'<base-config[^>]*cleartextTrafficPermitted="true"', xml):
         rep.add("FAIL", "cleartext", "%s permits cleartext app-wide. Keep the base config off and allow cleartext\n"
                 "only per domain (loopback today), with the reason in tools/check/allow.json." % nsc)
-    for line in out.splitlines():
+    for line in out.splitlines() + mac.splitlines():
         if ch.rev and line.startswith(ch.rev + ":"):
             line = line[len(ch.rev) + 1:]
         path, _, rest = line.partition(":")
         n, _, text = rest.partition(":")
-        if text.lstrip().startswith(("//", "*", "/*")) or not match(path, [ANDROID_MAIN]):
+        if text.lstrip().startswith(("//", "*", "/*")) or not (match(path, [ANDROID_MAIN]) or path.startswith(MAC_SOURCES)):
             continue
         for m in CLEARTEXT.finditer(text):
             if not any(e["path"] == path and e["contains"] in text for e in clear_ok):
@@ -387,7 +391,7 @@ def check_cleartext(ch, rep):
                         "loopback (network_security_config); use https:// / wss://, or add this\n"
                         "exact spot to tools/check/allow.json cleartext_ok with the reason." % (path, n, text.strip()[:60]))
                 break
-        if NETWORK.search(text) and not any(e["path"] == path for e in net_ok):
+        if (MAC_NETWORK if path.endswith(".swift") else NETWORK).search(text) and not any(e["path"] == path for e in net_ok):
             rep.add("FAIL", "cleartext", "%s:%s opens a connection in a file not on tools/check/allow.json network_ok. Make sure the\n"
                     "URL can only be https:// / wss:// (or loopback), then list the file with the reason." % (path, n))
 

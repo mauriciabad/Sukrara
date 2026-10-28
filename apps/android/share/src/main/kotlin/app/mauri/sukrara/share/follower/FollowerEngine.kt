@@ -440,6 +440,10 @@ class FollowerEngine(
     private suspend fun wipeData() {
         readingsRepo.deleteBefore(Instant.ofEpochSecond(Long.MAX_VALUE / 1000))
         treatments.deleteAll()
+        // the previous wearer's settings too, and a failed write fails like the deletes above: a record that later
+        // can't be opened must never run the previous person's thresholds from the plain copy
+        latestSettings.value = null
+        settingsCache?.update { WearerSettingsCache() }
     }
 
     // ------------------------------------------------------------------------------------------------ the source

@@ -33,6 +33,21 @@ public final class AppDelegate: NSObject, NSApplicationDelegate {
         model.unit = store.unit
         model.graph = GraphConfig.load(from: store, wearer: nil, place: .menubar)
         model.widgetGraph = GraphConfig.load(from: store, wearer: nil, place: .widget)
+        if model.lan != nil {
+            secrets = KeychainStore(service: plan.data.keychainService)
+            lanSecret = JugglucoModel.secret(secrets)
+        }
+    }
+
+    /// The Keychain holding Juggluco's API secret (nil when this run has no Juggluco source).
+    private var secrets: KeychainStore?
+    /// Juggluco's API secret, read once from the Keychain and kept as the Settings window changes it.
+    private var lanSecret = ""
+
+    /// The Juggluco switch, address and secret (nil = off).
+    private var lanConfig: LanConfig? {
+        store.value(MacSettings.jugglucoLan)
+            ? LanConfig(address: store.value(MacSettings.jugglucoAddress), secret: lanSecret) : nil
     }
 
     public func applicationDidFinishLaunching(_ notification: Notification) {
@@ -41,6 +56,16 @@ public final class AppDelegate: NSObject, NSApplicationDelegate {
             await services.requestNotifications()
         }
         self.windows = windows
+        let juggluco = windows.settings.juggluco
+        juggluco.secrets = secrets
+        juggluco.available = { [weak model] in model?.lan != nil }
+        juggluco.state = { [weak model] in model?.lanSnapshot.state ?? .off }
+        juggluco.pausedFor = { [weak model] in model?.lanPausedFor }
+        juggluco.retry = { [weak model] in model?.retryLan() }
+        juggluco.secretChanged = { [weak self] secret in
+            self?.lanSecret = secret
+            self?.settingsChanged()
+        }
         model.onSnapshot = { [weak self, weak windows] snapshot in
             windows?.apply(snapshot)
             self?.wearerChanged(WindowCoordinator.wearerSettings(snapshot))
@@ -79,6 +104,7 @@ public final class AppDelegate: NSObject, NSApplicationDelegate {
         observeClockStyle()
         observeNetwork()
         refreshNotificationPermission()
+        model.lanConfig = lanConfig
         model.run()
         if case .snapshot = model.plan.mode {} else { windows.showSetupIfFirstRun() }
         AppLog.app.info("launched (offline: \(self.model.plan.isOffline, privacy: .public))")
@@ -148,7 +174,7 @@ public final class AppDelegate: NSObject, NSApplicationDelegate {
 
     /// The network came back: reconnect the relays now instead of waiting for the pool's watchdog (up to 270 s).
     private func observeNetwork() {
-        guard model.follower != nil else { return }
+        guard model.follower != nil || model.lan != nil else { return }
         // only a transition to satisfied: the monitor's first callback (at start) reports the current path, and the
         // runtime is connecting then anyway
         network.pathUpdateHandler = { [weak self] path in
@@ -183,6 +209,7 @@ public final class AppDelegate: NSObject, NSApplicationDelegate {
         if model.graph != graph { model.graph = graph }
         if model.widgetGraph != widgetGraph { model.widgetGraph = widgetGraph }
         if changed { model.feedWidget(settingsChanged: true) }
+        model.lanConfig = lanConfig
     }
 
     /// The wearer's mirrored settings arrived, changed or went away (stopped following).

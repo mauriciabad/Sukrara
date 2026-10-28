@@ -16,6 +16,8 @@ public final class SettingsModel {
     @ObservationIgnored let store: any SettingsStoring
     public let alerts: AlertSettingsStore
     public let follow: FollowModel
+    /// Juggluco on this network (Settings › General › Source).
+    public let juggluco: JugglucoModel
     /// The wearer's mirrored settings (nil while not following or none arrived yet).
     public var wearer: WearerSettings?
     /// The pane shown; the window reopens on it.
@@ -32,6 +34,7 @@ public final class SettingsModel {
         self.store = store
         self.alerts = AlertSettingsStore(store: store)
         self.follow = follow
+        self.juggluco = JugglucoModel(store: store)
         self.wearer = wearer
         self.version = version
         pane = Pane(rawValue: store.value(MacSettings.settingsPane)) ?? .general

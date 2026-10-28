@@ -65,6 +65,11 @@
       "path": "apps/android/integrations/src/main/kotlin/app/mauri/sukrara/integrations/localserver/NightscoutApiPage.kt",
       "contains": "summary = \"http://${s.secret}@${l.address}:${NightscoutApi.PORT}\"",
       "reason": "Nightscout API on the home Wi-Fi (opt-in, warned as unencrypted): the address other devices on this Wi-Fi use, shown as text for copying; the app opens nothing"
+    },
+    {
+      "path": "apps/macos/Sources/SukraraShare/Lan/JugglucoApi.swift",
+      "contains": "URL(string: \"http://\\(address):\\(port)\")",
+      "reason": "Mac Juggluco on this network (opt-in switch, off by default; Settings says it is plain http): built only from a LanAddress that isPrivate (10/8, 172.16/12, 192.168/16), never a public address or a name"
     }
   ],
   "network_ok": [
@@ -103,6 +108,18 @@
     {
       "path": "apps/android/integrations/src/main/kotlin/app/mauri/sukrara/integrations/localserver/LanWatcher.kt",
       "reason": "registers a ConnectivityManager callback to learn the Wi-Fi's address; opens no connection"
+    },
+    {
+      "path": "apps/macos/Sources/SukraraShare/Lan/JugglucoLanSource.swift",
+      "reason": "Mac Juggluco on this network (opt-in): URLSessionLanHTTP's GETs and live stream; every URL is built by JugglucoApi.base (private IPv4 addresses only); tests use a fake LanHTTP"
+    },
+    {
+      "path": "apps/macos/Sources/SukraraShare/Relay/WebSocket.swift",
+      "reason": "Mac relay WebSockets: RelayPool passes the protocol's wss:// relay list only"
+    },
+    {
+      "path": "apps/macos/Sources/SukraraApp/System/UpdateCheck.swift",
+      "reason": "Mac update check: GET the fixed https URL of the GitHub releases API (no user-entered host, nothing sent)"
     }
   ],
   "durations_ok": {},

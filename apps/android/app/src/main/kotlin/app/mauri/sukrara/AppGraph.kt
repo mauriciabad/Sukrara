@@ -228,7 +228,8 @@ class AppGraph(
 
     val settingsUi by lazy {
         SettingsModule(
-            settings = data.settings,
+            // the pages show the settings in use (a follower's mirrored rows per *Settings from*); writes go to this phone's own
+            settings = followerSettings.settings,
             alertSettings =
                 object : AlertSettingsStore {
                     override val settings = alerts.store.settings
@@ -513,6 +514,8 @@ class AppGraph(
                     post = { NotificationGroups.post(app, NotificationIds.REQUESTS, it, info, Channels.REQUESTS) },
                     remove = { NotificationGroups.cancel(app, NotificationIds.REQUESTS, info) },
                 ),
+            // what followers on *Settings from: Wearer* use (cold: the alert runtime is built when the engine reads it)
+            settings = WearerSettingsSource(data.settings, flow { emitAll(alerts.store.settings) }),
         )
     }
 

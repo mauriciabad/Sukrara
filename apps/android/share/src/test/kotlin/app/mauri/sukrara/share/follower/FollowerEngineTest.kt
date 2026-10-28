@@ -12,6 +12,7 @@ import app.mauri.sukrara.core.model.TreatmentKind
 import app.mauri.sukrara.core.model.TreatmentOrigin
 import app.mauri.sukrara.core.model.storage.SecretUnreadableException
 import app.mauri.sukrara.core.model.storage.SecureStore
+import app.mauri.sukrara.core.model.storage.StateStore
 import app.mauri.sukrara.core.model.storage.TreatmentDelivery
 import app.mauri.sukrara.core.model.storage.TreatmentRecord
 import app.mauri.sukrara.core.testing.FakeClock
@@ -73,7 +74,17 @@ class FollowerEngineTest {
     private val created = CreateInvite(ctx)(wearer0, "Phone", NOW)
     private val inviteWrap = created.step.publish.first { it.kind == Wire.KIND_WRAP }
 
-    private val settingsCache = InMemoryStateStore(WearerSettingsCache())
+    private var cacheWritesFail = false
+    private val settingsCache =
+        object : StateStore<WearerSettingsCache> {
+            private val inner = InMemoryStateStore(WearerSettingsCache())
+            override val data = inner.data
+
+            override suspend fun update(transform: (WearerSettingsCache) -> WearerSettingsCache) {
+                if (cacheWritesFail) throw java.io.IOException("disk full")
+                inner.update(transform)
+            }
+        }
 
     private fun TestScope.engine(
         timeoutMs: Long = 25_000,
@@ -350,6 +361,20 @@ class FollowerEngineTest {
             val e = engine(secureStore = locked)
             e.load()
             assertEquals(payload, e.wearerSettings.first())
+        }
+
+    @Test fun aJoinThatCantForgetThePreviousWearersSettingsDoesntHappen() =
+        runTest {
+            settingsCache.update { WearerSettingsCache("{}") }
+            cacheWritesFail = true
+            val e = engine()
+            lookup.stored += inviteWrap
+            var failed: Throwable? = null
+            backgroundScope.launch { runCatching { e.join(created.link.link, null) }.onFailure { failed = it } }
+            runCurrent()
+            assertTrue(failed is java.io.IOException)
+            // no record: nothing can later open as "unreadable" and fall back to the previous wearer's thresholds
+            assertNull(secure.read(FollowerStore.NAME))
         }
 
     @Test fun notFollowingForgetsTheWearersSettings() =

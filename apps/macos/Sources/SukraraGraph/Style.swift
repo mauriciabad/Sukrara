@@ -220,7 +220,7 @@ public struct RingSpec: Codable, Equatable, Sendable {
 
 /// The doctor's report numbers for one window (GlucoseMetrics.kt): time in the five ranges, time-weighted mean and
 /// SD, CV, GMI.
-struct GlucoseMetrics: Codable, Equatable {
+struct GlucoseMetrics: Codable, Equatable, Sendable {
     var tir: TimeInRange
     var mean: Double
     var sd: Double

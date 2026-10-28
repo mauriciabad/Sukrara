@@ -11,6 +11,7 @@ import app.mauri.sukrara.alerts.QuietRule
 import app.mauri.sukrara.core.model.AlertQuietSide
 import app.mauri.sukrara.core.model.AlertUiState
 import app.mauri.sukrara.designsystem.alerts.QuietExit
+import app.mauri.sukrara.feature.settings.follower.readOnly
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
@@ -18,11 +19,19 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
-/** The alert pages' state: the stored alert settings and what is muted / quiet now. */
+/**
+ * The alert pages' state: the alert settings in use and what is muted / quiet now. [mirrored] = a follower not in
+ * Custom (*Settings from*): each alert's on / threshold / remind (but no data's) and the quiet rules are the wearer's or
+ * the defaults, shown read-only; everything else is this phone's own and editable.
+ */
 data class AlertsUi(
     val settings: AlertSettings,
     val alerts: AlertUiState,
+    val mirrored: Boolean = false,
 ) {
+    /** [kind]'s on / threshold / remind come from *Settings from* (read-only here). */
+    fun mirrors(kind: AlertKind): Boolean = mirrored && kind != AlertKind.NO_DATA
+
     /** The quiet state of [kind]'s side (a mute, a treatment window, Remind less), or null. */
     fun quietOf(kind: AlertKind): AlertQuietSide? =
         alerts.quiet.firstOrNull { q -> AlertKind.entries.firstOrNull { it.wire == q.kind }?.side == kind.side }
@@ -111,9 +120,16 @@ object AlertEdits {
 class AlertsViewModel(
     private val deps: SettingsDeps,
 ) : ViewModel() {
+    /** Edits go to this phone's own settings; the pages show the ones in use (a follower's mirrored rows). */
     val ui: StateFlow<AlertsUi?> =
-        combine(deps.alertSettings.settings, deps.alertState, ::AlertsUi)
-            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_MS), null)
+        combine(
+            deps.alertSettings.settings,
+            deps.settingsFrom.alertsInUse,
+            deps.alertState,
+            deps.settingsFrom.state,
+        ) { own, inUse, st, from ->
+            AlertsUi(inUse ?: own, st, mirrored = from.readOnly)
+        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_MS), null)
 
     fun edit(transform: (AlertSettings) -> AlertSettings) {
         viewModelScope.launch { deps.alertSettings.update(transform) }

@@ -10,6 +10,7 @@ plugins {
     id("sukrara.android.application")
     id("sukrara.android.compose")
     id("org.jetbrains.kotlin.plugin.serialization")
+    id("sukrara.contracts")
 }
 
 dependencies {
