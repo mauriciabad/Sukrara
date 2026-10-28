@@ -41,14 +41,27 @@ class NewSensorPageTest {
 
     @Test
     fun `a dead end offers Juggluco first - no core, no NFC, not a Libre 3`() {
-        listOf(NewSensorStep.CoreMissing, NewSensorStep.NoNfc, NewSensorStep.NfcFailed(NfcFailure.NotLibre3)).forEach {
+        listOf(
+            NewSensorStep.CoreMissing,
+            NewSensorStep.NoNfc,
+            NewSensorStep.NfcFailed(NfcFailure.Libre2),
+            NewSensorStep.NfcFailed(NfcFailure.OtherSensor),
+        ).forEach {
             assertEquals(it.toString(), NewSensorAction.UseJuggluco, it.page().actions.first())
         }
     }
 
     @Test
-    fun `a failed tap can always switch to Juggluco`() {
-        NfcFailure.entries.forEach {
+    fun `a tag that isn't a sensor offers another tap first, not another source`() {
+        assertEquals(
+            listOf(NewSensorAction.TryAgain, NewSensorAction.Done),
+            NewSensorStep.NfcFailed(NfcFailure.NotASensor).page().actions,
+        )
+    }
+
+    @Test
+    fun `a failed tap on a sensor can always switch to Juggluco`() {
+        (NfcFailure.entries - NfcFailure.NotASensor).forEach {
             assertTrue(
                 NewSensorStep
                     .NfcFailed(it)

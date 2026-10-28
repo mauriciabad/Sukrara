@@ -37,8 +37,10 @@ The full catalog, with every rule and number, is [docs/FEATURES.md](docs/FEATURE
   sensor sends no value.
 - **LO / HI** from any sensor show as *LO* / *HI*, never a made-up number, and sound the very low / extremely high
   alert at once (Android and Mac).
-- A guided **new sensor** screen: which sensor, warm-up countdown, every failure handled on the same screen
-  (ended sensor, Libre 1/2, another app holding the sensor, Bluetooth off, a wrong ID or PIN).
+- A guided **new sensor** screen: a step bar (Sensor · Scan · Pair · Readings), which sensor, a drawing of where to hold
+  the phone (this phone's NFC antenna) with tips after 10 s, ticked pairing steps and *Taking longer?* after 45 s, the
+  warm-up countdown in a ring, haptics on the tap, the screen kept on, every failure handled on the same screen
+  (ended sensor, Libre 1/2, a tag that isn't a sensor, another app holding the sensor, Bluetooth off, a wrong ID or PIN).
 - **Settings › Sensor**: the current sensor (status, serial, start, end and time left), the reading source (Libre 3
   directly or Juggluco, saying first what changes), the LibreView account (email and receiver ID, sign in / out; the
   password is never stored) and *Pair new sensor*.

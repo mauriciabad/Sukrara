@@ -108,8 +108,9 @@ class NewSensorMachineTest {
             mapOf(
                 PairOutcome.OwnedByAnotherApp("ABC") to NewSensorStep.TakeoverFailed,
                 PairOutcome.Ended("ABC") to NewSensorStep.NfcFailed(NfcFailure.SensorEnded),
-                PairOutcome.Libre2Unsupported to NewSensorStep.NfcFailed(NfcFailure.NotLibre3),
-                PairOutcome.Unsupported("lingo") to NewSensorStep.NfcFailed(NfcFailure.NotLibre3),
+                PairOutcome.Libre2Unsupported to NewSensorStep.NfcFailed(NfcFailure.Libre2),
+                PairOutcome.NotASensor to NewSensorStep.NfcFailed(NfcFailure.NotASensor),
+                PairOutcome.Unsupported("lingo") to NewSensorStep.NfcFailed(NfcFailure.OtherSensor),
                 PairOutcome.Failed("tag lost") to NewSensorStep.NfcFailed(NfcFailure.MovedTooSoon),
                 PairOutcome.Paired("ABC", activated = false) to NewSensorStep.ConnectingBle("ABC", t0, activated = false),
             )
@@ -153,11 +154,16 @@ class NewSensorMachineTest {
         assertEquals(NewSensorStep.ConnectingBle("ABC", t0, activated = true), s)
     }
 
-    @Test fun `connecting phases keep connecting`() =
+    @Test fun `connecting phases keep connecting, the latest link names the pairing step ticked off`() {
         assertEquals(
-            NewSensorStep.ConnectingBle("ABC", t0, true),
+            NewSensorStep.ConnectingBle("ABC", t0, true, link = LinkStatus.Authorizing),
+            step(*paired, live("ABC", LinkStatus.Connecting), live("ABC", LinkStatus.Authorizing)),
+        )
+        assertEquals(
+            NewSensorStep.ConnectingBle("ABC", t0, true, link = LinkStatus.Reconnecting("x")),
             step(*paired, live("ABC", LinkStatus.Authorizing), live("ABC", LinkStatus.Reconnecting("x"))),
         )
+    }
 
     @Test fun `bluetooth problems after the tap`() {
         assertEquals(
@@ -191,7 +197,10 @@ class NewSensorMachineTest {
 
     @Test fun `a bluetooth failure recovers by itself when the link comes back`() {
         val off = live("ABC", LinkStatus.WaitingForBluetooth)
-        assertEquals(NewSensorStep.ConnectingBle("ABC", t0, activated = false), step(*paired, off, live("ABC", LinkStatus.Connecting)))
+        assertEquals(
+            NewSensorStep.ConnectingBle("ABC", t0, activated = false, link = LinkStatus.Connecting),
+            step(*paired, off, live("ABC", LinkStatus.Connecting)),
+        )
         assertEquals(NewSensorStep.Ready, step(*paired, off, live("ABC", LinkStatus.Live)))
         val noPermission = Source(SensorStatus.BluetoothPermissionMissing, SensorState.None)
         assertEquals(NewSensorStep.Ready, step(*paired, noPermission, live("ABC", LinkStatus.Live)))

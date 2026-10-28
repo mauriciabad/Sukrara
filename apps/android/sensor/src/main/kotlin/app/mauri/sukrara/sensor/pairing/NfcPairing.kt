@@ -29,6 +29,10 @@ sealed interface PairOutcome {
     /** A Libre 1 / 2 / 2 Plus: not supported, nothing was sent (use Juggluco as the source). */
     data object Libre2Unsupported : PairOutcome
 
+    /** Not a FreeStyle Libre (a card, an NFC tag, another device): nothing was sent. Hold the phone to the sensor. */
+    data object NotASensor : PairOutcome
+
+    /** A Libre-made sensor that isn't a Libre 3 / 3 Plus (a Lingo, unknown patch info): nothing was started. */
     data class Unsupported(val why: String) : PairOutcome
 
     /** The tap didn't complete (moved away, no answer); scanning again is safe. [why] is for diagnostics. */
@@ -82,6 +86,10 @@ class NfcPairing internal constructor(
 
             Libre3Nfc.Result.Libre2 -> {
                 PairOutcome.Libre2Unsupported
+            }
+
+            Libre3Nfc.Result.NotASensor -> {
+                PairOutcome.NotASensor
             }
 
             is Libre3Nfc.Result.Unsupported -> {
