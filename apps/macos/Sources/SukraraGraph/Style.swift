@@ -52,21 +52,45 @@ struct GraphPalette {
         veryLow: hex(0xB3261E), low: hex(0xD92D2A), tight: hex(0x17A34A), target: hex(0x6E9E1E),
         high: hex(0xD97706), veryHigh: hex(0xC2410C), extremelyHigh: hex(0xA3238F))
     static func of(dark: Bool) -> GraphPalette { dark ? darkPalette : lightPalette }
+
+    /// On the panel's recessed module (black 18 % / white 50 % over the menu material) the grid is one step stronger;
+    /// with Increase Contrast the secondary ink and the grid are stronger again (the module gets an outline).
+    func onModule(contrast: Bool) -> GraphPalette {
+        var p = self
+        switch (dark, contrast) {
+        case (true, false): p.grid = Self.hex(0x4A4A4F)
+        case (false, false): p.grid = Self.hex(0xC8C8CE)
+        case (true, true): p.grid = Self.hex(0x7C7C82); p.inkSoft = Self.hex(0xD8D8DC)
+        case (false, true): p.grid = Self.hex(0x8A8A90); p.inkSoft = Self.hex(0x3C3C40)
+        }
+        return p
+    }
 }
 
 /// A chart scrolled through time (the dropdown; Android's app panel; the other surfaces can't scroll): the window ends
 /// at `end` (at most now) instead of now; `y` = the y range to draw while the surface animates it towards the window's
 /// own (`GlucoseCard.yRange`; nil = the window's own); `now` = the "Now" pill's visibility 0…1 (0 = none). GlucoseGraph.kt `ChartView`.
-struct ChartView: Equatable {
-    var end: TimeInterval
-    var y: ClosedRange<Double>? = nil
-    var now: CGFloat = 0
+public struct ChartView: Equatable, Sendable {
+    public var end: TimeInterval
+    public var y: ClosedRange<Double>? = nil
+    public var now: CGFloat = 0
     /// The plot's bottom, pt above the chart's bottom, while the surface eases it (nil = the layout's, "chart.plot.natural").
-    var plotInset: CGFloat? = nil
+    public var plotInset: CGFloat? = nil
     /// The window's length while the surface is zoomed (`minSpan`…`maxSpan`; nil = the place's "time shown", `GraphStyle.window`).
-    var span: TimeInterval? = nil
+    public var span: TimeInterval? = nil
     /// The narrowest and widest window a pinch zooms to (GlucoseGraph.kt `ChartView.MIN_SPAN_S` / `MAX_SPAN_S`).
-    static let minSpan: TimeInterval = 2 * 3600, maxSpan: TimeInterval = 31 * 86400
+    public static let minSpan: TimeInterval = 2 * 3600, maxSpan: TimeInterval = 31 * 86400
+
+    public init(
+        end: TimeInterval, y: ClosedRange<Double>? = nil, now: CGFloat = 0, plotInset: CGFloat? = nil,
+        span: TimeInterval? = nil
+    ) {
+        self.end = end
+        self.y = y
+        self.now = now
+        self.plotInset = plotInset
+        self.span = span
+    }
 }
 
 struct GraphStyle {
