@@ -39,6 +39,7 @@ import app.mauri.sukrara.share.transport.RelayFilter
 import app.mauri.sukrara.share.transport.RelayInbound
 import app.mauri.sukrara.share.transport.RelayStatus
 import app.mauri.sukrara.share.transport.RelayTransport
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineStart
@@ -314,6 +315,7 @@ class FollowerEngine(
      */
     suspend fun unfollow(): Boolean =
         locked {
+            val out = sink
             disconnect()
             // the data first: a crash before the key delete is healed by the next unfollow / join
             wipeData()
@@ -326,6 +328,9 @@ class FollowerEngine(
                 _status.value = SourceStatus.NotStarted
                 _state.value = FollowState.NotFollowing
                 setLink(null)
+            } else {
+                // still following: back online (the stored data is gone; the backfill brings it again)
+                out?.let { connect(it) }
             }
             deleted
         }
@@ -344,7 +349,13 @@ class FollowerEngine(
             try {
                 awaitCancellation()
             } finally {
-                withContext(NonCancellable) { locked { disconnect() } }
+                withContext(NonCancellable) {
+                    locked {
+                        // what changed since the last save (last heard, alerts seen) survives the stop
+                        record?.let { commit(it, force = true) }
+                        disconnect()
+                    }
+                }
             }
         }
 
@@ -369,10 +380,6 @@ class FollowerEngine(
             }
             return
         }
-        if (r.stream.status == FollowStatus.Revoked) {
-            render()
-            return
-        }
         val urls = r.stream.relays.ifEmpty { Wire.DEFAULT_RELAYS }
         val t = transports.create(urls) { record?.stream?.follower }
         transport = t
@@ -382,7 +389,7 @@ class FollowerEngine(
         _status.value = SourceStatus.Connecting
         jobs =
             listOf(
-                out.launch(start = CoroutineStart.UNDISPATCHED) { t.inbound.collect { m -> locked { onInbound(m) } } },
+                out.launch(start = CoroutineStart.UNDISPATCHED) { t.inbound.collect { m -> locked { safely { onInbound(m) } } } },
                 out.launch { t.status.collect { locked { render() } } },
             )
         resubscribe()
@@ -407,6 +414,17 @@ class FollowerEngine(
                     true
                 }
             if (connected) return
+        }
+    }
+
+    /** One message that fails (a store write) is dropped; it never ends the source (and the service with it). */
+    private suspend fun safely(block: suspend () -> Unit) {
+        try {
+            block()
+        } catch (e: CancellationException) {
+            throw e
+        } catch (_: Exception) {
+            Unit
         }
     }
 
@@ -485,7 +503,7 @@ class FollowerEngine(
     }
 
     /** Ids of our own pending treatment events → entry id (marked Delivered when a relay accepts). */
-    private val pendingEvents = HashMap<String, String>()
+    private val pendingEvents = HashMap<String, Pair<String, Instant>>()
 
     private suspend fun receive(ev: SignedEvent, relay: String) {
         val f = follower ?: return
@@ -567,8 +585,8 @@ class FollowerEngine(
             }
         }
         val trustChanged =
-            before.copy(seen = emptyMap(), rekeyAt = emptyMap(), alertsSeen = emptyMap()) !=
-                f.state.copy(seen = emptyMap(), rekeyAt = emptyMap(), alertsSeen = emptyMap())
+            before.copy(seen = emptyMap(), rekeyAt = emptyMap(), alertsSeen = emptyMap(), sensorCreatedAt = 0) !=
+                f.state.copy(seen = emptyMap(), rekeyAt = emptyMap(), alertsSeen = emptyMap(), sensorCreatedAt = 0)
         commit(next, force = trustChanged || next.wearer != r.wearer || next.settings != r.settings || next.sensor != r.sensor)
         val out = sink
         if (out != null && transport != null && next.stream.relays.isNotEmpty() && next.stream.relays != relayUrls) {
@@ -596,7 +614,8 @@ class FollowerEngine(
         if (_status.value !is SourceStatus.Live || (_status.value as SourceStatus.Live).lastReadingAt < newest) {
             _status.value = SourceStatus.Live(newest)
         }
-        return r.copy(lastHeardAt = maxOf(r.lastHeardAt ?: 0, now()))
+        // the reading's time, not arrival: a re-fetched backfill after a restart never makes a silent wearer look fresh
+        return r.copy(lastHeardAt = maxOf(r.lastHeardAt ?: 0, minOf(now(), newest.epochSecond)))
     }
 
     private suspend fun storeTreatment(item: Item.Treatment, relay: String) {
@@ -635,7 +654,7 @@ class FollowerEngine(
     suspend fun publishTreatment(entry: TreatmentRecord) =
         locked {
             val ev = treatmentEvent(entry) ?: return@locked
-            pendingEvents[ev.id] = entry.treatment.id
+            pendingEvents[ev.id] = entry.treatment.id to entry.treatment.modifiedAt
             send(ev)
         }
 
@@ -661,16 +680,21 @@ class FollowerEngine(
             .filter { it.delivery == TreatmentDelivery.Pending }
             .forEach { entry ->
                 treatmentEvent(entry)?.let { ev ->
-                    pendingEvents[ev.id] = entry.treatment.id
+                    pendingEvents[ev.id] = entry.treatment.id to entry.treatment.modifiedAt
                     send(ev)
                 }
             }
     }
 
     private suspend fun markDelivered(eventId: String) {
-        val id = pendingEvents.remove(eventId) ?: return
+        val (id, version) = pendingEvents.remove(eventId) ?: return
         val stored = treatments.get(id) ?: return
-        if (stored.delivery == TreatmentDelivery.Pending) treatments.replace(stored.copy(delivery = TreatmentDelivery.Delivered))
+        // only the version that event carried: a newer edit stays pending until its own event is accepted
+        if (stored.delivery == TreatmentDelivery.Pending &&
+            stored.treatment.modifiedAt == version
+        ) {
+            treatments.replace(stored.copy(delivery = TreatmentDelivery.Delivered))
+        }
     }
 
     // ------------------------------------------------------------------------------------------------ history

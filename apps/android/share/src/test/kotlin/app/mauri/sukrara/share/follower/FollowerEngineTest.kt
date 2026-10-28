@@ -179,7 +179,7 @@ class FollowerEngineTest {
             assertEquals(listOf(123), received.flatten().map { it.mgdl })
             assertEquals(SourceId.Relay, received.flatten().single().source)
             assertEquals(SourceStatus.Live(Instant.ofEpochSecond(NOW - 30)), e.status.value)
-            assertEquals(Instant.ofEpochSecond(NOW), links.last()?.lastHeardAt)
+            assertEquals(Instant.ofEpochSecond(NOW - 30), links.last()?.lastHeardAt)
         }
 
     @Test fun aStrangerSigningLiveEventsIsNotBelieved() =
