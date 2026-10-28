@@ -59,6 +59,9 @@ fun SettingsOverviewContent(
             NavigationRow(stringResource(R.string.st_statusbar_title), {
                 actions.open(SettingsRoute.StatusBar)
             }, summary = stringResource(R.string.st_overview_statusbar))
+            NavigationRow(stringResource(R.string.st_lock_title), {
+                actions.open(SettingsRoute.LockScreen)
+            }, summary = stringResource(R.string.st_overview_lock))
         }
         SettingsGroup {
             NavigationRow(stringResource(R.string.st_sensor), actions.openSensor, summary = stringResource(R.string.st_sensor_summary))

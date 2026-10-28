@@ -42,7 +42,6 @@
     <!-- Setup role: what the follower option means -->
     <string name="sh_setup_role_follower_means">This phone shows someone else\'s glucose.</string>
     <!-- Setup role: following is not in this build yet -->
-    <string name="sh_setup_role_follower_later">Following on Android comes in a later version. Use Sukrara for Mac to follow.</string>
     <!-- Setup role confirmation title; %1$s = the chosen option -->
     <string name="sh_setup_role_confirm_title">%1$s?</string>
     <!-- Setup role confirmation: what it means -->
@@ -168,7 +167,7 @@
     <!-- TalkBack label of the invite QR -->
     <string name="sh_share_qr_label">Invite QR code. The link is below.</string>
     <!-- Share: instructions -->
-    <string name="sh_share_scan">Send them the link, or let them scan this code, in Sukrara for Mac. Following from an Android phone comes in a later version.</string>
+    <string name="sh_share_scan">Send them the link: they open it in Sukrara on their phone or Mac. Sukrara for Mac can also scan this code.</string>
     <!-- Invite note; %1$s = expiry, %2$s = label -->
     <string name="sh_share_note">This link works once, until %1$s. Send it only to %2$s: whoever opens it first can ask to follow you, and you still allow them. It holds no key to your glucose.</string>
     <!-- Invite note; %1$s = expiry -->
@@ -394,9 +393,9 @@
     <!-- Page title: an invite link opened on this phone -->
     <string name="sh_invite_here_page">Invite</string>
     <!-- Invite opened on an Android phone -->
-    <string name="sh_invite_here_title">Open this invite on a Mac</string>
+    <string name="sh_invite_here_title">This phone shares its own readings</string>
     <!-- Why it can not be used here -->
-    <string name="sh_invite_here_body">Following from an Android phone comes in a later version. Open the link in Sukrara for Mac to follow. The invite stays unused until then.</string>
+    <string name="sh_invite_here_body">This invite is for the phone or Mac that will follow. Send the link to that device; the invite stays unused until then.</string>
     <!-- Button: copy the invite link -->
     <string name="sh_invite_here_copy">Copy link</string>
     <!-- Allow didnt happen; %1$s = name -->
@@ -405,4 +404,43 @@
     <string name="sh_approve_refused_paused">Sharing is paused while another app shares as you. Fix that in Settings › Sharing, then send a new invite.</string>
     <!-- The password manager returned something else -->
     <string name="sh_restore_manager_not_identity">That saved password isn\'t a Sukrara identity. Pick the entry named \"Sukrara · npub…\", or paste the recovery code.</string>
+    <string name="sh_join_title">Follow someone</string>
+    <string name="sh_join_body">Ask the person who wears the sensor to open Sukrara, tap Share and send you the invite link. Paste it here.</string>
+    <string name="sh_join_link">Invite link</string>
+    <string name="sh_join_name">Your name</string>
+    <string name="sh_join_name_hint">So they know who is asking. Optional.</string>
+    <string name="sh_join_action">Join</string>
+    <string name="sh_join_looking">Looking for the invite…</string>
+    <string name="sh_join_someone">the person who invited you</string>
+    <string name="sh_join_waiting">Waiting for %1$s to allow you</string>
+    <string name="sh_join_active">You follow %1$s</string>
+    <string name="sh_join_code_hint">If they ask for a code, tell them:</string>
+    <string name="sh_join_waiting_note">%1$s gets a notification to allow you. Their readings appear on home as soon as they do; you can continue setup meanwhile.</string>
+    <string name="sh_join_declined">%1$s didn\'t allow you. Ask them for a new link and paste it here.</string>
+    <string name="sh_join_used">Another phone used this invite from %1$s first. Ask them for a new link and paste it here.</string>
+    <string name="sh_join_revoked">%1$s stopped sharing with you. Paste a new link to follow again.</string>
+    <string name="sh_join_err_invalid">That isn\'t a Sukrara invite link. It starts with https://sukrara.mauri.app/join#</string>
+    <string name="sh_join_err_not_found">This invite wasn\'t found. It may have been cancelled: ask for a new link.</string>
+    <string name="sh_join_err_offline">Can\'t reach the internet. Check the connection and try again.</string>
+    <string name="sh_join_err_expired">This invite has expired. Ask for a new link.</string>
+    <string name="sh_join_err_wrong">This invite doesn\'t match its link. Ask for a new link.</string>
+    <string name="sh_join_err_already">This phone already follows someone. Stop following first in Settings › Sharing.</string>
+    <string name="sh_join_err_store">Couldn\'t save the key on this phone. Try again.</string>
+    <string name="sh_following_title">Following</string>
+    <string name="sh_following_waiting">Waiting for %1$s to allow you</string>
+    <string name="sh_following_active">You follow %1$s</string>
+    <string name="sh_following_code">If they ask for a code: %1$s</string>
+    <string name="sh_following_last_heard">Last reading arrived %1$s</string>
+    <string name="sh_following_never">No reading has arrived yet</string>
+    <string name="sh_following_can_write">You can add entries to their log</string>
+    <string name="sh_following_cannot_write">Only they can add entries to their log</string>
+    <string name="sh_following_relays">Connected to %1$d of %2$d relays</string>
+    <string name="sh_following_relays_off">Not connected (monitoring isn\'t running)</string>
+    <string name="sh_following_stop">Stop following</string>
+    <string name="sh_following_stop_title">Stop following %1$s?</string>
+    <string name="sh_following_stop_text">Their readings, entries and alerts leave this phone. To follow again you need a new invite link.</string>
+    <string name="sh_following_stop_failed">Couldn\'t remove the key from this phone. Try again.</string>
+    <string name="sh_following_unreadable">This phone can\'t open the follower key right now. Sukrara keeps trying; their stored readings and alerts stay. If it doesn\'t recover, stop following and join again.</string>
+    <string name="sh_following_damaged">The follower key on this phone is damaged. Stop following, then join again with a new link.</string>
+    <string name="sh_following_join_again">Join with a new link</string>
 </resources>

@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 import AppKit
 import SukraraCore
+import SukraraGraph
 import SukraraShare
 import SwiftUI
 
@@ -15,6 +16,7 @@ final class WindowCoordinator {
     let setup: SetupModel
     let settings: SettingsModel
     let treatments: TreatmentsModel
+    let report: ReportModel
     private let model: AppModel
     private let adapter: FollowerAdapter?
 
@@ -26,6 +28,7 @@ final class WindowCoordinator {
         setup = SetupModel(store: store, follow: follow)
         settings = SettingsModel(store: store, follow: follow, version: Self.version)
         treatments = TreatmentsModel(rows: [], canWrite: false, actions: adapter)
+        report = ReportModel(store: store, app: model)
         setup.requestNotifications = requestNotifications
         setup.setOpenAtLogin = { [weak model] on in model?.loginItem?.set(on) }
         follow.searchNearby = { [weak adapter] on in adapter?.searchNearby(on) }
@@ -85,11 +88,25 @@ final class WindowCoordinator {
         }
     }
 
-    /// Add treatment; while low the Carbs field has the focus.
-    func openAddTreatment() {
-        windows.show(.addTreatment, title: L10n.t("Add Treatment")) {
+    func openReport() {
+        windows.show(.report, title: L10n.t("Glucose Report")) { ReportView(model: report) }
+    }
+
+    /// Add treatment, placed under the menu bar: the Carbs field has the focus while the latest reading is below
+    /// the range (or a low alert is up), else Rapid; the card's pill names the field itself (`focus`).
+    func openAddTreatment(focus: Treatment.Kind? = nil) {
+        let low =
+            model.isLow
+            || (model.look.state == .value && GlucoseCard.rangeSide(model.cardData, config: model.graph) == .below)
+        let field = focus ?? (low ? .carbs : .rapid)
+        windows.show(.addTreatment, title: L10n.t("Add Treatment"), nearMenuBar: true) {
             AddTreatmentView(
-                focusCarbs: model.isLow,
+                focus: field,
+                quiet: { [weak model] rapid, carbs, at in
+                    TreatmentQuietNote.of(
+                        rapid: rapid, carbs: carbs, at: at, now: Int64(Date().timeIntervalSince1970),
+                        settings: model?.alerts?.settings, mirroring: model?.alerts?.mirroring ?? false)
+                },
                 save: { [weak self] entries in
                     guard let self else { return }
                     Task { await self.treatments.add(entries) }
@@ -151,7 +168,8 @@ private struct SettingsWindowContent: View {
             updateResult: app.updates.flatMap { Self.text($0.state) },
             checkForUpdates: { [updates = app.updates] in Task { await updates?.check(userAsked: true) } },
             openFollow: openFollow,
-            reconnect: app.follower == nil ? nil : { [weak app] in app?.networkCameBack() })
+            reconnect: app.follower == nil ? nil : { [weak app] in app?.networkCameBack() },
+            alerts: app.alerts)
     }
 
     static func text(_ state: UpdateCheck.State) -> String? {

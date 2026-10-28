@@ -16,7 +16,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class SetupMachineTest {
-    private val none = SetupFacts(role = null, followerAvailable = false, ownSensorLive = false, hasIdentity = false)
+    private val none = SetupFacts(role = null, ownSensorLive = false, hasIdentity = false)
     private val facts = none.copy(role = Role.Wearer)
     private val m = SetupMachine
 
@@ -50,13 +50,22 @@ class SetupMachineTest {
     }
 
     @Test
-    fun `follower stays on the role step while following isn't in this build`() {
-        assertEquals(Result.Refused(RoleRefusal.FollowerNotAvailable), m.chooseRole(Role.Follower, confirmed = true, none))
-        val f = none.copy(followerAvailable = true)
-        assertEquals(Result.Done(Role.Follower), m.chooseRole(Role.Follower, confirmed = true, f))
-        val follower = f.copy(role = Role.Follower)
-        assertEquals(Permissions, m.next(m.completeWelcome(SetupRecord()), follower))
-        assertTrue(Sensor !in m.steps(follower))
+    fun `a follower joins before anything else and can't skip it`() {
+        assertEquals(Result.Done(Role.Follower), m.chooseRole(Role.Follower, confirmed = true, none))
+        val follower = none.copy(role = Role.Follower)
+        assertEquals(listOf(Welcome, SetupStep.Role, SetupStep.Join, Permissions, Alerts), m.steps(follower))
+        assertTrue(SetupStep.Join !in m.steps(facts))
+        val start = m.completeWelcome(SetupRecord())
+        assertEquals(SetupStep.Join, m.next(start, follower))
+        assertEquals(start, m.skip(start, SetupStep.Join))
+        // joining alone isn't enough: the waiting screen (its code) is left with Continue
+        val joined = follower.copy(following = true)
+        assertEquals(SetupStep.Join, m.next(start, joined))
+        val done = m.completeJoin(start, joined)
+        assertEquals(Permissions, m.next(done, joined))
+        // a follow that ended (declined, removed) asks for a new link again
+        assertEquals(SetupStep.Join, m.next(done, follower))
+        assertEquals(start, m.completeJoin(start, follower))
     }
 
     @Test

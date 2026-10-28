@@ -34,6 +34,8 @@ class ManifestTest {
         setOf(
             "app.mauri.sukrara.MainActivity", // launcher and invite links
             "app.mauri.sukrara.monitor.AlertSoundProvider", // System UI reads the channel sounds
+            // LSPosed hands the app its service here (advisory: it only picks the root page's hint)
+            "io.github.libxposed.service.XposedProvider",
             "androidx.compose.ui.tooling.PreviewActivity", // ui-tooling, debugImplementation only (Studio previews)
             "androidx.activity.ComponentActivity", // ui-test-manifest, debugImplementation only (:feature:home Compose tests)
             // home-screen widgets: any launcher sends their broadcasts and opens their settings
@@ -47,6 +49,12 @@ class ManifestTest {
     fun `every exported component needs a permission unless it is on the list`() {
         val open = components.filter { it.attr("exported") == "true" && it.attr("permission").isEmpty() }.map { it.attr("name") }
         assertEquals(openOnPurpose, open.toSet())
+    }
+
+    @Test
+    fun `only System UI can say hello to the root status bar`() {
+        val hello = named("app.mauri.sukrara.monitor.systemui.HookHelloReceiver")
+        assertEquals("android.permission.STATUS_BAR_SERVICE", hello.attr("permission"))
     }
 
     @Test

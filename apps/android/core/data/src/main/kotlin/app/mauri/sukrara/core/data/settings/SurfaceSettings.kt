@@ -23,6 +23,18 @@ object SurfaceSettings {
     /** Without the chip, the notification's small icon is the number itself. */
     val NumberIcon = SchemaSettings.bool("statusbar.icon", default = true)
 
+    /** The value drawn in the status bar with root: system icons (root) or the System UI module's text. */
+    val RootValue = SchemaSettings.bool("statusbar.hook", default = false)
+
+    /** Where the root value goes ([HookPosition]). */
+    val RootPosition = SchemaSettings.text("statusbar.hookPosition", HookPosition.DEFAULT, HookPosition.ALL.toSet())
+
+    /** The root value in its range colour (module). */
+    val RootColor = SchemaSettings.bool("statusbar.hookColor", default = true)
+
+    /** Drop Sukrara's notification icon from the status bar while the root value shows (module). */
+    val HideNotificationIcon = SchemaSettings.bool("statusbar.hideNotifIcon", default = true)
+
     /** Settings › Sensor end as JSON ([SensorEndConfig]); empty = the defaults. */
     val SensorReminders = SchemaSettings.text("sensor.reminders", default = "")
 
@@ -89,4 +101,52 @@ object SurfaceSettings {
         val nightStart: Int? = null,
         val nightEnd: Int? = null,
     )
+}
+
+/**
+ * Where the root status-bar value goes (`statusbar.hookPosition`). `slot:` placements are system icons set through
+ * the root slot daemon: they show with root alone (first among the system icons), and the System UI module moves them
+ * next to the named icon (`slot:wifi` right after Wi-Fi, `slot:<mobile` right before the mobile signal). The clock and
+ * `icons:` placements are a text the module draws, so they show nothing without it.
+ */
+object HookPosition {
+    const val AFTER_CLOCK = "after_clock"
+    const val BEFORE_CLOCK = "before_clock"
+    const val ICONS_PREFIX = "icons:"
+    const val LEFT_OF_ICONS = "${ICONS_PREFIX}0"
+    const val SLOT_PREFIX = "slot:"
+
+    /** Marks a `slot:` target as "right before" instead of "right after". */
+    const val BEFORE = "<"
+
+    /** System icons right before the mobile signal: left of the more permanent icons. */
+    const val DEFAULT = "$SLOT_PREFIX${BEFORE}mobile"
+
+    /** The choices, in the order the placement dialog lists them. */
+    val ALL =
+        listOf(
+            AFTER_CLOCK,
+            BEFORE_CLOCK,
+            LEFT_OF_ICONS,
+            SLOT_PREFIX,
+            "${SLOT_PREFIX}vpn",
+            "${SLOT_PREFIX}bluetooth",
+            DEFAULT,
+            "${SLOT_PREFIX}mobile",
+            "${SLOT_PREFIX}wifi",
+        )
+
+    /** Shown as system icons (the root slot daemon runs). */
+    fun isSystemIcons(pos: String) = pos.startsWith(SLOT_PREFIX)
+
+    /** Shows exactly as chosen only with the System UI module ("With the system icons" needs root alone). */
+    fun needsModule(pos: String) = pos != SLOT_PREFIX
+
+    /** The slot icon a `slot:` placement sits next to, and whether before it; null = no target. */
+    fun target(pos: String): Pair<String, Boolean>? =
+        pos
+            .takeIf { isSystemIcons(it) }
+            ?.removePrefix(SLOT_PREFIX)
+            ?.takeIf { it.isNotEmpty() }
+            ?.let { if (it.startsWith(BEFORE)) it.removePrefix(BEFORE) to true else it to false }
 }

@@ -14,6 +14,8 @@ plugins {
 android {
     // The alert sounds come straight from the contract (contracts/alerts/sounds/android/raw), never copied.
     sourceSets["main"].res.srcDir(repoRoot.dir("contracts/alerts/sounds/android"))
+    // the slot daemon's main and the LSPosed entry are reached by name
+    defaultConfig.consumerProguardFiles("consumer-rules.pro")
 }
 
 dependencies {
@@ -27,6 +29,9 @@ dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.kotlinx.serialization.json)
+    // the System UI module: the API is LSPosed's at run time; the service tells the app the module's scope
+    compileOnly(libs.libxposed.api)
+    implementation(libs.libxposed.service)
     testImplementation(project(":core:testing"))
     testImplementation(testFixtures(project(":core:alerts")))
 }

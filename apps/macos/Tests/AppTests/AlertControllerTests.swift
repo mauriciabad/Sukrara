@@ -12,6 +12,8 @@ import Testing
 
 /// Records what the controller asks the notification layer to do.
 final class RecordingNotifier: AlertNotifying {
+    var tests: [AlertKind] = []
+    func postTest(_ kind: AlertKind) { tests.append(kind) }
     enum Call: Equatable {
         case post(AlertKind, id: String, sound: Bool, category: String)
         case clear(AlertGroup)

@@ -14,6 +14,9 @@ protocol AlertNotifying {
     /// The silent "Low alerts muted / Until 10:42" note with Unmute and Change Time…
     func postMuted(_ side: AlertSide, until: Date)
     func removeMuted(_ side: AlertSide)
+    /// Settings › Alerts › Send Test Alert: `kind`'s notification with its sound and alarm level, titled "Test", with
+    /// no actions (it mutes nothing) and its own identifier (it never replaces a real alert).
+    func postTest(_ kind: AlertKind)
 }
 
 /// The part of `UNUserNotificationCenter` the notifier uses (tests record requests instead of posting).
@@ -64,6 +67,36 @@ final class Notifier: AlertNotifying {
             UNNotificationRequest(
                 identifier: AlertNotificationIDs.notificationID(f.kind.group), content: content, trigger: nil))
         eventLog?.write("alert \(f.kind.rawValue) n=\(f.n) \(sound ? "posted" : "resumed silently")")
+    }
+
+    func postTest(_ kind: AlertKind) {
+        let s = settings()
+        let f = Self.testFiring(kind, threshold: s[kind].threshold, at: clock.now)
+        let content = UNMutableNotificationContent()
+        content.title = L10n.t("Test") + " · " + text.title(f)
+        content.body = L10n.t("This is how this alert looks and sounds. Nothing was muted or logged.")
+        content.interruptionLevel = s[kind].alarm && center.timeSensitiveAllowed ? .timeSensitive : .active
+        content.sound = notificationSound(kind, s)
+        center.add(
+            UNNotificationRequest(identifier: "test-\(kind.rawValue)", content: content, trigger: nil))
+        eventLog?.write("alert \(kind.rawValue) test posted")
+    }
+
+    /// The test notification's firing: a value just past the threshold, labelled as a test by its title.
+    static func testFiring(_ kind: AlertKind, threshold: Double, at now: Date) -> AlertFiring {
+        let mgdl: Double
+        let rate: Double?
+        switch kind {
+        case .veryLow, .low: (mgdl, rate) = (threshold - 6, -0.6)
+        case .high, .veryHigh, .extremelyHigh: (mgdl, rate) = (threshold + 12, 0.8)
+        case .fallingFast: (mgdl, rate) = (120, -(threshold + 0.6))
+        case .risingFast: (mgdl, rate) = (150, threshold + 0.4)
+        case .noData: (mgdl, rate) = (110, nil)
+        }
+        let at = kind == .noData ? now.addingTimeInterval(-threshold * 60 - 300) : now
+        return AlertFiring(
+            id: "test", kind: kind, at: now, reading: GlucoseSample(at: at, mgdl: mgdl, rate: rate),
+            threshold: threshold, n: 1, treated: 0)
     }
 
     func clear(_ group: AlertGroup) {

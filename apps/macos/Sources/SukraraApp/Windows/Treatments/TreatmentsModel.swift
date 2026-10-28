@@ -129,5 +129,22 @@ public final class TreatmentsModel {
         rows.insert(row, at: i)
     }
 
+    /// How far back the Treatments window lists entries.
+    public static let shownDays = 7
+
+    /// `rows` from the last `shownDays` calendar days (today included), grouped by day, newest day and entry first.
+    static func byDay(_ rows: [Row], now: Date, calendar: Calendar = .current) -> [(day: Date, rows: [Row])] {
+        let today = calendar.startOfDay(for: now)
+        guard let from = calendar.date(byAdding: .day, value: -(shownDays - 1), to: today) else { return [] }
+        var out: [(day: Date, rows: [Row])] = []
+        for row in rows.sorted(by: { $0.treatment.t > $1.treatment.t }) {
+            let at = Date(timeIntervalSince1970: TimeInterval(row.treatment.t))
+            guard at >= from else { continue }
+            let day = calendar.startOfDay(for: at)
+            if out.last?.day == day { out[out.count - 1].rows.append(row) } else { out.append((day, [row])) }
+        }
+        return out
+    }
+
     static func millis(_ d: Date) -> Int64 { Int64((d.timeIntervalSince1970 * 1000).rounded()) }
 }

@@ -44,6 +44,10 @@ class RoomTreatmentsRepository(private val dao: TreatmentDao) : TreatmentsReposi
     override suspend fun upsertIfNewer(record: TreatmentRecord): Boolean = dao.upsertIfNewer(record.toEntity())
 
     override suspend fun changedSince(since: Instant): List<TreatmentRecord> = dao.changedSince(since.toEpochMilli()).map { it.toRecord() }
+
+    override suspend fun replace(record: TreatmentRecord) = dao.upsert(record.toEntity())
+
+    override suspend fun deleteAll() = dao.deleteAll()
 }
 
 internal fun ReadingEntity.toReading() = Reading(Instant.ofEpochMilli(t), mgdl, rate, SourceId(source))

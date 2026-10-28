@@ -27,6 +27,7 @@ import app.mauri.sukrara.designsystem.dialog.NumberInput
 import app.mauri.sukrara.designsystem.rows.FooterText
 import app.mauri.sukrara.designsystem.rows.NavigationRow
 import app.mauri.sukrara.designsystem.rows.SettingsGroup
+import app.mauri.sukrara.designsystem.rows.SplitSwitchRow
 import app.mauri.sukrara.designsystem.rows.SwitchRow
 import app.mauri.sukrara.designsystem.rows.ValueRow
 import app.mauri.sukrara.settings.SettingsSpec
@@ -41,18 +42,30 @@ class AlertsActions(
     val openReview: () -> Unit = {},
 )
 
-/** The kinds in the order the page lists them: lows, highs, rates, no data. */
-val KindOrder =
+/** The alert rows' groups: lows, highs, rates, signal. */
+val KindGroups =
     listOf(
-        AlertKind.VERY_LOW,
-        AlertKind.LOW,
-        AlertKind.HIGH,
-        AlertKind.VERY_HIGH,
-        AlertKind.EXTREMELY_HIGH,
-        AlertKind.FALLING_FAST,
-        AlertKind.RISING_FAST,
-        AlertKind.NO_DATA,
+        R.string.st_group_lows to listOf(AlertKind.VERY_LOW, AlertKind.LOW),
+        R.string.st_group_highs to listOf(AlertKind.HIGH, AlertKind.VERY_HIGH, AlertKind.EXTREMELY_HIGH),
+        R.string.st_group_rates to listOf(AlertKind.FALLING_FAST, AlertKind.RISING_FAST),
+        R.string.st_group_signal to listOf(AlertKind.NO_DATA),
     )
+
+/** "Below 70 mg/dL · every 5 min · Quest": when it alerts, how often it reminds, which sound. */
+@Composable
+fun kindSummary(
+    s: AlertSettings,
+    kind: AlertKind,
+): String {
+    val rule = s.rule(kind)
+    val repeat =
+        if (rule.repeatMin <= 0) {
+            numberLabel(SchemaPrefs.RepeatSpec, 0.0)
+        } else {
+            stringResource(R.string.st_repeat_every, numberLabel(SchemaPrefs.RepeatSpec, rule.repeatMin.toDouble()))
+        }
+    return listOf(thresholdSentence(kind, rule.threshold), repeat, packName(s.sounds.soundOf(kind))).joinToString(" · ")
+}
 
 /** Mute all's "Alerts muted · 1 h 12 min left · Unmute · Change time" strip ([MuteText], counting down), or nothing. */
 @Composable
@@ -103,21 +116,31 @@ fun AlertsSettingsContent(
                 { dialog = "muteAll" },
             )
         }
-        SettingsGroup(title = stringResource(R.string.st_alerts_kinds)) {
-            for (kind in KindOrder) {
-                val rule = s.rule(kind)
-                NavigationRow(
-                    kindName(kind),
-                    { actions.openKind(kind) },
-                    summary =
-                        if (rule.on) {
-                            thresholdSentence(kind, rule.threshold)
-                        } else {
-                            stringResource(R.string.st_off)
+        // each alert: the row opens its page, the switch turns it on or off (very low / no data off asks first)
+        for ((title, kinds) in KindGroups) {
+            SettingsGroup(title = stringResource(title)) {
+                for (kind in kinds) {
+                    val rule = s.rule(kind)
+                    SplitSwitchRow(
+                        kindName(kind),
+                        rule.on,
+                        { on ->
+                            if (!on &&
+                                kind in ConfirmOff
+                            ) {
+                                dialog = "kindOff:${kind.wire}"
+                            } else {
+                                actions.edit(AlertEdits.kindOn(kind, on))
+                            }
                         },
-                    enabled = s.on,
-                )
+                        { actions.openKind(kind) },
+                        summary = if (rule.on) kindSummary(s, kind) else stringResource(R.string.st_off),
+                        enabled = s.on,
+                    )
+                }
             }
+        }
+        SettingsGroup {
             NavigationRow(
                 stringResource(R.string.st_review_title),
                 actions.openReview,
@@ -218,6 +241,16 @@ private fun AlertsDialogs(
     when {
         dialog == null -> {
             Unit
+        }
+
+        dialog.startsWith("kindOff:") -> {
+            val kind = AlertKind.fromWire(dialog.removePrefix("kindOff:")) ?: return close()
+            ConfirmDialog(
+                stringResource(R.string.st_kind_off_title, kindName(kind)),
+                stringResource(if (kind == AlertKind.NO_DATA) R.string.st_kind_off_text_no_data else R.string.st_kind_off_text_very_low),
+                stringResource(R.string.st_turn_off),
+                close,
+            ) { actions.edit(AlertEdits.kindOn(kind, false)) }
         }
 
         dialog == "alertsOff" -> {

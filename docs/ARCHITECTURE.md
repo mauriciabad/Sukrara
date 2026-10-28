@@ -52,6 +52,16 @@ applies them.
 - `AlertsModule` (A4) wires it; the Application implements `AlertsHost` so receivers and the provider reach it; the
   monitoring service calls `attach(scope)`.
 
+**Root status bar (`:monitor` `monitor/systemui/`).** `RootStatusBar` (built by `MonitorModule`, started in `ready()`)
+follows the hub, `SurfaceSettings.Root*`, the ranges and the freshness ticks; conflated on one background thread it
+(1) sends `HookState` to System UI (`${applicationId}.SYSTEMUI_STATE`, signature permission `…permission.SYSTEMUI_STATE`,
+sender identity shared) and (2) drives `SlotDaemon` (`su` + `app_process`, line protocol `DaemonProtocol`, own slots
+`sukrara_glucose*`, drawables `sb_*` from `tools/android/gen-slot-drawables.swift`, kept by `res/raw/keep_status_icons.xml`
+and `consumer-rules.pro`). `SystemUiHook` is the LSPosed module in the same APK (`src/main/resources/META-INF/xposed`,
+libxposed API `compileOnly`); its pure parts are `HookText`, `IconFit`, `SlotIcons`. Its hello reaches
+`HookHelloReceiver` (permission `STATUS_BAR_SERVICE`: only System UI). `SystemAccess` (root via `su`, LSPosed via the
+libxposed service, the hello's `HookCode.VERSION`) implements `:core:model`'s `SystemAccessPort` for Settings › Status bar.
+
 ### Sharing
 
 **First-run setup and wearer sharing screens: `:feature:sharing`** (package `app.mauri.sukrara.feature.sharing`).

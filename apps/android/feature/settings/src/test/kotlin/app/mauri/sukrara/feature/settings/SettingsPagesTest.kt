@@ -41,6 +41,17 @@ class SettingsPagesTest {
             "graph.side",
             "graph.columnCrown",
             "graph.gridHours",
+            "graph.hours.place",
+            "graph.slots",
+            "graph.ringRange",
+            "graph.ringOrder",
+            "graph.marks",
+            "graph.lines",
+            "graph.lastPlace",
+            "graph.lastElse",
+            "graph.sensorTime.place",
+            // Settings › Lock screen
+            "lock.treatmentTime",
             "alerts.on",
             "alerts.kind.on",
             "alerts.threshold.very_low",
@@ -72,6 +83,10 @@ class SettingsPagesTest {
             // Settings › Status bar and Settings › Sensor end
             "statusbar.chip",
             "statusbar.icon",
+            "statusbar.hook",
+            "statusbar.hookPosition",
+            "statusbar.hookColor",
+            "statusbar.hideNotifIcon",
             "sensor.reminders",
             "sensor.countdownHours",
         )
@@ -89,27 +104,13 @@ class SettingsPagesTest {
     /** Not on a settings page, or internal format / state with no row. */
     private val pending =
         setOf(
-            "graph.hours.place",
-            "graph.slots",
-            "graph.ringRange",
-            "graph.ringOrder",
-            "graph.marks",
-            "graph.lines",
-            "graph.lastPlace",
-            "graph.lastElse",
-            "graph.sensorTime.place",
             "follower.settingsFrom",
             "alerts.source",
             "alerts.v",
             "statusbar.systemIcons",
-            "statusbar.hook",
-            "statusbar.hookPosition",
-            "statusbar.hookColor",
-            "statusbar.hideNotifIcon",
             "lock.widget",
             "lock.background",
             "lock.appearance",
-            "lock.treatmentTime",
             // mmol/L in these pages: issue c17 (thresholds and ranges stay mg/dL here)
             "general.unit",
         )
@@ -196,6 +197,7 @@ class SettingsPagesTest {
                 override val clock = FakeClock()
                 override val sensor = flowOf(app.mauri.sukrara.core.model.SensorState.None)
                 override val appsShared = flowOf(emptySet<AppOutput>())
+                override val systemAccess = NoSystemAccess
             }
         val vm = AlertsViewModel(deps)
         vm.muteAll(0.0)
@@ -205,4 +207,21 @@ class SettingsPagesTest {
         vm.remindAsUsual(AlertKind.HIGH)
         assertEquals(listOf("muteAll null", "muteAll 120", "unmuteAll", "unmute very_low", "remindAsUsual high"), controls.calls)
     }
+}
+
+/** A phone without root or LSPosed. */
+object NoSystemAccess : app.mauri.sukrara.core.model.SystemAccessPort {
+    override val state =
+        kotlinx.coroutines.flow.MutableStateFlow(
+            app.mauri.sukrara.core.model
+                .SystemAccessState(root = false, module = app.mauri.sukrara.core.model.ModuleState.Missing),
+        )
+
+    override suspend fun checkRoot() = Unit
+
+    override fun refresh() = Unit
+
+    override suspend fun restartSystemUi(): String? = null
+
+    override suspend fun requestScope(): String? = null
 }

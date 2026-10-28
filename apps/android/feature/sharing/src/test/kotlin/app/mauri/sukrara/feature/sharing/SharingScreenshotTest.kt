@@ -77,7 +77,7 @@ class SharingScreenshotTest {
         Locale.setDefault(Locale.US)
     }
 
-    private val facts = SetupFacts(role = Role.Wearer, followerAvailable = false, ownSensorLive = false, hasIdentity = false)
+    private val facts = SetupFacts(role = Role.Wearer, ownSensorLive = false, hasIdentity = false)
 
     private fun ui(
         step: SetupStep,
