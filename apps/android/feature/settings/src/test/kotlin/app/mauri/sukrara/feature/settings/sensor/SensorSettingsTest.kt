@@ -200,5 +200,31 @@ class SensorSettingsTest {
         compose.onNodeWithText("Juggluco").assertIsSelected()
     }
 
+    @Test
+    fun `forget asks first, Cancel keeps the sensor, open on scan toggles`() {
+        var forgot = 0
+        val scan = mutableListOf<Boolean>()
+        show(
+            working.copy(paired = true, openOnScan = OpenOnScan(on = false)),
+            SensorSettingsActions(forget = { forgot++ }, setOpenOnScan = { scan += it }),
+        )
+        compose.onNodeWithText("Open Sukrara when you scan a sensor").performScrollTo().performClick()
+        assertEquals(listOf(true), scan)
+        compose.onNodeWithText("Forget this sensor").performScrollTo().performClick()
+        compose.onNodeWithText("Forget this sensor?").assertExists()
+        compose.onNodeWithText("Cancel").performClick()
+        assertEquals(0, forgot)
+        compose.onNodeWithText("Forget this sensor").performClick()
+        compose.onNodeWithText("Forget").performClick()
+        assertEquals(1, forgot)
+    }
+
+    @Test
+    fun `with Juggluco as the source the This phone rows are hidden`() {
+        show(working.copy(source = SourceChoice.Juggluco, paired = true, openOnScan = OpenOnScan(on = true)))
+        compose.onNodeWithText("Forget this sensor").assertDoesNotExist()
+        compose.onNodeWithText("Open Sukrara when you scan a sensor").assertDoesNotExist()
+    }
+
     private fun ComposeContentTestRule.onAllNodesWithTextFirst(text: String) = onAllNodes(hasText(text)).onFirst().performScrollTo()
 }

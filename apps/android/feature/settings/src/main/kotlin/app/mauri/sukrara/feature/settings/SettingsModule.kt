@@ -11,6 +11,7 @@ import app.mauri.sukrara.core.model.DispatcherProvider
 import app.mauri.sukrara.core.model.SensorState
 import app.mauri.sukrara.core.model.SystemAccessPort
 import app.mauri.sukrara.core.model.storage.SettingsRepository
+import app.mauri.sukrara.feature.settings.advanced.AdvancedPort
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
 import okhttp3.OkHttpClient
@@ -42,6 +43,8 @@ class SettingsModule(
     restoreClinicBanner: () -> Unit = {},
     closedTips: Flow<Int> = flowOf(0),
     restoreClosedTips: () -> Unit = {},
+    advanced: () -> AdvancedPort = { AdvancedPort.None },
+    overviewSharing: Flow<OverviewSharing> = flowOf(OverviewSharing()),
 ) {
     val deps: SettingsDeps =
         object : SettingsDeps {
@@ -72,6 +75,10 @@ class SettingsModule(
             override val closedTips = closedTips
 
             override fun restoreClosedTips() = restoreClosedTips()
+
+            override val advanced by lazy { advanced() }
+
+            override val overviewSharing = overviewSharing
         }
 
     /** When the alert thresholds were confirmed (null = never): home's Finish-setup card asks until they are. */

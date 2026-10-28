@@ -13,6 +13,7 @@ import app.mauri.sukrara.core.model.PensPort
 import app.mauri.sukrara.core.model.SensorState
 import app.mauri.sukrara.core.model.SystemAccessPort
 import app.mauri.sukrara.core.model.storage.SettingsRepository
+import app.mauri.sukrara.feature.settings.advanced.AdvancedPort
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
 
@@ -76,7 +77,19 @@ interface SettingsDeps {
 
     /** An alert's sound preview and *Send a test alert* (the alert runtime's notifier); nothing in screenshots. */
     val alertPlayback: AlertPlayback get() = AlertPlayback.None
+
+    /** Settings › Advanced: relays, *Reconnect now*, the log, the identity and the settings file. */
+    val advanced: AdvancedPort get() = AdvancedPort.None
+
+    /** The overview's Profile and Backup rows (the wearer's sharing). */
+    val overviewSharing: Flow<OverviewSharing> get() = flowOf(OverviewSharing())
 }
+
+/**
+ * The overview's sharing rows: [wearer] (a follower has no profile or backup here), the profile [name] (null = not
+ * set) and whether the identity is backed up ([backedUp] null = no identity yet: Backup leads to setting one up).
+ */
+data class OverviewSharing(val wearer: Boolean = true, val name: String? = null, val backedUp: Boolean? = null)
 
 /**
  * Hearing an alert from its settings page, only on the person's tap: [play] its sound for a pack (with its vibration

@@ -38,6 +38,12 @@ class OverviewActions(
     val restoreClosedTips: () -> Unit = {},
     /** Settings › Insulin pens is offered (the wearer's phone with NFC). */
     val pens: Boolean = false,
+    /** The sharing profile (name and picture followers see). */
+    val openProfile: () -> Unit = {},
+    /** Backup of the sharing identity (password manager, recovery code). */
+    val openBackup: () -> Unit = {},
+    /** Export data (CSV / Nightscout JSON). */
+    val openExport: () -> Unit = {},
 )
 
 /** The settings overview (wearer): *Share your data with your clinic* until set up, Mute all's state with Unmute, then one row per page. */
@@ -51,6 +57,7 @@ fun SettingsOverviewContent(
     appsShared: Set<AppOutput> = emptySet(),
     clinicBanner: Boolean = false,
     closedTips: Int = 0,
+    sharing: OverviewSharing = OverviewSharing(),
     onBack: () -> Unit,
 ) {
     val snackbar = remember { SnackbarHostState() }
@@ -84,6 +91,15 @@ fun SettingsOverviewContent(
                 },
             ).takeIf { clinicBanner },
         )
+        if (sharing.wearer) {
+            SettingsGroup {
+                NavigationRow(
+                    sharing.name?.takeIf { it.isNotBlank() } ?: stringResource(R.string.st_profile_add_name),
+                    actions.openProfile,
+                    summary = stringResource(R.string.st_profile_summary),
+                )
+            }
+        }
         MuteAllStrip(alerts, clock, actions.unmuteAll) { actions.open(SettingsRoute.Alerts) }
         SettingsGroup {
             NavigationRow(
@@ -129,6 +145,27 @@ fun SettingsOverviewContent(
             }
         }
         SettingsGroup {
+            if (sharing.wearer) {
+                NavigationRow(
+                    stringResource(R.string.st_backup_title),
+                    actions.openBackup,
+                    summary =
+                        stringResource(
+                            when (sharing.backedUp) {
+                                true -> R.string.st_backup_saved
+                                false -> R.string.st_backup_not_saved
+                                null -> R.string.st_backup_no_identity
+                            },
+                        ),
+                )
+            }
+            NavigationRow(
+                stringResource(R.string.st_export_title),
+                actions.openExport,
+                summary = stringResource(R.string.st_export_summary),
+            )
+        }
+        SettingsGroup {
             if (closedTips > 0) {
                 NavigationRow(
                     stringResource(R.string.st_show_closed_tips),
@@ -140,6 +177,9 @@ fun SettingsOverviewContent(
                     summary = pluralStringResource(R.plurals.st_closed_tips, closedTips, closedTips),
                 )
             }
+            NavigationRow(stringResource(R.string.st_adv_title), {
+                actions.open(SettingsRoute.Advanced)
+            }, summary = stringResource(R.string.st_adv_overview_summary))
             NavigationRow(stringResource(R.string.st_about_title), { actions.open(SettingsRoute.About) })
         }
     }

@@ -4,6 +4,7 @@
 package app.mauri.sukrara.feature.settings.sensor
 
 import android.content.Intent
+import android.net.Uri
 import android.provider.Settings
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -40,6 +41,7 @@ import app.mauri.sukrara.designsystem.rows.FooterText
 import app.mauri.sukrara.designsystem.rows.InfoRow
 import app.mauri.sukrara.designsystem.rows.NavigationRow
 import app.mauri.sukrara.designsystem.rows.SettingsGroup
+import app.mauri.sukrara.designsystem.rows.SwitchRow
 import app.mauri.sukrara.feature.settings.ConfirmDialog
 import app.mauri.sukrara.feature.settings.R
 import app.mauri.sukrara.feature.settings.SettingsPage
@@ -57,6 +59,8 @@ class SensorSettingsActions(
     val signIn: () -> Unit = {},
     val setSource: (SourceChoice) -> Unit = {},
     val signOut: () -> Unit = {},
+    val setOpenOnScan: (Boolean) -> Unit = {},
+    val forget: () -> Unit = {},
 )
 
 /** Settings › Sensor with its ViewModel; the "ends in" time moves every minute. */
@@ -79,7 +83,14 @@ fun SensorSettingsScreen(
         state,
         now,
         clock.zone,
-        SensorSettingsActions(onPairNewSensor, onSignIn, viewModel::setSource, viewModel::signOut),
+        SensorSettingsActions(
+            onPairNewSensor,
+            onSignIn,
+            viewModel::setSource,
+            viewModel::signOut,
+            viewModel::setOpenOnScan,
+            viewModel::forget,
+        ),
         onBack,
     )
 }
@@ -101,6 +112,7 @@ fun SensorSettingsContent(
         var confirming by rememberSaveable { mutableStateOf<SourceChoice?>(null) }
         StateNotice(state, actions) { confirming = SourceChoice.Juggluco }
         SensorGroup(state, now, zone, actions)
+        if (state.source == SourceChoice.Libre3Direct) ThisPhoneGroup(state, actions)
         SourceGroup(state.source) { confirming = it }
         AccountGroup(state.account, actions)
         FooterText(stringResource(R.string.st_sensor_footer))
@@ -248,6 +260,52 @@ private fun SensorGroup(
                     },
                 ),
         )
+    }
+}
+
+/**
+ * What this phone does with the sensor: open Sukrara when a sensor is scanned (NFC; blocked by Android → the switch
+ * opens Sukrara's app page, where tag intents are allowed again) and *Forget this sensor* (asks first).
+ */
+@Composable
+private fun ThisPhoneGroup(
+    state: SensorSettingsState,
+    actions: SensorSettingsActions,
+) {
+    val scan = state.openOnScan
+    if (scan == null && !state.paired) return
+    val context = LocalContext.current
+    SettingsGroup(title = stringResource(R.string.st_sensor_this_phone)) {
+        scan?.let {
+            val blocked = it.on && it.blocked
+            SwitchRow(
+                stringResource(R.string.st_sensor_open_on_scan),
+                it.on,
+                actions.setOpenOnScan,
+                summary =
+                    stringResource(if (blocked) R.string.st_sensor_open_on_scan_blocked else R.string.st_sensor_open_on_scan_summary),
+            )
+            if (blocked) {
+                NavigationRow(
+                    stringResource(R.string.st_sensor_open_on_scan_allow),
+                    {
+                        context.startActivity(
+                            Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", context.packageName, null)),
+                        )
+                    },
+                )
+            }
+        }
+        if (state.paired) {
+            DangerRow(
+                title = stringResource(R.string.st_sensor_forget),
+                confirmTitle = stringResource(R.string.st_sensor_forget_title),
+                confirmText = stringResource(R.string.st_sensor_forget_text),
+                confirmAction = stringResource(R.string.st_sensor_forget_confirm),
+                onConfirm = actions.forget,
+                summary = stringResource(R.string.st_sensor_forget_summary),
+            )
+        }
     }
 }
 
