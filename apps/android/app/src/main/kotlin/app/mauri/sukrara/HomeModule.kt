@@ -10,6 +10,7 @@ import app.mauri.sukrara.core.model.AlertReadinessSource
 import app.mauri.sukrara.core.model.AlertRequirement
 import app.mauri.sukrara.core.model.Clock
 import app.mauri.sukrara.core.model.GlucoseState
+import app.mauri.sukrara.core.model.Reading
 import app.mauri.sukrara.core.model.Treatment
 import app.mauri.sukrara.core.model.storage.StateStore
 import app.mauri.sukrara.core.model.storage.TreatmentsRepository
@@ -39,8 +40,11 @@ class HomeModule(
     scope: CoroutineScope,
     override val glucose: StateFlow<GlucoseState>,
     override val graphConfig: Flow<GraphConfig>,
+    override val storedHistory: Flow<List<Reading>>,
     private val readinessSource: AlertReadinessSource,
     private val unmuteAlerts: () -> Unit,
+    /** Ends one side's quiet: the alert kind's wire name ("low" / "high"). */
+    private val endQuietAlerts: (String) -> Unit,
     private val resume: () -> Unit,
     /** First-run setup's first unfinished row, for the Finish-setup banner; null = done. */
     nextSetupStep: Flow<String?>,
@@ -84,6 +88,8 @@ class HomeModule(
     }
 
     override fun unmute() = unmuteAlerts()
+
+    override fun endQuiet(lowSide: Boolean) = endQuietAlerts(if (lowSide) "low" else "high")
 
     override fun resumeMonitoring() = resume()
 

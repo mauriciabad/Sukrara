@@ -307,6 +307,14 @@ private fun route(
             open(context, Intent(NavTargets.ACTION_QUICK_TREATMENT)) {}
         }
 
+        is HomeAction.Treat -> {
+            open(context, Intent(NavTargets.ACTION_QUICK_TREATMENT).putExtra(NavTargets.EXTRA_FOCUS_CARBS, action.carbs)) {}
+        }
+
+        HomeAction.OpenAlertSettings -> {
+            backStack.push(SettingsKey.of(SettingsRoute.Alerts))
+        }
+
         HomeAction.EnableBluetooth -> {
             open(context, Intent(Settings.ACTION_BLUETOOTH_SETTINGS)) {}
         }

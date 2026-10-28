@@ -17,7 +17,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
+import androidx.compose.ui.test.performClick
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import app.mauri.sukrara.designsystem.theme.SukraraTheme
@@ -48,6 +51,8 @@ class TreatmentGallery {
             "empty" to { TreatmentFormState() },
             "filled" to { TreatmentFormState(rapid = "4.5", carbs = "45", note = "Pasta", at = now.minusSeconds(1200)) },
             "error" to { TreatmentFormState(rapid = "120", carbs = "30") },
+            // minutes-ago mode and the quiet line (insulin + carbs entered 16 min ago)
+            "ago-quiet" to { TreatmentFormState(rapid = "3", carbs = "20", ago = 16) },
         )
 
     @Test fun gallery() {
@@ -74,6 +79,7 @@ class TreatmentGallery {
                             onCancel = {},
                             onOpenApp = if (current.third == null) ({}) else null,
                             lock = current.third,
+                            quiet = QuietRules(afterInsulinMin = 60, afterCarbsMin = 30),
                         )
                     }
                 }
@@ -91,5 +97,31 @@ class TreatmentGallery {
                 }
             }
         }
+    }
+
+    /** The *When?* dialog in its *Minutes ago* mode with the 15-minute chip picked (light: dark is the same dialog). */
+    @Test fun whenMinutesAgo() {
+        val form = TreatmentFormState(rapid = "2")
+        compose.setContent {
+            SukraraTheme(dark = false, dynamic = false) {
+                TreatmentDialogContent(
+                    form = form,
+                    focusCarbs = false,
+                    zone = ZoneOffset.UTC,
+                    now = { now },
+                    onSave = { _, _ -> },
+                    onCancel = {},
+                )
+            }
+        }
+        compose.onNodeWithTag("treatment-when").performClick()
+        compose.onNodeWithTag("when-ago").performClick()
+        compose.onNodeWithText("15 min").performClick()
+        compose.waitForIdle()
+        compose.onNodeWithTag("treatment-time").captureRoboImage("build/outputs/roborazzi/treatment-when-ago-light.png")
+        compose.onNodeWithText("OK").performClick()
+        compose.waitForIdle()
+        check(form.ago == 15) { "ago ${form.ago}" }
+        compose.onRoot().captureRoboImage("build/outputs/roborazzi/treatment-when-ago-chip-light.png")
     }
 }

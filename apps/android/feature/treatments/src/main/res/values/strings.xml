@@ -32,4 +32,12 @@
         <item quantity="one">%1$d entry will be sent to the wearer</item>
         <item quantity="other">%1$d entries will be sent to the wearer</item>
     </plurals>
+    <string name="treatment_ago">%1$s ago</string>
+    <string name="treatment_yesterday">Yesterday %1$s</string>
+    <string name="treatment_mode_time">Time</string>
+    <string name="treatment_mode_ago">Minutes ago</string>
+    <string name="treatment_unit_min">min</string>
+    <string name="treatment_quiet_highs">Highs quiet for %1$s</string>
+    <string name="treatment_quiet_lows">Lows quiet for %1$s</string>
+    <string name="treatment_quiet_both">Highs quiet for %1$s · lows quiet for %2$s</string>
 </resources>

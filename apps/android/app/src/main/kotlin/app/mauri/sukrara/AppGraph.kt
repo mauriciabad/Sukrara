@@ -59,6 +59,7 @@ import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.shareIn
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.time.Duration
 import app.mauri.sukrara.graph.Clock as ClockText
@@ -216,8 +217,10 @@ class AppGraph(
             scope = scope,
             glucose = monitor.hub.state,
             graphConfig = graphConfig,
+            storedHistory = monitor.storedHistory,
             readinessSource = alerts.readiness,
             unmuteAlerts = { scope.launch { alerts.controls.unmuteAll() } },
+            endQuietAlerts = { kind -> scope.launch { alerts.controls.unmute(kind) } },
             resume = { scope.launch { startMonitoring(StartReason.Resume) } },
             nextSetupStep = setup.finishItems.map { items -> items.firstOrNull()?.label(app) },
             refreshSetup = setup::refresh,
@@ -237,6 +240,7 @@ class AppGraph(
             glucose = monitor.hub.state,
             treatments = recentTreatments(),
             graphConfig = graphConfig,
+            storedHistory = monitor.storedHistory,
             freshnessTicks = monitor.freshnessTicks,
             store = data.typedStore("widgets", WidgetPlacements.serializer(), WidgetPlacements(), whenCorrupt = WidgetPlacements()),
         )
@@ -277,7 +281,15 @@ class AppGraph(
     }
 
     val treatments: TreatmentsModule by lazy {
-        TreatmentsModule(data.treatments, ShareTreatmentSync(shareOwner), clock, home.glucose, data.settings, scope)
+        TreatmentsModule(
+            data.treatments,
+            ShareTreatmentSync(shareOwner),
+            clock,
+            home.glucose,
+            data.settings,
+            scope,
+            hints = AppAlertHints(alerts.store.settings.stateIn(scope, SharingStarted.Eagerly, null), home.glucose, clock),
+        )
     }
 
     /**

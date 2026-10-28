@@ -87,7 +87,7 @@ private const val SHARE_OF_LIMIT = 1.5f / 3f
 fun widgetModel(
     context: Context,
     frame: WidgetFrame,
-): CardModel = cardModelOf(frame.glucose, frame.treatments, frame.now, CardWords.of(context.resources))
+): CardModel = cardModelOf(frame.glucose, frame.treatments, frame.now, CardWords.of(context.resources), frame.slots)
 
 /** The card style of [kind] for the placement with [overrides]. */
 fun widgetStyle(

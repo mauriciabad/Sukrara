@@ -44,6 +44,7 @@ class WidgetDeleteTest {
                 emptyFlow<GlucoseState>(),
                 flowOf(emptyList()),
                 flowOf(GraphConfig()),
+                flowOf(emptyList()),
                 emptyFlow(),
                 store,
             )
