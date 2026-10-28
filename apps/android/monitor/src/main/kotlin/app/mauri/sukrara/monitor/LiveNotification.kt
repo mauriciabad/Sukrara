@@ -41,6 +41,7 @@ import app.mauri.sukrara.monitor.notify.NotificationCard
 import app.mauri.sukrara.monitor.notify.NotificationIds
 import app.mauri.sukrara.monitor.notify.NotificationPrefs
 import app.mauri.sukrara.monitor.notify.PostGate
+import app.mauri.sukrara.monitor.notify.SharingLine
 import app.mauri.sukrara.monitor.notify.UiText
 import java.time.Instant
 import java.util.concurrent.Executors
@@ -122,6 +123,7 @@ class LiveNotification(
                 .setShowWhen(content.readingAt != null)
                 .setStyle(Notification.BigTextStyle().bigText(text))
         content.readingAt?.let { builder.setWhen(it.toEpochMilli()) }
+        content.sharing?.let { builder.setSubText(sharingText(it)) }
         content.actions.forEach { builder.addAction(Notification.Action.Builder(null, resolve(it.label, now), pending(it.target)).build()) }
         when (content.layout) {
             Layout.LIVE_UPDATE -> liveUpdate(builder, content, now, frame?.config?.bands ?: Bands())
@@ -301,6 +303,17 @@ class LiveNotification(
     ): String {
         val args = text.args.map { if (it is Instant) Freshness.timeText(it.epochSecond, now.epochSecond) else it }
         return context.getString(text.res, *args.toTypedArray())
+    }
+
+    /** "2 followers · 1 nearby" (nearby only while a follower device is connected over Bluetooth). */
+    private fun sharingText(line: SharingLine): String {
+        val r = context.resources
+        val followers = r.getQuantityString(R.plurals.monitor_sub_followers, line.followers, line.followers)
+        return if (line.nearby > 0) {
+            followers + " · " + r.getQuantityString(R.plurals.monitor_sub_nearby, line.nearby, line.nearby)
+        } else {
+            followers
+        }
     }
 
     private fun struck(text: String): CharSequence =

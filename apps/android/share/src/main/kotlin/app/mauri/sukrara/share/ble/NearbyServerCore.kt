@@ -13,6 +13,7 @@ import app.mauri.sukrara.protocol.ble.HelloProof
 import app.mauri.sukrara.protocol.ble.RateLimit
 import app.mauri.sukrara.protocol.ble.Reassembler
 import kotlinx.serialization.json.JsonObject
+import java.io.ByteArrayOutputStream
 
 /**
  * The wearer's side of the Bluetooth share link (ogs-ble B§5–B§8) without android.bluetooth: per-central framing,
@@ -63,6 +64,9 @@ class NearbyServerCore(
         var helloPending: String? = null
         var follower: String? = null
         var device: String? = null
+
+        /** A long write's Prepare Write parts, in offset order, until Execute Write (at most one attribute). */
+        val prepared = ByteArrayOutputStream()
     }
 
     private val peers = LinkedHashMap<String, Peer>()
@@ -110,7 +114,9 @@ class NearbyServerCore(
 
     /**
      * A write on RX. First = whether to answer it with success (checked before answering, B§8): a malformed frame or
-     * one over the byte budget gets an error and the central is dropped.
+     * one over the byte budget gets an error and the central is dropped. A [prepared] write is one part of a long write
+     * (a central that sized its frame past `ATT_MTU − 3`, as CoreBluetooth's `.withResponse` length invites): the parts
+     * must come in offset order and stay within one attribute (512 bytes); [execute] then takes the whole frame.
      */
     fun write(
         peer: String,
@@ -120,20 +126,46 @@ class NearbyServerCore(
         offset: Int,
         mtu: Int = DEFAULT_MTU,
     ): Pair<Boolean, List<Effect>> {
-        val p =
-            peers[peer] ?: if (peers.size < MAX_CENTRALS) {
-                Peer(nowMs()).also {
-                    it.mtu = mtu
-                    peers[peer] = it
-                }
-            } else {
-                null
+        val p = peer(peer, mtu)
+        if (p == null || !toRx || value == null || !p.limit.frame(value.size)) return refuse(peer, p)
+        if (prepared) {
+            val q = p.prepared
+            if (offset != q.size() || q.size() + value.size > BleFraming.MAX_ATTRIBUTE) return refuse(peer, p)
+            q.write(value)
+            return true to emptyList()
+        }
+        if (offset != 0) return refuse(peer, p)
+        return frame(peer, p, value)
+    }
+
+    /** Execute Write after prepared parts: [commit] = the central's "write them" (one frame), else they're dropped. */
+    fun execute(peer: String, commit: Boolean): Pair<Boolean, List<Effect>> {
+        val p = peers[peer] ?: return true to emptyList()
+        val whole = p.prepared.toByteArray()
+        p.prepared.reset()
+        if (!commit || whole.isEmpty()) return true to emptyList()
+        return frame(peer, p, whole)
+    }
+
+    private fun peer(peer: String, mtu: Int): Peer? =
+        peers[peer] ?: if (peers.size < MAX_CENTRALS) {
+            Peer(nowMs()).also {
+                it.mtu = mtu
+                peers[peer] = it
             }
-        val refused =
-            p == null || !toRx || value == null || prepared || offset != 0 ||
-                BleFraming.header(value) == null || !p.limit.frame(value.size)
-        if (refused) return false to listOf(Effect.Disconnect(peer))
-        val message = p!!.rx.add(value!!) ?: return true to emptyList()
+        } else {
+            null
+        }
+
+    private fun refuse(peer: String, p: Peer?): Pair<Boolean, List<Effect>> {
+        p?.prepared?.reset()
+        return false to listOf(Effect.Disconnect(peer))
+    }
+
+    /** One whole frame: a plain write, or an executed long write. */
+    private fun frame(peer: String, p: Peer, value: ByteArray): Pair<Boolean, List<Effect>> {
+        if (BleFraming.header(value) == null) return refuse(peer, p)
+        val message = p.rx.add(value) ?: return true to emptyList()
         if (!p.limit.message()) return true to emptyList()
         val m = BleMessages.parse(message) ?: return true to emptyList()
         return true to

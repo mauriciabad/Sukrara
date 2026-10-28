@@ -47,6 +47,7 @@ import app.mauri.sukrara.monitor.hub.MonitorRecord
 import app.mauri.sukrara.monitor.notify.Channels
 import app.mauri.sukrara.monitor.notify.NotificationGroups
 import app.mauri.sukrara.monitor.notify.NotificationIds
+import app.mauri.sukrara.monitor.notify.SharingLine
 import app.mauri.sukrara.monitor.sensorend.SensorEndMemory
 import app.mauri.sukrara.monitor.service.StartReason
 import app.mauri.sukrara.pen.PenLog
@@ -64,6 +65,7 @@ import app.mauri.sukrara.share.FollowerModule
 import app.mauri.sukrara.share.ShareOwnerModule
 import app.mauri.sukrara.share.follower.FollowState
 import app.mauri.sukrara.share.follower.FollowerNotifications
+import app.mauri.sukrara.share.owner.OwnerShareState
 import app.mauri.sukrara.share.owner.followRole
 import app.mauri.sukrara.share.owner.requests.AndroidRequestNotifications
 import app.mauri.sukrara.widgets.WidgetPlacements
@@ -140,7 +142,7 @@ class AppGraph(
         )
     }
 
-    val monitor by lazy {
+    val monitor: MonitorModule by lazy {
         MonitorModule(
             context = app,
             scope = scope,
@@ -160,6 +162,16 @@ class AppGraph(
             settings = data.settings,
             treatments = recentTreatments(),
             graphConfig = graphConfig,
+            // cold: the owner engine is built when the service first draws the notification
+            sharing =
+                flow {
+                    val owner = shareOwner.ownerEngine
+                    emitAll(
+                        combine(owner.state, owner.nearbyLinks) { s, links ->
+                            (s as? OwnerShareState.Sharing)?.let { SharingLine(it.followers.count { f -> f.active }, links.size) }
+                        },
+                    )
+                }.distinctUntilChanged(),
         )
     }
 

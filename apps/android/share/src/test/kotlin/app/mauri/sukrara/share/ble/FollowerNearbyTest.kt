@@ -124,9 +124,10 @@ class FollowerNearbyTest {
         runTest {
             val e = engine()
             val (nb, job) = following(e)
-            nb.info(BleMessages.Owner.Other)
+            nb.info(BleMessages.Owner.Other, phone = "stranger")
             runCurrent()
-            assertEquals(listOf(60L), nb.left)
+            // that phone, for 10 minutes (B§6), even if the link has moved on to our wearer's phone since
+            assertEquals(listOf("stranger" to 600L), nb.left)
             nb.info(BleMessages.Owner.Ours)
             runCurrent()
             assertEquals(NearbyStatus.Connected(1), e.nearbyStatus.value)

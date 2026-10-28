@@ -93,7 +93,8 @@ The full catalog, with every rule and number, is [docs/FEATURES.md](docs/FEATURE
   device is sharing as you.
 - **Bluetooth nearby**: followers' phones and Macs in range get your readings straight from your phone, even without
   internet (on by default, *Share over Bluetooth*); Settings › Sharing lists the devices connected now, says when
-  Bluetooth is off or the Nearby devices permission is missing, and offers the fix.
+  Bluetooth is off or the Nearby devices permission is missing, and offers the fix; the live notification says
+  *2 followers · 1 nearby*.
 - **Follow someone from an Android phone**: paste (or open) the wearer's invite link, wait for them to allow you (with
   the 4-digit code they may ask for), then their readings, sensor, entries and alerts arrive over the relays and drive
   home, widgets, the live notification and your own alerts (including *no data*); near their phone they also arrive over

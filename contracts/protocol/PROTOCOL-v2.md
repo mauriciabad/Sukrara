@@ -102,6 +102,14 @@ entries, deletes.
   `HELLO` without `id` is supported.
 - BLE: every treatment event is pushed to subscribed centrals like any publish; the `HELLO` backlog also carries the
   treatment events of the last 30 days (newest 200), after the chunks and before live.
+- BLE link rules (2026-10-28, refine spec/ogs-ble.md B§4.1/B§6): every frame fits one ATT Write Request /
+  notification (`min(ATT_MTU−3, 512)`; CoreBluetooth's MTU is its `.withoutResponse` write length + 3, never the
+  `.withResponse` length, which is always 512 and makes the stack send a long write). The wearer still accepts a long
+  (Prepare/Execute) write on RX from any central: parts in offset order, at most 512 bytes, then judged as one frame.
+  **Which owner:** once the follower knows `sid`, only `m` over one of its last 4 nonces proves the wearer's phone (a
+  pairing `i` is public, so it never does); before `sid`, `i` = the stream's `I` does. A phone proved to be another
+  wearer's is avoided for **10 minutes** (that phone only, by its connection id: never the one connected since).
+  Pinned by `ble/default-mtu.json` (a Mac follower ↔ Android wearer at ATT MTU 23, plain and long write).
 - Sukrara for Mac follows over v2 like any follower; while it is a writer, its entries go over v2 only (not the
   legacy Mac link), so "Can add entries" governs the Mac too. The legacy link (SPEC §2) refuses entries unless the
   wearer explicitly allows that unauthenticated path on the phone.
