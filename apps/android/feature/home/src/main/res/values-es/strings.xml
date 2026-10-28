@@ -115,4 +115,20 @@
     <string name="data_store_keys_text">No se pudo leer una clave o un inicio de sesión guardado. Puede que tengas que iniciar sesión, emparejar o compartir de nuevo.</string>
     <string name="data_store_other_title">Otros datos guardados</string>
     <string name="data_store_other_text">Se reinició un archivo guardado; Sukrara lo empezó de nuevo vacío.</string>
+    <string name="home_chart_back">Volver a ahora</string>
+    <string name="home_chart_earlier">Ver antes</string>
+    <string name="home_chart_later">Ver después</string>
+    <string name="home_chart_zoom_in">Acercar</string>
+    <string name="home_chart_zoom_out">Alejar</string>
+    <string name="home_pill_replace_sensor">Vincular sensor nuevo</string>
+    <string name="home_pill_alert_options">Opciones de alertas</string>
+    <string name="home_quiet_lows">Alertas de bajas</string>
+    <string name="home_quiet_highs">Alertas de altas</string>
+    <string name="home_quiet_all">Todas las alertas</string>
+    <string name="home_quiet_taken">En silencio tras tu tratamiento, para que no suenen mientras hace efecto.</string>
+    <string name="home_quiet_muted">Las silenciaste en este teléfono.</string>
+    <string name="home_quiet_all_text">Silenciar alertas está activado: ninguna alerta suena en este teléfono.</string>
+    <string name="home_quiet_anyway">Avisarme igualmente</string>
+    <string name="home_quiet_settings">Ajustes de alertas</string>
+    <string name="home_pair_new_sensor">Vincular sensor nuevo</string>
 </resources>

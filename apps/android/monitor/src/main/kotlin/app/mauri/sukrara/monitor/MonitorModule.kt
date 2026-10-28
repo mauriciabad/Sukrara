@@ -7,10 +7,12 @@ import android.content.Context
 import app.mauri.sukrara.core.model.Clock
 import app.mauri.sukrara.core.model.DispatcherProvider
 import app.mauri.sukrara.core.model.GlucoseHub
+import app.mauri.sukrara.core.model.Reading
 import app.mauri.sukrara.core.model.ReadingSource
 import app.mauri.sukrara.core.model.Role
 import app.mauri.sukrara.core.model.storage.ReadingsRepository
 import app.mauri.sukrara.core.model.storage.StateStore
+import app.mauri.sukrara.monitor.hub.GlucoseHistory
 import app.mauri.sukrara.monitor.hub.GlucoseHubImpl
 import app.mauri.sukrara.monitor.hub.MonitorRecord
 import app.mauri.sukrara.monitor.notify.Channels
@@ -25,6 +27,9 @@ import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.shareIn
 
 /**
  * The monitor's objects (DI module): the hub, the service's starter, the health check, the freshness ticker and
@@ -47,6 +52,16 @@ class MonitorModule(
 
     /** What every other module reads. */
     val hub: GlucoseHub get() = hubImpl
+
+    private val glucoseHistory = GlucoseHistory(clock, readings, hubImpl.state.map { it.recent })
+
+    /**
+     * The last 31 days before the live window (home's scroll and zoom, the multi-day slots), re-read hourly: a surface
+     * that follows the hub joins them with `GlucoseState.recent` itself (`ReadingHistory.join`), so a new reading
+     * redraws it once, not twice.
+     */
+    val storedHistory: Flow<List<Reading>> =
+        glucoseHistory.stored.shareIn(scope, SharingStarted.WhileSubscribed(HISTORY_STOP_MS), replay = 1)
 
     val notification = LiveNotification(context)
 
@@ -93,5 +108,8 @@ interface MonitorHost {
     /** Completes when the app's storage and modules are ready ([MonitorModule.ready] has run). */
     suspend fun awaitReady()
 }
+
+/** Home left for this long (rotation, a quick switch) keeps the month in memory. */
+private const val HISTORY_STOP_MS = 5_000L
 
 internal val Context.monitorHost: MonitorHost get() = applicationContext as MonitorHost

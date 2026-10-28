@@ -212,8 +212,10 @@ class AppGraph(
             scope = scope,
             glucose = monitor.hub.state,
             graphConfig = graphConfig,
+            storedHistory = monitor.storedHistory,
             readinessSource = alerts.readiness,
             unmuteAlerts = { scope.launch { alerts.controls.unmuteAll() } },
+            endQuietAlerts = { kind -> scope.launch { alerts.controls.unmute(kind) } },
             resume = { scope.launch { startMonitoring(StartReason.Resume) } },
             nextSetupStep = setup.finishItems.map { items -> items.firstOrNull()?.label(app) },
             refreshSetup = setup::refresh,
@@ -233,6 +235,7 @@ class AppGraph(
             glucose = monitor.hub.state,
             treatments = recentTreatments(),
             graphConfig = graphConfig,
+            storedHistory = monitor.storedHistory,
             freshnessTicks = monitor.freshnessTicks,
             store = data.typedStore("widgets", WidgetPlacements.serializer(), WidgetPlacements(), whenCorrupt = WidgetPlacements()),
         )
