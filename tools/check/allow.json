@@ -45,6 +45,11 @@
       "path": "apps/android/sensor/src/main/kotlin/app/mauri/sukrara/sensor/juggluco/JugglucoSource.kt",
       "contains": "http://127.0.0.1:17580",
       "reason": "local Juggluco on this phone: its web server listens on loopback only (127.0.0.1:17580); nothing leaves the device"
+    },
+    {
+      "path": "apps/android/integrations/src/main/kotlin/app/mauri/sukrara/integrations/nightscout/NsConfig.kt",
+      "contains": "\"http\" -> if (isLoopback(host))",
+      "reason": "Nightscout upload site rules: a typed http:// address is accepted only for this phone's loopback (localhost / 127.x / ::1), all network_security_config allows; any other http:// is refused with 'use https://'"
     }
   ],
   "network_ok": [
@@ -63,6 +68,18 @@
     {
       "path": "apps/android/feature/settings/src/main/kotlin/app/mauri/sukrara/feature/settings/UpdateCheck.kt",
       "reason": "About page update check: GET the fixed https URL api.github.com/repos/mauriciabad/sukrara/releases once per page open (no user-entered host, nothing sent)"
+    },
+    {
+      "path": "apps/android/integrations/src/main/kotlin/app/mauri/sukrara/integrations/nightscout/NsClient.kt",
+      "reason": "Nightscout upload: the user-entered site, validated by NsSite.parse (https://, or http:// only to loopback); redirects are never followed and the token / secret never appears in a reason"
+    },
+    {
+      "path": "apps/android/integrations/src/main/kotlin/app/mauri/sukrara/integrations/libreview/LibreViewClient.kt",
+      "reason": "LibreView upload: Abbott's fixed https config URL, then the https API address it names (every URL checked https, no user info); redirects are never followed; http only to loopback in tests (internal constructor flag)"
+    },
+    {
+      "path": "apps/android/integrations/src/main/kotlin/app/mauri/sukrara/integrations/localserver/LocalHttpServer.kt",
+      "reason": "xDrip+ server for Garmin watches: listens (never connects) on 127.0.0.1 only; bounded pool, request head and deadline; off by default"
     }
   ],
   "durations_ok": {},
@@ -84,10 +101,6 @@
       "reason": "written before the Complete flows rule (round f29): audit its states and exits, then add the paragraph"
     },
     {
-      "section": "Data export",
-      "reason": "written before the Complete flows rule (round f29): audit its states and exits, then add the paragraph"
-    },
-    {
       "section": "Lock screen widget",
       "reason": "written before the Complete flows rule (round f29): audit its states and exits, then add the paragraph"
     },
@@ -100,15 +113,7 @@
       "reason": "written before the Complete flows rule (round f29): audit its states and exits, then add the paragraph"
     },
     {
-      "section": "Share with apps on this phone (investigation 22)",
-      "reason": "written before the Complete flows rule (round f29): audit its states and exits, then add the paragraph"
-    },
-    {
       "section": "Tidepool upload (docs/27)",
-      "reason": "written before the Complete flows rule (round f29): audit its states and exits, then add the paragraph"
-    },
-    {
-      "section": "Nightscout upload (docs/25)",
       "reason": "written before the Complete flows rule (round f29): audit its states and exits, then add the paragraph"
     },
     {

@@ -3,23 +3,34 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.sensor.source
 
+import app.mauri.sukrara.core.model.Reading
 import app.mauri.sukrara.core.model.SensorAction
 import app.mauri.sukrara.core.model.SensorState
+import app.mauri.sukrara.core.model.SourceId
 import app.mauri.sukrara.core.model.SourceStatus
 import app.mauri.sukrara.core.testing.FakeClock
 import app.mauri.sukrara.core.testing.InMemorySecureStore
+import app.mauri.sukrara.sensor.SensorProfile
+import app.mauri.sukrara.sensor.ble.BleScanner
 import app.mauri.sukrara.sensor.ble.GattConnection
 import app.mauri.sukrara.sensor.ble.GattConnector
 import app.mauri.sukrara.sensor.ble.GattEvent
+import app.mauri.sukrara.sensor.ble.LinkStatus
+import app.mauri.sukrara.sensor.ble.ScanHit
+import app.mauri.sukrara.sensor.brand.Advert
+import app.mauri.sukrara.sensor.brand.ScanSpec
+import app.mauri.sukrara.sensor.dexcom.Dexcom
 import app.mauri.sukrara.sensor.juggluco.JugglucoSource
 import app.mauri.sukrara.sensor.juggluco.JugglucoStatus
 import app.mauri.sukrara.sensor.libre3.Libre3Security
 import app.mauri.sukrara.sensor.pairing.Pairing
+import app.mauri.sukrara.sensor.pairing.PairingLoad
 import app.mauri.sukrara.sensor.pairing.PairingStore
 import com.sun.net.httpserver.HttpServer
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
@@ -47,10 +58,18 @@ class SourceManagerTest {
         override var isBluetoothOn = true
         val opened = ArrayList<Int>()
         val closed = ArrayList<Int>()
+        val addresses = ArrayList<String>()
+        var onEvent: (GattEvent) -> Unit = {}
 
         override fun connect(address: String, generation: Int, onEvent: (GattEvent) -> Unit): GattConnection {
             opened += generation
+            addresses += address
+            this.onEvent = onEvent
             return object : GattConnection {
+                override val isBonded = true
+
+                override fun enableIndications(characteristic: UUID) = true
+
                 override fun discoverServices() = true
 
                 override fun enableNotifications(characteristic: UUID) = true
@@ -62,6 +81,20 @@ class SourceManagerTest {
                 }
             }
         }
+    }
+
+    private class FakeScanner : BleScanner {
+        override var isBluetoothOn = true
+        var onHit: (ScanHit) -> Unit = {}
+        var scans = 0
+
+        override fun start(filters: List<ScanSpec>, onHit: (ScanHit) -> Unit, onFailed: (Int) -> Unit): Boolean {
+            scans++
+            this.onHit = onHit
+            return true
+        }
+
+        override fun stop() = Unit
     }
 
     private object NoSecurity : Libre3Security {
@@ -90,7 +123,8 @@ class SourceManagerTest {
         val secure = InMemorySecureStore()
         val store = PairingStore(secure)
         val connector = FakeConnector()
-        val kind = MutableStateFlow(SensorSourceKind.Libre3)
+        val scanner = FakeScanner()
+        val kind = MutableStateFlow(SensorSourceKind.Direct)
         val clock = FakeClock(start.plus(Duration.ofDays(2)))
         private val dispatcher = StandardTestDispatcher(test.testScheduler)
         val manager =
@@ -99,12 +133,83 @@ class SourceManagerTest {
                 store,
                 security,
                 connector,
+                scanner,
                 juggluco = { JugglucoSource(OkHttpClient(), "http://127.0.0.1:1") { clock.zone } },
                 clock = clock,
                 dispatcher = dispatcher,
                 io = dispatcher,
             )
     }
+
+    /**
+     * A scanned family end to end (Dexcom G7 read along with the Dexcom app): scan → the bonded sensor → its address
+     * saved → connected → the Dexcom app's session → one live value with the sensor's start. The same value again after
+     * a restart is history, never a second live value.
+     */
+    @Test
+    fun aScannedSensorIsFoundConnectedAndReadOnce() =
+        runTest {
+            val r = Rig(this)
+            val g7 = Pairing.scanned(SensorProfile.DexcomG7, "", pairedAtMs = 1L)
+            r.store.save(g7)
+            val received = ArrayList<Reading>()
+            backgroundScope.launch { r.manager.readings.collect { received += it } }
+            r.manager.start()
+            runCurrent()
+            assertEquals(LinkStatus.Scanning, (r.manager.detail.value as SensorStatus.Direct).link)
+            r.scanner.onHit(ScanHit(Advert("aa:bb:cc:dd:ee:01", "DXCM4A", bonded = false), null)) // not this phone's
+            r.scanner.onHit(ScanHit(Advert("aa:bb:cc:dd:ee:02", "DXCM4B", bonded = true), null))
+            runCurrent()
+            assertEquals(listOf("aa:bb:cc:dd:ee:02"), r.connector.addresses)
+            assertEquals("AA:BB:CC:DD:EE:02", (r.store.load() as PairingLoad.Ok).pairing.address)
+            val now = r.clock.now().epochSecond
+
+            fun g7Session() {
+                r.connector.onEvent(GattEvent.ConnectionChanged(r.connector.opened.last(), true, 0))
+                runCurrent()
+                r.connector.onEvent(
+                    GattEvent.ServicesDiscovered(
+                        r.connector.opened.last(),
+                        0,
+                        setOf(Dexcom.AUTHENTICATION, Dexcom.CONTROL, Dexcom.BACKFILL),
+                    ),
+                )
+                runCurrent()
+                r.connector.onEvent(GattEvent.OperationDone(r.connector.opened.last(), Dexcom.AUTHENTICATION, 0))
+                r.connector.onEvent(GattEvent.Notification(r.connector.opened.last(), Dexcom.AUTHENTICATION, byteArrayOf(5, 1, 1)))
+                runCurrent()
+                r.connector.onEvent(GattEvent.OperationDone(r.connector.opened.last(), Dexcom.CONTROL, 0))
+                r.connector.onEvent(GattEvent.OperationDone(r.connector.opened.last(), Dexcom.BACKFILL, 0))
+                r.connector.onEvent(GattEvent.Notification(r.connector.opened.last(), Dexcom.CONTROL, EGV_97))
+                runCurrent()
+            }
+            g7Session()
+            assertEquals(listOf(97), received.map { it.mgdl })
+            assertEquals(SourceId.DexcomG7, received.single().source)
+            assertEquals(now - 5, received.single().t.epochSecond) // measured 5 s before it was sent
+            assertTrue(r.manager.status.value is SourceStatus.Live)
+            assertEquals(
+                now - 2005,
+                r.manager.sensorInfo.value
+                    ?.startEpoch,
+            )
+            assertEquals(now - 2005, (r.store.load() as PairingLoad.Ok).pairing.startEpoch)
+            assertEquals(
+                "DXCM4B",
+                r.manager.sensorInfo.value
+                    ?.serial,
+            )
+
+            r.manager.retry() // a restart: the next driver connects straight to the saved address, no scan
+            runCurrent()
+            assertEquals(1, r.scanner.scans)
+            assertEquals("AA:BB:CC:DD:EE:02", r.connector.addresses.last())
+            g7Session()
+            assertEquals(2, received.size) // delivered again, but as history
+            assertEquals(received[0].t, received[1].t)
+            r.manager.stop()
+            runCurrent()
+        }
 
     @Test
     fun noSensorYetIsNotMonitoringAndNeverInventsReadings() =
@@ -166,7 +271,7 @@ class SourceManagerTest {
             r.manager.start()
             runCurrent()
             assertEquals(listOf(1), r.connector.opened)
-            assertEquals(SensorState.Active(Instant.ofEpochSecond(pairing.info.endEpoch)), r.manager.sensor.value)
+            assertEquals(SensorState.Active(Instant.ofEpochSecond(pairing.info!!.endEpoch)), r.manager.sensor.value)
             advanceTimeBy(SourceManager.WATCHDOG_MS - 120_000)
             r.clock.advance(Duration.ofMillis(SourceManager.WATCHDOG_MS - 120_000))
             assertEquals(listOf(1), r.connector.opened)
@@ -244,6 +349,7 @@ class SourceManagerTest {
                     PairingStore(InMemorySecureStore()),
                     NoSecurity,
                     FakeConnector(),
+                    FakeScanner(),
                     juggluco = { JugglucoSource(OkHttpClient(), "http://127.0.0.1:${server.address.port}") { ZoneOffset.UTC } },
                     clock = FakeClock(),
                     dispatcher = Dispatchers.Default.limitedParallelism(1),
@@ -252,7 +358,7 @@ class SourceManagerTest {
             try {
                 manager.start()
                 withTimeout(10_000) { manager.status.first { it is SourceStatus.Live } }
-                kind.value = SensorSourceKind.Libre3
+                kind.value = SensorSourceKind.Direct
                 withTimeout(5_000) { manager.detail.first { it == SensorStatus.NoSensor } }
             } finally {
                 manager.stop()
@@ -264,5 +370,10 @@ class SourceManagerTest {
     fun everyProblemHasItsAction() {
         assertEquals(SensorAction.ScanSensor, SensorStatus.OwnedByAnotherApp.action)
         assertEquals(SensorAction.GrantBluetooth, SensorStatus.BluetoothPermissionMissing.action)
+    }
+
+    private companion object {
+        /** LoopKit G7SensorKit's test EGV: sensor time 2005 s, sequence 9, age 5 s, 97 mg/dL, state ok. */
+        val EGV_97 = "4e00d507000009000001050061000601ffff0e".hexToByteArray()
     }
 }

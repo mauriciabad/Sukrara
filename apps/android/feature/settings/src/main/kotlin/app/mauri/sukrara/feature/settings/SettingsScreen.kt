@@ -25,6 +25,8 @@ import app.mauri.sukrara.feature.settings.graph.GraphMarksContent
 import app.mauri.sukrara.feature.settings.graph.GraphViewModel
 import app.mauri.sukrara.feature.settings.lock.LockScreenContent
 import app.mauri.sukrara.feature.settings.lock.LockScreenViewModel
+import app.mauri.sukrara.feature.settings.pens.PensContent
+import app.mauri.sukrara.feature.settings.pens.PensViewModel
 import app.mauri.sukrara.feature.settings.sensorend.SensorEndActions
 import app.mauri.sukrara.feature.settings.sensorend.SensorEndContent
 import app.mauri.sukrara.feature.settings.sensorend.SensorEndViewModel
@@ -51,6 +53,9 @@ sealed interface SettingsRoute {
 
     data object LockScreen : SettingsRoute
 
+    /** Settings › Insulin pens (the wearer's phone with NFC). */
+    data object Pens : SettingsRoute
+
     data object Reliability : SettingsRoute
 
     data object StatusBar : SettingsRoute
@@ -76,6 +81,7 @@ fun SettingsScreen(
     onBack: () -> Unit,
     openSensor: () -> Unit,
     openSharing: () -> Unit,
+    openApps: () -> Unit = {},
     onReviewFinish: (ThresholdReviewResult) -> Unit = { onBack() },
     /** The live card the Ranges and Graph pages show on top (the app's own panel; nothing in tests). */
     preview: @Composable () -> Unit = {},
@@ -86,13 +92,22 @@ fun SettingsScreen(
             val vm = alertsViewModel(deps)
             val ui by vm.ui.collectAsStateWithLifecycle()
             val readiness by deps.readiness.readiness.collectAsStateWithLifecycle()
+            val apps by deps.appsShared.collectAsStateWithLifecycle(emptySet())
             LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { deps.readiness.refresh() }
             SettingsOverviewContent(
                 ui?.settings?.on ?: true,
                 ui?.alerts ?: AlertUiState(),
                 readiness,
                 clock,
-                OverviewActions(navigate, openSensor, openSharing, vm::unmuteAll),
+                OverviewActions(
+                    open = navigate,
+                    openSensor = openSensor,
+                    openSharing = openSharing,
+                    openApps = openApps,
+                    unmuteAll = vm::unmuteAll,
+                    pens = deps.pensAvailable(),
+                ),
+                apps,
                 onBack,
             )
         }
@@ -160,6 +175,12 @@ fun SettingsScreen(
                     GraphMarksContent(it, actions, onBack, preview)
                 }
             }
+        }
+
+        SettingsRoute.Pens -> {
+            val vm = viewModel { PensViewModel(deps.settings) }
+            val ui by vm.ui.collectAsStateWithLifecycle()
+            ui?.let { PensContent(it, vm, onBack) }
         }
 
         SettingsRoute.LockScreen -> {

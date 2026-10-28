@@ -6,6 +6,7 @@ package app.mauri.sukrara.feature.sensor.newsensor
 import android.nfc.Tag
 import app.mauri.sukrara.core.model.Clock
 import app.mauri.sukrara.core.model.SensorState
+import app.mauri.sukrara.sensor.SensorProfile
 import app.mauri.sukrara.sensor.ble.LinkStatus
 import app.mauri.sukrara.sensor.pairing.PairOutcome
 import app.mauri.sukrara.sensor.source.SensorStatus
@@ -54,6 +55,13 @@ class NewSensorViewModelTest {
 
         override suspend fun pair(tag: Tag): PairOutcome = error("tests pass the read directly")
 
+        val scanned = ArrayList<Pair<SensorProfile, String>>()
+
+        override suspend fun pairScanned(profile: SensorProfile, id: String): String {
+            scanned += profile to id
+            return "key:$id"
+        }
+
         override val detail = MutableStateFlow<SensorStatus>(SensorStatus.NoSensor)
         override val sensor = MutableStateFlow<SensorState>(SensorState.None)
 
@@ -75,7 +83,7 @@ class NewSensorViewModelTest {
     @After fun tearDown() = Dispatchers.resetMain()
 
     private fun TestScope.vm(port: FakePort, appScope: TestScope = this) =
-        NewSensorViewModel(port, clock, appScope.backgroundScope).also {
+        NewSensorViewModel(port, clock, appScope.backgroundScope, NewSensorState(profile = SensorProfile.Libre3)).also {
             it.start()
             runCurrent()
         }
@@ -89,7 +97,7 @@ class NewSensorViewModelTest {
             vm.onTagRead { PairOutcome.Paired("ABC", activated = false) }
             runCurrent()
             assertTrue(vm.state.value.step is NewSensorStep.ConnectingBle)
-            port.detail.value = SensorStatus.Libre3("ABC", LinkStatus.Live)
+            port.detail.value = SensorStatus.Direct(SensorProfile.Libre3, "ABC", "ABC", LinkStatus.Live)
             port.sensor.value = SensorState.Active(null)
             runCurrent()
             assertEquals(NewSensorStep.Ready, vm.state.value.step)

@@ -294,7 +294,13 @@ The wearer's glucose input. `SensorModule` builds it; the hub reads `SourceManag
   Bluetooth off/on, generation-tagged callbacks) → `ble/GattConnector` (`AndroidGatt` on the phone, fakes in tests).
   `libre3/Libre3Crypto` is the JNI core (`libsukrara_libre3.so`, from Juggluco at the pinned revision); a build
   without it shows *Libre 3 core missing* and release builds refuse to build (`verifyNativeCore`).
-- **Storage**: the whole pairing (address, start, PIN, authorization, ended) is one SecureStore entry `sensor`
+- **Other families** (untested on real sensors): `dexcom/G7Driver`, `dexcom/G6Driver`, `cgms/SmartGuideDriver`,
+  `aidex/AidexXDriver` extend `brand/BrandDriver` (finding rules, value range / clock / live-vs-history rules, end, fail,
+  retry) and run on the same `GattLink`. The saved pairing's `SensorProfile` picks the driver (`SourceManager.runDirect`);
+  a pairing without an address is found first by `ble/SensorScanner` (filtered windows over the `BleScanner` port,
+  `AndroidScanner` on the phone) and the found address and name are saved. The source never delivers the same reading
+  time twice as live per pairing (`SensorStatus.Direct.key`).
+- **Storage**: the whole pairing (family, address, start, PIN, authorization, ended; a scanned family: its id, found address and name, pairing time) is one SecureStore entry `sensor`
   (Keystore alias `sukrara.sensor`): one atomic write; unreadable → `PairingLoad.Corrupt` → *scan the sensor again*.
   Receiver IDs (Sukrara's own, the LibreView account's + email) in the typed DataStore `receiver-ids.json`. No password or
   token is stored.
@@ -399,6 +405,30 @@ TTLs, JSON field names and number forms, invite link `https://sukrara.mauri.app/
   transport beside the relays while attached and feeds its events to the same `StreamFollower`. Tests:
   `NearbyServerCoreTest`, `NearbyLinkTest`, `OwnerNearbyTest`, `FollowerNearbyTest` (fakes `FakeNearbyServer` /
   `FakeNearbyTransport`).
+
+## Android integrations (`apps/android/integrations`)
+
+`IntegrationsModule` (built by `AppGraph.integrations`; `load()` + `start(scope)` in `ready`) owns everything that
+sends the person's data to other apps; its pages (`AppsPage`, `LibreViewPage`, `NightscoutPage`, `ExportPage`) are
+content the app wraps in the settings page frame (`AppsRoute`, `LibreViewRoute`, `NightscoutUploadRoute`, `ExportRoute`).
+- `upload/` — the shared upload design: no outbox (the readings / treatments stores are the queue; each uploader keeps
+  what the service has), `UploadLoop` (one cycle per kick or 5 min, on IO, never in the reading path), `UploadBackoff`,
+  `SentRanges`, one `UploadStatus` for every page.
+- `nightscout/` — `NsSite` (https, or http to loopback only), `NsClient` (the app's OkHttp without redirects; v1 / v3;
+  token → JWT), `NsDocs`, `NightscoutQueue` (pure plan + reconcile: covered minutes, another-uploader pause),
+  `NightscoutUploader` (settings JSON `apps.nightscoutUpload`, credential only in SecureStore `nightscout`, state in the
+  typed store `nightscout-upload`, device `Sukrara-<6 hex>` per site).
+- `libreview/` — `LibreViewPayload` (contracts/treatments §3, byte for byte), `LibreViewClient` (Abbott's config →
+  sign-in / measurements / sensor registration; https only, no redirects), `LibreViewQueue` (pure: entries LibreView
+  lacks from the version ledger, glucose by life count), `LibreViewUploader` (settings JSON `apps.libreview`; token +
+  profile only in SecureStore `libreview`, the password never stored; ledger, sent life counts, device id and
+  `glucoseFrom` / `entriesFrom` in the typed store `libreview-upload`). Glucose comes from `:sensor`'s
+  `SourceManager.sensorGlucose` (Libre 3 only, each batch tagged with its serial), mapped in `AppGraph`.
+- `localserver/` — `LocalHttpServer` (127.0.0.1, fixed pool, bounded head and deadline), `XdripEndpoint` (Juggluco's
+  JSON, pure), `XdripServer` (follows `apps.xdrip` and the sensor source; readings from the store, "last asked" in
+  memory).
+- `export/` — `GlucoseCsv` (`contracts/export`), `Exporter` (period → stores), `ExportViewModel` (SAF save, FileProvider
+  `${applicationId}.export` share from `cache/export/`).
 
 ## Contracts and tests
 

@@ -16,7 +16,10 @@ class OverviewActions(
     val open: (SettingsRoute) -> Unit = {},
     val openSensor: () -> Unit = {},
     val openSharing: () -> Unit = {},
+    val openApps: () -> Unit = {},
     val unmuteAll: () -> Unit = {},
+    /** Settings › Insulin pens is offered (the wearer's phone with NFC). */
+    val pens: Boolean = false,
 )
 
 /** The settings overview (wearer): Mute all's state with Unmute, then one row per page. */
@@ -27,6 +30,7 @@ fun SettingsOverviewContent(
     readiness: AlertReadiness,
     clock: Clock,
     actions: OverviewActions,
+    appsShared: Set<AppOutput> = emptySet(),
     onBack: () -> Unit,
 ) {
     SettingsPage(stringResource(R.string.st_settings_title), onBack) {
@@ -67,9 +71,30 @@ fun SettingsOverviewContent(
                 actions.open(SettingsRoute.SensorEnd)
             }, summary = stringResource(R.string.st_overview_sensorend))
             NavigationRow(stringResource(R.string.st_sharing), actions.openSharing, summary = stringResource(R.string.st_sharing_summary))
+            NavigationRow(stringResource(R.string.st_apps), actions.openApps, summary = appsSummary(appsShared))
+            if (actions.pens) {
+                NavigationRow(stringResource(R.string.st_pens_title), {
+                    actions.open(SettingsRoute.Pens)
+                }, summary = stringResource(R.string.st_overview_pens))
+            }
         }
         SettingsGroup {
             NavigationRow(stringResource(R.string.st_about_title), { actions.open(SettingsRoute.About) })
         }
     }
+}
+
+/** "LibreView · Nightscout upload · xDrip+ server", or what the page is for while nothing is on. */
+@Composable
+private fun appsSummary(on: Set<AppOutput>): String {
+    if (on.isEmpty()) return stringResource(R.string.st_apps_summary)
+    val names =
+        on.sortedBy { it.ordinal }.map {
+            when (it) {
+                AppOutput.LibreView -> stringResource(R.string.st_apps_libreview)
+                AppOutput.NightscoutUpload -> stringResource(R.string.st_apps_nightscout)
+                AppOutput.XdripServer -> stringResource(R.string.st_apps_xdrip)
+            }
+        }
+    return names.joinToString(" · ")
 }

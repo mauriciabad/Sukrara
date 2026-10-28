@@ -1,0 +1,20 @@
+# Microtech Aidex X, sensor serial 22222A2WC8.
+# Origin: Juggluco Common/src/main/cpp/aidexx/decrypt.cpp:215-240 (a recorded GATT trace), glucose.h (a decrypted
+# 0x11 reply and a 62-byte advertisement), crc.cpp TEST/TEST2 (checksum vectors). GPL-3.
+serial 22222A2WC8
+# What the phone writes to F001 (the ask-key derived from the serial), and the 16-byte key the sensor notifies back.
+ask-key d62913ab0003e66201dee34230cf5391
+notified-key b551cfae1d1b2a348b8c64ff009329af
+# The 17 bytes read from F002: the session key plus its CRC-8/MAXIM, encrypted with the notified key.
+session-read cdc56d4623f3902cb6030a921867f574e4
+# Encrypted command / reply pairs on F002 (device info, start time, glucose).
+cmd-device-info ab8a03
+rx-device-info ab4af08341224347130d25dd25ab9af9899c08ac
+cmd-start-time 9af825
+rx-start-time 9a4a1a8442254d662a09621b7a
+cmd-glucose aaab13
+rx-glucose aa4a90d7412a5e1b9c336285932d
+# A decrypted 0x11 glucose reply: 19348 minutes since start, trend -0.5 mg/dL/min, 119 mg/dL, quality 77.
+plain-glucose 1101944b0000fb77804d0000e844
+# A 62-byte advertisement: newest record 21600 min, 92 mg/dL, quality 62, then 84 and 78 mg/dL.
+advertisement 02010603021f1817ff5900605401001f5c803e54803a4e80360000 7eaedd011309416944455820582d323232323241325743380 8ff590000f4058a360000

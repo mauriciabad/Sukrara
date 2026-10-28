@@ -30,8 +30,11 @@ The full catalog, with every rule and number, is [docs/FEATURES.md](docs/FEATURE
   (NFC), then Sukrara keeps it connected over Bluetooth by itself, with 24 h backfill and automatic reconnects. It
   uses your **LibreView account's receiver ID** (sign in once, only to get the ID), so a sensor can move between
   Sukrara and Abbott's app. Or read from **Juggluco's local web server** if Juggluco keeps the sensor.
-- A guided **new sensor** screen: where the NFC antenna is, warm-up countdown, every failure handled on the same screen
-  (ended sensor, Libre 1/2, another app holding the sensor, Bluetooth off).
+- **Other sensors, untested**: Dexcom G7 / ONE+ / Stelo (read along with the Dexcom app), Dexcom G6 / ONE, Accu-Chek
+  SmartGuide and Aidex X / LinX / GlucoRx. They were never tested with a real sensor: the new sensor screen tags them
+  *Untested* and asks you to confirm before pairing.
+- A guided **new sensor** screen: which sensor, warm-up countdown, every failure handled on the same screen
+  (ended sensor, Libre 1/2, another app holding the sensor, Bluetooth off, a wrong ID or PIN).
 - **Settings › Sensor**: the current sensor (status, serial, start, end and time left), the reading source (Libre 3
   directly or Juggluco, saying first what changes), the LibreView account (email and receiver ID, sign in / out; the
   password is never stored) and *Pair new sensor*.
@@ -67,6 +70,8 @@ The full catalog, with every rule and number, is [docs/FEATURES.md](docs/FEATURE
   (notifications, alarms, full-screen, battery, Do Not Disturb, Bluetooth), ranges and the whole graph (lines, time
   per place, slots, ring order, treatments on the graph, sensor time; your card live on top), lock screen
   *Time to save*, sensor, and About with an update check against this repo's releases.
+- **Insulin pens** (NovoPen Echo Plus, NFC): hold the pen to the unlocked phone from any app and Sukrara logs the
+  insulin you injected, priming kept apart, never twice (a typed dose is replaced), with *Undo*; it asks when unsure.
 - **Sharing core**: your sharing identity, restorable from its recovery code so existing followers keep following;
   readings and alerts go to approved followers over Nostr relays (protocol v2). If another device is publishing as
   the same identity, Sukrara stops and says so instead of fighting it.
@@ -87,6 +92,10 @@ The full catalog, with every rule and number, is [docs/FEATURES.md](docs/FEATURE
   home, widgets, the live notification and your own alerts (including *no data*); near their phone they also arrive over
   Bluetooth, without internet. Add entries when they let you;
   notifications say when an invite was used, declined or your access removed; *Stop following* in Settings › Sharing.
+- **Share with apps**: upload your Libre 3 glucose and entries to **LibreView** for your clinic (password used once,
+  never saved; asks before taking over another uploading device; only from the moment you switch it on), to your own **Nightscout** site (https, access token kept encrypted; 30-day catch-up,
+  pauses when another app uploads to the same site), an **xDrip+-compatible server** on this phone for **Garmin**
+  watches (off until you switch it on; loopback only), and **Export data** as a LibreView-layout CSV to save or share.
 - English and Spanish (Spain) everywhere.
 
 **Mac (you follow someone, from the menu bar)**
@@ -112,14 +121,13 @@ The full catalog, with every rule and number, is [docs/FEATURES.md](docs/FEATURE
   through at 5 min, the graph dimmed with the reading's time, no value at 20 min) and a tap opens Add treatment.
 - VoiceOver reads the value as one sentence with the range in words.
 
-**Not included**: the LSPosed lock-screen widget, Dexcom / Aidex / SmartGuide (untested) sensors, Garmin via the local xDrip+
-server, Nightscout / Tidepool / LibreView uploads, Health Connect and broadcasts, insulin pens, the sensor-end
-calendar event, the glucose report and CSV export, settings export / import, scanning an invite's QR code on Android
-and the Android follower's *Settings from* page, *Pair nearby* (joining over Bluetooth without a link), and the Mac's
-Juggluco-over-Wi-Fi source.
+**Not included**: the LSPosed lock-screen widget, Dexcom / Aidex / SmartGuide (untested) sensors, Tidepool upload, the phone's Nightscout read API, Health Connect and broadcasts, the pen list and dose review, the sensor-end
+calendar event, the glucose report, settings export / import, scanning an invite's QR code on Android and the Android
+follower's *Settings from* page, *Pair nearby* (joining over Bluetooth without a link), and the Mac's Juggluco-over-Wi-Fi source.
 
-**Garmin watch:** Sukrara has no watch server yet. A watch fed by **Juggluco** keeps working while Juggluco reads the
-sensor: pick Juggluco as Sukrara's source (*Settings › Sensor › Juggluco*).
+**Garmin watch:** switch on *Settings › Share with apps › xDrip+ server*; watch faces and data fields made for xDrip+
+read it through Garmin Connect. While **Juggluco** is Sukrara's source, Juggluco keeps its own server and feeds the
+watch. Upload uses a new device name per install (`Sukrara-…`), so a Nightscout site shows Sukrara as a new uploader.
 
 ## Install
 

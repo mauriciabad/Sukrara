@@ -26,6 +26,15 @@ value class SourceId(val id: String) {
         /** Juggluco's local web server on the same phone (wearer). */
         val Juggluco = SourceId("juggluco")
 
+        /** The other sensor families the phone reads itself (wearer); untested on real sensors. */
+        val DexcomG7 = SourceId("dexcom-g7")
+        val DexcomG6 = SourceId("dexcom-g6")
+        val SmartGuide = SourceId("accu-chek-smartguide")
+        val AidexX = SourceId("aidex-x")
+
+        /** Every source that is this phone's own sensor (not a follower feed). */
+        val Wearer: Set<SourceId> = setOf(Libre3, Juggluco, DexcomG7, DexcomG6, SmartGuide, AidexX)
+
         /** The wearer's readings over Nostr relays (follower). */
         val Relay = SourceId("relay")
 

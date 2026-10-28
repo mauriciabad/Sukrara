@@ -2,4 +2,90 @@
 <!-- Sukrara — https://github.com/mauriciabad/sukrara
      Copyright (C) 2026 Maurici Abad
      SPDX-License-Identifier: GPL-3.0-or-later -->
-<resources />
+<resources>
+    <string name="pen_read_reading">Leyendo la pluma…</string>
+    <string name="pen_read_keep_still">No la muevas.</string>
+    <string name="pen_read_logged">%1$s registradas</string>
+    <string name="pen_kind_rapid">Rápida</string>
+    <string name="pen_kind_long">Lenta</string>
+    <string name="pen_primed">%1$s purgadas</string>
+    <string name="pen_added">%1$s añadidas</string>
+    <string name="pen_read_replaced">Sustituye tu entrada de %1$s de las %2$s</string>
+    <string name="pen_read_since">%1$s desde %2$s</string>
+    <string name="pen_read_grew">Ahora %1$s</string>
+    <string name="pen_read_nothing">Nada nuevo</string>
+    <string name="pen_read_last">Última inyección: %1$s a las %2$s</string>
+    <string name="pen_read_pending">Por ahora solo purgado</string>
+    <string name="pen_read_pending_text">Vuelve a acercar la pluma después de inyectarte.</string>
+    <string name="pen_q_doses_title">¿Purgado o inyección?</string>
+    <string name="pen_doses_at">%1$s a las %2$s</string>
+    <string name="pen_and">%1$s y %2$s</string>
+    <string name="pen_log_amount">Registrar %1$s</string>
+    <string name="pen_q_same_title">¿Es la misma inyección?</string>
+    <string name="pen_q_same_line">Pluma %1$s a las %2$s · tuya %3$s a las %4$s</string>
+    <string name="pen_read_clock">El reloj de la pluma ha cambiado</string>
+    <string name="pen_read_clock_text">No se ha registrado nada nuevo. Revisa sus dosis.</string>
+    <string name="pen_read_failed">No se ha podido leer la pluma</string>
+    <string name="pen_read_failed_text">Tus dosis están a salvo en la pluma. Vuelve a acercarla sin moverla.</string>
+    <string name="pen_undo">Deshacer</string>
+    <string name="pen_undone">Deshecho</string>
+    <string name="pen_undone_text">No queda nada registrado de esta lectura.</string>
+    <string name="pen_all_priming">Todo purgado</string>
+    <string name="pen_q_notif_text">%1$s a las %2$s de tu pluma</string>
+    <string name="pen_m_different">Inyecciones distintas</string>
+    <string name="pen_m_same">La misma</string>
+    <string name="pen_m_card">Pluma %1$s a las %2$s</string>
+    <plurals name="pen_read_several">
+        <item quantity="one">%1$d inyección registrada</item>
+        <item quantity="other">%1$d inyecciones registradas</item>
+    </plurals>
+    <plurals name="pen_read_replaced_several">
+        <item quantity="one">%1$d sustituye tu entrada</item>
+        <item quantity="other">%1$d sustituyen tus entradas</item>
+    </plurals>
+    <plurals name="pen_read_big">
+        <item quantity="one">Revisa %1$d inyección</item>
+        <item quantity="other">Revisa %1$d inyecciones</item>
+    </plurals>
+    <plurals name="pen_q_several">
+        <item quantity="one">%1$d dosis de la pluma por revisar</item>
+        <item quantity="other">%1$d dosis de la pluma por revisar</item>
+    </plurals>
+    <plurals name="pen_units_spoken">
+        <item quantity="one">%1$s unidad</item>
+        <item quantity="other">%1$s unidades</item>
+    </plurals>
+    <string name="pen_add_treatment">Añadir tratamiento</string>
+    <string name="pen_new_added">Pluma nueva añadida</string>
+    <string name="pen_new_added_line">%1$s · %2$s · %3$s</string>
+    <string name="pen_untested_added">Pluma sin probar añadida</string>
+    <string name="pen_untested_added_line">%1$s · compruébala una vez para que Sukrara la registre</string>
+    <string name="pen_set_up">Configurar</string>
+    <string name="pen_matches_short">Coincide con tu entrada de %1$s</string>
+    <string name="pen_read_big_line">Desde el %1$s · %2$s</string>
+    <string name="pen_kind_rapid_lower">rápida</string>
+    <string name="pen_kind_long_lower">lenta</string>
+    <plurals name="pen_older_left_out">
+        <item quantity="one">%1$d dosis anterior fuera</item>
+        <item quantity="other">%1$d dosis anteriores fuera</item>
+    </plurals>
+    <string name="pen_ask_title">¿Registrar esta pluma en Sukrara?</string>
+    <string name="pen_turn_on">Activar</string>
+    <string name="pen_no">No</string>
+    <string name="pen_notif_public">Pluma leída</string>
+    <string name="pen_read_failed_tip">Toca el teléfono donde está el círculo, saca las tarjetas de la funda y comprueba que el contador marca 0.</string>
+    <string name="pen_read_first_slow">La primera lectura tarda unos segundos.</string>
+    <string name="pen_read_replaced_by">Sustituye la entrada de %1$s de %2$s de las %3$s</string>
+    <string name="pen_read_replaced_other">Sustituye la entrada de %1$s de las %2$s</string>
+    <plurals name="pen_m_nearby">
+        <item quantity="one">%1$d entrada tuya cerca</item>
+        <item quantity="other">%1$d entradas tuyas cerca</item>
+    </plurals>
+    <string name="pen_read_clock_held">Sin registrar: %1$s. Revisa sus dosis.</string>
+    <string name="pen_untested_title">Pluma sin probar</string>
+    <string name="pen_untested_text">Sukrara aún no registra %1$s: no se ha comprobado con una pluma real. Escribe sus dosis a mano.</string>
+    <string name="pen_card_close">Cerrar</string>
+    <string name="pen_card_label">Lectura de la pluma</string>
+    <string name="pen_undo_failed">No se pudo deshacer</string>
+    <string name="pen_undo_failed_text">Algo cambió desde esa lectura. Revisa tus tratamientos en Sukrara.</string>
+</resources>

@@ -17,9 +17,11 @@ import app.mauri.sukrara.core.model.ReadingSource
 import app.mauri.sukrara.core.model.Role
 import app.mauri.sukrara.core.model.SystemClock
 import app.mauri.sukrara.core.model.Treatment
+import app.mauri.sukrara.core.model.storage.TreatmentRecord
 import app.mauri.sukrara.feature.sensor.SensorUiModule
 import app.mauri.sukrara.feature.settings.AlertPlayback
 import app.mauri.sukrara.feature.settings.AlertSettingsStore
+import app.mauri.sukrara.feature.settings.AppOutput
 import app.mauri.sukrara.feature.settings.SettingsModule
 import app.mauri.sukrara.feature.sharing.EngineOwnerSharing
 import app.mauri.sukrara.feature.sharing.SetupModule
@@ -30,6 +32,12 @@ import app.mauri.sukrara.feature.sharing.setup.label
 import app.mauri.sukrara.feature.treatments.TreatmentsModule
 import app.mauri.sukrara.graph.GraphConfig
 import app.mauri.sukrara.graph.GraphSettings
+import app.mauri.sukrara.integrations.CurrentSensor
+import app.mauri.sukrara.integrations.IntegrationsModule
+import app.mauri.sukrara.integrations.libreview.LvGlucose
+import app.mauri.sukrara.integrations.libreview.LvReadings
+import app.mauri.sukrara.integrations.libreview.LvState
+import app.mauri.sukrara.integrations.nightscout.NsState
 import app.mauri.sukrara.monitor.MonitorModule
 import app.mauri.sukrara.monitor.alerts.AlertRecord
 import app.mauri.sukrara.monitor.alerts.AlertsModule
@@ -39,8 +47,13 @@ import app.mauri.sukrara.monitor.notify.NotificationGroups
 import app.mauri.sukrara.monitor.notify.NotificationIds
 import app.mauri.sukrara.monitor.sensorend.SensorEndMemory
 import app.mauri.sukrara.monitor.service.StartReason
+import app.mauri.sukrara.pen.PenLog
+import app.mauri.sukrara.pen.PenNotificationPorts
+import app.mauri.sukrara.pen.PensModule
+import app.mauri.sukrara.pen.engine.Ledger
 import app.mauri.sukrara.protocol.event.AlertCodec
 import app.mauri.sukrara.sensor.SensorModule
+import app.mauri.sukrara.sensor.ble.SensorGlucose
 import app.mauri.sukrara.sensor.pairing.PairingLoad
 import app.mauri.sukrara.sensor.pairing.ReceiverIdState
 import app.mauri.sukrara.sensor.source.SensorSourceKind
@@ -74,6 +87,7 @@ import kotlinx.coroutines.flow.shareIn
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.time.Duration
+import java.time.Instant
 import app.mauri.sukrara.graph.Clock as ClockText
 
 /**
@@ -191,6 +205,7 @@ class AppGraph(
             clock = clock,
             sensor = monitor.hub.state.map { it.sensor },
             systemAccess = monitor.systemAccess,
+            pensAvailable = { pens.available() },
             alertPlayback =
                 object : AlertPlayback {
                     override fun play(
@@ -217,6 +232,45 @@ class AppGraph(
                         alarm: Boolean,
                     ) = alerts.tryOut.channelId(kind, alarm)
                 },
+            appsShared =
+                integrations.summary.map { s ->
+                    setOfNotNull(
+                        AppOutput.LibreView.takeIf { s.libreView },
+                        AppOutput.NightscoutUpload.takeIf { s.nightscoutUpload },
+                        AppOutput.XdripServer.takeIf { s.xdripServer },
+                    )
+                },
+        )
+    }
+
+    /** Uploads, the local xDrip+ server and export (each off until switched on in Settings › Share with apps). */
+    val integrations by lazy {
+        IntegrationsModule(
+            context = app,
+            settings = data.settings,
+            secure = data.secureStore,
+            // losing it only costs one comparison with the site (nothing is sent twice: the site is checked first)
+            nightscoutState = data.typedStore("nightscout-upload", NsState.serializer(), NsState(), whenCorrupt = NsState()),
+            // a lost state re-sends nothing old (each part starts again from now) but can't retract versions sent before
+            libreViewState = data.typedStore("libreview-upload", LvState.serializer(), LvState(), whenCorrupt = LvState()),
+            readings = data.readings,
+            treatments = data.treatments,
+            sensor =
+                sensor.source.sensorInfo.map { info ->
+                    info?.let { CurrentSensor(it.serial, Instant.ofEpochSecond(it.startEpoch), Instant.ofEpochSecond(it.endEpoch)) }
+                },
+            libreReadings =
+                sensor.source.sensorGlucose.map { b ->
+                    fun g(x: SensorGlucose) = LvGlucose(x.lifeCount, x.mgdl, x.epochSec, x.rate)
+                    LvReadings(b.serial, b.current?.let(::g), b.history.map(::g))
+                },
+            libreViewEmail = sensor.libreView.email,
+            role = role.data.map { it.role },
+            jugglucoIsSource = data.settings.flow(SensorSource).map { SensorSourceKind.fromId(it) == SensorSourceKind.Juggluco },
+            http = data.http,
+            clock = clock,
+            dispatchers = dispatchers,
+            log = { data.diagLog.log("integrations", it) },
         )
     }
 
@@ -362,6 +416,50 @@ class AppGraph(
     }
 
     /**
+     * Insulin pens (NFC) on the wearer's phone: the ledger (`pens.json`; damaged → empty: a known pen's next tap is
+     * a first scan that continues after its newest logged entry) and its writes into the treatment log.
+     */
+    val pens: PensModule by lazy {
+        val info = NotificationGroups.Group.INFO
+
+        fun id(kind: PenNotificationPorts.Kind) =
+            if (kind == PenNotificationPorts.Kind.Read) NotificationIds.PEN_RESULTS else NotificationIds.PEN_CHECK
+
+        fun channel(kind: PenNotificationPorts.Kind) =
+            if (kind ==
+                PenNotificationPorts.Kind.Read
+            ) {
+                Channels.PEN_RESULTS
+            } else {
+                Channels.PEN_CHECK
+            }
+        PensModule(
+            context = app,
+            store = data.typedStore("pens", Ledger.serializer(), Ledger(), whenCorrupt = Ledger()),
+            log =
+                object : PenLog {
+                    override suspend fun all() = data.treatments.changedSince(Instant.EPOCH)
+
+                    override fun canWrite() = treatments.log.penMayWrite()
+
+                    override suspend fun store(record: TreatmentRecord) = treatments.log.storeFromPen(record)
+                },
+            settings = data.settings,
+            clock = clock,
+            roleSource = role.data.map { it.role },
+            scope = scope,
+            ports =
+                PenNotificationPorts(
+                    readsChannel = Channels.PEN_RESULTS,
+                    checkChannel = Channels.PEN_CHECK,
+                    group = info.key,
+                    post = { kind, n -> NotificationGroups.post(app, id(kind), n, info, channel(kind)) },
+                    cancel = { kind -> NotificationGroups.cancel(app, id(kind), info) },
+                ),
+        )
+    }
+
+    /**
      * Loads what the modules need from disk, once, off the main thread. [App] starts it; anything that reads state
      * first does `graph.ready.await()` (cheap once done).
      */
@@ -373,6 +471,11 @@ class AppGraph(
             step("role") { role.heal() }
             step("monitor") { monitor.ready() }
             step("widgets") { widgets.start() }
+            step("integrations") {
+                integrations.load()
+                integrations.start(scope)
+            }
+            step("pens") { pens.start() }
             // sharing runs while this phone is the wearer (needs an identity: created / restored in Settings › Sharing)
             step("share") { scope.launch { shareOwner.ownerEngine.followRole(role.data.map { it.role }, scope) } }
             step("follower") {
@@ -438,6 +541,6 @@ class AppGraph(
 
         /** A config nobody draws with stops being read after this (a screen rotation keeps it). */
         const val SHARE_STOP_MS = 5_000L
-        val SensorSource = SchemaSettings.text("source.source", SensorSourceKind.Libre3.id, SensorSourceKind.entries.map { it.id }.toSet())
+        val SensorSource = SchemaSettings.text("source.source", SensorSourceKind.Direct.id, SensorSourceKind.entries.map { it.id }.toSet())
     }
 }

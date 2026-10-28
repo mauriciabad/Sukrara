@@ -11,11 +11,21 @@ import app.mauri.sukrara.core.model.SensorState
 import app.mauri.sukrara.core.model.SourceStatus
 import app.mauri.sukrara.sensor.SensorInfo
 import app.mauri.sukrara.sensor.SensorLife
+import app.mauri.sukrara.sensor.SensorProfile
+import app.mauri.sukrara.sensor.aidex.AidexXDriver
+import app.mauri.sukrara.sensor.ble.BleScanner
 import app.mauri.sukrara.sensor.ble.GattConnector
 import app.mauri.sukrara.sensor.ble.GattLink
 import app.mauri.sukrara.sensor.ble.LinkStatus
+import app.mauri.sukrara.sensor.ble.SensorDriver
 import app.mauri.sukrara.sensor.ble.SensorEvents
 import app.mauri.sukrara.sensor.ble.SensorGlucose
+import app.mauri.sukrara.sensor.ble.SensorGlucoseBatch
+import app.mauri.sukrara.sensor.ble.SensorScanner
+import app.mauri.sukrara.sensor.brand.BrandDriver
+import app.mauri.sukrara.sensor.cgms.SmartGuideDriver
+import app.mauri.sukrara.sensor.dexcom.G6Driver
+import app.mauri.sukrara.sensor.dexcom.G7Driver
 import app.mauri.sukrara.sensor.juggluco.JugglucoSink
 import app.mauri.sukrara.sensor.juggluco.JugglucoSource
 import app.mauri.sukrara.sensor.juggluco.JugglucoStatus
@@ -48,12 +58,14 @@ import kotlinx.coroutines.launch
 import java.time.Instant
 
 /**
- * The wearer's [ReadingSource]: the Libre 3 read directly, or Juggluco, per the setting ([kind]). Everything runs on
+ * The wearer's [ReadingSource]: the saved sensor read directly (a Libre 3, or one of the untested scanned families:
+ * Dexcom G7 / G6, Accu-Chek SmartGuide, Aidex X), or Juggluco, per the setting ([kind]). Everything runs on
  * ONE serial [dispatcher] (`limitedParallelism(1)`): a source switch, a restart ([retry], a new pairing, Bluetooth on)
  * fully cancels and closes the old source before the new one starts (no restart race).
  *
  * Safety: readings come only from the sensor / Juggluco, never invented; every problem becomes a [SensorStatus] with
- * an action; a no-data watchdog restarts a Libre 3 link that has gone quiet without saying why.
+ * an action; a no-data watchdog restarts a sensor link that has gone quiet without saying why; a live value is never
+ * delivered twice as live (a restarted driver repeating its last value gives history).
  */
 class SourceManager internal constructor(
     private val kind: Flow<SensorSourceKind>,
@@ -61,6 +73,7 @@ class SourceManager internal constructor(
     /** Null when this build has no Libre 3 native core. */
     private val security: Libre3Security?,
     private val connector: GattConnector,
+    private val scanner: BleScanner,
     private val juggluco: () -> JugglucoSource,
     private val clock: Clock,
     private val dispatcher: CoroutineDispatcher,
@@ -69,7 +82,7 @@ class SourceManager internal constructor(
     private val log: (String) -> Unit = {},
 ) : ReadingSource {
     companion object {
-        /** No reading for this long on a running (not warming, not ended) Libre 3 → restart the link. */
+        /** No reading for this long on a running (not warming, not ended) sensor → restart the link. */
         const val WATCHDOG_MS = 10 * 60_000L
         private const val WATCHDOG_TICK_MS = 60_000L
 
@@ -83,7 +96,7 @@ class SourceManager internal constructor(
     private val _detail = MutableStateFlow<SensorStatus>(SensorStatus.NoSensor)
     private val _sensor = MutableStateFlow<SensorState>(SensorState.None)
     private val _status = MutableStateFlow<SourceStatus>(SourceStatus.NotStarted)
-    private val _sensorGlucose = MutableSharedFlow<Pair<SensorGlucose?, List<SensorGlucose>>>(extraBufferCapacity = 64)
+    private val _sensorGlucose = MutableSharedFlow<SensorGlucoseBatch>(extraBufferCapacity = 64)
     private val infoState = MutableStateFlow<SensorInfo?>(null)
     private var info: SensorInfo?
         get() = infoState.value
@@ -97,6 +110,9 @@ class SourceManager internal constructor(
     /** The newest live life count per sensor serial: a restarted driver never reports it again as a new reading. */
     private var lastLifeCount: Pair<String, Int>? = null
 
+    /** The newest live reading's time per pairing ([SensorStatus.Direct.key]): an older or equal one is history. */
+    private var lastLive: Pair<String, Instant>? = null
+
     override val readings: Flow<List<Reading>> = readingsOut.receiveAsFlow()
     override val sensor: StateFlow<SensorState> = _sensor.asStateFlow()
     override val status: StateFlow<SourceStatus> = _status.asStateFlow()
@@ -107,8 +123,8 @@ class SourceManager internal constructor(
     /** The current sensor's serial, start and end (Libre 3 pairing or Juggluco's sensor), null when none is known. */
     val sensorInfo: StateFlow<SensorInfo?> = infoState.asStateFlow()
 
-    /** Libre 3 readings by life count, for the LibreView upload. */
-    val sensorGlucose: Flow<Pair<SensorGlucose?, List<SensorGlucose>>> = _sensorGlucose.asSharedFlow()
+    /** Libre 3 readings by life count, tagged with their sensor's serial, for the LibreView upload. */
+    val sensorGlucose: Flow<SensorGlucoseBatch> = _sensorGlucose.asSharedFlow()
 
     /** Starts following the setting; idempotent. */
     fun start() {
@@ -119,7 +135,7 @@ class SourceManager internal constructor(
                     resetState()
                     try {
                         when (k) {
-                            SensorSourceKind.Libre3 -> runLibre3()
+                            SensorSourceKind.Direct -> runDirect()
                             SensorSourceKind.Juggluco -> runJuggluco()
                         }
                     } catch (e: CancellationException) {
@@ -156,10 +172,9 @@ class SourceManager internal constructor(
         scope.launch { link?.bluetoothOff() }
     }
 
-    // MARK: Libre 3
+    // MARK: the sensor, read directly
 
-    private suspend fun runLibre3() {
-        val core = security ?: return publish(SensorStatus.CoreMissing)
+    private suspend fun runDirect() {
         val pairing =
             when (val load = pairings.load()) {
                 PairingLoad.None -> {
@@ -180,15 +195,26 @@ class SourceManager internal constructor(
                 }
             }
         info = pairing.info
-        if (pairing.securityVersion != 0) return publish(SensorStatus.Unsupported("security version ${pairing.securityVersion}"))
+        val core = security
+        if (pairing.profile == SensorProfile.Libre3) {
+            if (core == null) return publish(SensorStatus.CoreMissing)
+            if (pairing.securityVersion != 0) return publish(SensorStatus.Unsupported("security version ${pairing.securityVersion}"))
+        }
         if (pairing.ended) return publish(SensorStatus.Ended)
-        publish(SensorStatus.Libre3(pairing.serial, LinkStatus.Connecting))
+        val events = DirectEvents(pairing)
+        events.onStatus(LinkStatus.Connecting)
         _status.value = SourceStatus.Connecting
         coroutineScope {
-            val events = Libre3Events(pairing)
-            val known = lastLifeCount?.takeIf { it.first == pairing.serial }?.second ?: -1
-            val driver = Libre3Driver(pairing, events, core, clockMs = { clock.now().toEpochMilli() }, log = log, lastLifeCount = known)
-            val l = GattLink(connector, pairing.address, driver, events, this, log = log)
+            val driver = driverFor(pairing, events, core)
+            var address = pairing.address
+            if (driver is BrandDriver && address.isEmpty()) {
+                // a scanned family's first run: find it, keep its address (later runs connect straight to it)
+                val found = SensorScanner(scanner, log).find(driver, events) ?: awaitCancellation()
+                pairings.setFound(pairing, found.address, found.name.orEmpty())
+                address = found.address
+                found.name?.let { name -> events.found(name) }
+            }
+            val l = GattLink(connector, address, driver, events, this, log = log)
             link = l
             val startedAt = clock.now()
             launch { watchdog(startedAt) }
@@ -202,13 +228,44 @@ class SourceManager internal constructor(
         }
     }
 
+    private fun driverFor(
+        pairing: Pairing,
+        events: DirectEvents,
+        core: Libre3Security?,
+    ): SensorDriver {
+        val now = { clock.now().toEpochMilli() }
+        return when (pairing.profile) {
+            SensorProfile.DexcomG7, SensorProfile.DexcomG7Long -> {
+                G7Driver(pairing, events, now, log)
+            }
+
+            SensorProfile.DexcomG6 -> {
+                G6Driver(pairing, events, clockMs = now, log = log)
+            }
+
+            SensorProfile.SmartGuide -> {
+                SmartGuideDriver(pairing, events, now, log)
+            }
+
+            SensorProfile.AidexX -> {
+                AidexXDriver(pairing, events, now, log)
+            }
+
+            SensorProfile.Libre3, SensorProfile.Juggluco -> {
+                val known = lastLifeCount?.takeIf { it.first == pairing.serial }?.second ?: -1
+                Libre3Driver(pairing, events, checkNotNull(core), clockMs = now, log = log, lastLifeCount = known)
+            }
+        }
+    }
+
     /** Restarts the link when a running sensor has sent nothing for [WATCHDOG_MS] (a stuck stack, a silent link). */
     private suspend fun watchdog(startedAt: Instant) {
         while (true) {
             delay(WATCHDOG_TICK_MS)
             refreshSensor()
-            val d = _detail.value as? SensorStatus.Libre3 ?: return // ended, lost, no permission: nothing to restart
+            val d = _detail.value as? SensorStatus.Direct ?: return // ended, lost, no permission: nothing to restart
             if (d.link == LinkStatus.WaitingForBluetooth) continue
+            if (d.link is LinkStatus.Failed) return
             val now = clock.now()
             val i = info
             if (i != null && SensorLife.warming(i, latestReading?.epochSecond, now.epochSecond)) continue
@@ -220,23 +277,41 @@ class SourceManager internal constructor(
         }
     }
 
-    private inner class Libre3Events(private val pairing: Pairing) : SensorEvents {
+    private inner class DirectEvents(private val pairing: Pairing) : SensorEvents {
+        private val key = SensorStatus.Direct.keyOf(pairing)
+        private var label = pairing.label
+
+        /** A scan found the sensor: the screens call it by its advertised name from now on (a family without an id). */
+        fun found(name: String) {
+            if (pairing.serial.isEmpty()) label = name
+            info = info?.copy(serial = label)
+            (_detail.value as? SensorStatus.Direct)?.let { publish(it.copy(label = label)) }
+        }
+
         override fun onStatus(status: LinkStatus) {
             when (status) {
                 LinkStatus.PermissionMissing -> publish(SensorStatus.BluetoothPermissionMissing)
                 LinkStatus.SensorEnded -> publish(SensorStatus.Ended)
-                else -> publish(SensorStatus.Libre3(pairing.serial, status))
+                else -> publish(SensorStatus.Direct(pairing.profile, label, key, status))
             }
-            if (status is LinkStatus.Reconnecting || status == LinkStatus.WaitingForSensor) interrupted()
+            if (status is LinkStatus.Reconnecting || status == LinkStatus.WaitingForSensor || status is LinkStatus.NoValue) interrupted()
+            // a wrong id / refused PIN may mean the scan picked the wrong device: the next pairing scans again
+            if (status is LinkStatus.Failed && pairing.profile.needsScan) scope.launch { pairings.setFound(pairing, "", "") }
         }
 
-        override fun onReading(reading: Reading) = deliver(listOf(reading), live = true)
+        override fun onReading(reading: Reading) {
+            val last = lastLive?.takeIf { it.first == key }?.second
+            if (last != null && !reading.t.isAfter(last)) return deliver(listOf(reading), live = false)
+            lastLive = key to reading.t
+            deliver(listOf(reading), live = true)
+        }
 
         override fun onHistory(readings: List<Reading>) = deliver(readings, live = false)
 
         override fun onSensorGlucose(current: SensorGlucose?, history: List<SensorGlucose>) {
             current?.let { lastLifeCount = pairing.serial to it.lifeCount }
-            _sensorGlucose.tryEmit(current to history)
+            // LibreView takes only a Libre 3's readings (its record numbers come from the Libre serial)
+            if (pairing.profile == SensorProfile.Libre3) _sensorGlucose.tryEmit(SensorGlucoseBatch(pairing.serial, current, history))
         }
 
         override fun onSensorEnded(serial: String) {
@@ -246,7 +321,13 @@ class SourceManager internal constructor(
         }
 
         override fun onEndedForGood(serial: String) {
-            scope.launch { pairings.markEnded(serial) }
+            scope.launch { pairings.markEnded(pairing) }
+        }
+
+        override fun onSessionStart(startEpoch: Long) {
+            info = SensorLife.fromStart(label, startEpoch, pairing.wearMin, pairing.warmupMin)
+            refreshSensor()
+            scope.launch { pairings.setStart(pairing, startEpoch) }
         }
 
         override fun onPairingState(state: ByteArray) {
@@ -338,8 +419,12 @@ class SourceManager internal constructor(
                     SensorState.Ended
                 }
 
-                is SensorStatus.Libre3 -> {
-                    if (d.link == LinkStatus.WaitingForBluetooth) SensorState.BluetoothOff else lifeState()
+                is SensorStatus.Direct -> {
+                    when (d.link) {
+                        LinkStatus.WaitingForBluetooth -> SensorState.BluetoothOff
+                        is LinkStatus.Failed -> SensorState.ActionNeeded(SensorAction.ScanSensor)
+                        else -> lifeState()
+                    }
                 }
 
                 is SensorStatus.Juggluco -> {
