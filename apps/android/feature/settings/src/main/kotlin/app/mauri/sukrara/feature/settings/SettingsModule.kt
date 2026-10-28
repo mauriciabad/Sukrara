@@ -9,6 +9,7 @@ import app.mauri.sukrara.core.model.AlertUiState
 import app.mauri.sukrara.core.model.Clock
 import app.mauri.sukrara.core.model.DispatcherProvider
 import app.mauri.sukrara.core.model.SensorState
+import app.mauri.sukrara.core.model.SystemAccessPort
 import app.mauri.sukrara.core.model.storage.SettingsRepository
 import kotlinx.coroutines.flow.Flow
 import okhttp3.OkHttpClient
@@ -30,6 +31,7 @@ class SettingsModule(
     dispatchers: DispatcherProvider,
     clock: Clock,
     sensor: Flow<SensorState>,
+    systemAccess: SystemAccessPort,
     alertPlayback: AlertPlayback,
 ) {
     val deps: SettingsDeps =
@@ -44,6 +46,7 @@ class SettingsModule(
             override val releases: ReleasesSource by lazy { GitHubReleases(http, dispatchers.io) }
             override val clock = clock
             override val sensor = sensor
+            override val systemAccess = systemAccess
             override val alertPlayback = alertPlayback
         }
 

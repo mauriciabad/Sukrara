@@ -174,6 +174,7 @@ class AppGraph(
             dispatchers = dispatchers,
             clock = clock,
             sensor = monitor.hub.state.map { it.sensor },
+            systemAccess = monitor.systemAccess,
             alertPlayback =
                 object : AlertPlayback {
                     override fun play(

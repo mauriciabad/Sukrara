@@ -29,6 +29,8 @@ okhttp = "4.12.0"
 nostrSdk = "0.45.1"
 jna = "5.17.0"
 zxing = "3.5.3"
+# the LSPosed module API (provided by LSPosed at run time) and its app-side service (scope, status)
+libxposed = "102.0.0"
 zxingCpp = "3.1.1"
 junit = "4.13.2"
 robolectric = "4.17"
@@ -77,6 +79,8 @@ nostr-sdk = { module = "org.nostrdevkit:nostr-sdk", version.ref = "nostrSdk" }
 # the JVM build of the same bindings: unit tests only (:core:protocol, adapter contract tests), never in an APK
 nostr-sdk-jvm = { module = "org.nostrdevkit:nostr-sdk-jvm", version.ref = "nostrSdk" }
 jna = { module = "net.java.dev.jna:jna", version.ref = "jna" }
+libxposed-api = { module = "io.github.libxposed:api", version.ref = "libxposed" }
+libxposed-service = { module = "io.github.libxposed:service", version.ref = "libxposed" }
 zxing-core = { module = "com.google.zxing:core", version.ref = "zxing" }
 zxing-cpp = { module = "io.github.zxing-cpp:android", version.ref = "zxingCpp" }
 junit = { module = "junit:junit", version.ref = "junit" }

@@ -10,6 +10,7 @@ import app.mauri.sukrara.core.model.AlertReadinessSource
 import app.mauri.sukrara.core.model.AlertUiState
 import app.mauri.sukrara.core.model.Clock
 import app.mauri.sukrara.core.model.SensorState
+import app.mauri.sukrara.core.model.SystemAccessPort
 import app.mauri.sukrara.core.model.storage.SettingsRepository
 import kotlinx.coroutines.flow.Flow
 
@@ -40,6 +41,9 @@ interface SettingsDeps {
     val releases: ReleasesSource
 
     val clock: Clock
+
+    /** Root for Sukrara and the System UI module (Settings › Status bar, "With root"). */
+    val systemAccess: SystemAccessPort
 
     /** The wearer's sensor as the hub knows it (Settings › Sensor end shows its end). */
     val sensor: Flow<SensorState>

@@ -21,6 +21,8 @@ enum class CardSurface(
     NOTIFICATION("notification", Kind.CARD),
     NOTIFICATION_TEXT("notification-text", Kind.GLYPH),
     WIDGET_DESCRIPTION("widget-description", Kind.GLYPH),
+    STATUS_ICONS("status-icons", Kind.GLYPH),
+    STATUS_HOOK("status-hook", Kind.GLYPH),
 
     /** Picture sheets and fixtures (tests only; tools/check keeps it out of the app). */
     TEST("test", Kind.CARD),
