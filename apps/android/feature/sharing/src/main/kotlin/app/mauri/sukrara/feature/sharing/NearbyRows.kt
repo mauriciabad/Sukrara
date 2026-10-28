@@ -4,13 +4,17 @@
 package app.mauri.sukrara.feature.sharing
 
 import android.content.Intent
+import android.net.Uri
 import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
@@ -30,7 +34,13 @@ fun ColumnScope.NearbyFixRow(
     onRefresh: () -> Unit,
 ) {
     val context = LocalContext.current
-    val ask = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { onRefresh() }
+    // after a refusal Android may not show the dialog again: the next tap opens the app's settings page instead
+    var refused by rememberSaveable { mutableStateOf(false) }
+    val ask =
+        rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { result ->
+            refused = result.values.any { !it }
+            onRefresh()
+        }
     val refresh by rememberUpdatedState(onRefresh)
     LifecycleResumeEffect(Unit) {
         refresh()
@@ -41,7 +51,15 @@ fun ColumnScope.NearbyFixRow(
             NavigationRow(
                 title = stringResource(R.string.sh_nearby_allow),
                 summary = stringResource(R.string.sh_nearby_allow_summary),
-                onClick = { ask.launch(permissions.toTypedArray()) },
+                onClick = {
+                    if (refused) {
+                        context.startActivity(
+                            Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", context.packageName, null)),
+                        )
+                    } else {
+                        ask.launch(permissions.toTypedArray())
+                    }
+                },
             )
         }
 

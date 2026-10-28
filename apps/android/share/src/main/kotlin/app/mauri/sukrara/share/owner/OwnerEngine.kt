@@ -192,10 +192,11 @@ class OwnerEngine(
         transport.subscribe(INBOX, listOf(RelayFilter(kinds = listOf(Wire.KIND_WRAP), p = listOf(identity))))
         transport.subscribe(OWN, listOf(RelayFilter(kinds = listOf(Wire.KIND_DATA), authors = listOf(identity), since = now() - Wire.DAY)))
         transport.start()
+        // before the first send: the Bluetooth backlog caches what goes out from here on
+        nearby.start(nearbyHost)
         s.pendingControl.mapNotNull { SignedEvent.parse(it.eventJson) }.forEach(::send)
         publish(readings.republish(s, now()))
         subscribeWriters(s)
-        nearby.start(nearbyHost)
         republishShared()
         refreshControl()
         render()

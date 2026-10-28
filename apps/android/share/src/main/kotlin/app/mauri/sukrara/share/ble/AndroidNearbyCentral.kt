@@ -37,6 +37,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.receiveAsFlow
+import kotlinx.coroutines.withTimeoutOrNull
+import java.util.concurrent.ConcurrentHashMap
 
 /**
  * The follower's GATT client for the wearer's phone (ogs-ble B§6; the protocol is [NearbyLink]). Scans by service
@@ -75,6 +77,9 @@ class AndroidNearbyCentral(
     private var lastHello = 0L
     private var nextToken = 0
     private val sends = HashMap<Int, CompletableDeferred<Boolean>>()
+
+    /** Every send not answered yet (also those whose runnable [stop] removed): failed on stop. */
+    private val outstanding = ConcurrentHashMap.newKeySet<CompletableDeferred<Boolean>>()
     private var opTimeout: Runnable? = null
     private var receiverOn = false
     private val scanStarts = ArrayDeque<Long>()
@@ -103,6 +108,7 @@ class AndroidNearbyCentral(
             receiverOn = false
             handler.removeCallbacksAndMessages(null)
             drop()
+            outstanding.forEach { it.complete(false) }
             _status.value = NearbyStatus.Stopped
             channel.close()
             thread.quitSafely()
@@ -121,6 +127,7 @@ class AndroidNearbyCentral(
 
     override suspend fun send(event: SignedEvent): Boolean {
         val done = CompletableDeferred<Boolean>()
+        outstanding += done
         val queued =
             handler.post {
                 guarded {
@@ -131,14 +138,19 @@ class AndroidNearbyCentral(
                 }
             }
         // the thread is gone (stopped): nothing will answer
-        if (!queued) done.complete(false)
-        return done.await()
+        if (!queued || stopped) done.complete(false)
+        return try {
+            withTimeoutOrNull(SEND_TIMEOUT_MS) { done.await() } ?: false
+        } finally {
+            outstanding -= done
+        }
     }
 
     override fun leave(seconds: Long) =
         post {
             device?.let { skip[it] = now() + seconds * 1000 }
             drop()
+            if (_status.value is NearbyStatus.Connected) _status.value = NearbyStatus.Searching
             retryIn(RESCAN_MS)
         }
 
@@ -170,7 +182,8 @@ class AndroidNearbyCentral(
      * opportunistic one: starts are spaced, and a long search restarts every [SCAN_RESTART_MS].
      */
     private fun scan(adapter: BluetoothAdapter) {
-        val scanner = adapter.bluetoothLeScanner ?: return
+        // null right after Bluetooth comes on: try again shortly
+        val scanner = adapter.bluetoothLeScanner ?: return retryIn(RESCAN_MS)
         val t = now()
         scanStarts.removeAll { t - it > SCAN_WINDOW_MS }
         if (scanStarts.size >= SCAN_STARTS) {
@@ -209,6 +222,7 @@ class AndroidNearbyCentral(
         }
 
     private fun found(d: BluetoothDevice) {
+        skip.entries.removeIf { it.value <= now() }
         if (stopped || gatt != null || (skip[d.address] ?: 0) > now()) return
         stopScan()
         val g = generation + 1
@@ -331,7 +345,7 @@ class AndroidNearbyCentral(
         }
     }
 
-    private val retry = Runnable { evaluate() }
+    private val retry = Runnable { guarded { evaluate() } }
 
     /** One pending retry at a time. */
     private fun retryIn(ms: Long) {
@@ -342,9 +356,11 @@ class AndroidNearbyCentral(
     /** A long search starts a fresh scan (Android makes a 30-minute scan opportunistic). */
     private val restartScan =
         Runnable {
-            if (scanning && gatt == null) {
-                stopScan()
-                evaluate()
+            guarded {
+                if (scanning && gatt == null) {
+                    stopScan()
+                    evaluate()
+                }
             }
         }
 
@@ -352,6 +368,11 @@ class AndroidNearbyCentral(
         object : Runnable {
             override fun run() {
                 if (stopped) return
+                guarded { check() }
+                handler.postDelayed(this, WATCHDOG_MS)
+            }
+
+            private fun check() {
                 if (link.isConnected) {
                     val silent = now() - lastData
                     if (silent > SILENCE_DROP_MS) {
@@ -361,7 +382,6 @@ class AndroidNearbyCentral(
                         apply(link.hello(NearbyLink.nonce()))
                     }
                 }
-                handler.postDelayed(this, WATCHDOG_MS)
             }
         }
 
@@ -372,8 +392,10 @@ class AndroidNearbyCentral(
         val r =
             Runnable {
                 if (g != generation) return@Runnable
-                onTimeout()
-                reconnectLater()
+                guarded {
+                    onTimeout()
+                    reconnectLater()
+                }
             }
         opTimeout = r
         handler.postDelayed(r, ms)
@@ -446,6 +468,7 @@ class AndroidNearbyCentral(
         private const val SCAN_STARTS = 4
         private const val SCAN_RESTART_MS = 25 * 60_000L
         private const val MAX_BACKOFF_MS = 60_000L
+        private const val SEND_TIMEOUT_MS = 60_000L
         private const val WATCHDOG_MS = 30_000L
         private const val MTU = 517
     }

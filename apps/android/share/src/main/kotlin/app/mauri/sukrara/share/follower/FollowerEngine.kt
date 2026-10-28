@@ -434,10 +434,21 @@ class FollowerEngine(
 
     private suspend fun onNearby(e: NearbyEvent) {
         when (e) {
-            is NearbyEvent.Event -> receive(e.event, NEARBY_VIA)
+            is NearbyEvent.Event -> {
+                receive(e.event, NEARBY_VIA)
+            }
 
             // another wearer's phone: leave it and keep looking (B§6 "Which owner")
-            is NearbyEvent.Info -> if (e.owner == BleMessages.Owner.Other) nearby?.leave(LEAVE_OTHER_PHONE_S)
+            is NearbyEvent.Info -> {
+                when (e.owner) {
+                    BleMessages.Owner.Other -> nearby?.leave(LEAVE_OTHER_PHONE_S)
+
+                    // the phone proved it's the wearer's: entries still pending go to it now (no internet needed)
+                    BleMessages.Owner.Ours -> resendPending()
+
+                    BleMessages.Owner.Unknown -> Unit
+                }
+            }
         }
     }
 
@@ -784,8 +795,9 @@ class FollowerEngine(
     private fun send(ev: SignedEvent) {
         transport?.publish(ev)
         val nb = nearby ?: return
-        // a writer's entry the wearer's phone took over Bluetooth is sent, like a relay's OK
-        sink?.launch { if (nb.send(ev)) locked { markDelivered(ev.id) } }
+        // a write response says only that the phone got the frames: the entry stays pending until a relay's OK or
+        // the wearer's echo (which stores it as delivered)
+        sink?.launch { nb.send(ev) }
     }
 
     /** The record in memory at once; on disk when what it trusts changed, or every [PERSIST_EVERY] otherwise. */

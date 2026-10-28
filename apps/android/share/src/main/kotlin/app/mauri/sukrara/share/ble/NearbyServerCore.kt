@@ -81,10 +81,10 @@ class NearbyServerCore(
             .sortedBy { it.sinceMs }
             .map { Named(it.follower!!, it.device ?: HelloProof.DEVICES.first(), it.sinceMs) }
 
-    fun connected(peer: String): List<Effect> {
+    fun connected(peer: String, mtu: Int = DEFAULT_MTU): List<Effect> {
         if (peer in peers) return emptyList()
         if (peers.size >= MAX_CENTRALS) return listOf(Effect.Disconnect(peer))
-        peers[peer] = Peer(nowMs())
+        peers[peer] = Peer(nowMs()).also { it.mtu = mtu }
         return emptyList()
     }
 
@@ -112,9 +112,23 @@ class NearbyServerCore(
      * A write on RX. First = whether to answer it with success (checked before answering, B§8): a malformed frame or
      * one over the byte budget gets an error and the central is dropped.
      */
-    fun write(peer: String, value: ByteArray?, toRx: Boolean, prepared: Boolean, offset: Int): Pair<Boolean, List<Effect>> {
+    fun write(
+        peer: String,
+        value: ByteArray?,
+        toRx: Boolean,
+        prepared: Boolean,
+        offset: Int,
+        mtu: Int = DEFAULT_MTU,
+    ): Pair<Boolean, List<Effect>> {
         val p =
-            peers[peer] ?: if (peers.size < MAX_CENTRALS) Peer(nowMs()).also { peers[peer] = it } else null
+            peers[peer] ?: if (peers.size < MAX_CENTRALS) {
+                Peer(nowMs()).also {
+                    it.mtu = mtu
+                    peers[peer] = it
+                }
+            } else {
+                null
+            }
         val refused =
             p == null || !toRx || value == null || prepared || offset != 0 ||
                 BleFraming.header(value) == null || !p.limit.frame(value.size)
@@ -147,16 +161,20 @@ class NearbyServerCore(
         return pump(peer, p)
     }
 
-    /** The stack refused a notification: [busy] = try the same frame again soon; otherwise the queue is dropped. */
-    fun notifyFailed(peer: String, frame: ByteArray, busy: Boolean) {
-        val p = peers[peer] ?: return
+    /**
+     * The stack refused a notification: [busy] = try the same frame again soon; otherwise the link is dropped (the
+     * follower connects again and its HELLO brings the backlog it missed).
+     */
+    fun notifyFailed(peer: String, frame: ByteArray, busy: Boolean): List<Effect> {
+        val p = peers[peer] ?: return emptyList()
         p.inFlight = false
         if (busy) {
             p.urgent.addFirst(frame)
-        } else {
-            p.queue.clear()
-            p.urgent.clear()
+            return emptyList()
         }
+        p.queue.clear()
+        p.urgent.clear()
+        return listOf(Effect.Disconnect(peer))
     }
 
     /** Retry after [notifyFailed] with busy. */
@@ -207,7 +225,13 @@ class NearbyServerCore(
     private fun identify(p: Peer, nonce: String, sig: String) {
         val sid = host.sid() ?: return
         if (nonce in provedNonces) return
-        val (follower, device) = HelloProof.identify(crypto, sig, sid, nonce, host.followers()) ?: return
+        val (follower, device) =
+            HelloProof.identify(crypto, sig, sid, nonce, host.followers()) ?: run {
+                // a proof that no longer names an active follower: the link loses its name
+                p.follower = null
+                p.device = null
+                return
+            }
         provedNonces += nonce
         while (provedNonces.size > PROVED_NONCES) provedNonces.remove(provedNonces.first())
         p.follower = follower.hex

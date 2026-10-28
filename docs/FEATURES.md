@@ -869,8 +869,8 @@ past the other app's event; blocks again if it's still running) or *Help*.
 - `HELLO` carries a fresh random nonce; the phone's `INFO` answers `m = H("cgm2:ble:"+sid+":"+nonce)`. A follower writes
   nothing to a phone (requests, rekeys, history requests, treatments) until its `INFO` proves our stream (`m` over one
   of its last 4 nonces). Another wearer's phone is left for 60 s and the scan goes on. A pending request: receive only.
-  After a new key the follower sends `HELLO` again with its proof. A writer's entry the wearer's phone took over Bluetooth
-  counts as sent.
+  After a new key the follower sends `HELLO` again with its proof. Entries still pending go to the phone as soon as it
+  proved it's the wearer's; one counts as delivered on a relay's OK or the wearer's echo (a bare write response doesn't).
 - Reliability (Android follower): scan by service UUID (starts spaced: at most 4 per 30 s; restarted every 25 min), one
   connection at a time with a 25 s connect timeout (that phone skipped 60 s), MTU 517, a 10 s timeout on every GATT
   step, `HELLO` again after 3 min without data, link dropped after 5 min, rescan after 3 s doubling to 1 min while
@@ -888,7 +888,7 @@ past the other app's event; blocks again if it's still running) or *Help*.
 
 **States and exits**: wearer switch on/off (the switch itself); Bluetooth off → *Turn on Bluetooth* (Android settings,
 back returns and the page looks again); permission missing → *Allow Nearby devices* (allow → serving; deny → the row
-stays); no follower yet → serves once someone follows; unsupported → nothing to do, sharing goes on over the internet. A
+stays, and its next tap opens the app's Android settings page); no follower yet → serves once someone follows; unsupported → nothing to do, sharing goes on over the internet. A
 device in *Nearby devices* → its follower dialog (*Close*, *Remove* → confirm → removed and disconnected). Follower:
 the Bluetooth line follows the link by itself; Bluetooth off → *Turn on Bluetooth*; permission missing → *Allow Nearby
 devices*; *Stop following* ends Bluetooth with the relays. Every state works with TalkBack (rows are buttons with text).

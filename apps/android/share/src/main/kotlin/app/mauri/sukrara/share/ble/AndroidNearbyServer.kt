@@ -73,6 +73,10 @@ class AndroidNearbyServer(
     private var receiverOn = false
     private val devices = HashMap<String, BluetoothDevice>()
 
+    /** Negotiated MTUs: the MTU exchange comes before the central's first write (when it becomes a peer). */
+    private val mtus = HashMap<String, Int>()
+    private var advertised = false
+
     private val receiver =
         object : BroadcastReceiver() {
             override fun onReceive(context: Context, intent: Intent) {
@@ -153,7 +157,13 @@ class AndroidNearbyServer(
                 _status.value = NearbyStatus.Unsupported
                 return@guarded false
             }
-            val s = manager?.openGattServer(context, callback) ?: return@guarded false
+            val s = manager?.openGattServer(context, callback)
+            if (s == null) {
+                // the stack refused for now: say so and try again later
+                _status.value = NearbyStatus.Unsupported
+                later(ADVERTISE_RETRY_MS) { evaluate() }
+                return@guarded false
+            }
             val service = BluetoothGattService(BleUuids.SERVICE, BluetoothGattService.SERVICE_TYPE_PRIMARY)
             val rx =
                 BluetoothGattCharacteristic(
@@ -206,6 +216,8 @@ class AndroidNearbyServer(
         // never through guarded(): a SecurityException here would post another close
         if (advertising) runCatching { manager?.adapter?.bluetoothLeAdvertiser?.stopAdvertising(advertise) }
         advertising = false
+        advertised = false
+        mtus.clear()
         server?.let { s -> runCatching { s.close() } }
         server = null
         tx = null
@@ -217,7 +229,10 @@ class AndroidNearbyServer(
     private fun renderLinks() {
         val named = core?.named().orEmpty()
         _links.value = named
-        if (server != null) _status.value = if (named.isEmpty()) NearbyStatus.Searching else NearbyStatus.Connected(named.size)
+        // "on" only once the advertisement really started (onStartSuccess)
+        if (server != null && advertised) {
+            _status.value = if (named.isEmpty()) NearbyStatus.Searching else NearbyStatus.Connected(named.size)
+        }
     }
 
     /** Carries out the core's effects on the stack. */
@@ -227,7 +242,7 @@ class AndroidNearbyServer(
                 is NearbyServerCore.Effect.Notify -> notify(e.peer, e.frame)
                 is NearbyServerCore.Effect.Disconnect -> devices[e.peer]?.let { d -> guarded { server?.cancelConnection(d) } }
                 is NearbyServerCore.Effect.Incoming -> host?.onEvent(e.event, e.peer)
-                is NearbyServerCore.Effect.HelloLater -> handler.postDelayed({ core?.let { run(it.helloDue(e.peer)) } }, e.delayMs)
+                is NearbyServerCore.Effect.HelloLater -> later(e.delayMs) { core?.let { run(it.helloDue(e.peer)) } }
             }
         }
         renderLinks()
@@ -238,16 +253,22 @@ class AndroidNearbyServer(
         val t = tx
         val d = devices[peer]
         val c = core ?: return
-        if (s == null || t == null || d == null) return c.notifyFailed(peer, frame, busy = false)
+        if (s == null || t == null || d == null) return run(c.notifyFailed(peer, frame, busy = false))
         val rc = guarded { s.notifyCharacteristicChanged(d, t, false, frame) } ?: BluetoothStatusCodes.ERROR_UNKNOWN
         if (rc == BluetoothStatusCodes.SUCCESS) return
         val busy = rc == BluetoothStatusCodes.ERROR_GATT_WRITE_REQUEST_BUSY
-        c.notifyFailed(peer, frame, busy)
-        if (busy) handler.postDelayed({ core?.let { run(it.retry(peer)) } }, BUSY_RETRY_MS)
+        run(c.notifyFailed(peer, frame, busy))
+        if (busy) later(BUSY_RETRY_MS) { core?.let { run(it.retry(peer)) } }
     }
 
     private val advertise =
         object : AdvertiseCallback() {
+            override fun onStartSuccess(settingsInEffect: AdvertiseSettings?) =
+                post {
+                    advertised = true
+                    renderLinks()
+                }
+
             override fun onStartFailure(errorCode: Int) {
                 handler.post {
                     advertising = false
@@ -255,9 +276,10 @@ class AndroidNearbyServer(
                         close()
                         _status.value = NearbyStatus.Unsupported
                     } else if (errorCode != ADVERTISE_FAILED_ALREADY_STARTED) {
-                        // too many advertisers / internal error: a fresh start later
+                        // too many advertisers / internal error: say it isn't on, and a fresh start later
                         close()
-                        handler.postDelayed({ evaluate() }, ADVERTISE_RETRY_MS)
+                        _status.value = NearbyStatus.Unsupported
+                        later(ADVERTISE_RETRY_MS) { evaluate() }
                     }
                 }
             }
@@ -272,12 +294,17 @@ class AndroidNearbyServer(
                     // (the sensor) also show up here and are never counted or dropped
                     if (newState != BluetoothProfile.STATE_CONNECTED) {
                         devices.remove(device.address)
+                        mtus.remove(device.address)
                         c.disconnected(device.address)
                         renderLinks()
                     }
                 }
 
-            override fun onMtuChanged(device: BluetoothDevice, mtu: Int) = post { core?.mtu(device.address, mtu) }
+            override fun onMtuChanged(device: BluetoothDevice, mtu: Int) =
+                post {
+                    mtus[device.address] = mtu
+                    core?.mtu(device.address, mtu)
+                }
 
             override fun onServiceAdded(status: Int, service: BluetoothGattService) =
                 post {
@@ -286,7 +313,7 @@ class AndroidNearbyServer(
                         advertise()
                     } else {
                         close()
-                        handler.postDelayed({ evaluate() }, ADVERTISE_RETRY_MS)
+                        later(ADVERTISE_RETRY_MS) { evaluate() }
                     }
                 }
 
@@ -314,7 +341,7 @@ class AndroidNearbyServer(
                 val c = core ?: return@post
                 if (!ok) return@post
                 devices[device.address] = device
-                c.connected(device.address).let(::run)
+                c.connected(device.address, mtus[device.address] ?: NearbyServerCore.DEFAULT_MTU).let(::run)
                 val on =
                     value.contentEquals(BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE) ||
                         value.contentEquals(BluetoothGattDescriptor.ENABLE_INDICATION_VALUE)
@@ -345,7 +372,8 @@ class AndroidNearbyServer(
                 val c = core ?: return@post
                 devices[device.address] = device
                 // checked before answering (B§8): a refused frame gets an error and the central is dropped
-                val (ok, effects) = c.write(device.address, value, characteristic.uuid == BleUuids.RX, preparedWrite, offset)
+                val mtu = mtus[device.address] ?: NearbyServerCore.DEFAULT_MTU
+                val (ok, effects) = c.write(device.address, value, characteristic.uuid == BleUuids.RX, preparedWrite, offset, mtu)
                 if (responseNeeded) {
                     guarded {
                         server?.sendResponse(
@@ -366,6 +394,11 @@ class AndroidNearbyServer(
 
     private fun post(block: () -> Unit) {
         handler.post { guarded(block) }
+    }
+
+    /** A delayed step, guarded like every callback (an exception never reaches the process). */
+    private fun later(ms: Long, block: () -> Unit) {
+        handler.postDelayed({ guarded(block) }, ms)
     }
 
     /** A stack call: a revoked permission closes the server with a visible state; anything else is a dropped call. */
