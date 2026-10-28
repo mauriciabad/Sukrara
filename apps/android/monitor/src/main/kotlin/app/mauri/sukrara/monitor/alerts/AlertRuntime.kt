@@ -341,7 +341,7 @@ class AlertRuntime(
         effects.filterIsInstance<AlertEffect.Schedule>().forEach { e -> attempt(Step.Alarm) { alarm.set(e.at) } }
         val firedNow = effects.filterIsInstance<AlertEffect.Fire>().map { it.firing.kind.group }.toSet()
         retryUnposted(m, now, skip = firedNow)
-        for (e in effects) {
+        for (e in ringOrder(effects, m.settings)) {
             when (e) {
                 is AlertEffect.Fire -> {
                     val group = e.firing.kind.group

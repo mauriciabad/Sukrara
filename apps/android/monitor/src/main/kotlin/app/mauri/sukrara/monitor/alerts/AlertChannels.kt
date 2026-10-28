@@ -16,10 +16,12 @@ import app.mauri.sukrara.monitor.notify.Channels
  * Two channels per alert kind, one per volume, so the person can set each kind's sound, vibration and Do Not
  * Disturb behaviour in the system settings. A channel's audio can't change after it exists, so the per-kind *alarm*
  * setting picks the channel:
- * - `alert_alarm.<kind>`: `USAGE_ALARM` + `CATEGORY_ALARM` — alarm volume, passes "Alarms" in Do Not Disturb, exempt
- *   from notification cooldowns; `setBypassDnd(true)` takes effect for Priority mode when the person granted DND access.
- * - `alert.<kind>`: `USAGE_NOTIFICATION_EVENT` + `CATEGORY_REMINDER` — notification volume, exempt from the cross-app
- *   "avalanche" cooldown after unlocking (docs/15).
+ * - `alert_alarm.<kind>`: `USAGE_ALARM` — alarm volume, passes "Alarms" in Do Not Disturb; `setBypassDnd(true)` takes
+ *   effect for Priority mode when the person granted DND access.
+ * - `alert.<kind>`: `USAGE_NOTIFICATION_EVENT` — notification volume, through Do Not Disturb only where the person lets
+ *   reminders (or this channel) through.
+ * The notification's category ([AlertCategory], chosen at each post) keeps every alert out of Android's notification
+ * cooldowns (docs/15).
  * Both IMPORTANCE_HIGH (heads-up; ids, names and groups in [Channels]), sound `content://<appId>.alertsound/<kind>` ([AlertSoundProvider] picks the file at
  * play time), the kind's vibration. Ids never change: renaming a channel resets the person's choices.
  */

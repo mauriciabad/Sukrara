@@ -8,13 +8,19 @@ import android.content.Context
 import android.content.Intent
 import android.util.Log
 import app.mauri.sukrara.RoleRecord
+import app.mauri.sukrara.alerts.AlertKind
+import app.mauri.sukrara.alerts.AlertReading
+import app.mauri.sukrara.alerts.Firing
+import app.mauri.sukrara.alerts.Side
 import app.mauri.sukrara.core.model.Role
 import app.mauri.sukrara.graph
 import app.mauri.sukrara.monitor.MonitoringService
+import app.mauri.sukrara.monitor.alerts.AlertChannels
 import app.mauri.sukrara.monitor.service.StartReason
 import app.mauri.sukrara.pen.PenReadActivity
 import app.mauri.sukrara.pen.opennov.PenDose
 import app.mauri.sukrara.pen.opennov.PenRead
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 class DebugReceiver : BroadcastReceiver() {
@@ -45,6 +51,7 @@ object DebugFakes {
             PREFIX + "SYNTHETIC" to ::synthetic,
             PREFIX + "PEN_READ" to ::penRead,
             PREFIX + "PEN_TAGS" to ::penTags,
+            PREFIX + "ALERTS" to ::alerts,
         )
 
     /** Runs [action] when it is a known fake; false otherwise. */
@@ -91,6 +98,65 @@ object DebugFakes {
             if (on) graph.role.update { if (it.role == null) RoleRecord(Role.Wearer) else it }
             context.stopService(Intent(context, MonitoringService::class.java))
             graph.monitor.starter.start(StartReason.App)
+        }
+    }
+
+    /**
+     * `ALERTS [--es kinds low,falling_fast] [--el gapMs 0] [--ez reminder true]`: posts made-up alerts of [kinds] (contract ids) through the
+     * real notifier, one after another [gapMs] apart, with the alert settings in use (each kind's alarm, sound,
+     * channel). Outside the alert runtime: their actions change nothing, and they replace a real alert showing in the
+     * same slot (emulator only). For checking how Android plays alerts that
+     * come close together (`adb logcat -b events -s notification_alert`: politeness state and mute reason).
+     * `reminder`: plain notifications on the same channels as `CATEGORY_REMINDER` instead (the comparison).
+     */
+    private fun alerts(
+        context: Context,
+        intent: Intent,
+    ) {
+        val graph = context.graph
+        graph.scope.launch {
+            graph.ready.await()
+            val settings =
+                graph.alerts.store.settings
+                    .first()
+            val gap = intent.getLongExtra("gapMs", 0L)
+            val reminder = intent.getBooleanExtra("reminder", false)
+            val notifier = graph.alerts.notifier
+            val kinds =
+                (intent.getStringExtra("kinds") ?: "low,falling_fast").split(',').mapNotNull { w ->
+                    AlertKind.entries.firstOrNull { it.wire == w.trim() }.also {
+                        if (it ==
+                            null
+                        ) {
+                            Log.w("SukraraDebug", "ALERTS: no kind $w")
+                        }
+                    }
+                }
+            kinds.forEachIndexed { i, kind ->
+                if (i > 0 && gap > 0) kotlinx.coroutines.delay(gap)
+                val now = graph.clock.now().epochSecond
+                val reading = AlertReading(now, if (kind.side == Side.HIGH) 260 else 62, -3.0)
+                if (reminder) {
+                    // the control: a plain notification on the kind's channel posted as CATEGORY_REMINDER
+                    val channel = AlertChannels.id(kind, settings.rule(kind).alarm)
+                    val n =
+                        android.app.Notification
+                            .Builder(context, channel)
+                            .setSmallIcon(context.applicationInfo.icon)
+                            .setContentTitle("Debug reminder ${kind.wire}")
+                            .setCategory(android.app.Notification.CATEGORY_REMINDER)
+                            .build()
+                    context.getSystemService(android.app.NotificationManager::class.java).notify(9100 + i, n)
+                } else {
+                    notifier.show(
+                        Firing(kind, "debug-$now-$i", 1, reading, 70.0, now),
+                        settings,
+                        silent = false,
+                        who = null,
+                        relaxedMin = 0,
+                    )
+                }
+            }
         }
     }
 
