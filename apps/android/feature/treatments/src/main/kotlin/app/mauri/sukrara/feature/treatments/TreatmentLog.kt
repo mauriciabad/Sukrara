@@ -84,6 +84,20 @@ class TreatmentLog(
         return stored.treatment
     }
 
+    /**
+     * Stores a version made on this phone by the pen reader: `modifiedAt` exactly as given (the pen engine tells its
+     * own writes from the user's edits by it), the stored `creator` kept, `author` = this phone. Only the wearer.
+     */
+    suspend fun storeFromPen(record: TreatmentRecord) {
+        val writer = sync.writer.value ?: throw NotAllowed()
+        if (writer.throughOutbox) throw NotAllowed()
+        val stored = repository.get(record.treatment.id)
+        write(record.copy(creator = stored?.creator ?: writer.key, author = writer.key, delivery = writer.delivery))
+    }
+
+    /** Whether the pen reader may write now (the wearer's phone, sharing or not). */
+    fun penMayWrite(): Boolean = sync.writer.value?.throughOutbox == false
+
     private suspend fun write(record: TreatmentRecord) {
         if (repository.upsertIfNewer(record)) sync.publish(record)
     }

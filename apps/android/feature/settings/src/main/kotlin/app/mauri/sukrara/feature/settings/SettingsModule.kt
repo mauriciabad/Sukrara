@@ -33,6 +33,7 @@ class SettingsModule(
     sensor: Flow<SensorState>,
     systemAccess: SystemAccessPort,
     alertPlayback: AlertPlayback,
+    pensAvailable: () -> Boolean = { false },
 ) {
     val deps: SettingsDeps =
         object : SettingsDeps {
@@ -48,6 +49,8 @@ class SettingsModule(
             override val sensor = sensor
             override val systemAccess = systemAccess
             override val alertPlayback = alertPlayback
+
+            override fun pensAvailable() = pensAvailable()
         }
 
     /** When the alert thresholds were confirmed (null = never): home's Finish-setup card asks until they are. */

@@ -86,6 +86,6 @@
     <string name="pen_untested_text">Sukrara aún no registra %1$s: no se ha comprobado con una pluma real. Escribe sus dosis a mano.</string>
     <string name="pen_card_close">Cerrar</string>
     <string name="pen_card_label">Lectura de la pluma</string>
-    <string name="pen_q_same_short">Misma inyección</string>
-    <string name="pen_q_different_short">Distintas</string>
+    <string name="pen_undo_failed">No se pudo deshacer</string>
+    <string name="pen_undo_failed_text">Algo cambió desde esa lectura. Revisa tus tratamientos en Sukrara.</string>
 </resources>

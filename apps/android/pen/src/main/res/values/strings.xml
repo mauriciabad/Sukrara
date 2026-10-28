@@ -86,6 +86,6 @@
     <string name="pen_untested_text">Sukrara doesn\'t log %1$s yet: it hasn\'t been checked with a real pen. Type its doses by hand.</string>
     <string name="pen_card_close">Close</string>
     <string name="pen_card_label">Pen read</string>
-    <string name="pen_q_same_short">Same injection</string>
-    <string name="pen_q_different_short">Different</string>
+    <string name="pen_undo_failed">Couldn\'t undo</string>
+    <string name="pen_undo_failed_text">Something changed since that read. Check your treatments in Sukrara.</string>
 </resources>
