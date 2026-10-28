@@ -93,6 +93,7 @@ object SensorFeedback {
 @Composable
 internal fun UntestedSensorCard(family: String?) {
     val context = LocalContext.current
+    val noBrowser = stringResource(R.string.home_no_browser)
     val haptics = rememberHaptics()
     // keep the last family while the card animates out
     var shown by remember { mutableStateOf(family) }
@@ -125,7 +126,7 @@ internal fun UntestedSensorCard(family: String?) {
                             context.startActivity(
                                 Intent(Intent.ACTION_VIEW, Uri.parse(url)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
                             )
-                        }.onFailure { Toast.makeText(context, context.getString(R.string.home_no_browser), Toast.LENGTH_LONG).show() }
+                        }.onFailure { Toast.makeText(context, noBrowser, Toast.LENGTH_LONG).show() }
                     },
                     modifier = Modifier.align(Alignment.End),
                 ) {
