@@ -409,7 +409,7 @@ class AppGraph(
     val sensorSettings by lazy {
         SensorSettingsBridge(sensor, data.settings, SensorSource, scope, {
             startMonitoring(StartReason.App)
-        }) { monitor.hubImpl.resetMonitoring() }
+        }) { monitor.hubImpl.resetMonitoring(sensorForgotten = true) }
     }
 
     /** The person's graph settings: THE [GraphConfig] every card surface draws with (home, widgets). */

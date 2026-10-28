@@ -400,41 +400,7 @@ class LiveNotification(
         fun face(
             state: GlucoseState,
             now: Instant,
-        ): GlucoseLook =
-            GlucoseCard.face(
-                state.latest?.toPoint(),
-                now.epochSecond,
-                sensorLook(state.sensor, now),
-                CardSurface.NOTIFICATION_TEXT,
-            )
-
-        /**
-         * The sensor states the face decides on (ended; warming up with its ready time where the number goes). The
-         * badge's label and life ring aren't used by the face, so they stay empty here.
-         */
-        private fun sensorLook(
-            sensor: SensorState,
-            now: Instant,
-        ): SensorBadge.Look? =
-            when (sensor) {
-                SensorState.Ended -> {
-                    SensorBadge.Look(label = "", life = 0f, ended = true)
-                }
-
-                is SensorState.WarmingUp -> {
-                    SensorBadge.Look(
-                        label = "",
-                        life = 0f,
-                        ended = false,
-                        warmup = Freshness.timeText(sensor.readyAt.epochSecond, now.epochSecond),
-                        readyAt = sensor.readyAt.epochSecond,
-                    )
-                }
-
-                else -> {
-                    null
-                }
-            }
+        ): GlucoseLook = GlucoseCard.face(state, now.epochSecond, CardSurface.NOTIFICATION_TEXT)
 
         /** A state's icon resource ([Icon.TREND] is drawn by the renderer instead). */
         fun iconRes(icon: Icon): Int =

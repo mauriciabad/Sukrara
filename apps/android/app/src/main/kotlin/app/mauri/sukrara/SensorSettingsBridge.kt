@@ -22,8 +22,12 @@ import app.mauri.sukrara.sensor.source.SensorSourceKind
 import app.mauri.sukrara.sensor.source.SensorStatus
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 import java.time.Instant
@@ -44,13 +48,25 @@ class SensorSettingsBridge(
 ) : SensorSettingsPort {
     private val tap = sensors.tapLaunch
 
+    /** Bumped when the page comes back (Android's app page may have allowed or blocked tag intents meanwhile). */
+    private val recheck = MutableStateFlow(0)
+
+    /** Whether a pairing is saved: read (Keystore) only when the source's status changes kind (it restarts on every pairing change). */
+    private val paired: Flow<Boolean> =
+        sensors.source.detail
+            .map { it::class }
+            .distinctUntilChanged()
+            .map { sensors.pairings.load() != PairingLoad.None }
+
     override val state: Flow<SensorSettingsState> =
         combine(
             combine(settings.flow(sourceSetting), sensors.source.sensor, sensors.source.detail, ::Triple),
-            combine(sensors.source.sensorInfo, tap.on, ::Pair),
+            combine(sensors.source.sensorInfo, tap.on, recheck, paired) { info, tapOn, _, paired ->
+                Triple(info, OpenOnScan(tapOn, tapOn && tap.blocked()).takeIf { tap.available }, paired)
+            },
             sensors.libreView.email,
             sensors.libreView.receiverId,
-        ) { (source, sensor, detail), (info, tapOn), email, receiverId ->
+        ) { (source, sensor, detail), (info, openOnScan, paired), email, receiverId ->
             SensorSettingsState(
                 source =
                     if (SensorSourceKind.fromId(source) ==
@@ -65,9 +81,8 @@ class SensorSettingsBridge(
                 account = email?.let { LibreViewSummary(it, receiverId) },
                 link = linkOf(detail),
                 family = (detail as? SensorStatus.Direct)?.let { SensorFamily(it.profile.label, !it.profile.verified, it.skipped) },
-                // the source restarts on every pairing change, so [detail] moving is when to look again
-                paired = sensors.pairings.load() != PairingLoad.None,
-                openOnScan = OpenOnScan(tapOn, tapOn && tap.blocked()).takeIf { tap.available },
+                paired = paired,
+                openOnScan = openOnScan,
             )
         }
 
@@ -131,6 +146,10 @@ class SensorSettingsBridge(
     }
 
     override fun setOpenOnScan(on: Boolean) = tap.set(on)
+
+    override fun recheck() {
+        recheck.update { it + 1 }
+    }
 
     override fun forget() {
         scope.launch {

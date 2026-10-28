@@ -4,6 +4,9 @@
      SPDX-License-Identifier: GPL-3.0-or-later -->
 <resources>
     <string name="tile_add_treatment">Añadir tratamiento</string>
+    <string name="tile_sensor_ended">Sensor terminado</string>
+    <string name="tile_warming_up">Calentando · %1$s</string>
+    <string name="tile_no_reading_since">Sin lecturas desde las %1$s</string>
     <string name="tile_unavailable">Abre Sukrara para configurarlo</string>
     <string name="treatment_title">Añadir tratamiento</string>
     <string name="treatment_rapid">Rápida</string>

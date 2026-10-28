@@ -1,5 +1,5 @@
 {
-  "about": "Every place that shows the glucose card or its value, per platform: THE registry behind 'One graph everywhere' (CLAUDE.md) and the freshness steps. A 'card' surface draws card pixels only through the renderer (GlucoseCard.draw / GlucoseCard.image) and chooses only its size, its place's settings and the parts; a 'glyph' surface (text, icons and words the system lays out) takes the value, the trend mark and the freshness steps from GlucoseCard.face (a GlucoseLook) and never formats a glucose value itself. tools/check: card-surface (a file that calls the renderer must be a registered file of the surface it names; every surface is rendered by the tests), card-api (outside 'owners' only the 'api' members of the renderer's namespaces: every painter, found automatically, and the 'api' keys), card-text (no surface formats a glucose value itself; '// card-ok: <why>' marks a line that must). CardLayoutTest (Android) and -graphselftest (Mac) render ../layout/scenes.json through each surface's real entry path at its sizes and check ../layout/rules.json; FreshnessFixtureTest and -graphselftest run the card and every glyph surface through ../freshness/freshness.json's steps. Sizes are dp / pt of the surface's own box (see each surface's 'size'). A card surface draws its value through the renderer too (one of the parts all / header / value) unless its entry has 'no_value' with the reason (CardLayoutTest, -graphselftest). Paths are the apps' (apps/android, apps/macos); 'owners', 'sources' and 'tests' are globs. A named file that doesn't exist is a 'pending file' NOTE while tools/check/strict is absent, and fails once it exists. Not included, removed with their CardSurface constants (register them again with the code): Android lockscreen widget and its description, the first-reading card and a value on the treatment Quick Settings tile.",
+  "about": "Every place that shows the glucose card or its value, per platform: THE registry behind 'One graph everywhere' (CLAUDE.md) and the freshness steps. A 'card' surface draws card pixels only through the renderer (GlucoseCard.draw / GlucoseCard.image) and chooses only its size, its place's settings and the parts; a 'glyph' surface (text, icons and words the system lays out) takes the value, the trend mark and the freshness steps from GlucoseCard.face (a GlucoseLook) and never formats a glucose value itself. tools/check: card-surface (a file that calls the renderer must be a registered file of the surface it names; every surface is rendered by the tests), card-api (outside 'owners' only the 'api' members of the renderer's namespaces: every painter, found automatically, and the 'api' keys), card-text (no surface formats a glucose value itself; '// card-ok: <why>' marks a line that must). CardLayoutTest (Android) and -graphselftest (Mac) render ../layout/scenes.json through each surface's real entry path at its sizes and check ../layout/rules.json; FreshnessFixtureTest and -graphselftest run the card and every glyph surface through ../freshness/freshness.json's steps. Sizes are dp / pt of the surface's own box (see each surface's 'size'). A card surface draws its value through the renderer too (one of the parts all / header / value) unless its entry has 'no_value' with the reason (CardLayoutTest, -graphselftest). Paths are the apps' (apps/android, apps/macos); 'owners', 'sources' and 'tests' are globs. A named file that doesn't exist is a 'pending file' NOTE while tools/check/strict is absent, and fails once it exists. Not included, removed with their CardSurface constants (register them again with the code): Android lockscreen widget and its description and the first-reading card.",
   "android": {
     "enum": "apps/android/core/graph/src/main/kotlin/app/mauri/sukrara/graph/CardSurface.kt",
     "owners": [
@@ -245,6 +245,15 @@
         ],
         "entry": "face",
         "what": "the System UI module's value beside the clock / the icons (text, arrow, struck, no-readings, flag) and the range colour of the system icons"
+      },
+      {
+        "id": "quick-tile",
+        "kind": "glyph",
+        "files": [
+          "apps/android/feature/treatments/src/main/kotlin/app/mauri/sukrara/feature/treatments/TreatmentTileService.kt"
+        ],
+        "entry": "face",
+        "what": "the Add treatment Quick Settings tile's subtitle: the value and trend as text (struck when late), or the sensor's words"
       }
     ]
   },

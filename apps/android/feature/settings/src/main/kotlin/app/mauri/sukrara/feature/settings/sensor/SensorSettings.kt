@@ -106,6 +106,9 @@ interface SensorSettingsPort {
     /** *Open Sukrara when you scan a sensor* on or off. */
     fun setOpenOnScan(on: Boolean) = Unit
 
+    /** The page is shown again: read what can change outside the app (Android blocking Sukrara's NFC taps). */
+    fun recheck() = Unit
+
     /**
      * *Forget this sensor*: the saved pairing goes and the link stops; no "no data" alarm follows (monitoring counts
      * again from the next sensor's first reading). Runs to the end in the app's scope.
@@ -126,6 +129,8 @@ class SensorSettingsViewModel(private val port: SensorSettingsPort) : ViewModel(
     }
 
     fun setOpenOnScan(on: Boolean) = port.setOpenOnScan(on)
+
+    fun recheck() = port.recheck()
 
     fun forget() = port.forget()
 
