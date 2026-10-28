@@ -177,15 +177,16 @@ class PenActionReceiver : BroadcastReceiver() {
         val keys = i.getStringArrayExtra(EXTRA_KEYS)?.toList()
         module.scope.launch {
             try {
-                module.ready()
-                when (i.action) {
-                    UNDO -> module.undoLast()
-                    SUGGEST -> qid?.let { module.pens.acceptSuggestion(it, keys) }
-                    PRIMING -> qid?.let { module.pens.allPriming(it, keys) }
-                    SAME -> qid?.let { module.pens.answerMatch(it, i.getStringExtra(EXTRA_ENTRY), keys) }
-                }
-                // a refused (stale) answer: the notification is posted again with the question as it is now
-                module.syncNotices()
+                runCatching {
+                    module.ready()
+                    when (i.action) {
+                        UNDO -> module.undoLast()
+                        SUGGEST -> qid?.let { module.pens.acceptSuggestion(it, keys) }
+                        PRIMING -> qid?.let { module.pens.allPriming(it, keys) }
+                        SAME -> qid?.let { module.pens.answerMatch(it, i.getStringExtra(EXTRA_ENTRY), keys) }
+                    }
+                }.onFailure { android.util.Log.e("SukraraPen", "pen notification action failed", it) }
+                runCatching { module.syncNotices() }
             } finally {
                 pending.finish()
             }

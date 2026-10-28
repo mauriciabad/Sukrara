@@ -103,18 +103,23 @@ object DebugFakes {
 
             fun read(at: Long, doses: List<Pair<Long, Double>>) =
                 PenRead(serial, "NovoPen", at, penNow + (at - now), doses.map { (t, u) -> PenDose(penNow - (now - t), t, u, 0x08000000) })
-            if (intent.getBooleanExtra("first", false)) graph.pens.pens.onRead(read(now - 600, emptyList()))
+            // an earlier half-unit dose identifies the pen as an Echo Plus (an empty read would be the untested NovoPen 6)
+            if (intent.getBooleanExtra("first", false)) graph.pens.pens.onRead(read(now - 600, listOf(now - 86400L to 4.5)))
             val doses =
                 (intent.getStringExtra("doses") ?: "-1:1,-1:8.5").split(',').mapIndexed { i, d ->
                     val (min, u) = d.split(':')
                     (now + min.toLong() * 60 + i) to u.toDouble()
                 }
             graph.pens.pens.onRead(read(now, doses))
-            context.startActivity(
-                Intent(context, PenReadActivity::class.java)
-                    .putExtra(PenReadActivity.PREVIEW, true)
-                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
-            )
+            // the read card is enabled a moment after fakeNfc (or never while reading is Off): a refused start is only logged
+            kotlinx.coroutines.delay(500)
+            runCatching {
+                context.startActivity(
+                    Intent(context, PenReadActivity::class.java)
+                        .putExtra(PenReadActivity.PREVIEW, true)
+                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+                )
+            }.onFailure { Log.w("SukraraDebug", "pen card not shown", it) }
         }
     }
 }

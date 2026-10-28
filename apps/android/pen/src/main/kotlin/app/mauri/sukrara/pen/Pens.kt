@@ -274,6 +274,9 @@ class Pens(
         _read.value = null
     }
 
+    /** The notification's *Undo*: the last read, while nothing changed since (false = too late). */
+    suspend fun undoLast(): Boolean = lastUndo?.let { undo(it) } ?: false
+
     /** Whether [r] can still be undone (no later change since: a later read or answer may have grown its entries). */
     fun canUndo(r: UndoRecord?): Boolean = r != null && r == lastUndo
 
@@ -284,7 +287,7 @@ class Pens(
             val (entries, stored) = entries()
             apply(engine().undo(current(), r, entries, nowMs()), stored)
             lastUndo = null
-            _read.value = _read.value?.takeIf { it.undo == r }?.copy(undone = true)
+            _read.value = _read.value?.let { if (it.undo == r) it.copy(undone = true) else it }
             true
         }
 

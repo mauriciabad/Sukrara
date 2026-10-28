@@ -360,7 +360,7 @@ class AppGraph(
                 },
             settings = data.settings,
             clock = clock,
-            role = role.data.map { it.role },
+            roleSource = role.data.map { it.role },
             scope = scope,
             ports =
                 PenNotificationPorts(

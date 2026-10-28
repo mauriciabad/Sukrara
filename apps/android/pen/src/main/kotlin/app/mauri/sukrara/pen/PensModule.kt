@@ -43,7 +43,7 @@ class PensModule(
     log: PenLog,
     private val settings: SettingsRepository,
     clock: Clock,
-    role: Flow<Role?>,
+    private val roleSource: Flow<Role?>,
     val scope: CoroutineScope,
     ports: PenNotificationPorts,
 ) {
@@ -53,10 +53,13 @@ class PensModule(
     /** Debug builds only (a made-up read on an emulator without NFC): show the pen surfaces anyway. */
     val fakeNfc = kotlinx.coroutines.flow.MutableStateFlow(false)
 
-    private val role: StateFlow<Role?> = role.stateIn(scope, SharingStarted.Eagerly, null)
+    private val role: StateFlow<Role?> = roleSource.stateIn(scope, SharingStarted.Eagerly, null)
 
     /** Pens exist only on the wearer's own phone with NFC (a follower would log into someone else's log). */
     fun available(): Boolean = role.value == Role.Wearer && (hasNfc || fakeNfc.value)
+
+    /** [available] once the stored role is loaded (a cold start by a pen tap or the timer must not read "no role"). */
+    suspend fun availableNow(): Boolean = roleSource.first() == Role.Wearer && (hasNfc || fakeNfc.value)
 
     val notices = PenNotices(context, ports)
 
@@ -66,7 +69,7 @@ class PensModule(
             log = log,
             clock = clock,
             rules = { rules() },
-            available = { available() },
+            available = { availableNow() },
             reading = { reading() },
             setReading = { settings.set(Reading, it.value) },
             changed = { l -> changed(l) },
@@ -100,12 +103,14 @@ class PensModule(
     /** Keeps the tap component in step with the role and the setting, and reposts what waits (app start). */
     fun start() {
         scope.launch {
-            combine(role, readingFlow, fakeNfc) { r, reading, fake -> r == Role.Wearer && (hasNfc || fake) && reading != PenReading.Off }
-                .distinctUntilChanged()
+            combine(roleSource, readingFlow, fakeNfc) { r, reading, fake ->
+                r == Role.Wearer && (hasNfc || fake) &&
+                    reading != PenReading.Off
+            }.distinctUntilChanged()
                 .collect { on -> runCatching { setComponents(on) } }
         }
         scope.launch {
-            role.collect { r ->
+            roleSource.distinctUntilChanged().collect { r ->
                 if (r == Role.Wearer) {
                     ready()
                     syncNotices()
@@ -128,13 +133,13 @@ class PensModule(
     }
 
     private suspend fun changed(l: Ledger) {
-        if (!available()) return
+        if (!availableNow()) return
         notices.sync(l, log.all().map(PenRecords::entry))
         schedule(l)
     }
 
     suspend fun syncNotices() {
-        if (!available()) return
+        if (!availableNow()) return
         notices.sync(pens.ledger.value, log.all().map(PenRecords::entry))
     }
 
@@ -151,7 +156,7 @@ class PensModule(
     suspend fun tick() {
         ready()
         pens.refresh()
-        if (available()) schedule(pens.ledger.value)
+        if (availableNow()) schedule(pens.ledger.value)
     }
 
     /** NFC is off (the pens page offers Android's NFC settings). */
