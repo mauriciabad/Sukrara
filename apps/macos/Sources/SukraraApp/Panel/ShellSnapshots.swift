@@ -78,7 +78,7 @@
                 if case .following(_, true) = link { treatments.canWrite = true }
                 let links = PanelLinks(
                     setup: setupModel, treatments: treatments, openSetup: {}, openFollow: {}, openAddTreatment: {},
-                    openTreatments: {}, openSettings: {})
+                    openTreatments: {}, openReport: {}, openSettings: {})
                 return Scene(
                     view: AnyView(
                         VStack(alignment: .leading, spacing: 8) {

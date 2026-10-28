@@ -47,12 +47,14 @@ public final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         contextMenu.openSettings = { [weak windows] in windows?.openSettings() }
         contextMenu.openTreatments = { [weak windows] in windows?.openTreatments() }
+        contextMenu.openReport = { [weak windows] in windows?.openReport() }
         let links = PanelLinks(
             setup: windows.setup, treatments: windows.treatments,
             openSetup: { [weak self] in self?.fromPanel { $0.openSetup() } },
             openFollow: { [weak self] in self?.fromPanel { $0.openFollow() } },
             openAddTreatment: { [weak self] in self?.fromPanel { $0.openAddTreatment() } },
             openTreatments: { [weak self] in self?.fromPanel { $0.openTreatments() } },
+            openReport: { [weak self] in self?.fromPanel { $0.openReport() } },
             openSettings: { [weak self] in self?.fromPanel { $0.openSettings() } })
         let statusItem = StatusItemController(model: model, menu: contextMenu, links: links)
         statusItem.onOpen = { [weak self] in self?.refreshNotificationPermission() }

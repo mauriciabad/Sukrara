@@ -107,6 +107,7 @@ struct PanelLinks {
     let openFollow: () -> Void
     let openAddTreatment: () -> Void
     let openTreatments: () -> Void
+    let openReport: () -> Void
     let openSettings: () -> Void
 }
 
@@ -157,6 +158,9 @@ private struct ActionRows: View {
             }
             Button(action: links.openTreatments) {
                 PanelRowLabel(title: L10n.t("Treatments…"), symbol: "list.bullet", shortcut: nil)
+            }
+            Button(action: links.openReport) {
+                PanelRowLabel(title: L10n.t("Glucose Report…"), symbol: "chart.bar.doc.horizontal", shortcut: nil)
             }
             Divider().padding(.vertical, 4)
             Button(action: links.openSettings) {

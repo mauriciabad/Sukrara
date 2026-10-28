@@ -19,6 +19,8 @@ public final class AppModel {
     private(set) var sensor: SensorInfo?
     /// The wearer's live treatments as the chart's marks, oldest first.
     private(set) var marks: [GraphMark] = []
+    /// The wearer's live treatments (the CSV export).
+    private(set) var treatments: [Treatment] = []
     private(set) var link: LinkState = .notFollowing
     /// The wearer's readings feed the card and the alert rules: following, or following with the Keychain retrying.
     private var monitoring = false
@@ -101,6 +103,7 @@ public final class AppModel {
                 })
         }
         marks = monitoring ? CardAlertsMapping.marks(snapshot.treatments) : []
+        treatments = monitoring ? snapshot.treatments.filter { !$0.del } : []
         sensor = snapshot.sensor.map {
             SensorInfo(start: TimeInterval($0.start), end: TimeInterval($0.end), warmupEnd: TimeInterval($0.warmupEnd))
         }

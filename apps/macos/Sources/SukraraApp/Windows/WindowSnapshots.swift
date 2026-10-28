@@ -5,6 +5,7 @@
     import AppKit
     import ServiceManagement
     import SukraraCore
+    import SukraraGraph
     import SwiftUI
 
     /// `sukrara-snap windows <dir>`: every window state with synthetic data, light + dark, default + large text.
@@ -190,6 +191,21 @@
                         TreatmentsView(model: TreatmentsModel(rows: [], canWrite: false, actions: nil), add: {}).frame(
                             width: 460, height: 300))
                 ))
+            // the report over a synthetic fortnight, a thin week (low coverage) and nothing
+            let plan = LaunchPlan(mode: .normal, services: .none, data: .isolated(root: URL(fileURLWithPath: "/tmp")))
+            for (name, days) in [("report", 14), ("report-low-coverage", 3), ("report-empty", 0)] {
+                let app = AppModel(plan: plan)
+                let now = Date().timeIntervalSince1970
+                app.apply(
+                    readings: days == 0
+                        ? []
+                        : RealisticSynthetic.readings(until: now - 60, days: days).map {
+                            Reading(t: Date(timeIntervalSince1970: $0.t), mgdl: $0.sgv, rate: $0.rate)
+                        })
+                let report = ReportModel(store: store, app: app)
+                report.days = days == 3 ? 7 : 14
+                out.append((name, AnyView(ReportView(model: report))))
+            }
             return out
         }
 

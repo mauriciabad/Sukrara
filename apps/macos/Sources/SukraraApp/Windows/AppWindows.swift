@@ -8,7 +8,7 @@ import SwiftUI
 /// from an accessory menu bar app). One window per kind, frames remembered under `app.mauri.sukrara.<kind>`; the
 /// app shows in the Dock and the app switcher while one is open, so keyboard users can reach it.
 public final class AppWindows: NSObject, NSWindowDelegate {
-    public enum Kind: String, Sendable { case settings, setup, treatments, addTreatment }
+    public enum Kind: String, Sendable { case settings, setup, treatments, addTreatment, report }
 
     private var windows: [Kind: NSWindow] = [:]
 

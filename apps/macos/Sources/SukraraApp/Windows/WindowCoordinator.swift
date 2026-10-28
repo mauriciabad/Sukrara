@@ -15,6 +15,7 @@ final class WindowCoordinator {
     let setup: SetupModel
     let settings: SettingsModel
     let treatments: TreatmentsModel
+    let report: ReportModel
     private let model: AppModel
     private let adapter: FollowerAdapter?
 
@@ -26,6 +27,7 @@ final class WindowCoordinator {
         setup = SetupModel(store: store, follow: follow)
         settings = SettingsModel(store: store, follow: follow, version: Self.version)
         treatments = TreatmentsModel(rows: [], canWrite: false, actions: adapter)
+        report = ReportModel(store: store, app: model)
         setup.requestNotifications = requestNotifications
         setup.setOpenAtLogin = { [weak model] on in model?.loginItem?.set(on) }
         follow.searchNearby = { [weak adapter] on in adapter?.searchNearby(on) }
@@ -83,6 +85,10 @@ final class WindowCoordinator {
         windows.show(.treatments, title: L10n.t("Treatments")) {
             TreatmentsView(model: treatments) { [weak self] in self?.openAddTreatment() }
         }
+    }
+
+    func openReport() {
+        windows.show(.report, title: L10n.t("Glucose Report")) { ReportView(model: report) }
     }
 
     /// Add treatment; while low the Carbs field has the focus.
