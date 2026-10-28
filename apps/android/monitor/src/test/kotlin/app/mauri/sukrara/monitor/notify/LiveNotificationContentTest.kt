@@ -223,7 +223,7 @@ class LiveNotificationContentTest {
     }
 
     @Test
-    fun `a sharing wearer gets the followers and nearby sub text in every state, a follower never`() {
+    fun `a wearer with followers gets the followers and nearby sub text in every state, a follower never`() {
         val line = SharingLine(followers = 2, nearby = 1)
         val prefs = NotificationPrefs(chip = true, promotionAllowed = true, sharing = line)
         assertEquals(line, content(state(), prefs).sharing)
@@ -232,5 +232,7 @@ class LiveNotificationContentTest {
         assertNull(content(state(role = Role.Follower), prefs).sharing)
         assertNull(content(state(), NotificationPrefs()).sharing)
         assertNull(content(state(role = null), prefs).sharing)
+        // a sharing identity without followers says nothing (no "0 followers" on the lock screen)
+        assertNull(content(state(), prefs.copy(sharing = SharingLine(0, 0))).sharing)
     }
 }

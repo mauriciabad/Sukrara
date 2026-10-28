@@ -110,10 +110,16 @@ class NearbyDefaultMtuTest {
                 .getValue("prepared")
                 .jsonArray
                 .map { it.jsonObject }
-        subscribe("a")
-        core.write("a", hex(parts[0].str("value")), true, prepared = true, offset = 0, mtu = mtu)
+        val sent = subscribe("a")
+        parts.take(5).forEach { core.write("a", hex(it.str("value")), true, prepared = true, offset = it.int("offset"), mtu = mtu) }
         assertEquals(true to emptyList<NearbyServerCore.Effect>(), core.execute("a", commit = false))
         assertTrue(core.named().isEmpty())
+        // the cancelled parts are gone: the whole long write from offset 0 goes through as if nothing came before
+        for (part in parts) {
+            assertTrue(core.write("a", hex(part.str("value")), true, prepared = true, offset = part.int("offset"), mtu = mtu).first)
+        }
+        serve("a", core.execute("a", commit = true).second, sent)
+        assertEquals(hexes("info_frames").map { it.toList() }, sent.map { it.toList() })
 
         // a part that skips ahead is refused and the central dropped
         subscribe("b")

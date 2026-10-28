@@ -66,7 +66,7 @@ data class LiveNotificationContent(
     val mgdl: Int? = null,
     /** [NotificationPrefs.cardKey] while [layout] is [Layout.CARD]. */
     val cardKey: Any? = null,
-    /** The sub text on a wearer that shares ([NotificationPrefs.sharing]); null on a follower or without sharing. */
+    /** The sub text on a wearer with followers ([NotificationPrefs.sharing]); null on a follower or with none. */
     val sharing: SharingLine? = null,
 ) {
     /** [TREND] = the renderer's arrow for [trendRate]; [NUMBER] = the value itself; the others are the states' icons. */
@@ -109,7 +109,8 @@ data class LiveNotificationContent(
             prefs: NotificationPrefs = NotificationPrefs(),
         ): LiveNotificationContent {
             if (state.notMonitoring == NotMonitoringReason.SetupIncomplete) return notMonitoring(state)
-            return content(state, now, face, prefs).copy(sharing = prefs.sharing.takeIf { state.role == Role.Wearer })
+            val sharing = prefs.sharing.takeIf { state.role == Role.Wearer && it != null && (it.followers > 0 || it.nearby > 0) }
+            return content(state, now, face, prefs).copy(sharing = sharing)
         }
 
         private fun content(

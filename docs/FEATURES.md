@@ -618,9 +618,9 @@ Android (`:monitor`, `LiveNotification` = registered surface `notification-text`
 - States: *Waiting for glucose…*; *Not monitoring: no sensor yet* with *Set up sensor* (followers: *Open Sukrara*) before
   the first reading or while setup isn't done; *Sensor ended* (wearer: tap / *Replace sensor* → sensor setup); *Sensor
   warming up · ready at 14:05*; *Bluetooth is off: turn it on to get readings* under the value on a wearer.
-- Sub text on a wearer that shares (has a sharing identity), in every state: *2 followers* (active ones), then
-  *· 1 nearby* while follower devices are connected over Bluetooth (`SharingLine`, from the owner engine's followers
-  and named Bluetooth links). A follower phone shows none.
+- Sub text on a wearer with followers, in every state: *2 followers* (active ones), then *· 1 nearby* while follower
+  devices are connected over Bluetooth (`SharingLine`, from the owner engine's followers and named Bluetooth links).
+  None without followers (no "0 followers" on the lock screen) and none on a follower phone.
 - **Tap → quick Add treatment** (`NavTargets.ACTION_QUICK_TREATMENT`, Carbs focused while a low / very-low alert fires);
   action *Open Sukrara*. Until the quick-treatment dialog is in the build the tap opens the app.
 - Swiped away (Android 14+ lets the person dismiss a foreground notification): it is posted again (delete intent).
@@ -884,7 +884,8 @@ past the other app's event; blocks again if it's still running) or *Help*.
 - `HELLO` carries a fresh random nonce; the phone's `INFO` answers `m = H("cgm2:ble:"+sid+":"+nonce)`. A follower writes
   nothing to a phone (requests, rekeys, history requests, treatments) until its `INFO` proves our stream (`m` over one
   of its last 4 nonces; once the follower knows the stream id a pairing `i` never proves it). Another wearer's phone is
-  avoided for 10 minutes (that phone only, by its connection: never the one connected since) and the scan goes on; on
+  avoided for 10 minutes (that phone only, by its current Bluetooth address / Mac peripheral id: never the one connected
+  since; a phone that rotates its address sooner can be tried again) and the scan goes on; on
   the Mac, a phone with nothing to pair with (not following yet) is left for a minute. A pending request: receive only.
   After a new key the follower sends `HELLO` again with its proof. Entries still pending go to the phone as soon as it
   proved it's the wearer's; one counts as delivered on a relay's OK or the wearer's echo (a bare write response doesn't).
