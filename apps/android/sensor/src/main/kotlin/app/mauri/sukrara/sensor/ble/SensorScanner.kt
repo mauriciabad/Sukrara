@@ -90,7 +90,7 @@ internal class SensorScanner(
                             var match: Advert? = null
                             for (h in hits) {
                                 h.record?.let { driver.onAdvertisement(h.advert, it) }
-                                if (driver.matches(h.advert)) {
+                                if (driver.accepts(h.advert)) {
                                     match = h.advert
                                     break
                                 }

@@ -18,6 +18,12 @@ Rules: [poc/spikes/alerts/SPEC.md](../poc/spikes/alerts/SPEC.md); timelines: [po
   `AlertScenarioTest` and the Mac `-alerts-selftest` both run all of them and must pass (SPEC §7). Mac: the pure
   `SukraraAlerts` engine runs them in `AlertsTests` (`cd apps/macos && swift test --filter AlertsTests`, one test case
   per scenario from `contracts/alerts/scenarios`).
+- **LO / HI** (Android and Mac, SPEC §1): a sensor's "below / above my range" reading (`sgv < 40` / `> 400`) matches
+  every low / every high kind whatever the thresholds, so the most severe one turned on (very low, extremely high)
+  alerts at once instead of waiting for *No glucose data*; never a falling-high prediction from a HI, and a LO / HI is
+  never "back in range by the margin" (a Mute / Remind less of that side holds). Alert texts say
+  *LO · below 40 mg/dL* / *HI · above 400 mg/dL* (es *por debajo de 40* / *por encima de 400*), never 39 / 401, and
+  the Nightscout upload and the xDrip+ endpoint compute no slope from or to one (scenarios `levels.txt`).
 - Kinds and defaults (the user's settings): very low < 55 every 5 min (alarm volume), low < 70 every 5 min, high ≥ 180
   every 15 min, very high ≥ 250 every 10 min, extremely high ≥ 300 every 5 min (alarm volume), falling/rising fast
   2 mg/dL/min every 30 min (off), no data after 20 min every 60 min; other kinds at notification volume.
@@ -240,8 +246,9 @@ System back on the first step leaves setup (home shows "Not monitoring: setup in
   and setup opens). A follow that ended says why with *Join with a new link*.
 - **Invite links** opened on a phone with no role or a follower that follows no one open setup's join step with the link;
   on a wearer phone (or one already following) they open *This phone shares its own readings* with *Copy link*.
+- **Bluetooth**: the Following page's *Bluetooth:* line and its exits (see *Sharing over Bluetooth*).
 - Not included yet: scanning the invite QR code (camera / picture), the *Settings from* page (the follower's alert
-  runtime uses the wearer's mirrored alert settings as `AlertMirror` decides), Bluetooth from the wearer's phone.
+  runtime uses the wearer's mirrored alert settings as `AlertMirror` decides), joining with *Find phones nearby*.
 
 **States and exits**: Role step → *I follow someone* → join step (Back → role step). Join step: typing (Join, Back),
 looking up (spinner, the fields locked), failed (the reason; edit the link to clear it, Join again), waiting (code,
@@ -335,7 +342,7 @@ the app (Settings › Sharing shows the same state). Invite link on a wearer pho
 
 ## Sensor life
 
-- Android reads two sources (`:sensor`, `SensorProfile`): **FreeStyle Libre 3 / 3 Plus directly** (NFC start / takeover, then Bluetooth; 60 min warm-up and 15 d life when the patch info doesn't say; a sensor's own patch info wins) and **Juggluco's local web server** (Juggluco owns the sensor), plus five families **never tested on a real sensor** (`SensorProfile.verified = false`; decoding pinned by open-source recorded frames in `src/test/resources/traces`): **Dexcom G7 / ONE+** and **G7 15 Day / Stelo** (read along with the Dexcom app on a G7 this phone is bonded with, writing nothing to the sensor; 30 min warm-up, 10 / 15 d), **Dexcom G6 / ONE** (keys from the typed 6-character transmitter id; needs a session started by the Dexcom app or receiver; 2 h, 10 d), **Accu-Chek SmartGuide** (the standard Bluetooth CGM Service, bonded with the cap's PIN in Android's dialog; 60 min, 14 d) and **Aidex X / LinX / GlucoRx** (keys from the typed 10-character serial; 60 min, 15 d). These are found by short filtered scans (`ble/SensorScanner`: 30 s on, 60 s off, by service UUID or exact name, never unfiltered; Nearby devices covers it, no location), the found address is kept and later connections go straight to it over the same `GattLink` (indications, reads, write-without-response, a bond that waits 2 min for the PIN). After 10 empty scans the status says *not found* (check the id) and scanning goes on. Value rules (`brand/BrandDriver`): only the sensor's own number in its range (Dexcom and SmartGuide 40–400 mg/dL; outside it the status says below / above the sensor's range, never a made-up floor); timed by the sensor's own clock (G6 by the transmitter clock from its time reply, Aidex by a start that is kept once known); a value from the future is dropped, one older than 3 min is history, and the same value again after a restart is history (never the current value the alerts read). A wrong id / refused authentication / failed PIN closes the link (*Pair the sensor again*); Dexcom states other than *ok* give no value (calibration, temporary issue, sensor error); a Dexcom end state ends the sensor for good; a SmartGuide "session stopped" is confirmed with a status read and shown as *no session*, never as the end (its end is start + 14 d).
+- Android reads two sources (`:sensor`, `SensorProfile`): **FreeStyle Libre 3 / 3 Plus directly** (NFC start / takeover, then Bluetooth; 60 min warm-up and 15 d life when the patch info doesn't say; a sensor's own patch info wins) and **Juggluco's local web server** (Juggluco owns the sensor), plus five families **never tested on a real sensor** (`SensorProfile.verified = false`; decoding pinned by open-source recorded frames in `src/test/resources/traces`): **Dexcom G7 / ONE+** and **G7 15 Day / Stelo** (read along with the Dexcom app on a G7 this phone is bonded with, writing nothing to the sensor; 30 min warm-up, 10 / 15 d), **Dexcom G6 / ONE** (keys from the typed 6-character transmitter id; needs a session started by the Dexcom app or receiver; 2 h, 10 d), **Accu-Chek SmartGuide** (the standard Bluetooth CGM Service, bonded with the cap's PIN in Android's dialog; 60 min, 14 d) and **Aidex X / LinX / GlucoRx** (keys from the typed 10-character serial; 60 min, 15 d). These are found by short filtered scans (`ble/SensorScanner`: 30 s on, 60 s off, by service UUID or exact name, never unfiltered; Nearby devices covers it, no location), the found address is kept and later connections go straight to it over the same `GattLink` (indications, reads, write-without-response, a bond that waits 2 min for the PIN). After 10 empty scans the status says *not found* (check the id) and scanning goes on. Value rules (`brand/BrandDriver`): only the sensor's own number in its range (Dexcom and SmartGuide 40–400 mg/dL); below / above it the reading is the flagged **LO / HI** (`Reading.lo` / `Reading.hi`, stored and shared as 39 / 401 like Nightscout and xDrip+, no rate): the card says *LO* / *HI* in the range colour and the alerts treat it as beyond every threshold (see *Alerts*). The same for every family: Libre 3 (uncapped and capped value both below 40 → LO; above 400 → HI), Dexcom, SmartGuide (−∞ with its *below range* warning → LO, +∞ with *above range* → HI; NaN or a contradiction → no value), Aidex X. A field that isn't a measurement is no value, never a LO / HI: Dexcom 1–12 (old special codes) and the all-ones 0xFFF, Aidex outside 18–800 (Juggluco); stored backfill records keep only in-range numbers; timed by the sensor's own clock (G6 by the transmitter clock from its time reply, Aidex by a start that is kept once known); a value from the future is dropped, one older than 3 min is history, and the same value again after a restart is history (never the current value the alerts read). A wrong id / refused authentication / failed PIN closes the link (*Pair the sensor again*) and is kept with the pairing (`Pairing.failed`): a restart, reboot or Bluetooth toggle never retries it in the background (no PIN dialog out of nowhere), only a new pairing does. A Dexcom G7 that is already past its wear when this pairing first sees it (an old sensor still bonded, ended or in its grace period) is never adopted and never ends the new pairing: its address joins the pairing's skip list (`Pairing.skipAddresses`, at most 8; a new G7 pairing after an ended one also skips the ended sensor) and the scan goes on; Dexcom states other than *ok* give no value (calibration, temporary issue, sensor error); a Dexcom end state ends the sensor for good; a SmartGuide "session stopped" is confirmed with a status read and shown as *no session*, never as the end (its end is start + 14 d).
 - The Libre 3 source (`sensor/libre3/Libre3Driver` over `sensor/ble/GattLink`): connect by the address from the NFC tap with autoConnect (no scanning), one GATT operation at a time. Protocol ported byte for byte from the PoC (handshake, fresh pairing after a scan, resume with the saved authorization, every notification subscribed, 120 s glucose wait after authorizing, 24 h backfill, warm-up wait), pinned by `Libre3DriverTest`. Reliability: every GATT operation and the service discovery time out after 10 s; a dropped or failed link is closed at once and a **new** connection is made after 1 s, doubling to 30 s while it keeps failing, back to 1 s once the sensor sends data; Bluetooth off closes everything with no retries (state *Bluetooth is off*), Bluetooth on reconnects at once with a new connection; callbacks of a closed connection are ignored; a revoked Nearby devices permission stops the link with a state that asks for it. No reading for 10 min on a running sensor (not warming up, not ended) restarts the link (`SourceManager` watchdog). After 3 authorization rejections in a row (the sensor's PIN / key changed: another app took it over) it stops reconnecting and says *another app has the sensor* (*Try again* / scan it again).
 - NFC commands to the Libre 3 (`sensor/libre3/Libre3Nfc`) are retried up to 10 times within 5 s on a transient error or an answer with the error flag (Juggluco's `wholenfccmd`); a lost tag (phone moved away) aborts at once and the scan screen asks to try again.
 - The owner knows the current sensor's start, end and warm-up end (`core/SensorLife`, persisted): the direct source gives serial, start, end = start + the wear length from the NFC patch info (LE16 at +6, minutes; Libre 3 Plus 21600 = 15 d; the profile's 15 d when unknown or for a pairing saved before this field) and warm-up end = start + the patch info's warm-up (byte 13 × 5 min; the profile's 60 min default).
@@ -453,13 +460,17 @@ Wearer only (`ui/SensorFeedback.kt`, tests `SensorFeedbackTest`). While the dire
 
 ## Share-with-your-clinic banner
 
-Android, wearer only: home (under the profile row) and the top of the Settings overview (`ui/UploadBanner.kt`, tests `UploadBannerTest`; 2026-10-21, was *Set up LibreView*). While neither clinic upload is set up, a card shows the cloud-upload symbol, *Share your data with your clinic* (es *Comparte tus datos con tu clínica*), a close button and two pills side by side: *LibreView* and *Tidepool*, each with the service's own icon at the AOSP Settings app-icon size (32 dp, `ServiceIcon`), opening Settings → LibreView or Settings → Tidepool. No helper text, not red. Set up = LibreView: switch on, email and password saved; Tidepool: switch on and signed in. Either one hides it (`UploadBanner.shows`). Close hides it for good (`FeatureState.uploadBannerDismissed`, `uploadBanner` in the settings export; kept by *Reset options*). Not in the settings search index. Followers: none (they upload to Tidepool from Apps). Mac: none (no such banner there).
+Android, wearer only: home's banner place (`BannerKind.ShareWithClinic`, the lowest-priority info banner: never above
+a safety, setup or data banner) and the top of the Settings overview. While LibreView isn't signed in and on
+(`IntegrationsModule.clinicUploadSet`; a follower's phone feeds null, so it never shows there), a card says *Share your
+data with your clinic* · "Upload your readings and entries to LibreView so your care team sees them." with *Set up*
+(opens Settings → Share with apps → LibreView) and a close button. Not red. Signing in with the upload on hides it.
+Close hides it on both places (the home-banners memory); there is no Undo or *Show closed tips* yet (issue filed).
+Mac: none.
 
-<p>
-  <img src="img/home/share-with-clinic-banner.png" alt="Home's banner: Share your data with your clinic, a close button, and LibreView and Tidepool pills with the services' own icons" width="400">
-</p>
-
-**States and exits**: *shown* (no clinic upload set up) → a pill opens LibreView / Tidepool setup; it leaves once either is set up. *Closed* (on this phone) → *Undo* in the snackbar right after, or later Settings → *Show closed tips* ([Closed tips](#closed-tips)); the setup itself stays in Settings → LibreView / Tidepool.
+**States and exits**: *shown* (LibreView not set up) → *Set up* opens the LibreView page; it leaves once LibreView is
+signed in and on. *Closed* → stays closed (restoring closed tips: issue); LibreView stays reachable in Settings →
+Share with apps. Follower → never shown. Before the app knows whether LibreView is signed in (start-up) → not shown.
 
 ## Home screen widgets
 
@@ -558,7 +569,7 @@ Android, both roles (round f33, the user: closed tips never came back; `features
 - A row shows a changed value at once (switch, summary), without reopening the page (`SettingsGroupTest`).
 - **One settings schema** (round f28, the user 2026-10-21: settings must not diverge across platforms): `poc/spikes/settings/settings.json` lists every setting of both apps (store and key per platform, or the one platform with the reason), the number formats and what a follower mirrors from the wearer; `tools/settings/gen.py` generates `SettingsSpec.kt` / `SettingsSpec.swift` from it. `tools/check` rule `settings` fails on a stale generated file, an entry on one platform without a reason, a stored key without an entry (or an entry whose key isn't stored), or a number input that doesn't take its spec; `SettingsSchemaTest` (Android) and `-settingsselftest` (Mac) test the models' keys, defaults and every valid number against it.
 - **One number input** for every number setting on both platforms (schema `numbers`: presets, special values, range, step, unit): the special values (*Off*, *Once*, *None*, *Default (12 h)*, *Every reading*) and presets as choices, then *Custom…* (es *Personalizado…*, the ellipsis character because it asks for more input, like the Mac's; only where the schema allows custom values; `StringsParityTest`) with a number field: unit as its suffix, "From 1 to 48 h" under it, the same text as the error while the value isn't in range on the step; OK saves only a valid value. A custom value shows as *Custom…* selected with its value and round-trips through settings export / import. Closed lists (rings 0–3, vertical lines Off / 1 / 2 / 3 / 4 / 6 / 12 h) are plain choices. Android: the dialog (`NumberDialog`); Mac: a pop-up of the same choices plus *Custom…*, which shows a field with a stepper and the unit. No sliders: the range limits are typed exactly.
-- Number formats (stored units; custom range): ranges very low 30–80 (presets 50 / 54 / 55 / 60), low 40–120 (65 / 70 / 75 / 80), very good 80–250 (120 / 140 / 160), high 100–300 (160 / 180 / 200), very high 150–400 (220 / 250 / 300), extremely high 200–450 (300 / 350 / 400) mg/dL, kept in order by `Bands.sane`; graph time 1–48 h (3 / 6 / 12 / 24), per place the same or *Default*; ring and fallback periods 12 h / 1 / 3 / 7 / 14 / 30 days or 1–90 days; lines 40–400 mg/dL, up to 6; sensor countdown 1–24 h (2 / 4 / 8 / 12 / 24); thresholds very low 40–80, low 50–120, high 120–300, very high 150–400, extremely high 200–450 mg/dL (five presets each), rates 0.5–5.0 mg/dL/min in 0.1 steps (1 / 1.5 / 2 / 2.5 / 3), no data 5–240 min; remind *Once* / 5 / 10 / 15 / 30 / 60 / 120 or 1–240 min; quiet after insulin 10–360 min, falling 5–120, carbs 5–120; notification Mute 1–720 min, Remind less 5–120 min (only slower than every level alert's repeat), the margin 0–50 mg/dL / 0–60 min (10 / 10), Mute all 5–1440 min or until you turn it off (For 30 min / 1 h / 2 h / 4 h / 8 h / Until you turn it off); Nostr interval *Every reading* / 5 / 15 / 30 or 1–120 min, LibreView 5 / 15 / 60 or 1–240 min. Values outside a format are brought back into it when the settings load.
+- Number formats (stored units; custom range): ranges very low 30–80 (presets 50 / 54 / 55 / 60), low 40–120 (65 / 70 / 75 / 80), very good 80–250 (120 / 140 / 160), high 100–300 (160 / 180 / 200), very high 150–400 (220 / 250 / 300), extremely high 200–450 (300 / 350 / 400) mg/dL, kept in order by `Bands.sane`; graph time 1–48 h (3 / 6 / 12 / 24), per place the same or *Default*; ring and fallback periods 12 h / 1 / 3 / 7 / 14 / 30 days or 1–90 days; lines 40–400 mg/dL, up to 6; sensor countdown 1–24 h (2 / 4 / 8 / 12 / 24); thresholds very low 40–80, low 50–120, high 120–300, very high 150–400, extremely high 200–450 mg/dL (five presets each), rates 0.5–5.0 mg/dL/min in 0.1 steps (1 / 1.5 / 2 / 2.5 / 3), no data 5–240 min; remind *Once* / 5 / 10 / 15 / 30 / 60 / 120 or 1–240 min; quiet after insulin 10–360 min, falling 5–120, carbs 5–120; notification Mute 1–720 min, Remind less 5–120 min (only slower than every level alert's repeat), the margin 0–50 mg/dL / 0–60 min (10 / 10), Mute all 5–1440 min or until you turn it off (For 30 min / 1 h / 2 h / 4 h / 8 h / Until you turn it off); Nostr interval *Every reading* / 5 / 15 / 30 or 1–120 min. Values outside a format are brought back into it when the settings load.
 - **Settings from** (followers, Android and Mac; schema `follower.settingsFrom`): *Wearer* (default), *Default* or *Custom*, for what a follower mirrors (`"mirror": true`: the six ranges, the graph's default time, lines, vertical lines, rings (count, kind, period, fainter, centre count, order, rewards), time in range and crown beside the graph, last treatment (place, fallback), sensor countdown hours, each alert's on / threshold / remind except no data, and the three quiet rules). The wearer's phone sends those as its settings event (PROTOCOL-v2 *Settings*). Only in Custom are they shown and changed; there *Copy the wearer's settings* and *Reset to defaults* (each after a confirmation) start Custom from either. Always the follower's own: per-place times, sensor time per place, sounds, *Like an alarm* / volume, the notification's Mute / Remind less, Mute all, no data, the alerts main switch. Android: the follower's overview, Graph and Alerts pages (alert rows stay, read-only "Set by the wearer's app" / "Sukrara's default", for their sound pages); it replaces the old *Alert rules* choice. Wearer mode waits for the wearer's settings with the defaults (says so).
 - Ring order (Android + Mac; the user 2026-10-21: the first version fought the page's scroll and looked wrong on the Mac): rows show the segment's colour and name, no position number. States: idle → dragging → dropped (saved, the row settles with a spring) or cancelled (the order before the drag comes back, nothing saved). Android (`ReorderList`): pick up at once on touch-down on the trailing drag handle (the handle owns the touch, so the page never scrolls from it) or by a long press on the row (a swipe before that scrolls the page and never reorders); the held row lifts (8 dp elevation, 2 % larger, dragged state layer), follows the finger, and the other rows slide out of its way live (`animateItem`); the page auto-scrolls near its top / bottom edge; haptics on pick-up, each slot change and the drop; TalkBack actions *Move up* / *Move down* / *Move to top* / *Move to bottom*. Mac (`RingOrderTable`): the system's reorderable list (NSTableView, gap feedback as in the Finder sidebar): the drag image is the row itself, the source row leaves a gap and the others slide apart where it will land; Escape or a drop outside flies it back; *Move Up* / *Move Down* in each row's context menu and for VoiceOver. Reset beside the heading (Android) / Reset Order (Mac). Tests: `ReorderDragTest` (handle drag reorders without scrolling, a swipe on a row scrolls without reordering, long press then drag, a drop in place saves nothing), `-settingsselftest` (move logic, Move Up / Down).
 - Alerts page: main switch, then one two-target row per alert (switch = on/off, row = the alert's page), quiet rules, sounds.
@@ -843,15 +854,56 @@ past the other app's event; blocks again if it's still running) or *Help*.
 
 ## Sharing over Bluetooth
 
-- Settings → Share with people (wearer): *How readings travel* has *Over the internet* (a globe icon; *Encrypted, through Nostr relays*), the upload interval and *Over Bluetooth nearby* (*2 connected*). While Bluetooth sharing is on, *Nearby devices* lists the follower devices connected now (*Connected*, oldest link first; the title is the follower's name and the device type, *Sam · Mac* / *Robin · Phone*, with their picture) and then the followers paired with *Pair nearby* that aren't (*Disconnected*), like Settings' Connected devices (`owner/NearbyDevices`, `NearbyDevicesTest`). A connection is named by the identity proof in its `HELLO` (poc/spec/ogs-ble.md B§5/B§6, 2026-10-21): every follower that knows `sid` (Android and Mac) signs a kind-21080 event with content `H("cgm2:ble-id:"+sid+":"+nonce+":"+dev)` with its follower key, and the wearer's phone checks it against each roster follower and device type (`Ble.identify`, plain-Kotlin BIP-340 `Schnorr.verify`; `BleTest`, Mac `-bleselftest`, vector `ble.hello_id`). An unnamed link is not listed (no made-up name); a replayed `HELLO` names nothing. Strangers learn nothing new: without `sid` the signature can't be tested against any key. Which followers paired nearby is kept on this phone only (`OwnerState.nearbyPaired`, not in the backup). Removed followers are folded under a *2 Removed* pill (tap: their group and *See less*).
-- **Forget this device** (round f33; Android's Bluetooth settings call it *Forget*): a row in Nearby devices opens the device's dialog (its picture, *Sam · Mac*, *Connected* / *Disconnected*, *Following since …*) with *Forget* and *Done*. *Forget* asks *Forget this device?* · *Sam · Mac will stop getting your glucose. To share with it again, use Pair nearby.* (es *¿Olvidar este dispositivo?*, *Olvidar dispositivo*) with *Forget device* (filled) and *Cancel*. Forgetting (`OwnerEngine.forget`, `NearbyDevices.forget`) clears everything this phone keeps for that device and nothing else: its trust (the follower is revoked, so it gets the revoked notice and the read key rotates as with Remove; its record folds under *Removed*), its nearby pairing (`nearbyPaired`), its *Can add entries* and any request it left waiting; its Bluetooth link is dropped (`BleOwner.disconnect`), and if it connects again its identity proof names no current follower, so it is neither listed nor trusted. Pairing it again with *Pair nearby* is a fresh approval (`NearbyDevices.approved`, the same path as a first pairing; `NearbyDevicesTest`, `NearbyForgetGallery`). Mac: none (the Mac is a follower and lists no nearby devices).
-- The wearer's phone advertises the Sukrara service with **no name** (no scan response; investigation 24, P12). *Find phones nearby* lists each phone as *Phone nearby* / *Teléfono cercano* with its address and signal; the wearer's name and picture come after *Ask*, from the pairing INFO.
-- `HELLO` carries a fresh random nonce; the phone's `INFO` answers `m = H("cgm2:ble:"+sid+":"+nonce)`, and only while *Pair nearby* is open also the identity, relays and the invite with the profile. A stranger in range no longer learns the wearer's identity key.
-- A follower (Android and Mac) writes nothing to a phone (requests, rekeys, history requests, treatments) until its `INFO` proves our stream (`m` over one of its last 4 nonces, or the identity while pairing). Another wearer's phone is left; Android avoids it for 10 min and keeps scanning for ours. A pending request with pairing closed: receive only. Events are verified as before, whatever the link.
-- Limits: reassembly drops a message idle for 30 s or over 256 KiB, at most 16 open at once (Android and Mac). The wearer's phone takes at most 8 followers at once, checks each write before answering (a malformed frame or more than 256 KiB a minute → error and disconnect; more than 30 messages a minute → dropped), sends one backlog per follower per 5 s (a sooner `HELLO` is answered when due), and never re-sends an expired event from its backlog.
-- Mac follower: gift wraps (access request, rekey, history request) carry an absolute expiration (7 d; history 1 d); a key delivery naming another stream id is rejected; a chunk whose `c`/`d` tags don't match its hour is rejected; a rekey request goes out only for an unknown key on an event from the wearer's identity or device.
+- **Wearer** (Android, Settings › Sharing): a *Bluetooth* group with *Share over Bluetooth* (on by default; schema
+  `sharing.bleFollowers`). Its line says what holds: *2 devices connected nearby*, *On · no follower device nearby*,
+  *On once someone follows you* (the phone advertises only while it has a follower, B§3), *Bluetooth is off* (row *Turn
+  on Bluetooth* → Android's Bluetooth settings), *Needs the Nearby devices permission* (row *Allow Nearby devices* →
+  the permission dialog for Bluetooth advertise + connect), *This phone can't share over Bluetooth*, or *Off. Followers
+  get readings over the internet.* The page looks again on resume and after the permission answer.
+- While the switch is on, *Nearby devices* lists the follower devices connected now (*Bea · phone* / *Sam · Mac*, their
+  picture, *Connected over Bluetooth*). A connection is named only by the identity proof in its `HELLO`
+  (poc/spec/ogs-ble.md B§5/B§6): the follower signs a kind-21080 event with content `H("cgm2:ble-id:"+sid+":"+nonce+":"+dev)`
+  with its follower key, and the wearer's phone checks it against each active follower and device type
+  (`HelloProof.identify`; vector `ble.hello_id`). An unnamed link is not listed (no made-up name); a replayed `HELLO`
+  names nothing. A row opens the follower's dialog; *Remove* there also drops that follower's Bluetooth links
+  (`OwnerEngine.forget`), and a device that connects again is neither named nor trusted.
+- The wearer's phone (`AndroidNearbyServer`, protocol in `NearbyServerCore`) advertises the Sukrara service connectable
+  with **no name** (no scan response), opens a new GATT server after Bluetooth comes back, and stops with a visible state
+  when the permission is revoked (never a crash). It pushes every event it publishes except the owner backup and the
+  invite wrap, which stay on the relays; live and alert pushes go ahead of a long backlog. Events a follower device writes
+  are trusted only by their signatures: gift wraps to the identity are verified before they count as seen (requests,
+  rekeys, history requests), a writer's entry goes through the writer rules and is forwarded to the other devices.
+- **Follower** (Android, `AndroidNearbyCentral` + `NearbyLink`; Mac `NearbyCentral`): while following, Bluetooth runs
+  beside the relays; copies are one reading (deduplicated by event id, one reading source). The Following page says
+  *Bluetooth: connected to their phone* only once the phone's `INFO` proved it's this wearer's; otherwise *looking for
+  their phone*, *Bluetooth is off* (*Turn on Bluetooth*), *Needs the Nearby devices permission* (*Allow Nearby devices*:
+  scan + connect, `neverForLocation`) or *not connected* (monitoring stopped).
+- `HELLO` carries a fresh random nonce; the phone's `INFO` answers `m = H("cgm2:ble:"+sid+":"+nonce)`. A follower writes
+  nothing to a phone (requests, rekeys, history requests, treatments) until its `INFO` proves our stream (`m` over one
+  of its last 4 nonces). Another wearer's phone is left for 60 s and the scan goes on. A pending request: receive only.
+  After a new key the follower sends `HELLO` again with its proof. Entries still pending go to the phone as soon as it
+  proved it's the wearer's; one counts as delivered on a relay's OK or the wearer's echo (a bare write response doesn't).
+- Reliability (Android follower): scan by service UUID (starts spaced: at most 4 per 30 s; restarted every 25 min), one
+  connection at a time with a 25 s connect timeout (that phone skipped 60 s), MTU 517, a 10 s timeout on every GATT
+  step, `HELLO` again after 3 min without data, link dropped after 5 min, rescan after 3 s doubling to 1 min while
+  connections fail, a new `BluetoothGatt` per connection.
+- Limits: reassembly drops a message idle for 30 s or over 256 KiB, at most 16 open at once (Android and Mac). The
+  wearer's phone takes at most 8 follower devices at once (a connection counts only once it writes to the service), checks
+  each write before answering (a malformed frame, a prepared write or more than 256 KiB a minute → error and disconnect;
+  more than 30 messages a minute → dropped), sends one backlog per device per 5 s (a sooner `HELLO` is answered when due),
+  and never re-sends an expired event from its backlog.
+- Not included yet: *Pair nearby* / *Find phones nearby* (joining over Bluetooth without a link), the "· 1 nearby" sub
+  text in the live notification.
+- Mac follower: gift wraps (access request, rekey, history request) carry an absolute expiration (7 d; history 1 d); a key
+  delivery naming another stream id is rejected; a chunk whose `c`/`d` tags don't match its hour is rejected; a rekey
+  request goes out only for an unknown key on an event from the wearer's identity or device.
 
-**States and exits**: a follower *Connected* / *Disconnected* in Nearby devices → it moves between the two by itself; a device's row opens its dialog (*Done* closes it); *Forget* → *Forget this device?* → *Forget device* forgets it (*Cancel* or back keeps it), and *Pair nearby* pairs it again from scratch; a paired follower also leaves the list when it's removed from Followers; *Removed* followers fold under the *N Removed* pill and *See less* folds them again.
+**States and exits**: wearer switch on/off (the switch itself); Bluetooth off → *Turn on Bluetooth* (Android settings,
+back returns and the page looks again); permission missing → *Allow Nearby devices* (allow → serving; deny → the row
+stays, and its next tap opens the app's Android settings page); no follower yet → serves once someone follows; unsupported → nothing to do, sharing goes on over the internet. A
+device in *Nearby devices* → its follower dialog (*Close*, *Remove* → confirm → removed and disconnected). Follower:
+the Bluetooth line follows the link by itself; Bluetooth off → *Turn on Bluetooth*; permission missing → *Allow Nearby
+devices*; *Stop following* ends Bluetooth with the relays. Every state works with TalkBack (rows are buttons with text).
 
 ## Share with apps on this phone (investigation 22)
 
@@ -876,7 +928,8 @@ past the other app's event; blocks again if it's still running) or *Help*.
   only: no request log.
 - *Files* group: *Export data* ([Data export](#data-export)).
 - Not included yet: broadcasts to apps on this phone (xDrip+ `BgEstimate`, LibreLink, glucodata), Health Connect, the
-  phone's Nightscout read API on :17581, LibreView and Tidepool uploads (see *Not included*).
+  phone's Nightscout read API on :17581, Tidepool upload (see *Not included*).
+- *Your clinic* group (wearer): *LibreView* ([LibreView upload](#libreview-upload)).
 
 **States and exits**: *xDrip+ server off* (default) → switch on. *On / listening* → switch off stops it at once.
 *Port in use* → turn the other app's server off, then the switch off and on. *Left to Juggluco* → change the source in
@@ -910,6 +963,59 @@ Android (`apps/android/pen`: `opennov/` reader, `engine/PenEngine`, `Pens` runti
 - Queue: every 5 minutes, at once when an entry changes or a setting changes. The first upload sends everything the phone keeps (31 days); afterwards any slot not on Tidepool yet goes up, so an outage or a sensor backfill fills itself in. Readings go in batches of 500, each remembered when Tidepool accepts it. A failure retries after 1, 2, 4 … minutes, at most an hour ("Will retry · <reason>"); an expired session that can't be refreshed shows "Signed out by Tidepool: sign in again" (the switch stays on and the queue catches up after signing in).
 - *Sign out*: the session and the switches are forgotten on the phone; what was uploaded stays on Tidepool. Signing in to the same account again continues where it left off (no note twice); another account starts from scratch.
 - *Status*: "Up to date · last upload <date time>", "Waiting for the first upload", or the retry / sign-in states above. Overview summary of Share with apps includes `Tidepool` while it uploads.
+
+## LibreView upload
+
+- Settings → Share with apps → *Your clinic* → *LibreView* (wearer only; Android only, the Mac doesn't upload;
+  `:integrations` `libreview/`: `LibreViewClient`, `LibreViewQueue`, `LibreViewUploader`, `LibreViewPage`; tests
+  `LibreViewPayloadTest` over `contracts/treatments/libreview-fixture.json`, `LibreViewUploaderTest` against
+  MockWebServer). **Off by default**; the Share with apps row shows the status and the overview summary includes
+  `LibreView` while it is on.
+- *Account* opens *Sign in to LibreView* (email, prefilled from the sensor screens' LibreView account; password, "Used
+  once to sign in, never saved"). The LibreView app login (`/api/nisperson/getauthentication`, Abbott's config URLs
+  checked to be https) gets a token; the token and the profile fields the sensor registration repeats are kept only in
+  the Keystore-encrypted secure store (`libreview`); the password never leaves the dialog's memory and that request.
+  Wrong password: "LibreView didn't accept this email and password". If another device uploads for the account
+  (LibreLink, the Libre 3 app, Juggluco), the dialog says so and offers *Take over* (`SetDevice:true`, that device stops
+  uploading) or *Cancel*: Sukrara never takes over by itself.
+- *Upload to LibreView* (enabled once signed in; turning it off always works, also after signing out or on a follower
+  phone, which sees "Only the phone that wears the sensor uploads"), *Status* ("Last upload 4 min ago · 3 items", "On ·
+  nothing sent yet", "Trying again soon · <reason>", "LibreView asks you to sign in again (another app may have taken
+  over the account)" — tapping it opens the sign-in).
+- *What to send*: *Glucose* ("From a Libre 3 connected to this phone, since <date time>") and *Insulin, carbs and
+  notes* (entries made or changed from now on; edits and deletes correct what LibreView has); both on, disabled while
+  the upload is off. Each part goes up only from the moment it (or the upload) was switched on: the person's earlier
+  LibreView data (from LibreLink or another app) is never doubled. *Sign out* (confirmed) forgets the token; LibreView
+  keeps what it has.
+- What goes up: exactly what the FreeStyle Libre 3 app sends (contracts/treatments/SPEC.md §3, byte for byte). Entries:
+  one record per version (`recordNumber` from the entry id and version); an edit sends a retraction of the version
+  LibreView has plus the new one, a delete only the retraction, one deleted before it went up nothing. What LibreView
+  got is remembered for a year (typed store `libreview-upload`), so later edits still retract it; entries made on
+  another device wait 2 min. Glucose: only readings Sukrara takes from a Libre 3 itself (the sensor link tags each
+  batch with its serial; Juggluco's readings never go up), record number = the serial's base | life count; the newest
+  reading as current (< 5 min old), the 5-minute history, `sensorstart` once per sensor after `PUT /api/nisperson`
+  registered it (skipped if sign-in didn't return the profile, so it can't blank it). Unsent history is kept in memory
+  (3 days): readings lost to a restart come back with the sensor's backfill.
+- When: after each new Libre 3 reading, entry change or setting change, and every 5 minutes. At most 100 entries and
+  288 readings per upload; a bigger catch-up continues at once. Network or server trouble retries after 30 s doubling
+  to 15 min (±20 %); a token LibreView no longer accepts (401 / 403 / `wrongDeviceInToken`) stops until the person
+  signs in again (unlike the contract's re-auth: the password isn't kept); entries LibreView refuses (`status` ≠ 0)
+  wait until an entry or a setting changes (glucose goes on without them), refused glucose retries with the backoff,
+  a refused sensor registration holds that sensor's glucose until the next sign-in; the reason is in the status. An
+  entry whose kind changed is retracted under the kind LibreView has. Redirects are never followed.
+
+- Home's treatment list (wearer, while the upload is signed in and on with *Insulin, carbs and notes*): a small grey
+  cloud after each entry the upload covers, by the uploader's own rules (`LibreViewQueue.mark`): cloud with a tick =
+  "In LibreView" (the version LibreView has), cloud with an arrow = "Not in LibreView yet" (a new entry) or "LibreView
+  has an older version: updating" (edited), crossed-out cloud = "LibreView upload stopped" (sign in again, or LibreView
+  refused the last upload; tapping it opens the LibreView page). Entries changed before the upload was switched on, or
+  older than 30 days, get none. Deleting an entry LibreView has while the upload runs (not stopped) says "Treatment deleted. It will be removed from LibreView
+  too." in the Undo snackbar; Undo sends it up again as a new record (a retracted entry has no live record to retract).
+
+**States and exits**: *Signed out* → *Account* → dialog (*Cancel* keeps nothing). *Another device uploads* → *Take
+over* or *Cancel*. *Off* (default) → main switch. *On · nothing sent yet / last upload* → main switch off, *Sign out*.
+*Trying again* → retries by itself; switch off to stop. *Sign in again* → the status row or *Account*. *Refused* → change
+or switch off. *Follower phone* → switch shown off and disabled with the reason. Back leaves the page.
 
 ## Nightscout upload (docs/25)
 
@@ -973,6 +1079,6 @@ page.
 - Android settings pages: settings export / import / reset, settings search, the follower's *Settings from* page, relay / epoch / statistics / log pages, battery-lab knobs, mmol/L in the settings pages (thresholds and ranges are shown and typed in mg/dL; schema `general.unit` is set elsewhere),, the ▶ beside each sound in the Sound dialog (the alert's page has *Play sound*) and icons on every row. Reason: only what daily use needs; the defaults are the owner's own values.
 - Mac: Juggluco over Wi-Fi (LAN source and subnet discovery) and the Nostr v1 `cgmnostr:` follow link (v1 links carried plaintext secrets and had no UI). Follow the wearer with a protocol v2 invite instead.
 - Sensors: the untested-sensor banner and its *Send feedback* (the families themselves are read, see *Sensor life*); the Libre 3 experiment preferences (minimal subscription set, connection priority, screen-off skip). Reason: no hardware to test them, the owner uses a Libre 3.
-- Planned (issues filed): scanning an invite's QR code on Android and the follower's *Settings from* page, the glucose report card, LibreView / Tidepool uploads, the phone's Nightscout read API, Health Connect and broadcasts, the rest of insulin pens (see its section), the calendar event, Bluetooth sharing from the phone. The sections above that describe them are the behaviour to build. Reason: what daily use needs comes first.
+- Planned (issues filed): scanning an invite's QR code on Android and the follower's *Settings from* page, the glucose report card, the Tidepool upload, the phone's Nightscout read API, Health Connect and broadcasts, the rest of insulin pens (see its section), the calendar event, nearby pairing over Bluetooth. The sections above that describe them are the behaviour to build. Reason: what daily use needs comes first.
 
 **States and exits**: none (these features aren't in the app).

@@ -128,7 +128,7 @@ fun HomeContent(
 ) {
     val haptics = rememberHaptics()
     val snackbar = remember { SnackbarHostState() }
-    val deletedText = stringResource(R.string.home_treatment_deleted)
+    val deletedText = stringResource(if (state.undoInClinic) R.string.home_treatment_deleted_clinic else R.string.home_treatment_deleted)
     val undoText = stringResource(R.string.home_undo)
     LaunchedEffect(state.undo) {
         if (state.undo == null) return@LaunchedEffect
@@ -199,7 +199,7 @@ fun HomeContent(
                 haptics.confirm()
                 callbacks.onUnmute()
             }
-            Treatments(state.treatments, state.readOnly, state.now) {
+            Treatments(state.treatments, state.readOnly, state.marks, state.now, { callbacks.onAction(HomeAction.OpenClinicUpload) }) {
                 haptics.confirm()
                 callbacks.onDelete(it)
             }
@@ -739,7 +739,9 @@ private fun MuteStrip(
 private fun Treatments(
     treatments: List<Treatment>,
     readOnly: Set<String>,
+    marks: Map<String, UploadMark>,
     now: Instant,
+    openClinicUpload: () -> Unit,
     onDelete: (Treatment) -> Unit,
 ) {
     val resources = LocalContext.current.resources
@@ -762,6 +764,14 @@ private fun Treatments(
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+                marks[t.id]?.let { mark ->
+                    if (mark == UploadMark.Stopped) {
+                        // the way out: the LibreView page (sign in again, or see why it refused)
+                        IconButton(onClick = openClinicUpload) { UploadMarkIcon(mark) }
+                    } else {
+                        UploadMarkIcon(mark)
+                    }
+                }
                 if (t.id !in readOnly) {
                     IconButton(onClick = { onDelete(t) }) {
                         Icon(
@@ -773,6 +783,24 @@ private fun Treatments(
             }
         }
     }
+}
+
+/** The clinic upload's quiet mark: the entry is in LibreView, on its way, or waiting for the upload to run again. */
+@Composable
+private fun UploadMarkIcon(mark: UploadMark) {
+    val (icon, label) =
+        when (mark) {
+            UploadMark.Uploaded -> R.drawable.home_ic_cloud_done to R.string.home_treatment_in_clinic
+            UploadMark.Updating -> R.drawable.home_ic_cloud_upload to R.string.home_treatment_clinic_updating
+            UploadMark.Pending -> R.drawable.home_ic_cloud_upload to R.string.home_treatment_not_in_clinic
+            UploadMark.Stopped -> R.drawable.home_ic_cloud_off to R.string.home_treatment_clinic_stopped
+        }
+    Icon(
+        painterResource(icon),
+        contentDescription = stringResource(label),
+        tint = MaterialTheme.colorScheme.outline,
+        modifier = Modifier.padding(start = 8.dp).size(18.dp),
+    )
 }
 
 /** "4.5u rapid insulin", "30g carbs": the amount as the card writes it ([TreatmentMarks.amount]) and the kind. */

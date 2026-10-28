@@ -74,6 +74,10 @@
       "reason": "Nightscout upload: the user-entered site, validated by NsSite.parse (https://, or http:// only to loopback); redirects are never followed and the token / secret never appears in a reason"
     },
     {
+      "path": "apps/android/integrations/src/main/kotlin/app/mauri/sukrara/integrations/libreview/LibreViewClient.kt",
+      "reason": "LibreView upload: Abbott's fixed https config URL, then the https API address it names (every URL checked https, no user info); redirects are never followed; http only to loopback in tests (internal constructor flag)"
+    },
+    {
       "path": "apps/android/integrations/src/main/kotlin/app/mauri/sukrara/integrations/localserver/LocalHttpServer.kt",
       "reason": "xDrip+ server for Garmin watches: listens (never connects) on 127.0.0.1 only; bounded pool, request head and deadline; off by default"
     }

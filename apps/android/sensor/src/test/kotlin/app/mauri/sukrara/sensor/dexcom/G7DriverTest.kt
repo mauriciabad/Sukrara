@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.sensor.dexcom
 
+import app.mauri.sukrara.core.model.GlucoseRange
 import app.mauri.sukrara.core.model.SourceId
 import app.mauri.sukrara.sensor.SensorProfile
 import app.mauri.sukrara.sensor.ble.LinkStatus
@@ -126,16 +127,25 @@ class G7DriverTest {
     }
 
     @Test
-    fun outOfRangeIsNeverANumber() {
+    fun outOfRangeIsAFlaggedReadingNeverANumber() {
         val events = BrandEvents()
         val d = streaming(events)
-        d.onEgv(G7Messages.Egv(2005, 10, 5, mgdl = 39, state = 6, trend = null))
-        assertEquals(LinkStatus.NoValue(NoValueReason.BelowRange), events.last())
-        d.onEgv(G7Messages.Egv(2305, 11, 5, mgdl = 401, state = 6, trend = null))
-        assertEquals(LinkStatus.NoValue(NoValueReason.AboveRange), events.last())
-        d.onEgv(G7Messages.Egv(2605, 12, 5, mgdl = 120, state = 7, trend = null)) // needs calibration: not trusted
+        d.onEgv(G7Messages.Egv(2005, 10, 5, mgdl = 35, state = 6, trend = -2.0))
+        assertTrue(events.readings.last().isLo)
+        assertEquals(GlucoseRange.LO, events.readings.last().mgdl)
+        assertEquals(null, events.readings.last().rateMgdlPerMin) // no rate from a value nobody knows
+        d.onEgv(G7Messages.Egv(2305, 11, 5, mgdl = 420, state = 6, trend = null))
+        assertTrue(events.readings.last().isHi)
+        assertEquals(GlucoseRange.HI, events.readings.last().mgdl)
+        assertEquals(2, events.readings.size)
+        // a legacy special code (1–12) or the all-ones field is no value, never a LO / HI
+        d.onEgv(G7Messages.Egv(2405, 12, 5, mgdl = 5, state = 6, trend = null))
+        assertEquals(LinkStatus.NoValue(NoValueReason.Missing), events.last())
+        d.onEgv(G7Messages.Egv(2505, 13, 5, mgdl = 0xFFF, state = 6, trend = null))
+        assertEquals(LinkStatus.NoValue(NoValueReason.Missing), events.last())
+        d.onEgv(G7Messages.Egv(2605, 14, 5, mgdl = 120, state = 7, trend = null)) // needs calibration: not trusted
         assertEquals(LinkStatus.NoValue(NoValueReason.Calibration), events.last())
-        assertTrue(events.readings.isEmpty())
+        assertEquals(2, events.readings.size)
     }
 
     @Test

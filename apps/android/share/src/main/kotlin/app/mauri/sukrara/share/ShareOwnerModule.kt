@@ -7,10 +7,12 @@ import android.content.Context
 import android.net.ConnectivityManager
 import android.net.Network
 import app.mauri.sukrara.core.data.DataModule
+import app.mauri.sukrara.core.data.settings.SchemaSettings
 import app.mauri.sukrara.core.model.Clock
 import app.mauri.sukrara.core.model.DispatcherProvider
 import app.mauri.sukrara.core.model.GlucoseHub
 import app.mauri.sukrara.protocol.Wire
+import app.mauri.sukrara.share.ble.AndroidNearbyServer
 import app.mauri.sukrara.share.crypto.SdkNostrCrypto
 import app.mauri.sukrara.share.owner.ApproveResult
 import app.mauri.sukrara.share.owner.OwnerEngine
@@ -60,6 +62,9 @@ class ShareOwnerModule(
 
     private val requests by lazy { RequestNotifier(requestNotifications) }
 
+    /** The GATT server for nearby followers; on while the switch is (Settings › Sharing › Bluetooth). */
+    private val nearby by lazy { AndroidNearbyServer(context, crypto, data.settings.flow(NearbySharing), scope) }
+
     val ownerEngine: OwnerEngine by lazy {
         val seen = SeenWraps { id, at -> data.database.seenWraps().markSeen(id, at) }
         OwnerEngine(
@@ -72,6 +77,7 @@ class ShareOwnerModule(
             clock,
             dispatchers.default,
             settings = settings,
+            nearby = nearby,
             onRequest = { requests.onRequest(it) },
         ).also { engine ->
             watchNetwork()
@@ -96,6 +102,11 @@ class ShareOwnerModule(
         } finally {
             if (!wasRunning) engine.stop()
         }
+    }
+
+    companion object {
+        /** Settings › Sharing › Bluetooth (the schema's `sharing.bleFollowers`). */
+        val NearbySharing = SchemaSettings.bool("sharing.bleFollowers", default = true)
     }
 
     /** The network came back: reconnect relays now instead of waiting out the backoff. */

@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.sensor.cgms
 
+import app.mauri.sukrara.core.model.GlucoseRange
 import app.mauri.sukrara.sensor.SensorProfile
 import app.mauri.sukrara.sensor.ble.FailReason
 import app.mauri.sukrara.sensor.ble.LinkStatus
@@ -115,14 +116,28 @@ class SmartGuideDriverTest {
     }
 
     @Test
-    fun belowRangeIsNoNumber() {
+    fun outOfRangeIsAFlaggedReadingOnlyWhenValueAndWarningAgree() {
         val events = BrandEvents()
         val d = running(events)
-        d.onNotification(CgmService.MEASUREMENT, trace["low-1"])
-        assertTrue(events.readings.isEmpty() && events.history.isEmpty())
-        assertEquals(LinkStatus.NoValue(NoValueReason.BelowRange), events.last())
-        d.onNotification(CgmService.MEASUREMENT, trace["error-1"])
+        // the recorded LO's annunciation (low-1: malfunction bit, cal/temp 0x02, "below range"), −INFINITY, now
+        assertTrue(CgmService.Measurement.parse(trace["low-1"])!!.lo)
+        d.onNotification(CgmService.MEASUREMENT, record(0xE0, CgmService.SFLOAT_MINUS_INFINITY, 4762, "080240"))
+        val lo = events.readings.single()
+        assertTrue(lo.isLo)
+        assertEquals(GlucoseRange.LO, lo.mgdl)
+        d.onNotification(CgmService.MEASUREMENT, trace["error-1"]) // NaN: an error, never a LO
         assertEquals(LinkStatus.NoValue(NoValueReason.SensorError), events.last())
+        // +INFINITY + "above range" now: HI, live
+        d.onNotification(CgmService.MEASUREMENT, record(0x20, CgmService.SFLOAT_PLUS_INFINITY, 4762, "80"))
+        assertTrue(events.readings.last().isHi)
+        assertEquals(GlucoseRange.HI, events.readings.last().mgdl)
+        val flagged = events.readings.size + events.history.size
+        // contradictions: −INF without the warning, +INF with the "below" warning → no value
+        d.onNotification(CgmService.MEASUREMENT, record(0x20, CgmService.SFLOAT_MINUS_INFINITY, 4763, "00"))
+        assertEquals(LinkStatus.NoValue(NoValueReason.Missing), events.last())
+        d.onNotification(CgmService.MEASUREMENT, record(0x20, CgmService.SFLOAT_PLUS_INFINITY, 4764, "40"))
+        assertEquals(LinkStatus.NoValue(NoValueReason.Missing), events.last())
+        assertEquals(flagged, events.readings.size + events.history.size)
     }
 
     @Test

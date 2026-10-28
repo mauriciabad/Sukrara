@@ -8,8 +8,11 @@ import androidx.compose.ui.res.stringResource
 import app.mauri.sukrara.core.model.AlertReadiness
 import app.mauri.sukrara.core.model.AlertUiState
 import app.mauri.sukrara.core.model.Clock
+import app.mauri.sukrara.designsystem.banner.Banner
+import app.mauri.sukrara.designsystem.banner.BannerSlot
 import app.mauri.sukrara.designsystem.rows.NavigationRow
 import app.mauri.sukrara.designsystem.rows.SettingsGroup
+import app.mauri.sukrara.core.designsystem.R as DsR
 
 /** Where the overview's rows lead. */
 class OverviewActions(
@@ -18,11 +21,14 @@ class OverviewActions(
     val openSharing: () -> Unit = {},
     val openApps: () -> Unit = {},
     val unmuteAll: () -> Unit = {},
+    /** *Share your data with your clinic*: Set up (the clinic upload's page) and Dismiss. */
+    val openClinicUpload: () -> Unit = {},
+    val dismissClinicBanner: () -> Unit = {},
     /** Settings › Insulin pens is offered (the wearer's phone with NFC). */
     val pens: Boolean = false,
 )
 
-/** The settings overview (wearer): Mute all's state with Unmute, then one row per page. */
+/** The settings overview (wearer): *Share your data with your clinic* until set up, Mute all's state with Unmute, then one row per page. */
 @Composable
 fun SettingsOverviewContent(
     alertsOn: Boolean,
@@ -31,9 +37,21 @@ fun SettingsOverviewContent(
     clock: Clock,
     actions: OverviewActions,
     appsShared: Set<AppOutput> = emptySet(),
+    clinicBanner: Boolean = false,
     onBack: () -> Unit,
 ) {
     SettingsPage(stringResource(R.string.st_settings_title), onBack) {
+        BannerSlot(
+            Banner(
+                "clinic",
+                DsR.drawable.ds_ic_info,
+                stringResource(R.string.st_clinic_title),
+                stringResource(R.string.st_clinic_text),
+                stringResource(R.string.st_clinic_action),
+                actions.openClinicUpload,
+                actions.dismissClinicBanner,
+            ).takeIf { clinicBanner },
+        )
         MuteAllStrip(alerts, clock, actions.unmuteAll) { actions.open(SettingsRoute.Alerts) }
         SettingsGroup {
             NavigationRow(
@@ -84,13 +102,14 @@ fun SettingsOverviewContent(
     }
 }
 
-/** "Nightscout upload · xDrip+ server", or what the page is for while nothing is on. */
+/** "LibreView · Nightscout upload · xDrip+ server", or what the page is for while nothing is on. */
 @Composable
 private fun appsSummary(on: Set<AppOutput>): String {
     if (on.isEmpty()) return stringResource(R.string.st_apps_summary)
     val names =
         on.sortedBy { it.ordinal }.map {
             when (it) {
+                AppOutput.LibreView -> stringResource(R.string.st_apps_libreview)
                 AppOutput.NightscoutUpload -> stringResource(R.string.st_apps_nightscout)
                 AppOutput.XdripServer -> stringResource(R.string.st_apps_xdrip)
             }

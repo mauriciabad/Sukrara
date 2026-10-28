@@ -62,6 +62,7 @@ import app.mauri.sukrara.feature.sharing.share.SharingScreen
 import app.mauri.sukrara.feature.sharing.share.SharingViewModel
 import app.mauri.sukrara.integrations.AppsPage
 import app.mauri.sukrara.integrations.export.ExportPage
+import app.mauri.sukrara.integrations.libreview.LibreViewPage
 import app.mauri.sukrara.integrations.nightscout.NightscoutPage
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
@@ -108,7 +109,7 @@ data class SetupStepRoute(
 @Serializable
 data object DataProblemsRoute : NavKey
 
-/** Settings › Share with apps (Nightscout upload, the xDrip+ server, Export data). */
+/** Settings › Share with apps (LibreView, Nightscout upload, the xDrip+ server, Export data). */
 @Serializable
 data object AppsRoute : NavKey
 
@@ -119,6 +120,10 @@ data object NightscoutUploadRoute : NavKey
 /** Settings › Share with apps › Export data. */
 @Serializable
 data object ExportRoute : NavKey
+
+/** Settings › Share with apps › LibreView. */
+@Serializable
+data object LibreViewRoute : NavKey
 
 /** One settings page ([SettingsRoute]) on the back stack: [page] names it, [kind] is an alert kind page's contract id. */
 @Serializable
@@ -371,6 +376,7 @@ fun SukraraNavigation(
                             // Settings › Sharing: share / QR, followers, requests (no identity yet: its Set up opens setup)
                             openSharing = { backStack.push(SharingRoute) },
                             openApps = { backStack.push(AppsRoute) },
+                            openClinicUpload = { backStack.push(LibreViewRoute) },
                             // the Ranges and Graph pages show home's own panel, redrawn as each setting changes
                             preview = { PanelPreview(viewModel(factory = HomeViewModel.factory(graph.home))) },
                         )
@@ -382,6 +388,7 @@ fun SukraraNavigation(
                                 now = graph.clock::now,
                                 openNightscout = { backStack.push(NightscoutUploadRoute) },
                                 openExport = { backStack.push(ExportRoute) },
+                                openLibreView = { backStack.push(LibreViewRoute) },
                             )
                         }
                     }
@@ -390,6 +397,14 @@ fun SukraraNavigation(
                         SettingsPage(stringResource(IntegrationsR.string.in_ns_title), { backStack.pop(NightscoutUploadRoute) }) {
                             role?.let { r ->
                                 NightscoutPage(viewModel(factory = graph.integrations.nightscoutViewModels(r.role == Role.Wearer)))
+                            }
+                        }
+                    }
+                    entry<LibreViewRoute> {
+                        val role by graph.role.data.collectAsStateWithLifecycle(null)
+                        SettingsPage(stringResource(IntegrationsR.string.in_lv_title), { backStack.pop(LibreViewRoute) }) {
+                            role?.let { r ->
+                                LibreViewPage(viewModel(factory = graph.integrations.libreViewViewModels(r.role == Role.Wearer)))
                             }
                         }
                     }
@@ -506,9 +521,9 @@ private fun route(
             backStack.push(ShareRoute)
         }
 
-        // its banner stays hidden until the integrations provide the input and the route
+        // LibreView is the clinic upload this app has
         HomeAction.OpenClinicUpload -> {
-            Unit
+            backStack.push(LibreViewRoute)
         }
 
         HomeAction.AllowPenTaps -> {

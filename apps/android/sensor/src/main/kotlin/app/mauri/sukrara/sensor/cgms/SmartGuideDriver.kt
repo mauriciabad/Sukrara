@@ -110,20 +110,20 @@ internal class SmartGuideDriver(
             return
         }
         val start = knownStart ?: return log("measurement before the session start is known: not used")
-        val mgdl =
-            m.mgdl ?: return events.onStatus(
-                LinkStatus.NoValue(
-                    when {
-                        a.belowRange -> NoValueReason.BelowRange
-                        a.aboveRange -> NoValueReason.AboveRange
-                        a.sensorMalfunction -> NoValueReason.SensorError
-                        else -> NoValueReason.Missing
-                    },
-                ),
-            )
+        val at = start + m.offsetMinutes * 60L
+        val mgdl = m.mgdl
+        if (mgdl == null) {
+            // LO / HI only when the value AND the warning agree (−INF + "below", +INF + "above"); the recorded LO also
+            // carries the malfunction bit, so it is checked first. NaN, NRes or a contradiction: no value.
+            if (m.lo || m.hi) {
+                lastOffset = maxOf(lastOffset, m.offsetMinutes)
+                return outOfRange(at, high = m.hi)
+            }
+            return events.onStatus(LinkStatus.NoValue(if (a.sensorMalfunction) NoValueReason.SensorError else NoValueReason.Missing))
+        }
         if (a.faulty) return events.onStatus(LinkStatus.NoValue(NoValueReason.SensorError))
         lastOffset = maxOf(lastOffset, m.offsetMinutes)
-        reading(start + m.offsetMinutes * 60L, mgdl, m.trendMgdlPerMin)
+        reading(at, mgdl, m.trendMgdlPerMin)
     }
 
     override fun onDisconnected() {}

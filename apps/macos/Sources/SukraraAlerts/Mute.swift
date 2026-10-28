@@ -159,12 +159,15 @@ public struct SideSnoozes: Codable, Equatable, Sendable {
 public func isBackByMargin(_ side: AlertSide, _ reading: GlucoseSample, _ s: AlertSettings) -> Bool {
     let m = Double(s.notificationActions.backMgdl)
     switch side {
+    // a LO / HI is beyond every threshold: never back in range, whatever the margin's edge
     case .low:
+        if reading.isLo { return false }
         guard let edge = [AlertKind.veryLow, .low].filter({ s[$0].on }).map({ s[$0].threshold }).max() else {
             return true
         }
         return reading.mgdl >= edge + m
     case .high:
+        if reading.isHi { return false }
         guard
             let edge = [AlertKind.high, .veryHigh, .extremelyHigh].filter({ s[$0].on }).map({ s[$0].threshold }).min()
         else {

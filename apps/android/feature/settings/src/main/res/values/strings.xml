@@ -121,6 +121,7 @@
     <string name="st_sharing_summary">Followers and devices</string>
     <string name="st_apps">Share with apps</string>
     <string name="st_apps_summary">Nightscout, Garmin watches, a file for your clinic</string>
+    <string name="st_apps_libreview" translatable="false">LibreView</string>
     <string name="st_apps_nightscout">Nightscout upload</string>
     <string name="st_apps_xdrip">xDrip+ server</string>
     <string name="st_about_title">About</string>
@@ -518,4 +519,7 @@
     </plurals>
     <string name="st_pen_changed_since_open">That entry changed or was deleted meanwhile</string>
     <string name="st_pen_q_several">Several of your entries are nearby: answer it on the pen read card or its notification.</string>
+    <string name="st_clinic_title">Share your data with your clinic</string>
+    <string name="st_clinic_text">Upload your readings and entries to LibreView so your care team sees them.</string>
+    <string name="st_clinic_action">Set up</string>
 </resources>

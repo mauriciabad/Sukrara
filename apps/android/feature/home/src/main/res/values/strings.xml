@@ -78,8 +78,8 @@
     <string name="banner_widget_title">Add the glucose widget</string>
     <string name="banner_widget_text">See your glucose on the home screen without opening the app.</string>
     <string name="banner_widget_action">Add widget</string>
-    <string name="banner_clinic_title">Share with your clinic</string>
-    <string name="banner_clinic_text">Upload readings to LibreView or Tidepool so your care team sees them.</string>
+    <string name="banner_clinic_title">Share your data with your clinic</string>
+    <string name="banner_clinic_text">Upload your readings and entries to LibreView so your care team sees them.</string>
     <string name="banner_clinic_action">Set up</string>
 
     <!-- Mute strip and sensor line -->
@@ -100,6 +100,11 @@
     <string name="home_treatment_note">Note</string>
     <string name="home_treatment_delete">Delete %1$s at %2$s</string>
     <string name="home_treatment_deleted">Treatment deleted</string>
+    <string name="home_treatment_deleted_clinic">Treatment deleted. It will be removed from LibreView too.</string>
+    <string name="home_treatment_in_clinic">In LibreView</string>
+    <string name="home_treatment_not_in_clinic">Not in LibreView yet</string>
+    <string name="home_treatment_clinic_updating">LibreView has an older version: updating</string>
+    <string name="home_treatment_clinic_stopped">LibreView upload stopped</string>
     <string name="home_undo">Undo</string>
 
     <!-- Damaged data -->

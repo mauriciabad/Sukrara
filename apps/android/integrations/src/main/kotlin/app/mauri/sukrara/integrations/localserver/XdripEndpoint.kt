@@ -75,6 +75,8 @@ object XdripEndpoint {
     ): Double? {
         r.rateMgdlPerMin?.let { return it * 5 }
         val prev = all.firstOrNull { it.t.epochSecond <= r.t.epochSecond - 120 } ?: return null
+        // no slope from or to a LO / HI: its 39 / 401 is a flag, not a value
+        if (r.isLo || r.isHi || prev.isLo || prev.isHi) return null
         val dt = r.t.epochSecond - prev.t.epochSecond
         if (dt > 15 * 60) return null
         return (r.mgdl - prev.mgdl) * 300.0 / dt

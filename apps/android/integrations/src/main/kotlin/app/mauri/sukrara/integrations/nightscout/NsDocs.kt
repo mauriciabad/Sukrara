@@ -95,8 +95,9 @@ object NsDocs {
         api: NsApi,
     ): JsonObject {
         val ms = r.t.toEpochMilli()
+        // no slope from or to a LO / HI (its 39 / 401 is a flag, not a value): no made-up direction for loop apps
         val rate =
-            r.rateMgdlPerMin ?: prev?.let { p ->
+            r.rateMgdlPerMin ?: prev?.takeUnless { r.isLo || r.isHi || it.isLo || it.isHi }?.let { p ->
                 val dtMin = (r.t.epochSecond - p.t.epochSecond) / 60.0
                 if (dtMin in 0.5..15.0) (r.mgdl - p.mgdl) / dtMin else null
             }

@@ -17,6 +17,7 @@ import app.mauri.sukrara.core.model.storage.TreatmentsRepository
 import app.mauri.sukrara.feature.home.DataProblem
 import app.mauri.sukrara.feature.home.HomeDeps
 import app.mauri.sukrara.feature.home.HomeProfile
+import app.mauri.sukrara.feature.home.UploadMarks
 import app.mauri.sukrara.feature.home.banners.BannerMemory
 import app.mauri.sukrara.feature.home.banners.HomeEnvironment
 import app.mauri.sukrara.feature.treatments.TreatmentLog
@@ -27,7 +28,9 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.emptyFlow
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
@@ -60,6 +63,10 @@ class HomeModule(
     private val sharing: () -> Flow<OwnerShareState> = { emptyFlow() },
     /** Pen reading is On and Android blocks the taps (home's banner); read on every resume. */
     private val penTapsBlocked: suspend () -> Boolean = { false },
+    /** The wearer's clinic upload is set (null on a follower): the *Share your data with your clinic* banner. */
+    private val clinicUploadSet: () -> Flow<Boolean?> = { emptyFlow() },
+    /** What the clinic upload has of the entries (the list's cloud marks); a function: integrations start later. */
+    private val clinicMarks: () -> Flow<UploadMarks?> = { emptyFlow() },
 ) : HomeDeps {
     override val treatments: TreatmentsRepository get() = data.treatments
 
@@ -74,6 +81,7 @@ class HomeModule(
         scope.launch {
             sharing().collect { s -> env.update { it.copy(backedUp = (s as? OwnerShareState.Sharing)?.backedUp) } }
         }
+        scope.launch { clinicUploadSet().collect { set -> env.update { it.copy(clinicUploadSet = set) } } }
     }
 
     override val profile: Flow<HomeProfile?> by lazy {
@@ -89,6 +97,8 @@ class HomeModule(
             }
         }
     }
+
+    override val uploadMarks: Flow<UploadMarks?> = flow { emitAll(clinicMarks()) }
 
     override val bannerMemory: StateStore<BannerMemory> by lazy {
         data.typedStore("home-banners", BannerMemory.serializer(), BannerMemory(), whenCorrupt = BannerMemory())

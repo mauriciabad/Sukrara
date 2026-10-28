@@ -20,6 +20,11 @@ import app.mauri.sukrara.core.model.storage.StateStore
 import app.mauri.sukrara.core.model.storage.TreatmentsRepository
 import app.mauri.sukrara.integrations.export.ExportViewModel
 import app.mauri.sukrara.integrations.export.Exporter
+import app.mauri.sukrara.integrations.libreview.LibreViewClient
+import app.mauri.sukrara.integrations.libreview.LibreViewUploader
+import app.mauri.sukrara.integrations.libreview.LibreViewViewModel
+import app.mauri.sukrara.integrations.libreview.LvReadings
+import app.mauri.sukrara.integrations.libreview.LvState
 import app.mauri.sukrara.integrations.localserver.XdripServer
 import app.mauri.sukrara.integrations.nightscout.NightscoutUploader
 import app.mauri.sukrara.integrations.nightscout.NightscoutViewModel
@@ -28,6 +33,7 @@ import app.mauri.sukrara.integrations.upload.UploadStatus
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import okhttp3.OkHttpClient
 
@@ -35,6 +41,7 @@ import okhttp3.OkHttpClient
 data class AppsSummary(
     val nightscoutUpload: Boolean,
     val xdripServer: Boolean,
+    val libreView: Boolean,
 )
 
 /**
@@ -47,9 +54,14 @@ class IntegrationsModule(
     settings: SettingsRepository,
     secure: SecureStore,
     nightscoutState: StateStore<NsState>,
+    libreViewState: StateStore<LvState>,
     readings: ReadingsRepository,
     treatments: TreatmentsRepository,
     sensor: Flow<CurrentSensor?>,
+    /** Libre 3 readings by life count (the sensor link), for LibreView. */
+    libreReadings: Flow<LvReadings>,
+    /** The email of the LibreView account the sensor screens signed in with (a starting point for the upload's). */
+    private val libreViewEmail: Flow<String?>,
     role: Flow<Role?>,
     jugglucoIsSource: Flow<Boolean>,
     http: OkHttpClient,
@@ -77,19 +89,48 @@ class IntegrationsModule(
             log,
         )
 
+    val libreView =
+        LibreViewUploader(
+            settings,
+            secure,
+            libreViewState,
+            treatments,
+            libreReadings,
+            sensor,
+            role,
+            LibreViewClient(http),
+            clock,
+            dispatchers.io,
+            log,
+        )
+
     val xdrip = XdripServer(settings, readings, sensor, jugglucoIsSource, clock, dispatchers.io)
 
     val summary: Flow<AppsSummary> =
-        combine(nightscout.page, xdrip.on) { ns, x -> AppsSummary(ns.status != UploadStatus.Off, x) }
+        combine(nightscout.page, xdrip.on, libreView.page) { ns, x, lv ->
+            AppsSummary(ns.status != UploadStatus.Off, x, lv.status != UploadStatus.Off && lv.status != UploadStatus.Setup)
+        }
+
+    /**
+     * Whether the wearer's data goes to their clinic (LibreView signed in and on), for the *Share your data with your
+     * clinic* banner; null on a follower's phone (it never shows there).
+     */
+    val clinicUploadSet: Flow<Boolean?> =
+        combine(wearer, libreView.settingsFlow, libreView.signedInKnown) { w, s, signed ->
+            // unknown until the secure store was read: never a "not set up" banner for someone signed in
+            if (w && signed != null) s.on && signed else null
+        }.distinctUntilChanged()
 
     suspend fun load() {
         nightscout.load()
+        libreView.load()
         // a shared export never lingers in the cache
         ExportViewModel.exportDir(context)
     }
 
     fun start(scope: CoroutineScope) {
         nightscout.start(scope)
+        libreView.start(scope)
         xdrip.start(scope)
     }
 
@@ -103,6 +144,9 @@ class IntegrationsModule(
 
     fun nightscoutViewModels(wearer: Boolean): ViewModelProvider.Factory =
         viewModelFactory { initializer { NightscoutViewModel(nightscout, wearer) { clock.now() } } }
+
+    fun libreViewViewModels(wearer: Boolean): ViewModelProvider.Factory =
+        viewModelFactory { initializer { LibreViewViewModel(libreView, libreViewEmail, wearer) { clock.now() } } }
 
     /** The phone's battery (percent, charging) from the sticky broadcast, null when unknown. */
     private fun battery(): Pair<Int, Boolean>? {

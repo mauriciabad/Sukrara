@@ -20,6 +20,7 @@ import app.mauri.sukrara.sensor.ble.LinkStatus
 import app.mauri.sukrara.sensor.ble.SensorDriver
 import app.mauri.sukrara.sensor.ble.SensorEvents
 import app.mauri.sukrara.sensor.ble.SensorGlucose
+import app.mauri.sukrara.sensor.ble.SensorGlucoseBatch
 import app.mauri.sukrara.sensor.ble.SensorScanner
 import app.mauri.sukrara.sensor.brand.BrandDriver
 import app.mauri.sukrara.sensor.cgms.SmartGuideDriver
@@ -95,7 +96,7 @@ class SourceManager internal constructor(
     private val _detail = MutableStateFlow<SensorStatus>(SensorStatus.NoSensor)
     private val _sensor = MutableStateFlow<SensorState>(SensorState.None)
     private val _status = MutableStateFlow<SourceStatus>(SourceStatus.NotStarted)
-    private val _sensorGlucose = MutableSharedFlow<Pair<SensorGlucose?, List<SensorGlucose>>>(extraBufferCapacity = 64)
+    private val _sensorGlucose = MutableSharedFlow<SensorGlucoseBatch>(extraBufferCapacity = 64)
     private val infoState = MutableStateFlow<SensorInfo?>(null)
     private var info: SensorInfo?
         get() = infoState.value
@@ -122,8 +123,8 @@ class SourceManager internal constructor(
     /** The current sensor's serial, start and end (Libre 3 pairing or Juggluco's sensor), null when none is known. */
     val sensorInfo: StateFlow<SensorInfo?> = infoState.asStateFlow()
 
-    /** Libre 3 readings by life count, for the LibreView upload. */
-    val sensorGlucose: Flow<Pair<SensorGlucose?, List<SensorGlucose>>> = _sensorGlucose.asSharedFlow()
+    /** Libre 3 readings by life count, tagged with their sensor's serial, for the LibreView upload. */
+    val sensorGlucose: Flow<SensorGlucoseBatch> = _sensorGlucose.asSharedFlow()
 
     /** Starts following the setting; idempotent. */
     fun start() {
@@ -200,6 +201,11 @@ class SourceManager internal constructor(
             if (pairing.securityVersion != 0) return publish(SensorStatus.Unsupported("security version ${pairing.securityVersion}"))
         }
         if (pairing.ended) return publish(SensorStatus.Ended)
+        // a failure only the person can fix is kept: never retried in the background after a restart (no PIN dialog
+        // out of nowhere); the new-sensor flow's new pairing clears it
+        pairing.failed?.let { why ->
+            return publish(SensorStatus.Direct(pairing.profile, pairing.label, SensorStatus.Direct.keyOf(pairing), LinkStatus.Failed(why)))
+        }
         val events = DirectEvents(pairing)
         events.onStatus(LinkStatus.Connecting)
         _status.value = SourceStatus.Connecting
@@ -213,6 +219,7 @@ class SourceManager internal constructor(
                 address = found.address
                 found.name?.let { name -> events.found(name) }
             }
+            events.address = address
             val l = GattLink(connector, address, driver, events, this, log = log)
             link = l
             val startedAt = clock.now()
@@ -280,6 +287,9 @@ class SourceManager internal constructor(
         private val key = SensorStatus.Direct.keyOf(pairing)
         private var label = pairing.label
 
+        /** The device this run connects to (found by the scan or saved). */
+        var address = pairing.address
+
         /** A scan found the sensor: the screens call it by its advertised name from now on (a family without an id). */
         fun found(name: String) {
             if (pairing.serial.isEmpty()) label = name
@@ -294,8 +304,16 @@ class SourceManager internal constructor(
                 else -> publish(SensorStatus.Direct(pairing.profile, label, key, status))
             }
             if (status is LinkStatus.Reconnecting || status == LinkStatus.WaitingForSensor || status is LinkStatus.NoValue) interrupted()
-            // a wrong id / refused PIN may mean the scan picked the wrong device: the next pairing scans again
-            if (status is LinkStatus.Failed && pairing.profile.needsScan) scope.launch { pairings.setFound(pairing, "", "") }
+            // kept until a new pairing (which scans again: the scan may have picked the wrong device)
+            if (status is LinkStatus.Failed && pairing.profile.needsScan) scope.launch { pairings.markFailed(pairing, status.why) }
+        }
+
+        override fun onWrongDevice() {
+            val wrong = address
+            scope.launch {
+                if (wrong.isNotEmpty()) pairings.skipDevice(pairing, wrong)
+                retry() // scan again, without it
+            }
         }
 
         override fun onReading(reading: Reading) {
@@ -309,7 +327,8 @@ class SourceManager internal constructor(
 
         override fun onSensorGlucose(current: SensorGlucose?, history: List<SensorGlucose>) {
             current?.let { lastLifeCount = pairing.serial to it.lifeCount }
-            _sensorGlucose.tryEmit(current to history)
+            // LibreView takes only a Libre 3's readings (its record numbers come from the Libre serial)
+            if (pairing.profile == SensorProfile.Libre3) _sensorGlucose.tryEmit(SensorGlucoseBatch(pairing.serial, current, history))
         }
 
         override fun onSensorEnded(serial: String) {

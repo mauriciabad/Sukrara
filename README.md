@@ -33,6 +33,8 @@ The full catalog, with every rule and number, is [docs/FEATURES.md](docs/FEATURE
 - **Other sensors, untested**: Dexcom G7 / ONE+ / Stelo (read along with the Dexcom app), Dexcom G6 / ONE, Accu-Chek
   SmartGuide and Aidex X / LinX / GlucoRx. They were never tested with a real sensor: the new sensor screen tags them
   *Untested* and asks you to confirm before pairing.
+- **LO / HI** from any sensor show as *LO* / *HI*, never a made-up number, and sound the very low / extremely high
+  alert at once (Android and Mac).
 - A guided **new sensor** screen: which sensor, warm-up countdown, every failure handled on the same screen
   (ended sensor, Libre 1/2, another app holding the sensor, Bluetooth off, a wrong ID or PIN).
 - **Settings › Sensor**: the current sensor (status, serial, start, end and time left), the reading source (Libre 3
@@ -87,11 +89,17 @@ The full catalog, with every rule and number, is [docs/FEATURES.md](docs/FEATURE
   pictures, let one *add entries*, remove them (confirmed; removed ones fold away), **Backup** to your password manager
   or a recovery code (home says *Not backed up* until then; setup restores from either), and a clear screen when another
   device is sharing as you.
+- **Bluetooth nearby**: followers' phones and Macs in range get your readings straight from your phone, even without
+  internet (on by default, *Share over Bluetooth*); Settings › Sharing lists the devices connected now, says when
+  Bluetooth is off or the Nearby devices permission is missing, and offers the fix.
 - **Follow someone from an Android phone**: paste (or open) the wearer's invite link, wait for them to allow you (with
   the 4-digit code they may ask for), then their readings, sensor, entries and alerts arrive over the relays and drive
-  home, widgets, the live notification and your own alerts (including *no data*). Add entries when they let you;
+  home, widgets, the live notification and your own alerts (including *no data*); near their phone they also arrive over
+  Bluetooth, without internet. Add entries when they let you;
   notifications say when an invite was used, declined or your access removed; *Stop following* in Settings › Sharing.
-- **Share with apps**: upload to your own **Nightscout** site (https, access token kept encrypted; 30-day catch-up,
+- **Share with apps**: upload your Libre 3 glucose and entries to **LibreView** for your clinic (password used once,
+  never saved; asks before taking over another uploading device; only from the moment you switch it on; a cloud on each
+  entry on home says whether LibreView has it; a home banner suggests it until set up), to your own **Nightscout** site (https, access token kept encrypted; 30-day catch-up,
   pauses when another app uploads to the same site), an **xDrip+-compatible server** on this phone for **Garmin**
   watches (off until you switch it on; loopback only), and **Export data** as a LibreView-layout CSV to save or share.
 - English and Spanish (Spain) everywhere.
@@ -119,10 +127,9 @@ The full catalog, with every rule and number, is [docs/FEATURES.md](docs/FEATURE
   through at 5 min, the graph dimmed with the reading's time, no value at 20 min) and a tap opens Add treatment.
 - VoiceOver reads the value as one sentence with the range in words.
 
-**Not included**: the LSPosed lock-screen widget, Dexcom / Aidex / SmartGuide (untested) sensors, Tidepool /
-LibreView uploads, the phone's Nightscout read API, Health Connect and broadcasts, the pen list and dose review, the sensor-end
+**Not included**: the LSPosed lock-screen widget, Dexcom / Aidex / SmartGuide (untested) sensors, Tidepool upload, the phone's Nightscout read API, Health Connect and broadcasts, the pen list and dose review, the sensor-end
 calendar event, the glucose report, settings export / import, scanning an invite's QR code on Android and the Android
-follower's *Settings from* page, Bluetooth sharing from the phone, and the Mac's Juggluco-over-Wi-Fi source.
+follower's *Settings from* page, *Pair nearby* (joining over Bluetooth without a link), and the Mac's Juggluco-over-Wi-Fi source.
 
 **Garmin watch:** switch on *Settings › Share with apps › xDrip+ server*; watch faces and data fields made for xDrip+
 read it through Garmin Connect. While **Juggluco** is Sukrara's source, Juggluco keeps its own server and feeds the

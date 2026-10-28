@@ -77,7 +77,8 @@ public enum Freshness: Sendable {
             return GlucoseLook(state: .noReadings, fresh: fr, text: nil, strike: false, trend: nil)
         }
         return GlucoseLook(
-            state: .value, fresh: fr, text: sgv < 40 ? "LO" : sgv > 400 ? "HI" : format(sgv), strike: fr.strike,
+            state: .value, fresh: fr, text: GlucoseRange.isLo(sgv) ? "LO" : GlucoseRange.isHi(sgv) ? "HI" : format(sgv),
+            strike: fr.strike,
             trend: rate != nil && !fr.strike ? TrendMark.arrow : TrendMark.noTrend, rate: rate)
     }
 
