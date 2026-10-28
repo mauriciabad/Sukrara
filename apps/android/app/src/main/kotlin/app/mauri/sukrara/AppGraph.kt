@@ -18,6 +18,7 @@ import app.mauri.sukrara.core.model.Role
 import app.mauri.sukrara.core.model.SystemClock
 import app.mauri.sukrara.core.model.Treatment
 import app.mauri.sukrara.core.model.storage.TreatmentRecord
+import app.mauri.sukrara.feature.home.banners.BannerKind
 import app.mauri.sukrara.feature.sensor.SensorUiModule
 import app.mauri.sukrara.feature.settings.AlertPlayback
 import app.mauri.sukrara.feature.settings.AlertSettingsStore
@@ -206,6 +207,11 @@ class AppGraph(
             sensor = monitor.hub.state.map { it.sensor },
             systemAccess = monitor.systemAccess,
             pensAvailable = { pens.available() },
+            clinicBanner =
+                combine(integrations.clinicUploadSet, home.bannerMemory.data) { set, memory ->
+                    set == false && !memory.dismissed(BannerKind.ShareWithClinic, clock.now())
+                },
+            dismissClinicBanner = { scope.launch { home.bannerMemory.update { it.dismiss(BannerKind.ShareWithClinic, clock.now()) } } },
             alertPlayback =
                 object : AlertPlayback {
                     override fun play(
@@ -352,6 +358,8 @@ class AppGraph(
             },
             treatmentLog = { treatments.log },
             sharing = { shareOwner.ownerEngine.state },
+            clinicUploadSet = { integrations.clinicUploadSet },
+            clinicMarks = { integrations.libreView.entryMarks.map { m -> m?.let(::LibreViewMarks) } },
         )
     }
 

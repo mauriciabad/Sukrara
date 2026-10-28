@@ -95,7 +95,8 @@ The full catalog, with every rule and number, is [docs/FEATURES.md](docs/FEATURE
   Bluetooth, without internet. Add entries when they let you;
   notifications say when an invite was used, declined or your access removed; *Stop following* in Settings › Sharing.
 - **Share with apps**: upload your Libre 3 glucose and entries to **LibreView** for your clinic (password used once,
-  never saved; asks before taking over another uploading device; only from the moment you switch it on), to your own **Nightscout** site (https, access token kept encrypted; 30-day catch-up,
+  never saved; asks before taking over another uploading device; only from the moment you switch it on; a cloud on each
+  entry on home says whether LibreView has it; a home banner suggests it until set up), to your own **Nightscout** site (https, access token kept encrypted; 30-day catch-up,
   pauses when another app uploads to the same site), an **xDrip+-compatible server** on this phone for **Garmin**
   watches (off until you switch it on; loopback only), and **Export data** as a LibreView-layout CSV to save or share.
 - English and Spanish (Spain) everywhere.

@@ -107,6 +107,9 @@ interface HomeDeps {
 
     /** How the wearer appears to followers, while this phone shares (null = no identity, or not the wearer). */
     val profile: Flow<HomeProfile?> get() = flowOf(null)
+
+    /** What the clinic upload has of the entries (the list's cloud marks); null = its entries upload is off. */
+    val uploadMarks: Flow<UploadMarks?> get() = flowOf(null)
 }
 
 /** The wearer's own row on home: picture, name (blank = not set yet) and how many follow. */
@@ -137,6 +140,10 @@ data class HomeUiState(
     val readOnly: Set<String> = emptySet(),
     /** The wearer's profile while sharing (the top bar shows it, with Share). */
     val profile: HomeProfile? = null,
+    /** The clinic upload's cloud mark per listed entry id (empty while its entries upload is off). */
+    val marks: Map<String, UploadMark> = emptyMap(),
+    /** The just-deleted entry was in the clinic upload: the snackbar says it is removed there too. */
+    val undoInClinic: Boolean = false,
 ) {
     val mutedUntil: Instant? get() = glucose.alerts.mutedUntil?.takeIf { it > now }
 }
@@ -145,6 +152,8 @@ class HomeViewModel(
     private val deps: HomeDeps,
 ) : ViewModel() {
     private val undo = MutableStateFlow<Treatment?>(null)
+    private val undoInClinic = MutableStateFlow(false)
+    private val uploadMarks: StateFlow<UploadMarks?> = deps.uploadMarks.stateIn(viewModelScope, SharingStarted.Eagerly, null)
     private var undoExpiry: Job? = null
 
     /** Ticks on each minute so ages ("3 min ago"), freshness steps and countdowns move without a new reading. */
@@ -174,11 +183,20 @@ class HomeViewModel(
             combine(deps.glucose, deps.storedHistory) { g, stored -> Live(g, ReadingHistory.join(stored, g.recent)) },
             minutes,
             deps.readiness,
-            combine(deps.environment, deps.profile, ::Pair),
-            combine(deps.bannerMemory.data, recentTreatments, undo, deps.dataProblems, deps.graphConfig, ::Extras),
-        ) { (glucose, history), tick, readiness, (env, profile), (memory, recent, pendingUndo, problems, config) ->
+            combine(deps.environment, deps.profile, uploadMarks, ::Triple),
+            combine(
+                deps.bannerMemory.data,
+                recentTreatments,
+                combine(undo, undoInClinic, ::Pair),
+                deps.dataProblems,
+                deps.graphConfig,
+                ::Extras,
+            ),
+        ) { (glucose, history), tick, readiness, (env, profile, marks), (memory, recent, undone, problems, config) ->
+            val (pendingUndo, inClinic) = undone
             val now = maxOf(tick, deps.clock.now())
             val chart = recent.treatments.sortedByDescending { it.at }
+            val listed = chart.filter { it.at >= now - TREATMENTS_WINDOW && it.at <= now + FUTURE_SLACK }
             val look = homeLook(glucose, now)
             HomeUiState(
                 glucose = glucose,
@@ -189,13 +207,15 @@ class HomeViewModel(
                 firstProblem = readiness?.firstProblem,
                 nextSetupStep = env.nextSetupStep,
                 dataProblems = problems,
-                treatments = chart.filter { it.at >= now - TREATMENTS_WINDOW && it.at <= now + FUTURE_SLACK },
+                treatments = listed,
                 history = history,
                 chartTreatments = chart,
                 undo = pendingUndo,
                 config = config,
                 readOnly = recent.readOnly,
                 profile = profile?.takeIf { glucose.role != Role.Follower },
+                marks = marks?.let { m -> listed.mapNotNull { t -> m.mark(t, now)?.let { t.id to it } }.toMap() }.orEmpty(),
+                undoInClinic = pendingUndo != null && inClinic,
             )
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), initial())
 
@@ -232,8 +252,11 @@ class HomeViewModel(
 
     /** Deletes [treatment] through the treatment log and offers Undo for [UNDO_WINDOW] (none when the log refused). */
     fun delete(treatment: Treatment) {
+        // read before the delete: the upload retracts it from the clinic right after
+        val inClinic = uploadMarks.value?.removesOnDelete(treatment) == true
         viewModelScope.launch {
             val deleted = deps.deleteTreatment(treatment.id) ?: return@launch
+            undoInClinic.value = inClinic
             undo.value = deleted
             undoExpiry?.cancel()
             undoExpiry =
@@ -270,7 +293,7 @@ class HomeViewModel(
     private data class Extras(
         val memory: BannerMemory,
         val treatments: Recent,
-        val undo: Treatment?,
+        val undo: Pair<Treatment?, Boolean>,
         val problems: List<DataProblem>,
         val config: GraphConfig,
     )

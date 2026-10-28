@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.integrations.libreview
 
+import app.mauri.sukrara.core.model.Treatment
 import app.mauri.sukrara.core.model.TreatmentOrigin
 import app.mauri.sukrara.core.model.storage.TreatmentRecord
 import app.mauri.sukrara.integrations.upload.SentRanges
@@ -56,6 +57,9 @@ data class LvState(
     val lastError: String? = null,
 )
 
+/** Where an entry stands with LibreView ([LibreViewQueue.mark]). */
+enum class LvMark { Uploaded, Updating, Pending }
+
 /** Pure planning of one LibreView upload: `stores − state`. */
 object LibreViewQueue {
     /** Entries further back than this are never sent for the first time. */
@@ -91,7 +95,8 @@ object LibreViewQueue {
             .map { it to it.treatment }
             .filter { (_, t) ->
                 // what LibreView has is always corrected (edited, moved or deleted), whenever it happened
-                t.id in ledger ||
+                // (a retracted one, v = 0, has nothing live there: it goes up again only as a new entry would)
+                (ledger[t.id]?.v ?: 0L) != 0L ||
                     (t.at.epochSecond >= nowS - WINDOW_S && t.modifiedAt.epochSecond >= from)
             }.filter { (r, t) ->
                 // another device's entry: give it a moment to settle
@@ -104,13 +109,34 @@ object LibreViewQueue {
             .take(MAX_ENTRIES)
             .flatMap { e ->
                 val had = ledger[e.id]
-                if (had != null && had.k.isNotEmpty() && had.k != e.k) {
+                if (had != null && had.v != 0L && had.k.isNotEmpty() && had.k != e.k) {
                     // the kind changed: retract it under the kind LibreView has, then send it as new (unless deleted)
                     listOfNotNull(e.copy(k = had.k, del = true), e.copy(lv = 0L).takeIf { !e.del })
                 } else {
                     listOf(e)
                 }
             }.toList()
+
+    /**
+     * Where entry [t] stands with LibreView, by the rules of [entries]: the version it has, an older version (being
+     * corrected), or a new entry it will get ([from] = entries go up when changed after it, epoch s; 0 = entries are
+     * off). Null = LibreView has nothing of it and never will (changed before [from], or older than [WINDOW_S]).
+     */
+    fun mark(
+        t: Treatment,
+        ledger: Map<String, LvSent>,
+        from: Long,
+        nowS: Long,
+    ): LvMark? {
+        if (t.deleted) return null
+        val has = ledger[t.id]?.v?.takeIf { it != 0L }
+        return when {
+            has == t.modifiedAt.toEpochMilli() -> LvMark.Uploaded
+            has != null -> LvMark.Updating
+            from > 0 && t.at.epochSecond >= nowS - WINDOW_S && t.modifiedAt.epochSecond >= from -> LvMark.Pending
+            else -> null
+        }
+    }
 
     /** The ledger after LibreView accepted [sent], trimmed to the window. */
     fun sent(
@@ -123,7 +149,9 @@ object LibreViewQueue {
                 sent.groupBy { it.id }.mapValues { (_, es) ->
                     // a kind change sends a retraction (old kind) and the new version: remember the new one
                     val e = es.firstOrNull { !it.del } ?: es.first()
-                    LvSent(e.u, e.t, e.k)
+                    // a retracted entry has no live record: an Undo goes up as new, never retracting a record that
+                    // never existed (v = 0 = nothing live; it stays in the ledger so it is still followed)
+                    LvSent(if (e.del) 0L else e.u, e.t, e.k)
                 }
         ).filterValues { it.t >= nowS - LEDGER_S }
 

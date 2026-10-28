@@ -408,4 +408,7 @@
     <string name="st_pens_reset_confirm">Restablecer</string>
     <string name="st_pens_detection_footer">Las dosis menores que el purgado antes de una mayor son purgado. Las dosis así de cercanas son una inyección. Las dosis pequeñas sueltas esperan este tiempo a una inyección antes de que Sukrara pregunte. Una dosis que escribiste así de cerca de una de la pluma, y de cantidad parecida, se sustituye por la de la pluma.</string>
     <string name="st_pens_supported">Sukrara lee NovoPen Echo Plus y NovoPen 6 (sin probar: aún no se registra). Otras plumas NFC, y plumas o capuchones Bluetooth como Tempo, InPen o Mallya, no son compatibles.</string>
+    <string name="st_clinic_title">Comparte tus datos con tu clínica</string>
+    <string name="st_clinic_text">Sube tus lecturas y anotaciones a LibreView para que tu equipo médico las vea.</string>
+    <string name="st_clinic_action">Configurar</string>
 </resources>

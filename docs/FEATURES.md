@@ -460,13 +460,17 @@ Wearer only (`ui/SensorFeedback.kt`, tests `SensorFeedbackTest`). While the dire
 
 ## Share-with-your-clinic banner
 
-Android, wearer only: home (under the profile row) and the top of the Settings overview (`ui/UploadBanner.kt`, tests `UploadBannerTest`; 2026-10-21, was *Set up LibreView*). While neither clinic upload is set up, a card shows the cloud-upload symbol, *Share your data with your clinic* (es *Comparte tus datos con tu clínica*), a close button and two pills side by side: *LibreView* and *Tidepool*, each with the service's own icon at the AOSP Settings app-icon size (32 dp, `ServiceIcon`), opening Settings → LibreView or Settings → Tidepool. No helper text, not red. Set up = LibreView: switch on, email and password saved; Tidepool: switch on and signed in. Either one hides it (`UploadBanner.shows`). Close hides it for good (`FeatureState.uploadBannerDismissed`, `uploadBanner` in the settings export; kept by *Reset options*). Not in the settings search index. Followers: none (they upload to Tidepool from Apps). Mac: none (no such banner there).
+Android, wearer only: home's banner place (`BannerKind.ShareWithClinic`, the lowest-priority info banner: never above
+a safety, setup or data banner) and the top of the Settings overview. While LibreView isn't signed in and on
+(`IntegrationsModule.clinicUploadSet`; a follower's phone feeds null, so it never shows there), a card says *Share your
+data with your clinic* · "Upload your readings and entries to LibreView so your care team sees them." with *Set up*
+(opens Settings → Share with apps → LibreView) and a close button. Not red. Signing in with the upload on hides it.
+Close hides it on both places (the home-banners memory); there is no Undo or *Show closed tips* yet (issue filed).
+Mac: none.
 
-<p>
-  <img src="img/home/share-with-clinic-banner.png" alt="Home's banner: Share your data with your clinic, a close button, and LibreView and Tidepool pills with the services' own icons" width="400">
-</p>
-
-**States and exits**: *shown* (no clinic upload set up) → a pill opens LibreView / Tidepool setup; it leaves once either is set up. *Closed* (on this phone) → *Undo* in the snackbar right after, or later Settings → *Show closed tips* ([Closed tips](#closed-tips)); the setup itself stays in Settings → LibreView / Tidepool.
+**States and exits**: *shown* (LibreView not set up) → *Set up* opens the LibreView page; it leaves once LibreView is
+signed in and on. *Closed* → stays closed (restoring closed tips: issue); LibreView stays reachable in Settings →
+Share with apps. Follower → never shown. Before the app knows whether LibreView is signed in (start-up) → not shown.
 
 ## Home screen widgets
 
@@ -994,6 +998,14 @@ Android (`apps/android/pen`: `opennov/` reader, `engine/PenEngine`, `Pens` runti
   wait until an entry or a setting changes (glucose goes on without them), refused glucose retries with the backoff,
   a refused sensor registration holds that sensor's glucose until the next sign-in; the reason is in the status. An
   entry whose kind changed is retracted under the kind LibreView has. Redirects are never followed.
+
+- Home's treatment list (wearer, while the upload is signed in and on with *Insulin, carbs and notes*): a small grey
+  cloud after each entry the upload covers, by the uploader's own rules (`LibreViewQueue.mark`): cloud with a tick =
+  "In LibreView" (the version LibreView has), cloud with an arrow = "Not in LibreView yet" (a new entry) or "LibreView
+  has an older version: updating" (edited), crossed-out cloud = "LibreView upload stopped" (sign in again, or LibreView
+  refused the last upload; tapping it opens the LibreView page). Entries changed before the upload was switched on, or
+  older than 30 days, get none. Deleting an entry LibreView has while the upload runs (not stopped) says "Treatment deleted. It will be removed from LibreView
+  too." in the Undo snackbar; Undo sends it up again as a new record (a retracted entry has no live record to retract).
 
 **States and exits**: *Signed out* → *Account* → dialog (*Cancel* keeps nothing). *Another device uploads* → *Take
 over* or *Cancel*. *Off* (default) → main switch. *On · nothing sent yet / last upload* → main switch off, *Sign out*.

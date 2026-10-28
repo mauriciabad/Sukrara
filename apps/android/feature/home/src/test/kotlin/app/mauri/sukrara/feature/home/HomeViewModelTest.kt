@@ -33,6 +33,7 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
+import java.time.Instant
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class HomeViewModelTest {
@@ -47,6 +48,7 @@ class HomeViewModelTest {
         override val environment = MutableStateFlow(HomeEnvironment())
         override val dataProblems = MutableStateFlow<List<DataProblem>>(emptyList())
         override val bannerMemory: StateStore<BannerMemory> = InMemoryStateStore(BannerMemory())
+        override val uploadMarks = MutableStateFlow<UploadMarks?>(null)
         var unmuted = 0
 
         override fun acknowledge(problem: DataProblem) {
@@ -179,6 +181,36 @@ class HomeViewModelTest {
                 vm.state.value.treatments
                     .map { it.id },
             )
+        }
+
+    @Test fun `entries LibreView has get a cloud mark and deleting one says it leaves LibreView too`() =
+        runTest(dispatcher) {
+            val deps = Deps()
+            val t = Samples.treatment()
+            deps.treatments.upsertIfNewer(TreatmentRecord(t))
+            val vm = HomeViewModel(deps)
+            backgroundScope.launch { vm.state.collect {} }
+            runCurrent()
+            assertTrue(
+                vm.state.value.marks
+                    .isEmpty(),
+            )
+
+            deps.uploadMarks.value =
+                object : UploadMarks {
+                    override fun mark(
+                        t: Treatment,
+                        now: Instant,
+                    ) = UploadMark.Uploaded
+
+                    override fun removesOnDelete(t: Treatment) = true
+                }
+            runCurrent()
+            assertEquals(mapOf(t.id to UploadMark.Uploaded), vm.state.value.marks)
+
+            vm.delete(t)
+            runCurrent()
+            assertTrue(vm.state.value.undoInClinic)
         }
 
     @Test fun `the undo offer expires after 5 s`() =
