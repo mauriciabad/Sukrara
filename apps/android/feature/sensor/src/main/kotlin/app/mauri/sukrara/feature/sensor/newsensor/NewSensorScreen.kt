@@ -35,6 +35,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
@@ -191,7 +192,7 @@ private fun Countdown(readyAt: Instant, now: Instant) {
     val minutes = (seconds + 59) / 60
     val resources = LocalContext.current.resources
     val shown = Durations.text(minutes, CardWords.of(resources).durations)
-    val spoken = MeasureFormat.getInstance(resources.configuration.locales[0], MeasureFormat.FormatWidth.WIDE)
+    val spoken = MeasureFormat.getInstance(LocalConfiguration.current.locales[0], MeasureFormat.FormatWidth.WIDE)
         .format(Measure(minutes, MeasureUnit.MINUTE))
     val description = stringResource(R.string.newsensor_ready_in, spoken)
     Text(

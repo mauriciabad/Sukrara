@@ -6,9 +6,9 @@
 #   tools/release/android-smoke.sh [--final] [--no-build] [--keep-emulator] [--wait SECONDS]
 # 1. builds the signed release APK (the Sukrara release key; no key → stop, never the debug key) and runs
 #    verify-apk.sh on it
-# 2. fresh install: launches, renders its first screen, survives being recreated from saved state, stays alive;
-#    the monitor's notification says it isn't monitoring yet (no sensor) and is promoted (Live Update chip)
-# 3. no alert fires with no sensor, also after the clock jumps 3 h ahead (past every no-data delay)
+# 2. fresh install: launches, renders its first screen, survives being recreated from saved state, stays alive
+# 3. before setup nothing starts: no notification at all, and no alert also after the clock jumps 3 h ahead (past
+#    every no-data delay)
 # 4. logcat of the app's uid has no crash and no R8 / JNI / JNA / UniFFI / serialization / Room breakage
 # --final (the release gate at the end): every WARN (a feature not wired yet) is a FAIL.
 # Logs, dumps and screenshots (fresh install, no data) stay in $TMPDIR/sukrara-smoke.<time>/. Exit 0 only when
@@ -209,19 +209,11 @@ adb logcat -d -b crash > "$out/logcat-crash.txt"
 # Notification records of a package: the "NotificationRecord(… pkg=<pkg> …" blocks of a dump.
 records() { awk -v p="pkg=$1 " 'index($0,"NotificationRecord(")&&index($0,p){on=1;print;next} index($0,"NotificationRecord("){on=0} on' "$2"; }
 records "$APP" "$out/notifications.txt" > "$out/app-records.txt"
-# The record that carries "Not monitoring" (one block per NotificationRecord).
-awk 'index($0,"NotificationRecord("){if (hit) printf "%s", rec; rec=""; hit=0} {rec=rec $0 "\n"} /Not monitoring/{hit=1} END{if (hit) printf "%s", rec}' \
-  "$out/app-records.txt" > "$out/app-glucose-record.txt"
-if [ -s "$out/app-glucose-record.txt" ]; then
-  ok "the glucose notification says it isn't monitoring yet"
-  # The Live Update chip (P0): API 36+ dumps flags by name (…|PROMOTED_ONGOING), older ones as hex (0x40000).
-  flags="$(grep -E '^ +flags=' "$out/app-glucose-record.txt" | head -1 | sed 's/.*flags=//')"
-  promoted=0
-  case "$flags" in *PROMOTED_ONGOING*) promoted=1 ;; 0x*) [ $((flags & 0x40000)) -ne 0 ] && promoted=1 ;; esac
-  if [ "$promoted" = 1 ]; then ok "it is promoted: Live Update chip (flags $flags)"
-  else bad "the glucose notification isn't promoted (flags ${flags:-?}): no Live Update chip"; fi
+# A fresh install starts nothing before setup (no sensor, no follow): no monitor, so no notification at all.
+if [ -s "$out/app-records.txt" ]; then
+  bad "a notification was posted before setup (a fresh install must start nothing): $(grep -o 'channel=[^ ]*' "$out/app-records.txt" | sort -u | tr '\n' ' ')($out/app-records.txt)"
 else
-  warn "no 'Not monitoring' glucose notification (the monitor isn't started on this branch?) — $out/app-records.txt"
+  ok "no notification before setup (a fresh install starts nothing)"
 fi
 no_alert() {
   if records "$APP" "$1" | grep -Eq "channel=alert|fullscreenIntent=PendingIntent"; then
