@@ -31,6 +31,19 @@ enum TreatmentKindLook {
 /// Add Treatment: Rapid, Long and Carbs side by side, a Note with its byte counter, and *When?* (a chip that opens a
 /// clock time / minutes-ago picker); the line under them says which alerts the entries will quiet. Return saves,
 /// Escape cancels. The focused field is the one the latest reading (or the card's pill) suggests.
+/// A field the open Add Treatment window should move the focus to (a card pill picked while it is open).
+@Observable
+public final class AddTreatmentFocus {
+    public private(set) var field: Treatment.Kind?
+    /// Bumped on every request, so asking for the same field again moves the focus back to it.
+    public private(set) var count = 0
+    public init() {}
+    public func request(_ field: Treatment.Kind) {
+        self.field = field
+        count += 1
+    }
+}
+
 public struct AddTreatmentView: View {
     @State private var fields = TreatmentForm.Fields()
     @State private var when = TreatmentForm.When.now
@@ -49,13 +62,17 @@ public struct AddTreatmentView: View {
     let save: (_ entries: [Treatment], _ close: Bool) -> Void
     let cancel: () -> Void
     var now: () -> Date = Date.init
+    /// Focus moves asked for while the window is open.
+    var focusRequests: AddTreatmentFocus?
 
     public init(
-        focus: Treatment.Kind, quiet: @escaping (Bool, Bool, Int64) -> String? = { _, _, _ in nil },
+        focus: Treatment.Kind, focusRequests: AddTreatmentFocus? = nil,
+        quiet: @escaping (Bool, Bool, Int64) -> String? = { _, _, _ in nil },
         penDuplicate: @escaping ([Treatment]) -> Treatment? = { _ in nil },
         save: @escaping ([Treatment], Bool) -> Void, cancel: @escaping () -> Void
     ) {
         initialFocus = focus
+        self.focusRequests = focusRequests
         self.quiet = quiet
         self.penDuplicate = penDuplicate
         self.save = save
@@ -143,6 +160,9 @@ public struct AddTreatmentView: View {
         .animation(reduceMotion ? nil : .spring(duration: 0.25), value: saved)
         .animation(reduceMotion ? nil : .default, value: quietLine)
         .onAppear { focus = initialFocus }
+        .onChange(of: focusRequests?.count) {
+            if let field = focusRequests?.field, penAsk == nil { focus = field }
+        }
         .alert(
             L10n.t("Already logged by the pen?"),
             isPresented: Binding(get: { penAsk != nil }, set: { if !$0 { penAsk = nil } }),

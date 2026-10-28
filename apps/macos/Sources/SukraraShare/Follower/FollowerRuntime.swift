@@ -54,7 +54,7 @@ public actor FollowerRuntime: FollowerService {
     private let stores: FollowerStores
     private let crypto: any NostrCrypto
     private let clock: any TimeSource
-    private let me: Profile
+    private var me: Profile
     private let makeRelays: RelayFactory
     private let makeNearby: NearbyFactory?
     private let sleep: @Sendable (Double) async throws -> Void
@@ -352,6 +352,30 @@ public actor FollowerRuntime: FollowerService {
         nearbyOffer = nil
         Self.log.info("joined a wearer (nearby: \(nearby, privacy: .public))")
         await serially(.reconnect)
+    }
+
+    // MARK: - history
+
+    public func readings(since: Date) async -> [Reading] {
+        guard session != nil || keychainUnreadable else { return [] }
+        return (try? await stores.readings.load(since: since)) ?? []
+    }
+
+    // MARK: - profile
+
+    public func setProfile(name: String, avatar: Avatar?) async {
+        let current = session?.state.me ?? me
+        me = Profile(name: Profile.normalisedName(typed: name, previous: current.name), avatar: avatar)
+        // the wearer applies an update only from an approved follower; a request still waiting carries the name it
+        // was sent with
+        if var active = session, active.state.status == .active,
+            let update = try? active.setProfile(typedName: name, avatar: avatar, now: now)
+        {
+            session = active
+            persist(force: true)
+            await publish(update)
+        }
+        await publishSnapshot()
     }
 
     // MARK: - unfollowing
@@ -670,7 +694,8 @@ public actor FollowerRuntime: FollowerService {
             sensor: await stores.sensor.load(), treatments: log.log.live.reversed(), unsentTreatments: log.unsentCount,
             deliveries: log.entries.compactMapValues(\.delivery), wearerSettings: await stores.settings.load(),
             storeIssues: issues, nearby: nearbyState,
-            nearbyOffer: session == nil ? nearbyOffer : nil, keychainUnreadable: keychainUnreadable)
+            nearbyOffer: session == nil ? nearbyOffer : nil, keychainUnreadable: keychainUnreadable,
+            me: session?.state.me ?? me, wearer: session?.state.wearer)
         guard snapshot != current else { return }
         current = snapshot
         for continuation in snapshotSubscribers.values { continuation.yield(snapshot) }

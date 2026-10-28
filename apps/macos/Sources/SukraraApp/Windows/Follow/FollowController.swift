@@ -41,14 +41,20 @@ public enum FollowStatus: Equatable, Sendable {
 /// A phone nearby offering pairing (`NearbyOffer`).
 public struct NearbyPhone: Equatable, Sendable {
     public var wearer: String
-    public var avatarInitial: String { String(wearer.prefix(1)).uppercased() }
-    public init(wearer: String) { self.wearer = wearer }
+    /// The wearer's generated picture from the offer (nil = the grey initial).
+    public var avatar: Avatar?
+    public init(wearer: String, avatar: Avatar? = nil) {
+        self.wearer = wearer
+        self.avatar = avatar
+    }
 }
 
 /// What the follow UI needs from the follower runtime (`FollowerService`, behind an adapter).
 public protocol FollowActions: AnyObject {
     func join(link: String) async throws(FollowFailure)
     func joinNearby(name: String) async throws(FollowFailure)
+    /// How this Mac appears to the wearer (used by the next join; sent at once while following).
+    func setProfile(name: String, avatar: Avatar?) async
     func cancelJoin() async
     func unfollow() async
 }
@@ -60,8 +66,12 @@ public final class FollowModel {
     public var linkText = ""
     public private(set) var failure: FollowFailure?
     public var nearby: NearbyPhone?
-    /// The name the wearer sees for this Mac (nearby pairing): the computer's name by default.
+    /// The name the wearer sees for this Mac (typed when following): the computer's name by default.
     public var macName: String
+    /// How this Mac appears to the wearer while a follow exists (the How You Appear row), nil otherwise.
+    public var me: Profile?
+    /// The wearer's name and picture (Following, the nearby dialog), nil before any.
+    public var wearer: Profile?
     /// Unfollow asks first ("the wearer has to invite again").
     public var confirmingUnfollow = false
     /// How the readings arrive while following ("Over the internet · Bluetooth: connected to Pixel"), nil otherwise.
@@ -95,6 +105,7 @@ public final class FollowModel {
         }
         let before = status
         status = .joining
+        await actions?.setProfile(name: macName, avatar: me?.avatar)
         do {
             try await actions?.join(link: link)
         } catch {
@@ -123,6 +134,12 @@ public final class FollowModel {
             failure = error
             status = .notFollowing
         }
+    }
+
+    /// Saves How You Appear: the wearer sees it as soon as it reaches them.
+    public func saveProfile(name: String, avatar: Avatar?) async {
+        me = Profile(name: Profile.normalisedName(typed: name, previous: me?.name ?? macName), avatar: avatar)
+        await actions?.setProfile(name: name, avatar: avatar)
     }
 
     public func cancel() async {

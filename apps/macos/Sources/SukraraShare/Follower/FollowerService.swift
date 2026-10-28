@@ -27,6 +27,10 @@ public struct FollowerSnapshot: Sendable, Equatable {
     /// This Mac still follows the wearer: `readings` are still theirs, and the app keeps alerting on them (the
     /// no-data alarm fires if it doesn't recover) instead of treating it as "not following".
     public var keychainUnreadable = false
+    /// How this Mac appears to the wearer (the name and picture sent with the request and in profile updates).
+    public var me: Profile?
+    /// The wearer's name and picture (from the invite, then the roster), nil before any.
+    public var wearer: Profile?
 
     public static let empty = FollowerSnapshot(
         link: .notFollowing, readings: [], sensor: nil, treatments: [], unsentTreatments: 0, deliveries: [:],
@@ -38,6 +42,7 @@ public struct FollowerSnapshot: Sendable, Equatable {
 public struct NearbyOffer: Sendable, Equatable {
     public let invite: Invite
     public var wearerName: String? { invite.profile?.name }
+    public var wearerAvatar: Avatar? { invite.profile?.avatar }
 }
 
 public enum FollowerJoinError: Error, Equatable, Sendable {
@@ -81,6 +86,11 @@ public protocol FollowerService: Sendable {
     func cancelJoin() async
     /// Follows the wearer whose phone offers nearby pairing.
     func joinNearby(_ offer: NearbyOffer) async throws(FollowerJoinError)
+    /// The wearer's stored readings since `since`, oldest first (the store keeps 31 days); empty while not following.
+    func readings(since: Date) async -> [Reading]
+    /// How this Mac appears to the wearer: used by the next join, and sent at once (end-to-end encrypted) while a
+    /// follow exists. A blank name keeps the previous one.
+    func setProfile(name: String, avatar: Avatar?) async
     /// Looks for phones offering nearby pairing while not following (the follow window is open).
     func searchNearby(_ on: Bool) async
     /// Stops following: wipes the wearer's readings, treatments, sensor and settings, then the follower key.

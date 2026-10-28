@@ -98,6 +98,34 @@ struct FollowerRuntimeTests {
         await h.runtime.stop()
     }
 
+    /// How You Appear: the typed name goes with the request; a change while following is sent at once and kept in
+    /// the Keychain state; the snapshot carries both profiles.
+    @Test func profileGoesWithTheRequestAndUpdatesWhileFollowing() async throws {
+        let hub = FakeRelayHub(stored: [v.event("invite")])
+        let h = RuntimeHarness(now: v.now, hub: hub)
+        await h.runtime.start()
+        await h.runtime.setProfile(name: "  Ana's MacBook ", avatar: nil)
+        let invite = (v.derivations["invite"] as! [String: Any])["link"] as! String
+        try await h.runtime.join(link: invite)
+        var state = try FollowerState.decode(try #require(try h.secrets.read(account: KeychainStore.followerAccount)))
+        #expect(state.me.name == "Ana's MacBook")
+        await hub.inject(try keyDelivery(to: try crypto.publicKey(of: state.follower)))
+        #expect(await eventually { await h.runtime.isFollowing })
+        let before = await hub.published().count
+        let avatar = Avatar.v1(c: 3, s: "rings", a: 30, n: 5)
+        await h.runtime.setProfile(name: "", avatar: avatar)  // blank keeps the name
+        #expect(await hub.published().count == before + 1)
+        state = try FollowerState.decode(try #require(try h.secrets.read(account: KeychainStore.followerAccount)))
+        #expect(state.me == Profile(name: "Ana's MacBook", avatar: avatar))
+        var seen: Profile?
+        for await snapshot in await h.runtime.snapshots() {
+            seen = snapshot.me
+            break
+        }
+        #expect(seen == Profile(name: "Ana's MacBook", avatar: avatar))
+        await h.runtime.stop()
+    }
+
     /// Wake, the network coming back and a relay change can reconnect at once: the changes run one after another, so
     /// exactly one relay connection stays open (overlapping ones leaked pools that kept their sockets).
     @Test func overlappingReconnectsLeaveOneConnection() async throws {

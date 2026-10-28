@@ -11,6 +11,8 @@ final class FollowerAdapter: FollowActions, TreatmentActions {
     private let follower: any FollowerService
     /// The phone offering nearby pairing in the newest snapshot ("Ask to follow" joins this one).
     private var offer: NearbyOffer?
+    /// This Mac's profile in the newest snapshot.
+    private var me: Profile?
 
     init(follower: any FollowerService) { self.follower = follower }
 
@@ -22,15 +24,18 @@ final class FollowerAdapter: FollowActions, TreatmentActions {
         }
     }
 
-    /// The runtime names this Mac with the profile it was made with; the edited name isn't sent.
+    /// The typed name goes with the request (the runtime keeps the picture it has).
     func joinNearby(name: String) async throws(FollowFailure) {
         guard let offer else { throw .notFound }
+        await follower.setProfile(name: name, avatar: me?.avatar)
         do {
             try await follower.joinNearby(offer)
         } catch {
             if let failure = Self.failure(error) { throw failure }
         }
     }
+
+    func setProfile(name: String, avatar: Avatar?) async { await follower.setProfile(name: name, avatar: avatar) }
 
     func cancelJoin() async { await follower.cancelJoin() }
     func unfollow() async { await follower.unfollow() }
@@ -41,7 +46,10 @@ final class FollowerAdapter: FollowActions, TreatmentActions {
     func searchNearby(_ on: Bool) { Task { await follower.searchNearby(on) } }
 
     /// Keeps the newest nearby offer (the follow model shows it; joining uses it).
-    func update(_ snapshot: FollowerSnapshot) { offer = snapshot.nearbyOffer }
+    func update(_ snapshot: FollowerSnapshot) {
+        offer = snapshot.nearbyOffer
+        me = snapshot.me
+    }
 
     // MARK: mapping
 

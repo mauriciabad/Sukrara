@@ -30,6 +30,11 @@ struct PanelView: View {
     }
     /// Mute all's Custom… field is open: Return belongs to it, not to Add Treatment….
     @State private var customMute = false
+    /// The chart's y range, Now pill and way back to now, gliding (`ChartEase`).
+    @State private var ease = ChartEase()
+    /// Something glides: the card redraws every frame until it settles.
+    @State private var gliding = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     static let cardSize = CGSize(width: 340, height: 196)
 
@@ -63,13 +68,55 @@ struct PanelView: View {
             .padding(14)
             .frame(width: Self.cardSize.width + 28, alignment: .leading)
             // the panel opens at now again
-            .onDisappear { scroll = ChartScroll() }
+            .onDisappear {
+                scroll = ChartScroll()
+                ease = ChartEase()
+            }
         }
     }
 
     @ViewBuilder private var card: some View {
-        let data = model.cardData
-        let view = chartView(data)
+        let data = model.panelData
+        let bounds = chart(data)
+        TimelineView(.animation(paused: !gliding)) { frame in
+            cardImage(
+                data,
+                view: ease.view(scroll, default: bounds.default, now: data.now, at: frame.date.timeIntervalSince1970))
+        }
+        .onChange(of: target(data), initial: true) { _, new in
+            ease.retarget(y: new.y, away: new.away, at: Date().timeIntervalSince1970, instant: reduceMotion)
+            gliding = !ease.settled(at: Date().timeIntervalSince1970)
+        }
+        .task(id: ease) {
+            try? await Task.sleep(for: .seconds(Glide.settle + 0.05))
+            if !Task.isCancelled { gliding = false }
+        }
+    }
+
+    /// Where the chart is going: the visible window's own y range and whether it is away from now.
+    private struct Target: Equatable {
+        var y: ClosedRange<Double>?
+        var away: Bool
+    }
+
+    private func target(_ data: CardData) -> Target {
+        Target(
+            y: GlucoseCard.yRange(
+                surface: .menubarCard, config: model.graph, readings: data.readings, end: scroll.end ?? data.now,
+                span: scroll.span), away: scroll.away)
+    }
+
+    /// Back to now and the place's own window, end and length gliding there together.
+    private func goBack(_ data: CardData) {
+        guard scroll.away else { return }
+        let b = chart(data)
+        ease.goBack(
+            from: scroll.end ?? b.now, span: scroll.span(b.default), at: Date().timeIntervalSince1970,
+            instant: reduceMotion)
+        scroll = ChartScroll()
+    }
+
+    @ViewBuilder private func cardImage(_ data: CardData, view: ChartView?) -> some View {
         let increased = contrast == .increased
         if let image = GlucoseCard.image(
             surface: .menubarCard, size: Self.cardSize, config: model.graph, data: data, unit: model.unit,
@@ -83,13 +130,21 @@ struct PanelView: View {
                 .accessibilityLabel(
                     GlucoseCard.accessibilityLabel(data, unit: model.unit, surface: .menubarCard, config: model.graph)
                 )
-                .modifier(ChartActions(scroll: $scroll, chart: chart(data), hasChart: rects.plot != nil))
+                .modifier(
+                    ChartActions(scroll: $scroll, chart: chart(data), hasChart: rects.plot != nil) { goBack(data) }
+                )
                 .overlay(alignment: .topLeading) {
                     if let plot = rects.plot {
                         ChartGestures(
                             scroll: { dx, _ in moveChart(by: dx, plotWidth: plot.width, data) },
                             zoom: { factor, x in
                                 zoomChart(factor, at: (x * Self.cardSize.width - plot.minX) / plot.width, data)
+                            },
+                            smartZoom: { x in
+                                let b = chart(data)
+                                scroll.smartZoom(
+                                    anchor: Double((x * Self.cardSize.width - plot.minX) / plot.width),
+                                    default: b.default, first: b.first, now: b.now)
                             }
                         )
                         .frame(width: Self.cardSize.width, height: Self.cardSize.height)
@@ -97,9 +152,9 @@ struct PanelView: View {
                 }
                 .overlay(alignment: .topLeading) { pill(data) }
                 .overlay(alignment: .topLeading) {
-                    if let now = rects.now {
+                    if let now = rects.now, scroll.away {
                         Button {
-                            scroll = ChartScroll()
+                            goBack(data)
                         } label: {
                             Color.clear.contentShape(Capsule()).frame(width: now.width, height: now.height)
                         }
@@ -125,15 +180,6 @@ struct PanelView: View {
                         .strokeBorder(Color(nsColor: .separatorColor), lineWidth: 1)
                 }
             }
-    }
-
-    /// The chart's window for the scroll (nil = the place's own window up to now).
-    private func chartView(_ data: CardData) -> ChartView? {
-        guard scroll.away else { return nil }
-        let y = GlucoseCard.yRange(
-            surface: .menubarCard, config: model.graph, readings: data.readings, end: scroll.end ?? data.now,
-            span: scroll.span)
-        return scroll.view(now: data.now, pill: 1, y: y)
     }
 
     /// The bounds a gesture works within: the place's own length, the oldest reading, now.
@@ -253,6 +299,8 @@ private struct ChartActions: ViewModifier {
     @Binding var scroll: ChartScroll
     let chart: Bounds
     let hasChart: Bool
+    /// Back to now (gliding there).
+    let back: () -> Void
 
     func body(content: Content) -> some View {
         if hasChart {
@@ -269,7 +317,7 @@ private struct ChartActions: ViewModifier {
                 .accessibilityAction(named: L10n.t("Zoom In")) {
                     scroll.step(out: false, default: chart.default, first: chart.first, now: chart.now)
                 }
-                .accessibilityAction(named: L10n.t("Back to Now")) { scroll = ChartScroll() }
+                .accessibilityAction(named: L10n.t("Back to Now"), back)
         } else {
             content
         }
