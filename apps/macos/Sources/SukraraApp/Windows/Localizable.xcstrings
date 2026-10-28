@@ -6016,6 +6016,22 @@
           }
         }
       }
+    },
+    "Almost ready" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Almost ready"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Casi listo"
+          }
+        }
+      }
     }
   },
   "version" : "1.0"

@@ -157,6 +157,8 @@ func scratchStore() -> DefaultsSettingsStore {
         #expect(PillAction.of(.taken(.low, treatment: mark, until: 100), canAdd: true) == .quiet(.low))
         #expect(PillAction.of(.muted(until: AlertStatus.never), canAdd: true) == .muteAll)
         #expect(PillAction.of(.none, canAdd: true) == .none)
+        // Mute all on while out of range: the pill's way out is Mute all's
+        #expect(PillAction.of(.paused(.low, until: 100), canAdd: true, muteAll: true) == .muteAll)
     }
 }
 

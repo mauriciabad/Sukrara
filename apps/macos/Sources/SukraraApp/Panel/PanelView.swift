@@ -18,6 +18,8 @@ struct PanelView: View {
     /// The window layer's entry points (nil in a render without windows).
     var links: PanelLinks?
     @Environment(\.colorScheme) private var scheme
+    /// Mute all's Custom… field is open: Return belongs to it, not to Add Treatment….
+    @State private var customMute = false
 
     static let cardSize = CGSize(width: 340, height: 196)
 
@@ -41,9 +43,12 @@ struct PanelView: View {
                 if let links { SetupRows(links: links, needsFollow: model.needsFollow) }
                 if model.notificationPermission.needsAttention { notificationsWarning }
                 if model.focusCanHoldAlerts { focusNote }
-                if let alerts = model.alerts { AlertBlocks(alerts: alerts, now: context.date) }
+                if let alerts = model.alerts { AlertBlocks(alerts: alerts, now: context.date, custom: $customMute) }
                 if let updates = model.updates { UpdateRow(updates: updates) }
-                if let links { ActionRows(links: links, add: AddTreatmentAvailability(link: model.link)) }
+                if let links {
+                    ActionRows(
+                        links: links, add: AddTreatmentAvailability(link: model.link), returnAdds: !customMute)
+                }
             }
             .padding(14)
             .frame(width: Self.cardSize.width + 28, alignment: .leading)
@@ -69,7 +74,8 @@ struct PanelView: View {
     /// with that field focused, a mute pill opens its ways out (the same as the blocks below).
     @ViewBuilder private func pill(_ data: CardData) -> some View {
         let canAdd = AddTreatmentAvailability(link: model.link) == .available && links != nil
-        let action = PillAction.of(data.alerts.status, canAdd: canAdd)
+        let action = PillAction.of(
+            data.alerts.status, canAdd: canAdd, muteAll: model.alerts?.ui.muteAllUntil != nil)
         if action != .none,
             let rect = GlucoseCard.pillRect(
                 surface: .menubarCard, size: Self.cardSize, config: model.graph, data: data, unit: model.unit)
@@ -218,8 +224,10 @@ enum PillAction: Equatable {
     case muteAll
     case none
 
-    static func of(_ status: AlertStatus, canAdd: Bool) -> PillAction {
-        switch status {
+    /// `muteAll`: Mute all is on, so a paused side's way out is Mute all's (Unmute / Change Time).
+    static func of(_ status: AlertStatus, canAdd: Bool, muteAll: Bool = false) -> PillAction {
+        if muteAll, case .paused = status { return .muteAll }
+        return switch status {
         case .none: .none
         case .needed(let side): canAdd ? .treat(side == .low ? .carbs : .rapid) : .none
         case .taken(let side, _, _), .paused(let side, _): .quiet(side == .low ? .low : .high)
@@ -232,6 +240,8 @@ enum PillAction: Equatable {
 private struct ActionRows: View {
     let links: PanelLinks
     let add: AddTreatmentAvailability
+    /// Return chooses Add Treatment… (off while a text field in the panel takes Return).
+    var returnAdds = true
 
     var body: some View {
         VStack(alignment: .leading, spacing: 2) {
@@ -242,7 +252,7 @@ private struct ActionRows: View {
                 PanelRowLabel(
                     title: L10n.t("Add Treatment…"), symbol: "plus.circle", shortcut: add == .available ? "↩" : nil)
             }
-            .keyboardShortcut(add == .available ? .defaultAction : nil)
+            .keyboardShortcut(add == .available && returnAdds ? .defaultAction : nil)
             .disabled(add != .available)
             .help(add.reason ?? "")
             .accessibilityHint(add.reason ?? "")
@@ -337,7 +347,7 @@ private struct SetupRows: View {
 private struct AlertBlocks: View {
     let alerts: AlertController
     let now: Date
-    @State private var custom = false
+    @Binding var custom: Bool
 
     var body: some View {
         let ui = alerts.ui
@@ -456,11 +466,19 @@ private struct CustomMuteAll: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack {
-                TextField(L10n.t("Mute alerts for"), text: $text, prompt: Text(verbatim: "2 h 30 min"))
-                    .textFieldStyle(.roundedBorder)
-                    .focused($focused)
-                    .onSubmit(commit)
-                    .accessibilityHint(note)
+                TextField(
+                    L10n.t("Mute alerts for"),
+                    text: Binding(
+                        get: { text },
+                        set: {
+                            text = $0
+                            invalid = false
+                        }), prompt: Text(verbatim: "2 h 30 min")
+                )
+                .textFieldStyle(.roundedBorder)
+                .focused($focused)
+                .onSubmit(commit)
+                .accessibilityHint(note)
                 Button(L10n.t("Mute"), action: commit).disabled(text.isEmpty)
                 Button(L10n.t("Cancel"), action: done).keyboardShortcut(.cancelAction)
             }

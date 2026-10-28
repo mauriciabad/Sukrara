@@ -90,7 +90,8 @@ struct MenubarTitle: Equatable {
             }
             if let readAt { tooltip = L10n.t("Sukrara · reading at \(readAt)") }
         case .warmingUp:
-            value = look.warmup ?? ""
+            let waiting = data?.sensor.map { now.timeIntervalSince1970 >= $0.warmupEnd } ?? false
+            value = waiting ? L10n.t("Almost ready") : look.warmup ?? ""
             text = L10n.t("Warming up") + (look.warmup.map { " \($0)" } ?? "")
             tint = .grey
             if let s = data?.sensor {

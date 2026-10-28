@@ -12,7 +12,10 @@ public final class AppWindows: NSObject, NSWindowDelegate {
 
     private var windows: [Kind: NSWindow] = [:]
 
-    public func show(_ kind: Kind, title: String, @ViewBuilder content: () -> some View) {
+    /// `nearMenuBar`: a new window opens under the menu bar at the top right (Add Treatment), not where it was.
+    public func show(
+        _ kind: Kind, title: String, nearMenuBar: Bool = false, @ViewBuilder content: () -> some View
+    ) {
         if let w = windows[kind] {
             w.makeKeyAndOrderFront(nil)
             NSApp.activate()
@@ -23,7 +26,12 @@ public final class AppWindows: NSObject, NSWindowDelegate {
         w.styleMask.insert(.closable)
         w.isReleasedWhenClosed = false
         w.delegate = self
-        w.setFrameAutosaveName("app.mauri.sukrara.\(kind.rawValue)")
+        if nearMenuBar, let screen = NSScreen.main ?? NSScreen.screens.first {
+            let area = screen.visibleFrame
+            w.setFrameTopLeftPoint(NSPoint(x: area.maxX - w.frame.width - 12, y: area.maxY - 6))
+        } else {
+            w.setFrameAutosaveName("app.mauri.sukrara.\(kind.rawValue)")
+        }
         windows[kind] = w
         NSApp.setActivationPolicy(.regular)
         w.makeKeyAndOrderFront(nil)
@@ -31,13 +39,6 @@ public final class AppWindows: NSObject, NSWindowDelegate {
     }
 
     public func close(_ kind: Kind) { windows[kind]?.close() }
-
-    /// Puts `kind`'s window at the top right of the screen with the menu bar, under it, where the status item is.
-    public func placeNearMenuBar(_ kind: Kind) {
-        guard let w = windows[kind], let screen = NSScreen.screens.first else { return }
-        let area = screen.visibleFrame
-        w.setFrameTopLeftPoint(NSPoint(x: area.maxX - w.frame.width - 12, y: area.maxY - 6))
-    }
 
     public func windowWillClose(_ notification: Notification) {
         guard let w = notification.object as? NSWindow, let kind = windows.first(where: { $0.value === w })?.key else {

@@ -168,7 +168,8 @@ public struct AddTreatmentView: View {
     }
 
     private func commit() {
-        guard fields.canSave else { return }
+        // one Return can reach both the field's submit and the default button: save once
+        guard fields.canSave, !saved else { return }
         let d = now()
         let t = when.resolve(now: Int64(d.timeIntervalSince1970))
         let entries = fields.treatments(at: t, u: TreatmentsModel.millis(d))
@@ -287,13 +288,13 @@ public struct TreatmentsView: View {
 
     public var body: some View {
         VStack(spacing: 0) {
-            let days = TreatmentsModel.byDay(model.rows, now: now())
-            if days.isEmpty {
+            if TreatmentsModel.byDay(model.rows, now: now()).isEmpty {
                 ContentUnavailableView(
                     L10n.t("No treatments in the last 7 days"), systemImage: "syringe",
                     description: Text(L10n.t("Entries logged on the phone or here show up in this list.")))
             } else {
                 TimelineView(.periodic(from: .now, by: 60)) { context in
+                    let days = TreatmentsModel.byDay(model.rows, now: context.date)
                     List {
                         ForEach(days, id: \.day) { group in
                             Section(Self.dayTitle(group.day, now: context.date)) {

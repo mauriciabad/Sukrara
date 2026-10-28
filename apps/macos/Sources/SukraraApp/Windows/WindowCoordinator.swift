@@ -99,7 +99,7 @@ final class WindowCoordinator {
             model.isLow
             || (model.look.state == .value && GlucoseCard.rangeSide(model.cardData, config: model.graph) == .below)
         let field = focus ?? (low ? .carbs : .rapid)
-        windows.show(.addTreatment, title: L10n.t("Add Treatment")) {
+        windows.show(.addTreatment, title: L10n.t("Add Treatment"), nearMenuBar: true) {
             AddTreatmentView(
                 focus: field,
                 quiet: { [weak model] rapid, carbs, at in
@@ -114,7 +114,6 @@ final class WindowCoordinator {
                 },
                 cancel: { [weak self] in self?.windows.close(.addTreatment) })
         }
-        windows.placeNearMenuBar(.addTreatment)
     }
 
     /// Opens the menu bar panel (set by `AppDelegate`; `sukrara://open`).
