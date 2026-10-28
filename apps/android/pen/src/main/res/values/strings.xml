@@ -2,4 +2,90 @@
 <!-- Sukrara — https://github.com/mauriciabad/sukrara
      Copyright (C) 2026 Maurici Abad
      SPDX-License-Identifier: GPL-3.0-or-later -->
-<resources />
+<resources>
+    <string name="pen_read_reading">Reading your pen…</string>
+    <string name="pen_read_keep_still">Keep it still.</string>
+    <string name="pen_read_logged">%1$s logged</string>
+    <string name="pen_kind_rapid">Rapid</string>
+    <string name="pen_kind_long">Long</string>
+    <string name="pen_primed">%1$s primed</string>
+    <string name="pen_added">%1$s added</string>
+    <string name="pen_read_replaced">Replaced your %1$s entry at %2$s</string>
+    <string name="pen_read_since">%1$s since %2$s</string>
+    <string name="pen_read_grew">Now %1$s</string>
+    <string name="pen_read_nothing">Nothing new</string>
+    <string name="pen_read_last">Last injection: %1$s at %2$s</string>
+    <string name="pen_read_pending">Only priming so far</string>
+    <string name="pen_read_pending_text">Hold the pen to the phone again after you inject.</string>
+    <string name="pen_q_doses_title">Priming or injected?</string>
+    <string name="pen_doses_at">%1$s at %2$s</string>
+    <string name="pen_and">%1$s and %2$s</string>
+    <string name="pen_log_amount">Log %1$s</string>
+    <string name="pen_q_same_title">Same injection?</string>
+    <string name="pen_q_same_line">Pen %1$s at %2$s · yours %3$s at %4$s</string>
+    <string name="pen_read_clock">Pen clock changed</string>
+    <string name="pen_read_clock_text">Nothing new was logged. Check its doses.</string>
+    <string name="pen_read_failed">Couldn\'t read the pen</string>
+    <string name="pen_read_failed_text">Your doses are safe in the pen. Tap again and hold it still.</string>
+    <string name="pen_undo">Undo</string>
+    <string name="pen_undone">Undone</string>
+    <string name="pen_undone_text">Nothing from this read is logged.</string>
+    <string name="pen_all_priming">All priming</string>
+    <string name="pen_q_notif_text">%1$s at %2$s from your pen</string>
+    <string name="pen_m_different">Different injections</string>
+    <string name="pen_m_same">Same injection</string>
+    <string name="pen_m_card">Pen %1$s at %2$s</string>
+    <plurals name="pen_read_several">
+        <item quantity="one">%1$d injection logged</item>
+        <item quantity="other">%1$d injections logged</item>
+    </plurals>
+    <plurals name="pen_read_replaced_several">
+        <item quantity="one">%1$d replaced your entry</item>
+        <item quantity="other">%1$d replaced your entries</item>
+    </plurals>
+    <plurals name="pen_read_big">
+        <item quantity="one">Check %1$d injection</item>
+        <item quantity="other">Check %1$d injections</item>
+    </plurals>
+    <plurals name="pen_q_several">
+        <item quantity="one">%1$d pen dose to check</item>
+        <item quantity="other">%1$d pen doses to check</item>
+    </plurals>
+    <plurals name="pen_units_spoken">
+        <item quantity="one">%1$s unit</item>
+        <item quantity="other">%1$s units</item>
+    </plurals>
+    <string name="pen_add_treatment">Add treatment</string>
+    <string name="pen_new_added">New pen added</string>
+    <string name="pen_new_added_line">%1$s · %2$s · %3$s</string>
+    <string name="pen_untested_added">Untested pen added</string>
+    <string name="pen_untested_added_line">%1$s · check it once before Sukrara logs it</string>
+    <string name="pen_set_up">Set up</string>
+    <string name="pen_matches_short">Matches your %1$s entry</string>
+    <string name="pen_read_big_line">Since %1$s · %2$s</string>
+    <string name="pen_kind_rapid_lower">rapid</string>
+    <string name="pen_kind_long_lower">long</string>
+    <plurals name="pen_older_left_out">
+        <item quantity="one">%1$d earlier dose left out</item>
+        <item quantity="other">%1$d earlier doses left out</item>
+    </plurals>
+    <string name="pen_ask_title">Log this pen in Sukrara?</string>
+    <string name="pen_turn_on">Turn on</string>
+    <string name="pen_no">No</string>
+    <string name="pen_notif_public">Pen read</string>
+    <string name="pen_read_failed_tip">Touch the phone where the circle is, take cards out of the case, and check the counter shows 0.</string>
+    <string name="pen_read_first_slow">The first read takes a few seconds.</string>
+    <string name="pen_read_replaced_by">Replaced %1$s\'s %2$s entry at %3$s</string>
+    <string name="pen_read_replaced_other">Replaced the %1$s entry at %2$s</string>
+    <plurals name="pen_m_nearby">
+        <item quantity="one">%1$d of your entries nearby</item>
+        <item quantity="other">%1$d of your entries nearby</item>
+    </plurals>
+    <string name="pen_read_clock_held">Not logged: %1$s. Check its doses.</string>
+    <string name="pen_untested_title">Untested pen</string>
+    <string name="pen_untested_text">Sukrara doesn\'t log %1$s yet: it hasn\'t been checked with a real pen. Type its doses by hand.</string>
+    <string name="pen_card_close">Close</string>
+    <string name="pen_card_label">Pen read</string>
+    <string name="pen_q_same_short">Same injection</string>
+    <string name="pen_q_different_short">Different</string>
+</resources>
