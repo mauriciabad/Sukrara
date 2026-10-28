@@ -978,13 +978,69 @@ devices*; *Stop following* ends Bluetooth with the relays. Every state works wit
   copy, marked sensitive for the clipboard preview; the xDrip+ address `http://<secret>@127.0.0.1:17581` and the
   token address), *Hide API secret*, *New secret* (confirmed: apps using the old one stop reading), and a footer that
   says only apps on this phone can reach it and that it isn't a source for a closed loop. Requests are never logged.
-  The home-network option (`apps.nightscoutLan`) is not built yet (see *Not included*).
+- *On your home Wi-Fi* (inside the API page while it is on; `LanPolicy`, `LanWatcher`; tests `LanPolicyTest`,
+  `NightscoutApiTest`): *Also on this Wi-Fi*, **off by default** (schema `apps.nightscoutLan`). Turning it on asks first
+  with the plain warning (any device on this Wi-Fi can read glucose, doses and notes with the secret; not encrypted, so
+  someone on the same Wi-Fi can see the secret), then Android 17's local network access (Nearby devices). On, a second
+  listener binds only the phone's private IPv4 Wi-Fi address (RFC 1918, prefix 8–30; never 0.0.0.0, a public, VPN or
+  hotspot address) on port 17581, drops callers outside that subnet without an answer, and answers only a Host header
+  that is exactly that address; same secret, routes and bounds, plus a write deadline (a caller that stops reading is
+  cut off). It is pinned to the Wi-Fi it was turned on in: Android hides the Wi-Fi's name without location permission
+  (never asked), so "the same Wi-Fi" is a fingerprint of subnet, gateway, DHCP server and DNS domain, which tells most
+  networks apart but not two look-alike routers. Open, WEP, OWE or unknown-security Wi-Fi is refused (a café's WPA2
+  password still passes: the warning says it works wherever you turn it on). The Wi-Fi is watched (one ConnectivityManager
+  callback) only while the option is on; a new address on the same Wi-Fi rebinds. Turning the API off turns this off
+  too. Status: "On · http://192.168.1.23:17581 for devices on this Wi-Fi", "Paused · the phone isn't on Wi-Fi", "…
+  doesn't look like a home network", "… has no password", "… isn't the Wi-Fi you turned it on in" (+ *Allow on this
+  Wi-Fi*), "… Android doesn't allow local network access" (+ *Open Android settings*, which says to keep Nearby devices
+  allowed: the sensor needs it). The API's status line and the Share with apps row add "also on Wi-Fi 192.168.1.23";
+  with the secret shown the page lists the Wi-Fi address too.
+- *Send glucose to apps* (wearer; `broadcasts/` `Broadcaster`, `BroadcastPlan`, `BroadcastPayloads`, `BroadcastsPage`;
+  tests `BroadcastPlanTest`): every app on the phone that declares a receiver for the xDrip+ `BgEstimate`, LibreLink
+  `GLUCOSE_READING` / `SENSOR_ACTIVATE` or Juggluco `glucodata.Minute` broadcast (manifest `<queries>`), with its
+  package name and format and a switch each, **none on by default** (schema `apps.broadcasts`). Allowing an app pins the
+  SHA-256 of its signing certificate; before every send `hasSigningCertificate` checks it, so a reinstall with another
+  key gets nothing ("this app changed since you allowed it": tap to allow again, or *Remove*). An allowed app that was
+  uninstalled stays listed as "Not installed · Tap to remove". What goes out (a closed loop may dose from it): only the
+  Libre 3 driver's live reading on the wearer's phone (never history, Juggluco, an untested family, a follower feed or
+  debug data), at most 5 min old and never in the future, never LO / HI, at most one per 55 s and never the same reading
+  twice (persisted sensor serial + life count, so a restart or a clock change can't repeat one; a last-sent time ahead
+  of the clock is ignored). One format per app (xDrip+, else LibreLink, else Juggluco), so an app that listens for all
+  three gets a reading once; xDrip+'s `SourceInfo` is `Libre3`, as Juggluco sends it (AAPS decides its filtering from
+  it). `SENSOR_ACTIVATE` goes with the LibreLink format only, with the sensor's real start, once per app and sensor.
+  Each copy is sent to its package only (`setPackage`). Status: "Last sent 2 min ago", "Waiting for a reading from this
+  phone's Libre 3", or why the newest wasn't sent (too old, future time, LO / HI, no allowed app listens); "Off · no app
+  is allowed". When AndroidAPS and xDrip+ or GlucoDataHandler are both on, a note says AndroidAPS may get each reading
+  twice if the other forwards it. A follower's page says nothing is sent from a follower's phone.
+- *Health Connect* (wearer; `healthconnect/` `HealthConnectSync`, `PlatformHealth`, `HealthConnectPage`; tests
+  `HealthConnectSyncTest`): *Write glucose to Health Connect*, **off by default** (schema `healthConnect.on`), through the
+  platform `android.health.connect` API. Turning it on asks Health Connect's own permission sheet (blood glucose, write
+  only); denied → the switch stays off with "Health Connect didn't allow it" and *Open Health Connect*. On, the last 30
+  days go in first, then each new reading: only this phone's own sensor readings (by the stored source, so a followed
+  person's readings never go in), never LO / HI (no number: a gap at severe lows and highs), as blood glucose
+  (interstitial fluid) with the sensor as device (Abbott · FreeStyle Libre 3; Juggluco; the untested families say
+  "(untested)"). One record per minute (clientRecordId `sukrara-glucose-<minute>`): writing a minute again updates it.
+  The written minutes are remembered, so each pass writes only new minutes (a new reading, or a gap a reconnect filled
+  in the last day); a rate limit backs off from 15 min. Status: "On · last written 1 min ago", "waiting for a reading",
+  "Health Connect asked to slow down", "refused the last write (error N)", "Health Connect doesn't allow writing now"
+  (permission removed in Health Connect: nothing is written until it's allowed again). *Open Health Connect* opens this
+  app's Health Connect permissions (allow again, see or delete what was written). Health Connect's "why this app needs
+  it" link opens this page. Turning it off stops writing; records stay in Health Connect. A follower's page says nothing
+  is written on a follower's phone; a phone without Health Connect says so.
 
 **States and exits**: *xDrip+ server off* (default) → switch on. *On / listening* → switch off stops it at once.
 *Port in use* → turn the other app's server off, then the switch off and on. *Left to Juggluco* → change the source in
 Settings › Sensor, or switch the server off. *Nightscout API off* (default) → its switch. *On* → switch off (the secret
 stays). *Port in use* → as for the xDrip+ server. *Secret can't be read* → *New secret* (the API starts with it).
-*Secret shown* → *Hide API secret* or Back. *New secret* dialog → *Cancel* keeps the old one. *Nightscout upload*,
+*Secret shown* → *Hide API secret* or Back. *New secret* dialog → *Cancel* keeps the old one. *Home Wi-Fi off* (default)
+→ its switch → the warning dialog (*Cancel* keeps it off) → Android's permission. *On / listening* → switch off (or the
+API's switch). *Paused: another Wi-Fi* → *Allow on this Wi-Fi* or switch off. *Paused: no permission* → *Open Android
+settings* or switch off. *Paused: no Wi-Fi / not a home network / no password* → join the home Wi-Fi or switch off.
+*Broadcasts: no app allowed* (default) → an app's switch. *Allowed* → its switch off. *App changed* → tap to allow again,
+or *Remove*. *Not installed* → tap to remove. *No app listens* → install one, come back (the list refreshes on return).
+*Health Connect off* (default) → switch → Health Connect's sheet. *Denied* → *Open Health Connect*, then the switch.
+*On* → switch off (records stay; *Open Health Connect* to delete them). *Permission removed* → *Open Health Connect* or
+switch off. *Slowed down / refused* → retries by itself, or switch off. *Nightscout upload*,
 *LibreView* and *Tidepool* states are on their pages. Back leaves the page.
 
 ## Insulin pens (docs/29)
@@ -1148,6 +1204,6 @@ page.
 - Android settings pages: settings export / import / reset, settings search, the follower's *Settings from* page, relay / epoch / statistics / log pages, battery-lab knobs, mmol/L in the settings pages (thresholds and ranges are shown and typed in mg/dL; schema `general.unit` is set elsewhere),, the ▶ beside each sound in the Sound dialog (the alert's page has *Play sound*) and icons on every row. Reason: only what daily use needs; the defaults are the owner's own values.
 - Mac: Juggluco over Wi-Fi (LAN source and subnet discovery) and the Nostr v1 `cgmnostr:` follow link (v1 links carried plaintext secrets and had no UI). Follow the wearer with a protocol v2 invite instead.
 - Sensors: the untested-sensor banner and its *Send feedback* (the families themselves are read, see *Sensor life*); the Libre 3 experiment preferences (minimal subscription set, connection priority, screen-off skip). Reason: no hardware to test them, the owner uses a Libre 3.
-- Planned (issues filed): scanning an invite's QR code on Android and the follower's *Settings from* page, the glucose report card, the Nightscout API on the home network (`apps.nightscoutLan`), Health Connect and broadcasts, the rest of insulin pens (see its section), the calendar event, nearby pairing over Bluetooth. The sections above that describe them are the behaviour to build. Reason: what daily use needs comes first.
+- Planned (issues filed): scanning an invite's QR code on Android and the follower's *Settings from* page, the glucose report card, the rest of insulin pens (see its section), the calendar event, nearby pairing over Bluetooth. The sections above that describe them are the behaviour to build. Reason: what daily use needs comes first.
 
 **States and exits**: none (these features aren't in the app).

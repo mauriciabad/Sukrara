@@ -16,11 +16,13 @@ import app.mauri.sukrara.core.testing.FakeClock
 import app.mauri.sukrara.core.testing.InMemoryReadingsRepository
 import app.mauri.sukrara.core.testing.InMemorySecureStore
 import app.mauri.sukrara.core.testing.InMemorySettingsRepository
+import app.mauri.sukrara.core.testing.InMemoryStateStore
 import app.mauri.sukrara.core.testing.InMemoryTreatmentsRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.runBlocking
@@ -210,6 +212,9 @@ class NightscoutApiTest {
             flowOf(Role.Wearer),
             FakeClock(now),
             Dispatchers.IO,
+            InMemoryStateStore(LanPin()),
+            flowOf(null),
+            { true },
             port = 0,
         )
 
@@ -231,6 +236,63 @@ class NightscoutApiTest {
                 val renewed = api.renewSecret()
                 assertTrue(renewed != first)
                 assertEquals(renewed, api.secret())
+            } finally {
+                api.stop()
+                scope.cancel()
+            }
+        }
+
+    @Test
+    fun `the home-network option follows the Wi-Fi, the permission and the API switch`() =
+        runBlocking<Unit> {
+            val settings = InMemorySettingsRepository()
+            val wifi = MutableStateFlow<WifiNet?>(null)
+            var allowed = true
+            val pin = InMemoryStateStore(LanPin())
+            val api =
+                NightscoutApiServer(
+                    settings,
+                    InMemorySecureStore(),
+                    InMemoryReadingsRepository(),
+                    InMemoryTreatmentsRepository(),
+                    flowOf(Role.Wearer),
+                    FakeClock(now),
+                    Dispatchers.IO,
+                    pin,
+                    wifi,
+                    { allowed },
+                    port = 0,
+                )
+            val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
+            fun net(secured: Boolean) = WifiNet(listOf(InetAddress.getByName("192.168.77.5") to 24), "192.168.77.1", null, null, secured)
+            try {
+                api.start(scope)
+                api.setOn(true)
+                withTimeout(5_000) { api.state.first { it is NsApiState.Listening } }
+                // off by default
+                assertEquals(LanState.Off, api.lan.value)
+                api.setLan(true)
+                withTimeout(5_000) { api.lan.first { it == LanState.NoWifi } }
+                wifi.value = net(secured = false)
+                withTimeout(5_000) { api.lan.first { it == LanState.OpenWifi } }
+                allowed = false
+                api.recheckLan()
+                withTimeout(5_000) { api.lan.first { it == LanState.NoPermission } }
+                allowed = true
+                // a private address this machine doesn't have: the bind fails, the network is pinned
+                wifi.value = net(secured = true)
+                api.recheckLan()
+                withTimeout(5_000) { api.lan.first { it == LanState.PortBusy } }
+                withTimeout(5_000) { pin.data.first { it.fingerprint != null } }
+                wifi.value = WifiNet(listOf(InetAddress.getByName("10.1.2.3") to 24), "10.1.2.1", null, null, true)
+                withTimeout(5_000) { api.lan.first { it == LanState.OtherWifi } }
+                api.allowHere()
+                withTimeout(5_000) { api.lan.first { it == LanState.PortBusy } }
+                // turning the API off turns the home-network option off too
+                api.setOn(false)
+                withTimeout(5_000) { api.lan.first { it == LanState.Off } }
+                assertFalse(settings.flow(NightscoutApiServer.LAN_SETTING).first())
             } finally {
                 api.stop()
                 scope.cancel()
