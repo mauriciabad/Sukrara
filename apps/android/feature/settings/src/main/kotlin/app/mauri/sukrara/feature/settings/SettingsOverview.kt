@@ -3,15 +3,23 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.feature.settings
 
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import app.mauri.sukrara.core.model.AlertReadiness
 import app.mauri.sukrara.core.model.AlertUiState
 import app.mauri.sukrara.core.model.Clock
 import app.mauri.sukrara.designsystem.banner.Banner
 import app.mauri.sukrara.designsystem.banner.BannerSlot
+import app.mauri.sukrara.designsystem.haptics.rememberHaptics
 import app.mauri.sukrara.designsystem.rows.NavigationRow
 import app.mauri.sukrara.designsystem.rows.SettingsGroup
+import kotlinx.coroutines.launch
 import app.mauri.sukrara.core.designsystem.R as DsR
 
 /** Where the overview's rows lead. */
@@ -24,6 +32,10 @@ class OverviewActions(
     /** *Share your data with your clinic*: Set up (the clinic upload's page) and Dismiss. */
     val openClinicUpload: () -> Unit = {},
     val dismissClinicBanner: () -> Unit = {},
+    /** Undo on the "Tip closed" snackbar. */
+    val restoreClinicBanner: () -> Unit = {},
+    /** *Show closed tips*: home's and this page's closed tips can show again. */
+    val restoreClosedTips: () -> Unit = {},
     /** Settings › Insulin pens is offered (the wearer's phone with NFC). */
     val pens: Boolean = false,
 )
@@ -38,9 +50,16 @@ fun SettingsOverviewContent(
     actions: OverviewActions,
     appsShared: Set<AppOutput> = emptySet(),
     clinicBanner: Boolean = false,
+    closedTips: Int = 0,
     onBack: () -> Unit,
 ) {
-    SettingsPage(stringResource(R.string.st_settings_title), onBack) {
+    val snackbar = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+    val haptics = rememberHaptics()
+    val closedText = stringResource(R.string.st_tip_closed)
+    val shownText = stringResource(R.string.st_tips_shown)
+    val undoText = stringResource(R.string.st_undo)
+    SettingsPage(stringResource(R.string.st_settings_title), onBack, snackbar = snackbar) {
         BannerSlot(
             Banner(
                 "clinic",
@@ -49,7 +68,20 @@ fun SettingsOverviewContent(
                 stringResource(R.string.st_clinic_text),
                 stringResource(R.string.st_clinic_action),
                 actions.openClinicUpload,
-                actions.dismissClinicBanner,
+                {
+                    haptics.confirm()
+                    actions.dismissClinicBanner()
+                    scope.launch {
+                        val result =
+                            snackbar.showSnackbar(
+                                closedText,
+                                undoText,
+                                withDismissAction = true,
+                                duration = SnackbarDuration.Short,
+                            )
+                        if (result == SnackbarResult.ActionPerformed) actions.restoreClinicBanner()
+                    }
+                },
             ).takeIf { clinicBanner },
         )
         MuteAllStrip(alerts, clock, actions.unmuteAll) { actions.open(SettingsRoute.Alerts) }
@@ -97,6 +129,17 @@ fun SettingsOverviewContent(
             }
         }
         SettingsGroup {
+            if (closedTips > 0) {
+                NavigationRow(
+                    stringResource(R.string.st_show_closed_tips),
+                    {
+                        haptics.confirm()
+                        actions.restoreClosedTips()
+                        scope.launch { snackbar.showSnackbar(shownText, withDismissAction = true, duration = SnackbarDuration.Short) }
+                    },
+                    summary = pluralStringResource(R.plurals.st_closed_tips, closedTips, closedTips),
+                )
+            }
             NavigationRow(stringResource(R.string.st_about_title), { actions.open(SettingsRoute.About) })
         }
     }
@@ -112,6 +155,8 @@ private fun appsSummary(on: Set<AppOutput>): String {
                 AppOutput.LibreView -> stringResource(R.string.st_apps_libreview)
                 AppOutput.NightscoutUpload -> stringResource(R.string.st_apps_nightscout)
                 AppOutput.XdripServer -> stringResource(R.string.st_apps_xdrip)
+                AppOutput.NightscoutApi -> stringResource(R.string.st_apps_nightscout_api)
+                AppOutput.Tidepool -> stringResource(R.string.st_apps_tidepool)
             }
         }
     return names.joinToString(" · ")

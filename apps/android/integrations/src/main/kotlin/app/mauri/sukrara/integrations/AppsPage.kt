@@ -18,7 +18,10 @@ import app.mauri.sukrara.designsystem.rows.NavigationRow
 import app.mauri.sukrara.designsystem.rows.SettingsGroup
 import app.mauri.sukrara.designsystem.rows.SwitchRow
 import app.mauri.sukrara.integrations.libreview.libreViewStatusText
+import app.mauri.sukrara.integrations.localserver.NsApiState
 import app.mauri.sukrara.integrations.localserver.XdripState
+import app.mauri.sukrara.integrations.localserver.nsApiStatusText
+import app.mauri.sukrara.integrations.tidepool.tidepoolStatusText
 import app.mauri.sukrara.integrations.ui.IntroText
 import app.mauri.sukrara.integrations.ui.ago
 import app.mauri.sukrara.integrations.ui.uploadStatusText
@@ -44,6 +47,10 @@ data class AppsUi(
     val nightscout: UploadStatus,
     /** The LibreView upload's state (wearer only). */
     val libreView: UploadStatus = UploadStatus.Off,
+    /** The Nightscout API on this phone. */
+    val nightscoutApi: NsApiState = NsApiState.Off,
+    /** The Tidepool upload's state (both roles). */
+    val tidepool: UploadStatus = UploadStatus.Off,
 )
 
 class AppsActions(
@@ -51,6 +58,8 @@ class AppsActions(
     val openNightscout: () -> Unit = {},
     val openExport: () -> Unit = {},
     val openLibreView: () -> Unit = {},
+    val openNightscoutApi: () -> Unit = {},
+    val openTidepool: () -> Unit = {},
 )
 
 /**
@@ -91,7 +100,8 @@ class AppsViewModel(
             readers,
             module.nightscout.page,
             module.libreView.page,
-        ) { (w, on, x), r, ns, lv ->
+            combine(module.nightscoutApi.state, module.tidepool.status) { api, tp -> api to tp },
+        ) { (w, on, x), r, ns, lv, (api, tp) ->
             AppsUi(
                 w,
                 on,
@@ -99,6 +109,8 @@ class AppsViewModel(
                 r,
                 ns.status,
                 lv.status,
+                api,
+                tp,
             )
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
@@ -119,10 +131,19 @@ fun AppsPage(
     openNightscout: () -> Unit,
     openExport: () -> Unit,
     openLibreView: () -> Unit,
+    openNightscoutApi: () -> Unit,
+    openTidepool: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val ui by viewModel.ui.collectAsStateWithLifecycle()
-    ui?.let { AppsContent(it, now(), AppsActions(viewModel::setXdrip, openNightscout, openExport, openLibreView), modifier) }
+    ui?.let {
+        AppsContent(
+            it,
+            now(),
+            AppsActions(viewModel::setXdrip, openNightscout, openExport, openLibreView, openNightscoutApi, openTidepool),
+            modifier,
+        )
+    }
 }
 
 /**
@@ -137,16 +158,22 @@ fun AppsContent(
     modifier: Modifier = Modifier,
 ) = Column(modifier) {
     IntroText(stringResource(if (ui.wearer) R.string.in_apps_intro_wearer else R.string.in_apps_intro_follower))
-    if (ui.wearer) {
-        SettingsGroup(title = stringResource(R.string.in_apps_clinic_group)) {
+    SettingsGroup(title = stringResource(R.string.in_apps_clinic_group)) {
+        if (ui.wearer) {
             NavigationRow(stringResource(R.string.in_lv_title), actions.openLibreView, summary = libreViewStatusText(ui.libreView, now))
         }
+        NavigationRow(stringResource(R.string.in_tp_title), actions.openTidepool, summary = tidepoolStatusText(ui.tidepool, now))
+    }
+    if (ui.wearer) {
         SettingsGroup(title = stringResource(R.string.in_apps_nightscout_group)) {
             NavigationRow(stringResource(R.string.in_ns_title), actions.openNightscout, summary = uploadStatusText(ui.nightscout, now))
         }
     }
     SettingsGroup(title = stringResource(R.string.in_apps_watch_group)) {
         SwitchRow(stringResource(R.string.in_apps_xdrip), ui.xdripOn, actions.setXdrip, summary = xdripSummary(ui, now))
+    }
+    SettingsGroup(title = stringResource(R.string.in_apps_phone_group)) {
+        NavigationRow(stringResource(R.string.in_nsapi_title), actions.openNightscoutApi, summary = nsApiStatusText(ui.nightscoutApi, now))
     }
     SettingsGroup(title = stringResource(R.string.in_apps_files_group)) {
         NavigationRow(

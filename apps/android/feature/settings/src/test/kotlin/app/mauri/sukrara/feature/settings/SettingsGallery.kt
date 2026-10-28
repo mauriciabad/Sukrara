@@ -122,7 +122,15 @@ class SettingsGallery {
                     ) {}
                 },
             "overview-clinic" to {
-                SettingsOverviewContent(true, AlertUiState(), AlertReadiness.Ready, clock, OverviewActions(), clinicBanner = true) {}
+                SettingsOverviewContent(
+                    true,
+                    AlertUiState(),
+                    AlertReadiness.Ready,
+                    clock,
+                    OverviewActions(),
+                    clinicBanner = true,
+                    closedTips = 2,
+                ) {}
             },
             "overview-muted" to { SettingsOverviewContent(true, muted, AlertReadiness.Ready, clock, OverviewActions()) {} },
             "alerts" to { AlertsSettingsContent(AlertsUi(AlertSettings(), AlertUiState()), null, clock, AlertsActions()) {} },

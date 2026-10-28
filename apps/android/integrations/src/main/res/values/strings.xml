@@ -40,6 +40,7 @@
     <string name="in_apps_nightscout_group" translatable="false">Nightscout</string>
     <string name="in_apps_clinic_group">Your clinic</string>
     <string name="in_apps_watch_group">Watches</string>
+    <string name="in_apps_phone_group">Apps on this phone</string>
     <string name="in_apps_xdrip">xDrip+ server</string>
     <string name="in_apps_xdrip_off">For Garmin watches · any app on this phone can read it while it\'s on</string>
     <string name="in_apps_xdrip_on">On · 127.0.0.1:17580</string>
@@ -52,6 +53,29 @@
     <string name="in_apps_export_summary">A CSV file for your clinic or a spreadsheet</string>
     <string name="in_apps_footer">The xDrip+ server listens only on this phone (127.0.0.1:17580), like xDrip+ itself, so Garmin watch faces and data fields made for xDrip+ read it through Garmin Connect. While it is on, any app on this phone can read your last 24 hours of glucose from it.</string>
 
+    <!-- Nightscout API on this phone -->
+    <string name="in_nsapi_title">Nightscout API on this phone</string>
+    <string name="in_nsapi_intro">Apps on this phone that read a Nightscout site (xDrip+, GlucoDataHandler, watch faces) can read your glucose and entries from here instead, without the internet. They need the API secret below.</string>
+    <string name="in_nsapi_switch">Nightscout API</string>
+    <string name="in_nsapi_off">Off</string>
+    <string name="in_nsapi_on">On · http://127.0.0.1:17581</string>
+    <string name="in_nsapi_busy">Another app uses port 17581 · turn its server off, then this one off and on</string>
+    <string name="in_nsapi_unreadable">The API secret can\'t be read: make a new one</string>
+    <string name="in_nsapi_secret_group">API secret</string>
+    <string name="in_nsapi_show_secret">Show API secret</string>
+    <string name="in_nsapi_show_secret_summary">Apps need it to read. Screenshots are blocked while it shows.</string>
+    <string name="in_nsapi_secret_label">Nightscout API secret</string>
+    <string name="in_nsapi_copy">Tap to copy</string>
+    <string name="in_nsapi_xdrip_url">Address for xDrip+</string>
+    <string name="in_nsapi_token_url">Address with token (watch faces, other apps)</string>
+    <string name="in_nsapi_hide_secret">Hide API secret</string>
+    <string name="in_nsapi_secret_unreadable">The API secret can\'t be read right now. Make a new one and enter it again in your apps.</string>
+    <string name="in_nsapi_new_secret">New secret</string>
+    <string name="in_nsapi_new_secret_summary">Apps using the old one stop reading</string>
+    <string name="in_nsapi_new_secret_title">Make a new API secret?</string>
+    <string name="in_nsapi_new_secret_text">Apps that use the current secret can\'t read your glucose anymore until you enter the new one in them.</string>
+    <string name="in_nsapi_new_secret_action">New secret</string>
+    <string name="in_nsapi_footer">Only apps on this phone can reach it, and only with the secret. It serves the last 7 days of glucose and 30 days of entries; each reading says where it came from (this phone\'s sensor, an untested sensor, or the person you follow). It isn\'t a source for a closed loop.</string>
     <!-- Upload status (every upload page) -->
     <string name="in_status_off">Off</string>
     <string name="in_status_setup">Set up the site first</string>
@@ -142,4 +166,33 @@
     <string name="in_lv_take_over_title">Another device uploads for this account</string>
     <string name="in_lv_take_over_text">LibreView takes data from one device per account, today another one (LibreLink, the Libre 3 app or Juggluco). If Sukrara takes over, that device stops uploading to LibreView. Take over only if Sukrara should be the one that uploads.</string>
     <string name="in_lv_take_over">Take over</string>
+    <!-- Tidepool upload -->
+    <string name="in_tp_title" translatable="false">Tidepool</string>
+    <string name="in_tp_intro">Tidepool keeps your diabetes data in one place for you and your clinic. Sukrara can upload your glucose and your insulin, carbs and notes to your Tidepool account.</string>
+    <string name="in_tp_intro_follower">Tidepool keeps diabetes data in one place. If you choose to, Sukrara can upload the glucose and entries of the person you follow to a Tidepool account.</string>
+    <string name="in_tp_account">Account</string>
+    <string name="in_tp_sign_in">Sign in</string>
+    <string name="in_tp_signed_in">Signed in</string>
+    <string name="in_tp_main">Upload to Tidepool</string>
+    <string name="in_tp_main_needs_account">Sign in first</string>
+    <string name="in_tp_status_setup">Sign in first</string>
+    <string name="in_tp_status_auth">Signed out by Tidepool: sign in again</string>
+    <string name="in_tp_status_choice">Waiting for your choice below</string>
+    <string name="in_tp_follow">Upload the person you follow</string>
+    <string name="in_tp_follow_off">Off: nothing is uploaded from this phone</string>
+    <string name="in_tp_follow_on">Their data goes to the account above</string>
+    <string name="in_tp_glucose">Glucose readings</string>
+    <string name="in_tp_glucose_summary">One every 5 minutes, the last 30 days included</string>
+    <string name="in_tp_sign_out">Sign out</string>
+    <string name="in_tp_sign_out_title">Sign out of Tidepool?</string>
+    <string name="in_tp_sign_out_text">Nothing more goes up until you sign in again. What Tidepool already has stays there.</string>
+    <string name="in_tp_footer">Sukrara signs in with Tidepool\'s own login and keeps only the session, never your password. If Tidepool already gets your Libre data through LibreView, turn glucose off here, or each reading shows up twice.</string>
+    <string name="in_tp_dialog_title">Sign in to Tidepool</string>
+    <string name="in_tp_email">Email</string>
+    <string name="in_tp_password">Password</string>
+    <string name="in_tp_password_note">Used once to sign in, never saved</string>
+    <string name="in_tp_sign_in_action">Sign in</string>
+    <string name="in_tp_signing_in">Signing in…</string>
+    <string name="in_tp_bad_credentials">Tidepool didn\'t accept this email and password</string>
+    <string name="in_tp_failed">Couldn\'t sign in (%1$s)</string>
 </resources>

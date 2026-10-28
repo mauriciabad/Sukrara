@@ -39,6 +39,7 @@
     <string name="in_apps_intro_follower">La glucosa de la persona a la que sigues en otras apps: relojes Garmin a través del servidor xDrip+ y un archivo.</string>
     <string name="in_apps_clinic_group">Tu clínica</string>
     <string name="in_apps_watch_group">Relojes</string>
+    <string name="in_apps_phone_group">Apps de este móvil</string>
     <string name="in_apps_xdrip">Servidor xDrip+</string>
     <string name="in_apps_xdrip_off">Para relojes Garmin · mientras está activado, cualquier app de este móvil puede leerlo</string>
     <string name="in_apps_xdrip_on">Activado · 127.0.0.1:17580</string>
@@ -51,6 +52,29 @@
     <string name="in_apps_export_summary">Un archivo CSV para tu clínica o una hoja de cálculo</string>
     <string name="in_apps_footer">El servidor xDrip+ solo escucha en este móvil (127.0.0.1:17580), como el propio xDrip+, así que las esferas y campos de datos de Garmin hechos para xDrip+ lo leen a través de Garmin Connect. Mientras está activado, cualquier app de este móvil puede leer tus últimas 24 horas de glucosa.</string>
 
+    <!-- Nightscout API on this phone -->
+    <string name="in_nsapi_title">API de Nightscout en este móvil</string>
+    <string name="in_nsapi_intro">Las apps de este móvil que leen un sitio de Nightscout (xDrip+, GlucoDataHandler, esferas de reloj) pueden leer aquí tu glucosa y tus entradas, sin internet. Necesitan el secreto de la API de abajo.</string>
+    <string name="in_nsapi_switch">API de Nightscout</string>
+    <string name="in_nsapi_off">Desactivada</string>
+    <string name="in_nsapi_on">Activada · http://127.0.0.1:17581</string>
+    <string name="in_nsapi_busy">Otra app usa el puerto 17581 · desactiva su servidor y luego desactiva y activa este</string>
+    <string name="in_nsapi_unreadable">No se puede leer el secreto de la API: crea uno nuevo</string>
+    <string name="in_nsapi_secret_group">Secreto de la API</string>
+    <string name="in_nsapi_show_secret">Mostrar el secreto de la API</string>
+    <string name="in_nsapi_show_secret_summary">Las apps lo necesitan para leer. No se pueden hacer capturas mientras se ve.</string>
+    <string name="in_nsapi_secret_label">Secreto de la API de Nightscout</string>
+    <string name="in_nsapi_copy">Toca para copiar</string>
+    <string name="in_nsapi_xdrip_url">Dirección para xDrip+</string>
+    <string name="in_nsapi_token_url">Dirección con token (esferas de reloj, otras apps)</string>
+    <string name="in_nsapi_hide_secret">Ocultar el secreto de la API</string>
+    <string name="in_nsapi_secret_unreadable">Ahora no se puede leer el secreto de la API. Crea uno nuevo y vuelve a ponerlo en tus apps.</string>
+    <string name="in_nsapi_new_secret">Secreto nuevo</string>
+    <string name="in_nsapi_new_secret_summary">Las apps que usan el anterior dejan de leer</string>
+    <string name="in_nsapi_new_secret_title">¿Crear un secreto de API nuevo?</string>
+    <string name="in_nsapi_new_secret_text">Las apps que usan el secreto actual no podrán leer tu glucosa hasta que pongas el nuevo en ellas.</string>
+    <string name="in_nsapi_new_secret_action">Secreto nuevo</string>
+    <string name="in_nsapi_footer">Solo las apps de este móvil pueden acceder, y solo con el secreto. Da los últimos 7 días de glucosa y 30 días de entradas; cada lectura dice de dónde viene (el sensor de este móvil, un sensor no probado o la persona a la que sigues). No es una fuente para un lazo cerrado.</string>
     <!-- Upload status (every upload page) -->
     <string name="in_status_off">Desactivado</string>
     <string name="in_status_setup">Primero configura el sitio</string>
@@ -140,4 +164,32 @@
     <string name="in_lv_take_over_title">Otro dispositivo sube datos a esta cuenta</string>
     <string name="in_lv_take_over_text">LibreView acepta datos de un dispositivo por cuenta, ahora otro (LibreLink, la app Libre 3 o Juggluco). Si Sukrara toma el relevo, ese dispositivo deja de subir a LibreView. Hazlo solo si Sukrara debe ser quien sube.</string>
     <string name="in_lv_take_over">Tomar el relevo</string>
+    <!-- Tidepool upload -->
+    <string name="in_tp_intro">Tidepool reúne tus datos de diabetes en un solo sitio, para ti y tu clínica. Sukrara puede subir tu glucosa y tu insulina, carbohidratos y notas a tu cuenta de Tidepool.</string>
+    <string name="in_tp_intro_follower">Tidepool reúne los datos de diabetes en un solo sitio. Si lo eliges, Sukrara puede subir la glucosa y los registros de la persona a la que sigues a una cuenta de Tidepool.</string>
+    <string name="in_tp_account">Cuenta</string>
+    <string name="in_tp_sign_in">Iniciar sesión</string>
+    <string name="in_tp_signed_in">Sesión iniciada</string>
+    <string name="in_tp_main">Subir a Tidepool</string>
+    <string name="in_tp_main_needs_account">Inicia sesión primero</string>
+    <string name="in_tp_status_setup">Inicia sesión primero</string>
+    <string name="in_tp_status_auth">Tidepool ha cerrado la sesión: vuelve a iniciarla</string>
+    <string name="in_tp_status_choice">Esperando tu elección de abajo</string>
+    <string name="in_tp_follow">Subir a la persona que sigues</string>
+    <string name="in_tp_follow_off">Desactivado: este móvil no sube nada</string>
+    <string name="in_tp_follow_on">Sus datos van a la cuenta de arriba</string>
+    <string name="in_tp_glucose">Lecturas de glucosa</string>
+    <string name="in_tp_glucose_summary">Una cada 5 minutos, incluidos los últimos 30 días</string>
+    <string name="in_tp_sign_out">Cerrar sesión</string>
+    <string name="in_tp_sign_out_title">¿Cerrar la sesión de Tidepool?</string>
+    <string name="in_tp_sign_out_text">No se sube nada más hasta que vuelvas a iniciar sesión. Lo que Tidepool ya tiene se queda allí.</string>
+    <string name="in_tp_footer">Sukrara inicia sesión con el acceso propio de Tidepool y guarda solo la sesión, nunca tu contraseña. Si Tidepool ya recibe tus datos del Libre a través de LibreView, desactiva aquí la glucosa o cada lectura aparecerá dos veces.</string>
+    <string name="in_tp_dialog_title">Iniciar sesión en Tidepool</string>
+    <string name="in_tp_email">Correo electrónico</string>
+    <string name="in_tp_password">Contraseña</string>
+    <string name="in_tp_password_note">Se usa una vez para iniciar sesión, nunca se guarda</string>
+    <string name="in_tp_sign_in_action">Iniciar sesión</string>
+    <string name="in_tp_signing_in">Iniciando sesión…</string>
+    <string name="in_tp_bad_credentials">Tidepool no ha aceptado este correo y contraseña</string>
+    <string name="in_tp_failed">No se ha podido iniciar sesión (%1$s)</string>
 </resources>

@@ -100,6 +100,7 @@
     <string name="home_treatment_not_in_clinic">Aún no está en LibreView</string>
     <string name="home_treatment_clinic_updating">LibreView tiene una versión anterior: actualizando</string>
     <string name="home_treatment_clinic_stopped">La subida a LibreView está parada</string>
+    <string name="home_tip_closed">Consejo cerrado. Ajustes › Mostrar consejos cerrados lo recupera.</string>
     <string name="home_undo">Deshacer</string>
 
     <string name="data_title">Datos dañados</string>
