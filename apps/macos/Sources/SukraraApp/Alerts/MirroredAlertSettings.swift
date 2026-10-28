@@ -30,4 +30,33 @@ extension AlertSettings {
         quiet(&s.muteAfterCarbs, "muteAfterCarbs")
         return s
     }
+
+    /// The rules this Mac runs in "Settings from: Default": this Mac's own settings with every mirrored value at
+    /// Sukrara's default (each kind's on / threshold / repeat but no data's, the quiet-after rules), so choosing Default
+    /// never overwrites this Mac's own values (they come back with Custom).
+    func withMirroredDefaults() -> AlertSettings {
+        var s = self
+        let d = AlertSettings()
+        for kind in AlertKind.allCases where kind != .noData {
+            var rule = s[kind]
+            rule.on = d[kind].on
+            rule.threshold = d[kind].threshold
+            rule.repeatMin = d[kind].repeatMin
+            s[kind] = rule
+        }
+        s.muteAfterInsulin = d.muteAfterInsulin
+        s.muteFallingHigh = d.muteFallingHigh
+        s.muteAfterCarbs = d.muteAfterCarbs
+        return s
+    }
+
+    /// The rules in use for "Settings from" `from`: Custom = this Mac's own; Default = the defaults; Wearer = the
+    /// wearer's mirrored values, the defaults until they arrive. What isn't mirrored is always this Mac's own.
+    func inUse(from: SettingsFrom, wearer: WearerSettings?) -> AlertSettings {
+        switch from {
+        case .custom: self
+        case .default: withMirroredDefaults()
+        case .wearer: wearer.map(mirroring) ?? withMirroredDefaults()
+        }
+    }
 }

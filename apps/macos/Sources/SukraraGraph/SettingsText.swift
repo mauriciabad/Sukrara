@@ -1,6 +1,7 @@
 // Sukrara — https://github.com/mauriciabad/sukrara
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
+import CoreGraphics
 import Foundation
 import SukraraCore
 
@@ -63,4 +64,6 @@ extension MarkShow {
 extension Band {
     /// The settings spelling (`ringOrder`).
     public var settingsName: String { name }
+    /// The range's colour on the card (the settings' ring order list shows it).
+    public func color(dark: Bool) -> CGColor { GraphPalette.of(dark: dark).of(self) }
 }

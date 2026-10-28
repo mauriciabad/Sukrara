@@ -126,6 +126,51 @@
                             model: mirrored, loginItem: nil, updateResult: nil, checkForUpdates: {}, openFollow: {}
                         ).frame(width: 560, height: 900))
                 ))
+            // the Graph and Rings panes: this Mac's own (Custom, a few values changed) and the wearer's (read-only)
+            func scratch() -> DefaultsSettingsStore {
+                DefaultsSettingsStore(defaults: UserDefaults(suiteName: "app.mauri.sukrara.snap.\(UUID().uuidString)")!)
+            }
+            let ownStore = scratch()
+            let own = SettingsModel(store: ownStore, follow: following, version: "0.12.0")
+            own.settingsFrom = .custom
+            own.updateGraph {
+                $0.lines = [100, 250]
+                $0.ringCount = 3
+                $0.ringOrder = [.veryLow, .low, .tight, .target, .high, .veryHigh]
+            }
+            own.setPlaceHours(24, .widget)
+            let marta = WearerSettings(
+                json: #"{"graph":{"tight":130,"defaultHours":6,"lines":"","lastPlace":"END"}}"#, wearer: "Marta")
+            let fromWearer = SettingsModel(store: scratch(), follow: following, wearer: marta, version: "0.12.0")
+            for (name, pane, model, height) in [
+                ("settings-graph", SettingsModel.Pane.graph, own, 1500.0),
+                ("settings-graph-wearer", .graph, fromWearer, 900),
+                ("settings-rings", .rings, own, 1300),
+                ("settings-rings-wearer", .rings, fromWearer, 700),
+                ("settings-following", .following, own, 560),
+            ] {
+                model.pane = pane
+                let m = SettingsModel(store: model.store, follow: model.follow, wearer: model.wearer, version: "0.12.0")
+                m.pane = pane
+                out.append(
+                    (
+                        name,
+                        AnyView(
+                            SettingsView(
+                                model: m, loginItem: nil, updateResult: nil, checkForUpdates: {}, openFollow: {}
+                            ).frame(width: 600, height: height))
+                    ))
+            }
+            let general = SettingsModel(store: ownStore, follow: following, wearer: marta, version: "0.12.0")
+            general.pane = .general
+            out.append(
+                (
+                    "settings-general-custom",
+                    AnyView(
+                        SettingsView(
+                            model: general, loginItem: nil, updateResult: nil, checkForUpdates: {}, openFollow: {}
+                        ).frame(width: 600, height: 860))
+                ))
             out.append(("treatment-add", AnyView(AddTreatmentView(focusCarbs: true, save: { _ in }, cancel: {}))))
             let t0 = Int64(Date().timeIntervalSince1970)
             let rows: [TreatmentsModel.Row] = [

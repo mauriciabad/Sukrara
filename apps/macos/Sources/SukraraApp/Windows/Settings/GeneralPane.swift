@@ -4,7 +4,8 @@
 import SukraraCore
 import SwiftUI
 
-/// General: Following (wearer, data age, link state, Unfollow confirmed), units, open at login, updates, version.
+/// General: Settings from (with what's in use and Copy the wearer's settings…), units, open at login, updates,
+/// version, Quit.
 struct GeneralPane: View {
     @Bindable var model: SettingsModel
     /// Open at login (nil when this run may not touch login items: dev, fixture and snapshot runs).
@@ -15,7 +16,18 @@ struct GeneralPane: View {
 
     var body: some View {
         Form {
-            Section(L10n.t("Following")) { FollowingRows(follow: model.follow, openFollow: openFollow) }
+            Section {
+                SettingsFromPicker(model: model)
+            } header: {
+                Text(L10n.t("Settings"))
+            } footer: {
+                Text(
+                    L10n.t(
+                        "Wearer and Default decide the ranges, the time shown, the rings, the lines, the last treatment, the sensor countdown and when to alert; Custom lets you set them on this Mac. Sounds, the no-data alert, the notification's buttons and each place's own time shown and sensor time are always this Mac's."
+                    )
+                )
+                .font(.callout).foregroundStyle(.secondary)
+            }
             Section(L10n.t("Glucose")) {
                 Picker(L10n.t("Unit"), selection: $model.unit) {
                     Text("mg/dL").tag(GlucoseUnit.mgdl)
@@ -33,7 +45,68 @@ struct GeneralPane: View {
                     Button(L10n.t("Check now"), action: checkForUpdates)
                 }
                 if let r = updateResult { Text(r).foregroundStyle(.secondary) }
+                HStack {
+                    Spacer()
+                    Button(L10n.t("Quit Sukrara")) { NSApp.terminate(nil) }
+                }
             }
+        }
+        .formStyle(.grouped)
+    }
+}
+
+/// Settings from: Wearer, Default or Custom, the sentence saying what's in use, and in Custom the copy of the wearer's
+/// settings (asked first).
+struct SettingsFromPicker: View {
+    @Bindable var model: SettingsModel
+
+    var body: some View {
+        Picker(L10n.t("Settings from"), selection: $model.settingsFrom) {
+            ForEach(SettingsFrom.allCases, id: \.self) { Text(Self.name($0, model)).tag($0) }
+        }
+        LabeledContent(L10n.t("In use")) {
+            Text(model.inUse).multilineTextAlignment(.trailing).foregroundStyle(.secondary)
+        }
+        if model.editable {
+            HStack {
+                Spacer()
+                Button(L10n.t("Copy the Wearer's Settings…")) { model.confirmingCopy = true }
+                    .disabled(model.wearer == nil)
+                    .confirmationDialog(
+                        L10n.t("Copy \(Self.who(model))'s settings?"), isPresented: $model.confirmingCopy
+                    ) {
+                        Button(L10n.t("Copy Settings")) { model.copyWearer() }
+                        Button(L10n.t("Cancel"), role: .cancel) {}
+                    } message: {
+                        Text(
+                            L10n.t(
+                                "This Mac's ranges, time shown, rings, lines, last treatment, sensor countdown and alert rules become theirs, as a starting point to change. Sounds and the other settings of this Mac stay."
+                            ))
+                    }
+            }
+        }
+    }
+
+    static func who(_ model: SettingsModel) -> String { model.wearer?.wearer ?? L10n.t("the wearer") }
+
+    static func name(_ f: SettingsFrom, _ model: SettingsModel) -> String {
+        switch f {
+        case .wearer:
+            model.wearer?.wearer.map { L10n.t("\($0) (wearer)") } ?? L10n.t("Wearer")
+        case .default: L10n.t("Default")
+        case .custom: L10n.t("Custom")
+        }
+    }
+}
+
+/// Following: the link with the wearer, its state in words and its exits.
+struct FollowingPane: View {
+    @Bindable var model: SettingsModel
+    var openFollow: () -> Void
+
+    var body: some View {
+        Form {
+            Section { FollowingRows(follow: model.follow, openFollow: openFollow) }
         }
         .formStyle(.grouped)
     }
@@ -136,7 +209,7 @@ struct FollowingRows: View {
     }
 }
 
-/// The settings window's content: two panes, the last one chosen is remembered.
+/// The settings window's content: five panes; the window reopens on the last one.
 struct SettingsView: View {
     @Bindable var model: SettingsModel
     /// Open at login (LoginItem over SMAppService.mainApp, schema `general.openAtLogin`).
@@ -154,10 +227,19 @@ struct SettingsView: View {
             )
             .tabItem { Label(L10n.t("General"), systemImage: "gearshape") }
             .tag(SettingsModel.Pane.general)
+            GraphPane(model: model)
+                .tabItem { Label(L10n.t("Graph"), systemImage: "chart.xyaxis.line") }
+                .tag(SettingsModel.Pane.graph)
+            RingsPane(model: model)
+                .tabItem { Label(L10n.t("Rings"), systemImage: "circle.circle") }
+                .tag(SettingsModel.Pane.rings)
             AlertsRangesPane(model: model)
                 .tabItem { Label(L10n.t("Alerts"), systemImage: "bell") }
                 .tag(SettingsModel.Pane.alerts)
+            FollowingPane(model: model, openFollow: openFollow)
+                .tabItem { Label(L10n.t("Following"), systemImage: "person.2") }
+                .tag(SettingsModel.Pane.following)
         }
-        .frame(minWidth: 520, minHeight: 520)
+        .frame(minWidth: 560, minHeight: 560)
     }
 }
