@@ -79,6 +79,9 @@ class GlucoseHubImpl(
 
     @Volatile private var attachedSource: ReadingSource? = null
 
+    /** Readings stamped at or before this don't arm monitoring ([resetMonitoring] after a forgotten sensor). */
+    @Volatile private var armAfter: Instant? = null
+
     private val inputsLoaded = CompletableDeferred<Unit>()
 
     /** Completes once the role and the record have been read (after [start]). */
@@ -150,9 +153,14 @@ class GlucoseHubImpl(
 
     /**
      * Back to "Not monitoring" after the person removed the sensor or changed the role (an explicit action only: a
-     * source glitch never disarms the no-data alarm).
+     * source glitch never disarms the no-data alarm). With [sensorForgotten] a reading of the old sensor still on its
+     * way (queued in the source before it stopped) is stored but doesn't arm monitoring again: only a reading stamped
+     * after this moment does (the next sensor's).
      */
-    suspend fun resetMonitoring() = record.update { MonitorRecord() }
+    suspend fun resetMonitoring(sensorForgotten: Boolean = false) {
+        if (sensorForgotten) armAfter = clock.now()
+        record.update { MonitorRecord() }
+    }
 
     fun setService(service: ServiceState) = mutableState.update { it.copy(service = service) }
 
@@ -172,7 +180,12 @@ class GlucoseHubImpl(
         if (valid.isEmpty()) return
         readings.upsert(valid)
         val startedAt = now.toEpochMilli()
-        record.update { if (it.startedAtEpochMs == null) it.copy(startedAtEpochMs = startedAt) else it }
+        record.update {
+            // the fence is read inside the update: a reset landing meanwhile still holds
+            val fence = armAfter
+            val arms = fence == null || valid.any { r -> r.t.isAfter(fence) }
+            if (it.startedAtEpochMs == null && arms) it.copy(startedAtEpochMs = startedAt) else it
+        }
     }
 
     private fun onSourceSensor(sensor: SensorState) {

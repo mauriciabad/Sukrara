@@ -29,6 +29,7 @@ import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.mauri.sukrara.core.model.Clock
 import app.mauri.sukrara.core.model.Durations
@@ -74,6 +75,11 @@ fun SensorSettingsScreen(
     onBack: () -> Unit,
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    // back from Android's app page (where NFC taps are allowed again): read it again
+    LifecycleResumeEffect(viewModel) {
+        viewModel.recheck()
+        onPauseOrDispose {}
+    }
     val now by produceState(clock.now()) {
         while (true) {
             delay(60_000)

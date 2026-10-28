@@ -135,4 +135,6 @@
     <string name="monitor_action_resume">Resume</string>
     <string name="alert_test_title">Test · %1$s</string>
     <string name="alert_test_text">A test from Settings, not a reading. Your real alert sounds like this.</string>
+    <string name="calendar_event_title">Sensor ends</string>
+    <string name="calendar_event_description">Sensor %1$s, started %2$s. Sukrara keeps this event up to date.</string>
 </resources>

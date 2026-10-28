@@ -111,4 +111,27 @@
     <string name="newsensor_wrong_id_text">El ID no es de este sensor. Compruébalo y vuelve a emparejar.</string>
     <string name="newsensor_refused_text">El sensor ha rechazado la conexión. Vuelve a emparejar; si sigue rechazándola, puede que la app oficial lo esté usando.</string>
     <string name="newsensor_bond_failed_text">El emparejamiento Bluetooth de Android no ha terminado. Vuelve a emparejar y escribe el PIN de la tapa cuando te lo pida.</string>
+    <string name="newsensor_failed_libre2_title">Los sensores Libre 1 y 2 no se leen aquí</string>
+    <string name="newsensor_failed_libre2_text">Es un FreeStyle Libre 1 o 2. No se le ha enviado nada. Sukrara lee el Libre 3 y el 3 Plus por sí misma; para este sensor, inícialo en Juggluco y lee la glucosa desde Juggluco.</string>
+    <string name="newsensor_failed_not_sensor_title">Eso no era un sensor</string>
+    <string name="newsensor_failed_not_sensor_text">El móvil ha leído otra etiqueta NFC, como una tarjeta. Acerca la parte de atrás del móvil al sensor del brazo y vuelve a intentarlo.</string>
+    <string name="newsensor_step_sensor">Sensor</string>
+    <string name="newsensor_step_scan">Escanear</string>
+    <string name="newsensor_step_setup">Preparar</string>
+    <string name="newsensor_step_pair">Emparejar</string>
+    <string name="newsensor_step_readings">Lecturas</string>
+    <string name="newsensor_step_desc">Paso %1$d de %2$d: %3$s</string>
+    <string name="newsensor_art_desc">La parte de atrás de un móvil tocando el sensor en su punto NFC</string>
+    <string name="newsensor_tips_button">¿No pasa nada?</string>
+    <string name="newsensor_tips_title">¿No responde?</string>
+    <string name="newsensor_tips_text">Mueve el móvil despacio sobre el sensor. Quita la funda si es gruesa o metálica. Deja la pantalla encendida y desbloqueada.</string>
+    <string name="newsensor_pair_connecting">Conectando por Bluetooth</string>
+    <string name="newsensor_pair_securing">Emparejando de forma segura</string>
+    <string name="newsensor_pair_starting">Iniciando las lecturas</string>
+    <string name="newsensor_pair_state_done">Hecho</string>
+    <string name="newsensor_pair_state_now">En curso</string>
+    <string name="newsensor_pair_state_next">Pendiente</string>
+    <string name="newsensor_slow_title">¿Tarda más de lo normal?</string>
+    <string name="newsensor_slow_text">Puede que otra app aún tenga el sensor. Fuerza la detención de LibreLink o Juggluco (Información de la app › Forzar detención) y deja el móvil cerca del sensor.</string>
+    <string name="newsensor_slow_scanned_text">Deja el móvil cerca del sensor. Un sensor emparejado con otro móvil no se puede emparejar aquí.</string>
 </resources>

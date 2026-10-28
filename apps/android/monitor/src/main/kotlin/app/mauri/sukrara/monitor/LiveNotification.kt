@@ -29,6 +29,7 @@ import app.mauri.sukrara.graph.GraphConfig
 import app.mauri.sukrara.graph.SensorBadge
 import app.mauri.sukrara.graph.ValueGlyphs
 import app.mauri.sukrara.graph.cardModelOf
+import app.mauri.sukrara.graph.face
 import app.mauri.sukrara.graph.notificationCardStyle
 import app.mauri.sukrara.graph.stats.Bands
 import app.mauri.sukrara.graph.stats.toPoint
@@ -355,14 +356,14 @@ class LiveNotification(
             }
 
             Target.SensorSetup -> {
-                val setup = Intent(NavTargets.ACTION_SENSOR_SETUP).setPackage(context.packageName).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                PendingIntent.getActivity(context, REQUEST_SENSOR, if (hasSensorSetup) setup else launchIntent(), IMMUTABLE)
+                // the app's own activity with the flow's action: no exported filter for it (any app could open it)
+                val setup = launchIntent().setAction(NavTargets.ACTION_SENSOR_SETUP).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                PendingIntent.getActivity(context, REQUEST_SENSOR, setup, IMMUTABLE)
             }
         }
 
     // the app's activities are fixed at build time: resolved once, not on every post
     private val hasQuickTreatment by lazy { resolves(NavTargets.ACTION_QUICK_TREATMENT) }
-    private val hasSensorSetup by lazy { resolves(NavTargets.ACTION_SENSOR_SETUP) }
 
     private fun resolves(action: String) = Intent(action).setPackage(context.packageName).resolveActivity(context.packageManager) != null
 
@@ -400,41 +401,7 @@ class LiveNotification(
         fun face(
             state: GlucoseState,
             now: Instant,
-        ): GlucoseLook =
-            GlucoseCard.face(
-                state.latest?.toPoint(),
-                now.epochSecond,
-                sensorLook(state.sensor, now),
-                CardSurface.NOTIFICATION_TEXT,
-            )
-
-        /**
-         * The sensor states the face decides on (ended; warming up with its ready time where the number goes). The
-         * badge's label and life ring aren't used by the face, so they stay empty here.
-         */
-        private fun sensorLook(
-            sensor: SensorState,
-            now: Instant,
-        ): SensorBadge.Look? =
-            when (sensor) {
-                SensorState.Ended -> {
-                    SensorBadge.Look(label = "", life = 0f, ended = true)
-                }
-
-                is SensorState.WarmingUp -> {
-                    SensorBadge.Look(
-                        label = "",
-                        life = 0f,
-                        ended = false,
-                        warmup = Freshness.timeText(sensor.readyAt.epochSecond, now.epochSecond),
-                        readyAt = sensor.readyAt.epochSecond,
-                    )
-                }
-
-                else -> {
-                    null
-                }
-            }
+        ): GlucoseLook = GlucoseCard.face(state, now.epochSecond, CardSurface.NOTIFICATION_TEXT)
 
         /** A state's icon resource ([Icon.TREND] is drawn by the renderer instead). */
         fun iconRes(icon: Icon): Int =

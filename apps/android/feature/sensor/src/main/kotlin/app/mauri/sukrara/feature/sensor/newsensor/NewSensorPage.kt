@@ -184,11 +184,28 @@ fun NewSensorStep.page(): NewSensorPage =
                     )
                 }
 
-                NfcFailure.NotLibre3 -> {
+                NfcFailure.Libre2 -> {
+                    NewSensorPage(
+                        R.string.newsensor_failed_libre2_title,
+                        R.string.newsensor_failed_libre2_text,
+                        listOf(NewSensorAction.UseJuggluco, NewSensorAction.Done),
+                    )
+                }
+
+                NfcFailure.OtherSensor -> {
                     NewSensorPage(
                         R.string.newsensor_failed_not_libre3_title,
                         R.string.newsensor_failed_not_libre3_text,
                         listOf(NewSensorAction.UseJuggluco, NewSensorAction.Done),
+                    )
+                }
+
+                // a card or another tag answered: the sensor itself can still be tapped
+                NfcFailure.NotASensor -> {
+                    NewSensorPage(
+                        R.string.newsensor_failed_not_sensor_title,
+                        R.string.newsensor_failed_not_sensor_text,
+                        listOf(NewSensorAction.TryAgain, NewSensorAction.Done),
                     )
                 }
 

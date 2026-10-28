@@ -37,8 +37,10 @@ The full catalog, with every rule and number, is [docs/FEATURES.md](docs/FEATURE
   sensor sends no value.
 - **LO / HI** from any sensor show as *LO* / *HI*, never a made-up number, and sound the very low / extremely high
   alert at once (Android and Mac).
-- A guided **new sensor** screen: which sensor, warm-up countdown, every failure handled on the same screen
-  (ended sensor, Libre 1/2, another app holding the sensor, Bluetooth off, a wrong ID or PIN).
+- A guided **new sensor** screen: a step bar (Sensor · Scan · Pair · Readings), which sensor, a drawing of where to hold
+  the phone (this phone's NFC antenna) with tips after 10 s, ticked pairing steps and *Taking longer?* after 45 s, the
+  warm-up countdown in a ring, haptics on the tap, the screen kept on, every failure handled on the same screen
+  (ended sensor, Libre 1/2, a tag that isn't a sensor, another app holding the sensor, Bluetooth off, a wrong ID or PIN).
 - **Settings › Sensor**: the current sensor (status, serial, start, end and time left), the reading source (Libre 3
   directly or Juggluco, saying first what changes), the LibreView account (email and receiver ID, sign in / out; the
   password is never stored) and *Pair new sensor*.
@@ -64,15 +66,18 @@ The full catalog, with every rule and number, is [docs/FEATURES.md](docs/FEATURE
   independent of the monitoring service.
 - **Sensor end**: reminders you set (up to six, 0–3 days before at a time; earlier at the first unlock; one the
   evening before a night-time end), a live countdown in the sensor's last hours, a warm-up countdown with *Sensor
-  ready*, and *Sensor ended* with *Replace sensor* (Settings › Sensor end).
+  ready*, *Sensor ended* with *Replace sensor* (it opens the new-sensor flow), and optionally the sensor's end as an
+  event in Sukrara's own calendar or one you pick (Settings › Sensor end).
 - **Monitoring** in one foreground service that comes back by itself (boot, update, a 15 min health check); before the
   first reading every surface says *Not monitoring: no sensor yet* and no no-data alarm is armed.
 - **Treatments**: a quick dialog for rapid / long insulin, carbs and a note (from the notification, the Quick
-  Settings tile *Add treatment* or home), *now*, a time or *minutes ago*, a line saying which alerts it quiets and for
+  Settings tile *Add treatment*, which also shows your glucose, or home), *now*, a time or *minutes ago*, a line saying which alerts it quiets and for
   how long, and a short countdown when opened on the lock screen (a ring on *Cancel*, also in the *When?* picker, and
   one spoken *Closes in 10 seconds* with TalkBack).
 - **Home-screen widgets** (*Glucose*, *Glucose graph*, *Glucose and graph*) drawn by the same card renderer at the
-  widget's real size; home offers *Add widget* until a graph widget is placed, and a tap opens *Add treatment*.
+  widget's real size (*Glucose* down to one cell), with the same card as their picker preview; home offers *Add
+  widget* until a graph widget is placed (or says how to add it by hand when the launcher can't), and a tap opens
+  *Add treatment*.
 - **Settings** for daily use (searchable, accents optional; an icon on every row): alerts (an on/off switch on each alert row, thresholds you confirm, repeats, sounds,
   quiet rules, *Play sound* and *Send a test alert*), an alert reliability checklist with *Fix* buttons
   (notifications, alarms, full-screen, battery, Do Not Disturb, Bluetooth), ranges and the whole graph (lines, time
@@ -150,8 +155,8 @@ The full catalog, with every rule and number, is [docs/FEATURES.md](docs/FEATURE
   through at 5 min, the graph dimmed with the reading's time, no value at 20 min) and a tap opens Add treatment.
 - VoiceOver reads the value as one sentence with the range in words.
 
-**Not included**: the LSPosed lock-screen widget, Dexcom / Aidex / SmartGuide (untested) sensors, the pen list and dose review, the sensor-end
-calendar event.
+**Not included**: the LSPosed lock-screen widget, Dexcom / Aidex / SmartGuide (untested) sensors, and the pen list and
+dose review.
 
 **Garmin watch:** switch on *Settings › Share with apps › xDrip+ server*; watch faces and data fields made for xDrip+
 read it through Garmin Connect. While **Juggluco** is Sukrara's source, Juggluco keeps its own server and feeds the

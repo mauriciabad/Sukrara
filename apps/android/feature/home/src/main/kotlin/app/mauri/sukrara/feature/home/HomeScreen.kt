@@ -713,13 +713,15 @@ private fun banner(
             )
         }
 
+        // the launcher can't place it from the app: where to find it by hand (Close is the way out)
         BannerKind.AddWidget -> {
+            val pinnable = state.widgetPinnable
             Banner(
                 kind.name,
                 DsR.drawable.ds_ic_info,
                 stringResource(R.string.banner_widget_title),
-                stringResource(R.string.banner_widget_text),
-                stringResource(R.string.banner_widget_action),
+                stringResource(if (pinnable) R.string.banner_widget_text else R.string.banner_widget_manual),
+                if (pinnable) stringResource(R.string.banner_widget_action) else null,
                 open(HomeAction.AddWidget),
                 dismiss,
                 severity,

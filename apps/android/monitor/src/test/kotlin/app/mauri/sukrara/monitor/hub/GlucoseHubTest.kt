@@ -204,6 +204,34 @@ class GlucoseHubTest {
         }
 
     @Test
+    fun `a reading of a forgotten sensor still on its way doesn't arm monitoring again, the next sensor's does`() =
+        runTest {
+            val hub = hub()
+            val source = FakeSource()
+            backgroundScope.launch { hub.attach(source) }
+            runCurrent()
+            source.emitted.emit(listOf(reading(120, agoMin = 1)))
+            runCurrent()
+            assertNotNull(hub.state.value.monitoringStartedAt)
+
+            hub.resetMonitoring(sensorForgotten = true)
+            // queued in the source before it stopped: stamped before the reset
+            source.emitted.emit(listOf(reading(121, agoMin = 0)))
+            runCurrent()
+            assertEquals(NotMonitoringReason.NoSensorYet, hub.state.value.notMonitoring)
+            assertEquals(
+                121,
+                hub.state.value.latest
+                    ?.mgdl,
+            )
+
+            clock.advance(Duration.ofMinutes(1))
+            source.emitted.emit(listOf(reading(125, agoMin = 0)))
+            runCurrent()
+            assertEquals(clock.now(), hub.state.value.monitoringStartedAt)
+        }
+
+    @Test
     fun `bluetooth off shows on a wearer and the source reconnects when it is back`() =
         runTest {
             val hub = hub()

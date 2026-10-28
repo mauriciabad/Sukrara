@@ -152,6 +152,8 @@ data class HomeUiState(
     val untestedSensor: String? = null,
     /** The restart card's System UI module runs an older build (else it isn't loaded yet). */
     val systemUiUpdated: Boolean = false,
+    /** The launcher can place the widget from the app (the widget banner's *Add* button), else the hand-made way. */
+    val widgetPinnable: Boolean = true,
 ) {
     val mutedUntil: Instant? get() = glucose.alerts.mutedUntil?.takeIf { it > now }
 }
@@ -216,6 +218,7 @@ class HomeViewModel(
                 firstProblem = readiness?.firstProblem,
                 nextSetupStep = env.nextSetupStep,
                 systemUiUpdated = env.systemUiRestart == ModuleState.Update,
+                widgetPinnable = env.widgetPinnable,
                 dataProblems = problems,
                 treatments = listed,
                 history = history,

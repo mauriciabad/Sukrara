@@ -54,6 +54,8 @@ import app.mauri.sukrara.monitor.notify.Channels
 import app.mauri.sukrara.monitor.notify.NotificationGroups
 import app.mauri.sukrara.monitor.notify.NotificationIds
 import app.mauri.sukrara.monitor.notify.SharingLine
+import app.mauri.sukrara.monitor.sensorend.CalendarRecord
+import app.mauri.sukrara.monitor.sensorend.SensorCalendar
 import app.mauri.sukrara.monitor.sensorend.SensorEndMemory
 import app.mauri.sukrara.monitor.service.StartReason
 import app.mauri.sukrara.pen.PenLog
@@ -254,6 +256,7 @@ class AppGraph(
             restoreClinicBanner = { scope.launch { home.bannerMemory.update { it.restore(BannerKind.ShareWithClinic) } } },
             closedTips = home.bannerMemory.data.map { it.closed },
             restoreClosedTips = { scope.launch { home.bannerMemory.update { it.restoreAll() } } },
+            sensorCalendar = { sensorCalendar },
             advanced = {
                 AppAdvanced(
                     role.data.map { it.role },
@@ -407,10 +410,26 @@ class AppGraph(
         monitor.hubImpl.resetMonitoring()
     }
 
+    /** *Sensor end in calendar*: the wearer's events and the settings rows. */
+    val sensorCalendar by lazy {
+        val record = data.typedStore("sensor-calendar", CalendarRecord.serializer(), CalendarRecord(), whenCorrupt = CalendarRecord())
+        AppSensorCalendar(
+            app,
+            SensorCalendar(app, record),
+            record,
+            data.settings,
+            role.data.map { it.role },
+            sensor.source.sensorInfo,
+            clock,
+            scope,
+            dispatchers.io,
+        )
+    }
+
     val sensorSettings by lazy {
         SensorSettingsBridge(sensor, data.settings, SensorSource, scope, {
             startMonitoring(StartReason.App)
-        }) { monitor.hubImpl.resetMonitoring() }
+        }) { monitor.hubImpl.resetMonitoring(sensorForgotten = true) }
     }
 
     /** The person's graph settings: THE [GraphConfig] every card surface draws with (home, widgets). */
@@ -435,6 +454,7 @@ class AppGraph(
                 widgets.presence.refresh()
                 widgets.presence.placed.value
             },
+            widgetPinnable = { widgets.presence.canPin() },
             treatmentLog = { treatments.log },
             sharing = { shareOwner.ownerEngine.state },
             penTapsBlocked = { pens.tapsBlockedWhileOn() },
@@ -575,6 +595,8 @@ class AppGraph(
                 integrations.start(scope)
             }
             step("pens") { pens.start() }
+            // the sensor's end in the calendar (opt-in, the wearer's phone)
+            step("calendar") { scope.launch { sensorCalendar.keepInLine() } }
             // a Libre tap opens the new-sensor flow only on the wearer's phone reading the sensor itself (the row
             // shows only then: never on and hidden)
             step("sensor tap") {

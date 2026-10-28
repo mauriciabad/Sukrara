@@ -13,6 +13,7 @@ import app.mauri.sukrara.core.model.SystemAccessPort
 import app.mauri.sukrara.core.model.storage.SettingsRepository
 import app.mauri.sukrara.feature.settings.advanced.AdvancedPort
 import app.mauri.sukrara.feature.settings.follower.SettingsFromPort
+import app.mauri.sukrara.feature.settings.sensorend.SensorCalendarPort
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
 import okhttp3.OkHttpClient
@@ -47,6 +48,7 @@ class SettingsModule(
     advanced: () -> AdvancedPort = { AdvancedPort.None },
     overviewSharing: Flow<OverviewSharing> = flowOf(OverviewSharing()),
     settingsFrom: SettingsFromPort = SettingsFromPort.None,
+    sensorCalendar: () -> SensorCalendarPort = { SensorCalendarPort.None },
 ) {
     val deps: SettingsDeps =
         object : SettingsDeps {
@@ -82,6 +84,7 @@ class SettingsModule(
 
             override val overviewSharing = overviewSharing
             override val settingsFrom = settingsFrom
+            override val sensorCalendar by lazy { sensorCalendar() }
         }
 
     /** When the alert thresholds were confirmed (null = never): home's Finish-setup card asks until they are. */

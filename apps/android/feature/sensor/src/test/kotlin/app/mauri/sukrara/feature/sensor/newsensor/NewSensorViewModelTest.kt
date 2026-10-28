@@ -101,7 +101,18 @@ class NewSensorViewModelTest {
             port.sensor.value = SensorState.Active(null)
             runCurrent()
             assertEquals(NewSensorStep.Ready, vm.state.value.step)
-            assertEquals(listOf(NewSensorEffect.TapSucceeded, NewSensorEffect.Ready), effects)
+            assertEquals(listOf(NewSensorEffect.TagFound, NewSensorEffect.TapSucceeded, NewSensorEffect.Ready), effects)
+        }
+
+    @Test fun `a tag that isn't a sensor plays the found tick, then the refusal`() =
+        runTest(dispatcher) {
+            val vm = vm(FakePort())
+            val effects = mutableListOf<NewSensorEffect>()
+            backgroundScope.launch { vm.effects.toList(effects) }
+            vm.onTagRead { PairOutcome.NotASensor }
+            runCurrent()
+            assertEquals(NewSensorStep.NfcFailed(NfcFailure.NotASensor), vm.state.value.step)
+            assertEquals(listOf(NewSensorEffect.TagFound, NewSensorEffect.TapFailed), effects)
         }
 
     @Test fun `a paired sensor becomes the source and monitoring starts, a failed tap changes nothing`() =

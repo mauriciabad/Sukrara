@@ -264,14 +264,10 @@ class AndroidSensorEndPresenter(
     }
 
     private fun sensorSetup(): PendingIntent {
-        val setup = Intent(NavTargets.ACTION_SENSOR_SETUP).setPackage(ctx.packageName).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        val intent =
-            if (setup.resolveActivity(ctx.packageManager) != null) {
-                setup
-            } else {
-                ctx.packageManager.getLaunchIntentForPackage(ctx.packageName) ?: Intent().setPackage(ctx.packageName)
-            }
-        return PendingIntent.getActivity(ctx, REQUEST_SETUP, intent, PendingIntent.FLAG_IMMUTABLE)
+        // the app's own activity with the flow's action (MainActivity reads it): no exported filter for the action
+        val launch = ctx.packageManager.getLaunchIntentForPackage(ctx.packageName) ?: Intent().setPackage(ctx.packageName)
+        val setup = launch.setAction(NavTargets.ACTION_SENSOR_SETUP).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        return PendingIntent.getActivity(ctx, REQUEST_SETUP, setup, PendingIntent.FLAG_IMMUTABLE)
     }
 
     private fun dismissed(warmup: Boolean): PendingIntent =

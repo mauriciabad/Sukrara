@@ -570,11 +570,12 @@ private fun route(
             home.resumeMonitoring()
         }
 
-        // the launcher's own dialog places the combined widget; home re-checks on resume and the pin callback
+        // the launcher's own dialog places the combined widget; home re-checks on resume and the pin callback. A
+        // refused request turns the banner into the hand-made way (touch & hold the home screen)
         HomeAction.AddWidget -> {
             (context as? Activity)?.let {
                 context.graph.widgets.presence
-                    .pin(it)
+                    .pin(it) { context.graph.home.refresh() }
             }
         }
 
