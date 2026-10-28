@@ -271,7 +271,9 @@
         "rangeSide",
         "trendImage",
         "noReadingsSymbol",
-        "pillRect"
+        "pillRect",
+        "chartRects",
+        "chartSpan"
       ],
       "SensorBadge": [
         "look",

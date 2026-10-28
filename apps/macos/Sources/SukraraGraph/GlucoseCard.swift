@@ -457,7 +457,7 @@ public enum GlucoseCard {
         size: CGSize, scale: CGFloat = 2, readings: [GraphReading], marks: [GraphMark], now: TimeInterval,
         _ st: CardStyle, _ pal: GraphPalette, background: CGColor? = nil, surface: CardSurface,
         metricsOf: ((RingSpec, Bands) -> GlucoseMetrics)? = nil, alerts: CardAlerts = .none,
-        overflow: CGFloat = 0
+        overflow: CGFloat = 0, view: ChartView? = nil
     ) -> CGImage? {
         let pw = max(16, Int((size.width + 2 * overflow) * scale)),
             ph = max(16, Int((size.height + 2 * overflow) * scale))
@@ -474,7 +474,7 @@ public enum GlucoseCard {
         draw(
             ctx, size: size, readings: readings, marks: marks, now: now, st, pal, surface: surface, part: .all,
             metricsOf: metricsOf,
-            alerts: alerts)
+            alerts: alerts, view: view)
         return ctx.makeImage()
     }
 }
@@ -517,15 +517,58 @@ extension GlucoseCard {
     /// around the card for what overflows it (a ring's laurel or crown).
     public static func image(
         surface: CardSurface, size: CGSize, config: GraphConfig, overrides: PlaceOverrides = PlaceOverrides(),
-        data: CardData, unit: GlucoseUnit, dark: Bool, tinted: Bool = false, scale: CGFloat = 2, overflow: CGFloat = 0
+        data: CardData, unit: GlucoseUnit, dark: Bool, tinted: Bool = false, scale: CGFloat = 2, overflow: CGFloat = 0,
+        view: ChartView? = nil, contrast: Bool = false
     ) -> CGImage? {
-        let palette = GraphPalette.of(dark: dark)
+        let palette = Self.palette(surface, dark: dark, contrast: contrast)
         var style = surface.style(config, overrides, sensor: data.sensor)
         style.unit = unit
         return image(
             size: size, scale: scale, readings: data.readings, marks: data.marks, now: data.now, style,
             tinted ? palette.tinted() : palette,
-            surface: surface, alerts: data.alerts, overflow: overflow)
+            surface: surface, alerts: data.alerts, overflow: overflow, view: view)
+    }
+
+    /// The panel's card sits on a recessed module: its grid (and with Increase Contrast its secondary ink) is stronger.
+    static func palette(_ surface: CardSurface, dark: Bool, contrast: Bool) -> GraphPalette {
+        let p = GraphPalette.of(dark: dark)
+        return surface == .menubarCard ? p.onModule(contrast: contrast) : p
+    }
+
+    /// Where `surface`'s card at `size` draws its plot and, while `view` scrolls or zooms it, the "Now" pill (points
+    /// from the top left; nil when not drawn). The panel turns gestures over the plot into a `ChartView` and puts its
+    /// "Now" button on the pill.
+    public static func chartRects(
+        surface: CardSurface, size: CGSize, config: GraphConfig, data: CardData, unit: GlucoseUnit,
+        view: ChartView? = nil
+    ) -> (plot: CGRect?, now: CGRect?) {
+        guard
+            let ctx = CGContext(
+                data: nil, width: 1, height: 1, bitsPerComponent: 8, bytesPerRow: 0,
+                space: CGColorSpace(name: CGColorSpace.sRGB)!,
+                bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)
+        else { return (nil, nil) }
+        var style = surface.style(config, PlaceOverrides(), sensor: data.sensor)
+        style.unit = unit
+        let layout = draw(
+            ctx, size: size, readings: data.readings, marks: data.marks, now: data.now, style,
+            GraphPalette.of(dark: false), surface: surface, part: .all, alerts: data.alerts, view: view)
+        return (layout.first("chart.plot")?.box, layout.first("chart.now")?.box)
+    }
+
+    /// The length of `surface`'s chart window (s) with `config`: what a zoom starts from (nil = no chart).
+    public static func chartSpan(surface: CardSurface, config: GraphConfig) -> TimeInterval? {
+        surface.style(config, PlaceOverrides(), sensor: nil).graph?.window
+    }
+
+    /// The y range (mg/dL) `surface`'s chart draws for the window ending at `end` with length `span` (nil = its
+    /// own): a scrolling surface eases `ChartView.y` towards it, so the scale never jumps.
+    public static func yRange(
+        surface: CardSurface, config: GraphConfig, readings: [GraphReading], end: TimeInterval, span: TimeInterval?
+    ) -> ClosedRange<Double>? {
+        guard var g = surface.style(config, PlaceOverrides(), sensor: nil).graph else { return nil }
+        if let span { g.window = span }
+        return yRange(readings, end: end, g)
     }
 
     /// Draws `part` of `surface`'s card into `ctx` (y-down, points) at `size`: for surfaces that paint into a view.

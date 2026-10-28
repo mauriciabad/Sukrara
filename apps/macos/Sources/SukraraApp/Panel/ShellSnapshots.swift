@@ -48,7 +48,8 @@
             func scene(
                 link: LinkState = .following(wearer: "Marta", canWrite: true), readings: [Reading],
                 setup: SetupFlow = done, permission: NotificationPermission = .allowed,
-                mode: LaunchMode = .normal, focus: Bool = false, act: (AlertController) -> Void = { _ in }
+                mode: LaunchMode = .normal, focus: Bool = false, scroll: ChartScroll = ChartScroll(),
+                act: (AlertController) -> Void = { _ in }
             ) -> Scene {
                 var own = AlertSettings()
                 own.source = .own
@@ -84,7 +85,7 @@
                     view: AnyView(
                         VStack(alignment: .leading, spacing: 8) {
                             MenubarStrip(title: model.menubarTitle)
-                            PanelView(model: model, links: links)
+                            PanelView(model: model, links: links, scroll: scroll)
                         }))
             }
 
@@ -116,6 +117,12 @@
                 ("panel-notifications-off", scene(readings: ending(105, rate: 0), permission: .denied)),
                 ("panel-focus-can-hold", scene(readings: ending(105, rate: 0), focus: true)),
                 ("panel-fixture", scene(readings: ending(112, rate: -0.4), mode: .fixture)),
+                (
+                    "panel-chart-scrolled",
+                    scene(
+                        readings: ending(112, rate: -0.4),
+                        scroll: ChartScroll(end: now.timeIntervalSince1970 - 8 * 3600, span: 4 * 3600))
+                ),
             ]
         }
     }
