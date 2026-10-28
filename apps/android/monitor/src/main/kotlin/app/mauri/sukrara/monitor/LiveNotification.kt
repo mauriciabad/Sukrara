@@ -355,14 +355,14 @@ class LiveNotification(
             }
 
             Target.SensorSetup -> {
-                val setup = Intent(NavTargets.ACTION_SENSOR_SETUP).setPackage(context.packageName).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                PendingIntent.getActivity(context, REQUEST_SENSOR, if (hasSensorSetup) setup else launchIntent(), IMMUTABLE)
+                // the app's own activity with the flow's action: no exported filter for it (any app could open it)
+                val setup = launchIntent().setAction(NavTargets.ACTION_SENSOR_SETUP).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                PendingIntent.getActivity(context, REQUEST_SENSOR, setup, IMMUTABLE)
             }
         }
 
     // the app's activities are fixed at build time: resolved once, not on every post
     private val hasQuickTreatment by lazy { resolves(NavTargets.ACTION_QUICK_TREATMENT) }
-    private val hasSensorSetup by lazy { resolves(NavTargets.ACTION_SENSOR_SETUP) }
 
     private fun resolves(action: String) = Intent(action).setPackage(context.packageName).resolveActivity(context.packageManager) != null
 
