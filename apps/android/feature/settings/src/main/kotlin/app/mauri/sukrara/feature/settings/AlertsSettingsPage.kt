@@ -7,6 +7,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -40,6 +41,7 @@ class AlertsActions(
     val unmuteAll: () -> Unit = {},
     val openKind: (AlertKind) -> Unit = {},
     val openReview: () -> Unit = {},
+    val playback: AlertPlayback = AlertPlayback.None,
 )
 
 /** The alert rows' groups: lows, highs, rates, signal. */
@@ -330,7 +332,12 @@ private fun AlertsDialogs(
 
         dialog == "pack" -> {
             val packs = SettingsSpec.OPTIONS.getValue("soundPack")
-            ChoiceDialog(stringResource(R.string.st_sound_pack), packs.map { Choice(packName(it), it) }, s.sounds.pack, close) { pack ->
+            // a pack is heard as the low alert rings: the alert most people hear most
+            val playback = actions.playback
+            DisposableEffect(playback) { onDispose { playback.stop() } }
+            val alarm = s.rule(AlertKind.LOW).alarm
+            val options = packs.map { Choice(packName(it), it, trailing = soundPreview(AlertKind.LOW, it, alarm, playback)) }
+            ChoiceDialog(stringResource(R.string.st_sound_pack), options, s.sounds.pack, close) { pack ->
                 actions.edit { it.copy(sounds = it.sounds.copy(pack = pack)) }
             }
         }

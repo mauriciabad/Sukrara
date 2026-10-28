@@ -5,6 +5,7 @@ package app.mauri.sukrara.feature.home
 
 import app.mauri.sukrara.core.model.AlertReadiness
 import app.mauri.sukrara.core.model.AlertRequirement
+import app.mauri.sukrara.core.model.ModuleState
 import app.mauri.sukrara.feature.home.Samples.NOW
 import app.mauri.sukrara.feature.home.banners.BannerKind
 import app.mauri.sukrara.feature.home.banners.BannerMemory
@@ -75,5 +76,15 @@ class BannerSlotTest {
         assertEquals(0, two.restoreAll().closed)
         // a kind this build no longer has isn't counted
         assertEquals(0, BannerMemory(mapOf("Gone" to 1L)).closed)
+    }
+
+    @Test fun `a closed restart card stays closed for that state and build, and comes back with a new build`() {
+        val env = HomeEnvironment(backedUp = false, systemUiRestart = ModuleState.Restart, build = 7)
+        assertEquals(BannerKind.RestartSystemUi, pick(env = env))
+        val memory = BannerMemory().dismissKey(env.restartKey!!, NOW)
+        assertEquals(BannerKind.NotBackedUp, pick(env = env, memory = memory))
+        assertEquals(BannerKind.RestartSystemUi, pick(env = env.copy(build = 8), memory = memory))
+        assertEquals(BannerKind.RestartSystemUi, pick(env = env.copy(systemUiRestart = ModuleState.Update), memory = memory))
+        assertEquals(BannerKind.NotBackedUp, pick(env = env.copy(systemUiRestart = null), memory = memory))
     }
 }

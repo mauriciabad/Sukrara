@@ -44,7 +44,29 @@ enum class SourceLink {
 
     /** Juggluco's web server doesn't answer: no readings until Juggluco runs with it on. */
     JugglucoUnreachable,
+
+    /** Looking for the sensor (a scanned family): short scans until it shows up. Leaves by itself. */
+    Searching,
+
+    /** Connected, but the sensor asks for a calibration (Dexcom): done in the vendor's app or receiver. */
+    NoValueCalibration,
+
+    /** Connected, a temporary sensor issue: values come back by themselves. */
+    NoValueTemporary,
+
+    /** Connected, the sensor reports an error: if it lasts, the sensor needs replacing. */
+    NoValueSensorError,
+
+    /** Connected, the last message carried no value: waiting for the next one. */
+    NoValueMissing,
 }
+
+/**
+ * The paired sensor's family as the page names it ([label]: the brand name, not translated), whether Sukrara's support
+ * for it was confirmed on a real sensor ([untested] = never) and how many older sensors of the family the scan found
+ * nearby and skipped since the last reading ([skippedOld]: an ended one still bonded and advertising).
+ */
+data class SensorFamily(val label: String, val untested: Boolean, val skippedOld: Int = 0)
 
 /**
  * Everything Settings › Sensor shows. [sensor] is null until a sensor is known; [account] null = not signed in.
@@ -55,6 +77,7 @@ data class SensorSettingsState(
     val sensor: SensorSummary?,
     val account: LibreViewSummary?,
     val link: SourceLink = SourceLink.Receiving,
+    val family: SensorFamily? = null,
 )
 
 /**

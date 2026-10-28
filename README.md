@@ -32,7 +32,9 @@ The full catalog, with every rule and number, is [docs/FEATURES.md](docs/FEATURE
   Sukrara and Abbott's app. Or read from **Juggluco's local web server** if Juggluco keeps the sensor.
 - **Other sensors, untested**: Dexcom G7 / ONE+ / Stelo (read along with the Dexcom app), Dexcom G6 / ONE, Accu-Chek
   SmartGuide and Aidex X / LinX / GlucoRx. They were never tested with a real sensor: the new sensor screen tags them
-  *Untested* and asks you to confirm before pairing.
+  *Untested* and asks you to confirm before pairing; while you wear one, home asks for feedback (*Send feedback*
+  opens a pre-filled GitHub issue with nothing personal) and Settings › Sensor names the family and why a connected
+  sensor sends no value.
 - **LO / HI** from any sensor show as *LO* / *HI*, never a made-up number, and sound the very low / extremely high
   alert at once (Android and Mac).
 - A guided **new sensor** screen: which sensor, warm-up countdown, every failure handled on the same screen
