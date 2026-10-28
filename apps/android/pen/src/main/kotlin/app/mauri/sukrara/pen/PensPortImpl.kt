@@ -19,12 +19,14 @@ import app.mauri.sukrara.core.model.PenSessionStatus
 import app.mauri.sukrara.core.model.PenTaps
 import app.mauri.sukrara.core.model.PensPort
 import app.mauri.sukrara.pen.engine.Ledger
+import app.mauri.sukrara.pen.engine.PdDose
 import app.mauri.sukrara.pen.engine.PenEngine
 import app.mauri.sukrara.pen.engine.PenEntry
 import app.mauri.sukrara.pen.engine.Seen
 import app.mauri.sukrara.pen.engine.Session
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onStart
 
 /** Settings' view of the pens ([PensPort]) over the pen runtime; nothing here decides about doses. */
 class PensPortImpl(
@@ -33,8 +35,9 @@ class PensPortImpl(
 ) : PensPort {
     private val pensRt get() = module.pens
 
+    // the ledger loaded first: a page reopened after the app was killed must not see "no pens" and close
     override val pens: Flow<List<PenInfo>> =
-        pensRt.ledger.map { l ->
+        pensRt.ledger.onStart { pensRt.load() }.map { l ->
             val entries = if (l.pens.values.any { it.returning }) module.penEntries() else emptyList()
             l.pens.values
                 .sortedBy { it.first }
@@ -84,7 +87,7 @@ class PensPortImpl(
     }
 
     override fun sessions(serial: String): Flow<List<PenSessionInfo>> =
-        pensRt.ledger.map { l ->
+        kotlinx.coroutines.flow.combine(pensRt.ledger, module.logChanges) { l, _ -> l }.map { l ->
             val pen = l.pens[serial] ?: return@map emptyList()
             val (sessions, entries) = pensRt.history(serial)
             val byId = entries.associateBy { it.id }
@@ -106,6 +109,11 @@ class PensPortImpl(
         entry = s.entry,
         question = s.question,
         sameQuestion = l.questions.firstOrNull { it.id == s.question }?.type == PenEngine.MATCH_Q,
+        candidates =
+            l.questions
+                .firstOrNull { it.id == s.question }
+                ?.cands
+                ?.size ?: 0,
         mergedFrom = mergedFrom,
         incomplete = s.incomplete,
         doses =
@@ -178,35 +186,60 @@ class PensPortImpl(
     ) = pensRt.match(serial, t, units)?.let { PenNearEntry(it.id, it.a, it.t) }
 
     override suspend fun correct(
-        id: String,
+        shown: PenEntryInfo,
         primed: List<Boolean>,
     ): PenEntryInfo? {
-        val shown = entry(id) ?: return null
-        val pd = module.penEntries().firstOrNull { it.id == id }?.pd ?: return null
-        if (pd.size != shown.doses.size) return null
-        return pensRt.correct(id, pd, primed)?.let { shown }
+        // the doses exactly as the sheet showed them: an entry a read changed meanwhile isn't touched
+        val pd = shown.doses.map { PdDose(it.t, it.units, it.primed) }
+        return pensRt.correct(shown.id, pd, primed)?.let { shown }
     }
 
     override suspend fun restore(was: PenEntryInfo) = pensRt.restoreLast(was.id)
 
-    override suspend fun acceptSuggestion(question: String) = pensRt.acceptSuggestion(question, null).also { module.syncNotices() }
+    /** The question's keys in its own order when they are the doses the page showed; null = it changed. */
+    private suspend fun keysOf(
+        question: String,
+        shown: List<String>,
+    ): List<String>? =
+        pensRt
+            .load()
+            .questions
+            .firstOrNull { it.id == question }
+            ?.keys
+            ?.takeIf { it.toSet() == shown.toSet() }
 
-    override suspend fun allPriming(question: String) = pensRt.allPriming(question, null).also { module.syncNotices() }
+    override suspend fun acceptSuggestion(
+        question: String,
+        keys: List<String>,
+    ): Boolean {
+        val k = keysOf(question, keys) ?: return false
+        return pensRt.acceptSuggestion(question, k).also { module.syncNotices() }
+    }
+
+    override suspend fun allPriming(
+        question: String,
+        keys: List<String>,
+    ): Boolean {
+        val k = keysOf(question, keys) ?: return false
+        return pensRt.allPriming(question, k).also { module.syncNotices() }
+    }
 
     override suspend fun answerMatch(
         question: String,
+        keys: List<String>,
         same: Boolean,
     ): Boolean {
+        val k = keysOf(question, keys) ?: return false
         val q = pensRt.load().questions.firstOrNull { it.id == question } ?: return false
-        // the page answers only a single-candidate question (the read card offers the others)
+        // the page answers only a single-candidate question (the read card and notification offer the others)
         val entry = if (same) q.cands.singleOrNull() ?: return false else null
-        return pensRt.answerMatch(question, entry, null).also { module.syncNotices() }
+        return pensRt.answerMatch(question, entry, k).also { module.syncNotices() }
     }
 
-    override suspend fun checkPassed(serial: String): Boolean {
-        val r = pensRt.heldForCheck(serial) ?: return false
-        return pensRt.checkPassed(serial, r.scanTime)
-    }
+    override suspend fun checkPassed(
+        serial: String,
+        readAt: Long,
+    ): Boolean = pensRt.checkPassed(serial, readAt)
 
     override suspend fun checkFailed(serial: String) = pensRt.checkFailed(serial)
 

@@ -65,6 +65,7 @@ import app.mauri.sukrara.integrations.export.ExportPage
 import app.mauri.sukrara.integrations.nightscout.NightscoutPage
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
 import app.mauri.sukrara.feature.settings.R as SettingsR
 import app.mauri.sukrara.feature.sharing.R as SharingR
@@ -516,8 +517,11 @@ private fun route(
         }
 
         HomeAction.TurnOffPens -> {
-            context.graph.pens.turnOff()
-            home.refresh()
+            val graph = context.graph
+            graph.scope.launch {
+                graph.pens.turnOff()
+                home.refresh()
+            }
         }
     }
 }

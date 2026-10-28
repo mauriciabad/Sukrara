@@ -11,7 +11,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -37,6 +37,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -201,7 +202,16 @@ class PenActions(
 
     fun forget() = launch { port.forget(serial) }
 
-    fun checkPassed() = launch { if (!port.checkPassed(serial)) snack.value = PenSnack(R.string.st_pen_check_tap_again) }
+    fun checkPassed(readAt: Long) =
+        launch {
+            if (!port.checkPassed(
+                    serial,
+                    readAt,
+                )
+            ) {
+                snack.value = PenSnack(R.string.st_pen_check_tap_again)
+            }
+        }
 
     fun checkFailed() = launch { port.checkFailed(serial) }
 
@@ -228,7 +238,7 @@ class PenActions(
         e: PenEntryInfo,
         primed: List<Boolean>,
     ) = launch {
-        val was = port.correct(e.id, primed)
+        val was = port.correct(e, primed)
         snack.value =
             when {
                 was == null -> PenSnack(R.string.st_pen_changed_since)
@@ -239,14 +249,26 @@ class PenActions(
 
     fun restore(was: PenEntryInfo) = launch { if (!port.restore(was)) snack.value = PenSnack(R.string.st_pen_undo_failed) }
 
-    fun accept(q: String) = launch { if (!port.acceptSuggestion(q)) snack.value = PenSnack(R.string.st_pen_changed_since) }
+    fun accept(
+        q: String,
+        keys: List<String>,
+    ) = launch { if (!port.acceptSuggestion(q, keys)) snack.value = PenSnack(R.string.st_pen_changed_since) }
 
-    fun allPriming(q: String) = launch { if (!port.allPriming(q)) snack.value = PenSnack(R.string.st_pen_changed_since) }
+    fun allPriming(
+        q: String,
+        keys: List<String>,
+    ) = launch { if (!port.allPriming(q, keys)) snack.value = PenSnack(R.string.st_pen_changed_since) }
 
     fun same(
         q: String,
+        keys: List<String>,
         same: Boolean,
-    ) = launch { if (!port.answerMatch(q, same)) snack.value = PenSnack(R.string.st_pen_changed_since) }
+    ) = launch { if (!port.answerMatch(q, keys, same)) snack.value = PenSnack(R.string.st_pen_changed_since) }
+
+    /** An entry the page listed is gone (deleted elsewhere): the list follows, the snackbar says why nothing opened. */
+    fun gone() {
+        snack.value = PenSnack(R.string.st_pen_changed_since_open)
+    }
 
     private fun launch(block: suspend () -> Unit) {
         scope.launch { runCatching { block() } }
@@ -264,13 +286,14 @@ private fun PenSnackbar(
     val undo = stringResource(R.string.st_pen_undo)
     LaunchedEffect(s) {
         val snack = s ?: return@LaunchedEffect
-        vm.snack.value = null
         val r =
             host.showSnackbar(
                 message!!,
                 actionLabel = if (snack.undo != null) undo else null,
                 duration = if (snack.undo != null) SnackbarDuration.Long else SnackbarDuration.Short,
             )
+        // cleared only once shown (clearing first would restart this effect and cancel the snackbar)
+        vm.snack.value = null
         if (r == SnackbarResult.ActionPerformed) snack.undo?.let { vm.restore(it) }
     }
 }
@@ -388,8 +411,8 @@ fun PenPage(
             confirmButton = {
                 Button(onClick = {
                     forgetting = false
+                    // the page closes when the pen is gone (one Back, not two)
                     vm.forget()
-                    onBack()
                 }) { Text(stringResource(R.string.st_pen_forget_confirm)) }
             },
             dismissButton = { TextButton({ forgetting = false }) { Text(stringResource(android.R.string.cancel)) } },
@@ -417,7 +440,13 @@ private fun DisplayCheck(
             left--
         }
     }
-    val now = System.currentTimeMillis() / 1000
+    // the display counts hours from now: the line and the 10-minute limit follow the clock while the page is open
+    val now by produceState(System.currentTimeMillis() / 1000) {
+        while (true) {
+            kotlinx.coroutines.delay(15_000)
+            value = System.currentTimeMillis() / 1000
+        }
+    }
     val held = pen.held?.takeIf { now - it.readAt <= CHECK_FRESH_S }
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         if (!confirmed) {
@@ -459,7 +488,7 @@ private fun DisplayCheck(
                 FilledTonalButton(onClick = vm::checkFailed) { Text(stringResource(R.string.st_pen_check_no)) }
                 Button(onClick = {
                     haptics.confirm()
-                    vm.checkPassed()
+                    vm.checkPassed(held.readAt)
                 }) { Text(stringResource(R.string.st_pen_check_yes)) }
             }
         }
@@ -669,8 +698,14 @@ private fun DoseRow(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        Text(Clock.time(d.t), style = MaterialTheme.typography.bodyLarge, modifier = Modifier.width(56.dp))
-        Column(Modifier.width(64.dp)) {
+        Text(
+            Clock.time(d.t),
+            style = MaterialTheme.typography.bodyLarge,
+            maxLines = 1,
+            softWrap = false,
+            modifier = Modifier.widthIn(min = 56.dp),
+        )
+        Column(Modifier.widthIn(min = 48.dp)) {
             Text(units(d.units), style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium)
             if (d.incomplete) {
                 Text(stringResource(R.string.st_pen_incomplete), style = MaterialTheme.typography.labelSmall, maxLines = 1)
@@ -715,7 +750,14 @@ private fun EntrySheet(
     onDismiss: () -> Unit,
 ) {
     var e by remember { mutableStateOf<PenEntryInfo?>(null) }
-    LaunchedEffect(id) { e = vm.entry(id) }
+    val dismiss by rememberUpdatedState(onDismiss)
+    LaunchedEffect(id) {
+        e = vm.entry(id)
+        if (e == null) {
+            vm.gone()
+            dismiss()
+        }
+    }
     val entry = e ?: return
     val roles = remember(entry) { mutableStateListOf(*entry.doses.map { it.primed }.toTypedArray()) }
     val changed = roles.toList() != entry.doses.map { it.primed }
@@ -874,23 +916,30 @@ private fun QuestionSheet(
                     style = MaterialTheme.typography.bodyLarge,
                 )
             }
+            val keys = s.doses.map { it.key }
+            if (s.sameQuestion && s.candidates > 1) {
+                // several typed entries nearby: which one is answered on the read card or the notification
+                Text(stringResource(R.string.st_pen_q_several), style = MaterialTheme.typography.bodyMedium)
+            }
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End)) {
-                if (s.sameQuestion) {
+                if (s.sameQuestion && s.candidates > 1) {
+                    Button(onClick = onDismiss) { Text(stringResource(R.string.st_pen_done)) }
+                } else if (s.sameQuestion) {
                     FilledTonalButton(onClick = {
-                        vm.same(q, false)
+                        vm.same(q, keys, false)
                         onDismiss()
                     }) { Text(stringResource(R.string.st_pen_different)) }
                     Button(onClick = {
-                        vm.same(q, true)
+                        vm.same(q, keys, true)
                         onDismiss()
                     }) { Text(stringResource(R.string.st_pen_same)) }
                 } else {
                     FilledTonalButton(onClick = {
-                        vm.allPriming(q)
+                        vm.allPriming(q, keys)
                         onDismiss()
                     }) { Text(stringResource(R.string.st_pen_all_priming)) }
                     Button(onClick = {
-                        vm.accept(q)
+                        vm.accept(q, keys)
                         onDismiss()
                     }) { Text(stringResource(R.string.st_pen_log_units, units(s.units))) }
                 }

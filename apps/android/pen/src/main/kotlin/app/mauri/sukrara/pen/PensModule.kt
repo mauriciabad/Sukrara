@@ -46,6 +46,8 @@ class PensModule(
     private val roleSource: Flow<Role?>,
     val scope: CoroutineScope,
     ports: PenNotificationPorts,
+    /** Emits whenever the treatment log changes (an entry edited or deleted elsewhere): *Doses read* follows it. */
+    val logChanges: Flow<Any> = kotlinx.coroutines.flow.flowOf(Unit),
 ) {
     private val hasNfc = context.packageManager.hasSystemFeature(PackageManager.FEATURE_NFC)
     private val log = log
@@ -184,9 +186,7 @@ class PensModule(
     suspend fun tapsBlockedWhileOn(): Boolean = availableNow() && reading() == PenReading.On && tagsBlocked()
 
     /** Home banner's *Turn off*: pen reading off (Settings › Insulin pens turns it on again). */
-    fun turnOff() {
-        scope.launch { settings.set(Reading, PenReading.Off.value) }
-    }
+    suspend fun turnOff() = settings.set(Reading, PenReading.Off.value)
 
     /** Every pen entry of the log as the engine sees it (tombstones included). */
     suspend fun penEntries() = log.all().map(PenRecords::entry)

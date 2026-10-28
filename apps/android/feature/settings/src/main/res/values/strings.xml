@@ -516,4 +516,6 @@
         <item quantity="one">%1$s unit</item>
         <item quantity="other">%1$s units</item>
     </plurals>
+    <string name="st_pen_changed_since_open">That entry changed or was deleted meanwhile</string>
+    <string name="st_pen_q_several">Several of your entries are nearby: answer it on the pen read card or its notification.</string>
 </resources>

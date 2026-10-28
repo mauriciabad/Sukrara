@@ -110,7 +110,7 @@ class Pens(
     private var held: PenRead? = null
 
     /** Untested pens' reads waiting for the display check (memory only: a restart asks for another tap). */
-    private val checkHeld = mutableMapOf<String, PenRead>()
+    private val checkHeld = java.util.concurrent.ConcurrentHashMap<String, PenRead>()
 
     /** The entry sheet's last change (the entry as it was, and the `u` the change wrote): the snackbar's *Undo*. */
     private var lastCorrection: Pair<PenEntry, Long>? = null
@@ -182,7 +182,7 @@ class Pens(
 
     /** Where the reader may stop early: what the ledger already holds (minus 2 h for sessions still open). */
     suspend fun stopBefore(serial: String): Long? =
-        load().pens[serial]?.let { p ->
+        load().pens[serial]?.takeIf { usableIn(it) }?.let { p ->
             val open =
                 p.doses.values
                     .filter { it.role in setOf(PenEngine.PENDING_ROLE, PenEngine.QUESTION, PenEngine.REVIEW) }
@@ -223,6 +223,8 @@ class Pens(
             state
         }
 
+    private fun usableIn(p: Pen) = (PenProfiles.byId(p.model) ?: PenProfiles.ECHO_PLUS).verified || p.check == CHECK_OK
+
     /** A tested model, or an untested one whose display check passed: only then is anything of it logged. */
     private suspend fun usable(
         serial: String,
@@ -250,9 +252,8 @@ class Pens(
         if (pen == null) {
             val placeholder = Pen(r.serial, model = profile.id, since = r.scanTime, first = r.scanTime, lastScan = r.scanTime)
             save(Ledger(l.pens + (r.serial to placeholder), l.questions))
-        } else {
-            save(engine().update(l, r.serial) { it.copy(lastScan = r.scanTime) })
         }
+        // an unchecked pen's record is never moved on (its doses aren't imported: a later read must start from scratch)
         return PenReadState(PenReadState.Stage.Untested, r.serial, read = r, ledger = current())
     }
 
@@ -360,7 +361,7 @@ class Pens(
     ): Boolean =
         mutex.withLock {
             val q = current().questions.firstOrNull { it.id == qid && it.answer == null } ?: return@withLock false
-            if ((keys != null && keys != q.keys) || !allowed()) return@withLock false
+            if ((keys != null && keys != q.keys) || !allowed() || !usable(q.serial)) return@withLock false
             val (entries, stored) = entries()
             apply(engine().answerDoses(current(), qid, primed, entries, nowMs() / 1000, nowMs()), stored)
             refreshCard()
@@ -395,7 +396,9 @@ class Pens(
     ): Boolean =
         mutex.withLock {
             val q = current().questions.firstOrNull { it.id == qid && it.answer == null } ?: return@withLock false
-            if ((keys != null && keys != q.keys) || (same != null && same !in q.cands) || !allowed()) return@withLock false
+            if ((keys != null && keys != q.keys) || (same != null && same !in q.cands) || !allowed() || !usable(q.serial)) {
+                return@withLock false
+            }
             val (entries, stored) = entries()
             apply(engine().answerMatch(current(), qid, same, entries, nowMs() / 1000, nowMs()), stored)
             refreshCard()
@@ -437,7 +440,9 @@ class Pens(
         mutex.withLock {
             val was = current().pens[serial] ?: return@withLock false
             val r = checkHeld[serial]
-            if (!allowed() || r == null || r.scanTime != readAt || was.check != null) return@withLock false
+            // exactly the read the page showed, and still fresh (the display counts hours from now)
+            val fresh = r != null && nowMs() / 1000 - r.scanTime <= CHECK_FRESH_S
+            if (!allowed() || r == null || r.scanTime != readAt || !fresh || was.check != null) return@withLock false
             checkHeld.remove(serial)
             // the placeholder makes way for the real first scan (its start date, earlier doses, a returning pen)
             if (was.doses.isEmpty()) save(engine().forget(current(), serial))
@@ -596,6 +601,9 @@ class Pens(
     companion object {
         const val CHECK_OK = "ok"
         const val CHECK_FAILED = "failed"
+
+        /** A held read older than this isn't checked: the pen's display counts hours from now, not from the read. */
+        const val CHECK_FRESH_S = 600L
 
         fun scanOf(r: PenRead) =
             PenScan(r.serial, r.scanTime, r.penRelNow, r.doses.map { ReadDose(it.relTime, it.time, it.units, it.incomplete) }, "")

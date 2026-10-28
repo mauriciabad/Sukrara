@@ -184,6 +184,21 @@ class PensTest {
             )
         }
 
+    @Test fun aStaleHeldReadIsNotApprovedAndAnUncheckedPenIsReadWhole() =
+        runTest {
+            val r = read(-5 to 6.0).copy(model = "NovoPen")
+            pens.onRead(r)
+            // an unchecked pen's later read is never cut short (none of its doses were imported)
+            assertNull(pens.stopBefore("AB1234567"))
+            clock.instant = clock.instant.plusSeconds(Pens.CHECK_FRESH_S + 1)
+            assertFalse(pens.checkPassed("AB1234567", r.scanTime))
+            assertNull(
+                pens.ledger.value.pens
+                    .getValue("AB1234567")
+                    .check,
+            )
+        }
+
     @Test fun withoutAHeldReadTheCheckWaitsForATap() =
         runTest {
             val r = read(-5 to 6.0).copy(model = "NovoPen")

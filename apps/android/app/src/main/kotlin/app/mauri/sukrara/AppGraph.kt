@@ -425,6 +425,7 @@ class AppGraph(
         PensModule(
             context = app,
             store = data.typedStore("pens", Ledger.serializer(), Ledger(), whenCorrupt = Ledger()),
+            logChanges = data.treatments.between(Instant.EPOCH, Instant.parse("2200-01-01T00:00:00Z")),
             log =
                 object : PenLog {
                     override suspend fun all() = data.treatments.changedSince(Instant.EPOCH)

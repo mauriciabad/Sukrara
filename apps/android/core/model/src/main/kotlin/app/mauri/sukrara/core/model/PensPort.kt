@@ -64,6 +64,8 @@ data class PenSessionInfo(
     /** The question it waits on, and whether that asks *Same injection?* (else *Priming or injected?*). */
     val question: String?,
     val sameQuestion: Boolean,
+    /** A *Same injection?* question's typed entries (only one can be answered from the page). */
+    val candidates: Int = 0,
     /** The hand-typed amount a merge replaced. */
     val mergedFrom: Double?,
     val incomplete: Boolean,
@@ -154,27 +156,40 @@ interface PensPort {
         units: Double,
     ): PenNearEntry?
 
-    /** Each dose of entry [id] set to priming or injected (all priming removes it). Returns the entry as it was. */
+    /**
+     * Each dose of [shown] (the entry as the sheet showed it) set to priming or injected (all priming removes it).
+     * Refused (null) when the entry changed since; else the entry as it was.
+     */
     suspend fun correct(
-        id: String,
+        shown: PenEntryInfo,
         primed: List<Boolean>,
     ): PenEntryInfo?
 
     /** The snackbar's *Undo*: [was] back as it was, only while nothing changed the entry since. */
     suspend fun restore(was: PenEntryInfo): Boolean
 
-    /** The answers a waiting session's question offers. */
-    suspend fun acceptSuggestion(question: String): Boolean
+    /** The answers a waiting session's question offers; [keys] = its doses as shown (a question that grew isn't answered). */
+    suspend fun acceptSuggestion(
+        question: String,
+        keys: List<String>,
+    ): Boolean
 
-    suspend fun allPriming(question: String): Boolean
+    suspend fun allPriming(
+        question: String,
+        keys: List<String>,
+    ): Boolean
 
     suspend fun answerMatch(
         question: String,
+        keys: List<String>,
         same: Boolean,
     ): Boolean
 
     /** The display check of an untested pen: *It matches* (the held read is applied) / *It doesn't* / *Check again*. */
-    suspend fun checkPassed(serial: String): Boolean
+    suspend fun checkPassed(
+        serial: String,
+        readAt: Long,
+    ): Boolean
 
     suspend fun checkFailed(serial: String)
 

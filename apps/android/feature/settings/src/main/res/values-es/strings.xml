@@ -522,4 +522,6 @@
         <item quantity="many">%1$s unidades</item>
         <item quantity="other">%1$s unidades</item>
     </plurals>
+    <string name="st_pen_changed_since_open">Esa entrada cambió o se borró mientras tanto</string>
+    <string name="st_pen_q_several">Hay varias entradas tuyas cerca: respóndela en la tarjeta de lectura de la pluma o en su notificación.</string>
 </resources>
