@@ -28,13 +28,7 @@ public final class AppDelegate: NSObject, NSApplicationDelegate {
         plan.services.start(using: services)
         self.services = services
         store = DefaultsSettingsStore(defaults: services.defaults)
-        var follower: (any FollowerService)? = services.follower
-        #if DEBUG
-            if plan.mode == .fixture { follower = FixtureFollower() }
-        #endif
-        model = AppModel(
-            plan: plan, alerts: services.alerts, updates: services.updates, loginItem: services.loginItem,
-            follower: follower)
+        model = services.model()
         model.unit = store.unit
         model.graph = GraphConfig.load(from: store, wearer: nil)
     }
@@ -150,9 +144,11 @@ public final class AppDelegate: NSObject, NSApplicationDelegate {
     /// A defaults change (Settings window, another process): the alert rules, the unit and the card follow.
     private func settingsChanged() {
         services.settingsChanged()
-        if model.unit != store.unit { model.unit = store.unit }
         let graph = GraphConfig.load(from: store, wearer: wearer)
+        let changed = model.unit != store.unit || model.graph != graph
+        if model.unit != store.unit { model.unit = store.unit }
         if model.graph != graph { model.graph = graph }
+        if changed { model.feedWidget(settingsChanged: true) }
     }
 
     /// The wearer's mirrored settings arrived, changed or went away (stopped following).
