@@ -26,8 +26,8 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
@@ -108,14 +108,14 @@ fun SettingsSearchBar(
     pens: Boolean = false,
     onActiveChange: (Boolean) -> Unit = {},
 ) {
-    val context = LocalContext.current
+    val res = LocalResources.current
     val focus = LocalFocusManager.current
     val haptics = rememberHaptics()
     var query by rememberSaveable { mutableStateOf("") }
     val items =
-        remember(context, pens) {
+        remember(res, pens) {
             SettingsIndex.entries.filter { pens || !it.pensOnly }.map { e ->
-                SearchItem(context.getString(e.title), e.summary?.let(context::getString), context.getString(e.page), e.target)
+                SearchItem(res.getString(e.title), e.summary?.let(res::getString), res.getString(e.page), e.target)
             }
         }
     val results = remember(query, items) { SettingsSearch.match(query, items) }
