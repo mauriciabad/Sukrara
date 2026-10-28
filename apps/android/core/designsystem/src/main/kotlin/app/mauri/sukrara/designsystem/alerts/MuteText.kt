@@ -9,6 +9,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import app.mauri.sukrara.alerts.AlertKind
@@ -94,15 +95,41 @@ object MuteText {
                     .format(sideName(l.side, w), Durations.text(l.leftMin, w.durations))
             }
 
-            is MuteLine.SideFalling -> w.get("mute_falling").format(sideName(l.side, w))
-            is MuteLine.SideLess -> w.get("mute_less").format(sideName(l.side, w), Durations.text(l.intervalMin.toLong(), w.durations))
-            is MuteLine.AllTimed -> left("mute_all_left", l.leftMin, w).format(Durations.text(l.leftMin, w.durations))
-            MuteLine.AllForever -> w.get("mute_all_forever")
-            is MuteLine.NotifUntil -> w.get("mute_notif_until").format(clockTime(l.until))
-            is MuteLine.Pill -> w.get("mute_pill").format(Durations.compact(l.leftMin, w.durations))
-            MuteLine.PillForever -> w.get("mute_pill_forever")
-            is MuteLine.Choice -> w.get("mute_choice").format(Durations.text(l.min.toLong(), w.durations))
-            MuteLine.ChoiceForever -> w.get("mute_choice_forever")
+            is MuteLine.SideFalling -> {
+                w.get("mute_falling").format(sideName(l.side, w))
+            }
+
+            is MuteLine.SideLess -> {
+                w.get("mute_less").format(sideName(l.side, w), Durations.text(l.intervalMin.toLong(), w.durations))
+            }
+
+            is MuteLine.AllTimed -> {
+                left("mute_all_left", l.leftMin, w).format(Durations.text(l.leftMin, w.durations))
+            }
+
+            MuteLine.AllForever -> {
+                w.get("mute_all_forever")
+            }
+
+            is MuteLine.NotifUntil -> {
+                w.get("mute_notif_until").format(clockTime(l.until))
+            }
+
+            is MuteLine.Pill -> {
+                w.get("mute_pill").format(Durations.compact(l.leftMin, w.durations))
+            }
+
+            MuteLine.PillForever -> {
+                w.get("mute_pill_forever")
+            }
+
+            is MuteLine.Choice -> {
+                w.get("mute_choice").format(Durations.text(l.min.toLong(), w.durations))
+            }
+
+            MuteLine.ChoiceForever -> {
+                w.get("mute_choice_forever")
+            }
         }
 
     /** Mute all's line from the hub's state ("Alerts muted · 1 h 12 min left"), or null while it is off or over. */
@@ -168,9 +195,10 @@ fun rememberCountdownNow(
     until: Instant?,
     now: () -> Instant,
 ): Instant {
+    val currentNow by rememberUpdatedState(now)
     val ticking by produceState(now(), until) {
         while (true) {
-            val n = now()
+            val n = currentNow()
             value = n
             val next = MuteText.nextChangeAt(until, n) ?: break
             delay((next.toEpochMilli() - n.toEpochMilli()).coerceAtLeast(1))

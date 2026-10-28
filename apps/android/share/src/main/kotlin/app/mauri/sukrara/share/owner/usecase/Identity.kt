@@ -16,13 +16,31 @@ import app.mauri.sukrara.share.transport.RelayFilter
 /** A brand-new identity I, device key D, stream id and epoch 1; publishes roster and backup. */
 class CreateIdentity(private val ctx: OwnerContext) {
     operator fun invoke(profile: Profile?, now: Long): Step {
-        val s = OwnerState(
-            identityHex = ctx.crypto.generate().secret.revealHex(),
-            deviceHex = ctx.crypto.generate().secret.revealHex(),
-            sid = ControlEvents.newSid(ctx.random),
-            epochs = listOf(EpochKey(1, ctx.crypto.generate().secret.revealHex())),
-            profileJson = profile?.toJson()?.toString(),
-        )
+        val s =
+            OwnerState(
+                identityHex =
+                    ctx.crypto
+                        .generate()
+                        .secret
+                        .revealHex(),
+                deviceHex =
+                    ctx.crypto
+                        .generate()
+                        .secret
+                        .revealHex(),
+                sid = ControlEvents.newSid(ctx.random),
+                epochs =
+                    listOf(
+                        EpochKey(
+                            1,
+                            ctx.crypto
+                                .generate()
+                                .secret
+                                .revealHex(),
+                        ),
+                    ),
+                profileJson = profile?.toJson()?.toString(),
+            )
         return ControlEvents.roster(ctx, s, now) + { ControlEvents.backup(ctx, it, now) }
     }
 }
@@ -33,7 +51,18 @@ class CreateIdentity(private val ctx: OwnerContext) {
  */
 class Rotate(private val ctx: OwnerContext) {
     operator fun invoke(s: OwnerState, now: Long): Step {
-        val next = s.copy(epochs = s.epochs + EpochKey(s.current.n + 1, ctx.crypto.generate().secret.revealHex()))
+        val next =
+            s.copy(
+                epochs =
+                    s.epochs +
+                        EpochKey(
+                            s.current.n + 1,
+                            ctx.crypto
+                                .generate()
+                                .secret
+                                .revealHex(),
+                        ),
+            )
         var step = Step(next)
         next.activeFollowers().forEach { f -> step += { ControlEvents.deliverKey(ctx, it, f.key, now) } }
         return step + { ControlEvents.roster(ctx, it, now) } + { ControlEvents.backup(ctx, it, now) }
@@ -80,27 +109,38 @@ class RestoreIdentity(private val ctx: OwnerContext) {
     }
 
     /** Step 1: the identity in [code] (`nsec1…`, `ncryptsec1…` + [password], or hex). */
-    fun parse(code: String, password: String?): Pair<KeyPair?, Result?> = when (val r = RecoveryCode.import(ctx.crypto, code, password)) {
-        is RecoveryCode.Import.Restored -> ctx.crypto.keyPair(r.identity)!! to null
-        RecoveryCode.Import.NeedsPassword -> null to Result.NeedsPassword
-        RecoveryCode.Import.WrongPassword -> null to Result.WrongPassword
-        RecoveryCode.Import.NotAKey -> null to Result.NotAKey
-    }
+    fun parse(code: String, password: String?): Pair<KeyPair?, Result?> =
+        when (val r = RecoveryCode.import(ctx.crypto, code, password)) {
+            is RecoveryCode.Import.Restored -> ctx.crypto.keyPair(r.identity)!! to null
+            RecoveryCode.Import.NeedsPassword -> null to Result.NeedsPassword
+            RecoveryCode.Import.WrongPassword -> null to Result.WrongPassword
+            RecoveryCode.Import.NotAKey -> null to Result.NotAKey
+        }
 
     /** The relay query for everything [identity] signs: its owner backup and its roster (both addressable 30078). */
     fun identityEventsFilter(identity: KeyPair) = listOf(RelayFilter(kinds = listOf(Wire.KIND_DATA), authors = listOf(identity.public.hex)))
 
     /** Step 2: from what the relays returned ([answered] relays sent EOSE) to the restored state and its events. */
     fun restore(identity: KeyPair, found: List<SignedEvent>, answered: Int, now: Long): Result {
-        val newest = found
-            .filter { it.pubkey == identity.public.hex && it.kind == Wire.KIND_DATA && it.tag("d") == Wire.backupD(identity.public) }
-            .filter { ctx.crypto.verify(it) }
-            .maxByOrNull { it.createdAt }
+        val newest =
+            found
+                .filter { it.pubkey == identity.public.hex && it.kind == Wire.KIND_DATA && it.tag("d") == Wire.backupD(identity.public) }
+                .filter { ctx.crypto.verify(it) }
+                .maxByOrNull { it.createdAt }
         if (newest == null) return if (answered == 0) Result.RelaysUnreachable else Result.NoBackupFound(ctx.crypto.npub(identity.public))
         val plain = ctx.crypto.decrypt(identity.secret, identity.public, newest.content) ?: return Result.BackupUnreadable
         val backup = runCatching { BackupCodec.decode(plain) }.getOrNull() ?: return Result.BackupUnreadable
-        val restored = ControlEvents.fromBackup(ctx.crypto, identity.secret.revealHex(), ctx.crypto.generate().secret.revealHex(), backup)
-            ?: return Result.BackupUnreadable
+        val restored =
+            ControlEvents.fromBackup(
+                ctx.crypto,
+                identity.secret.revealHex(),
+                ctx.crypto
+                    .generate()
+                    .secret
+                    .revealHex(),
+                backup,
+            )
+                ?: return Result.BackupUnreadable
         // relays keep the newest (author, d): our roster / backup must be newer than the old device's
         val rosters = found.filter { it.pubkey == identity.public.hex && it.tag("d") == Wire.rosterD(backup.sid) && ctx.crypto.verify(it) }
         val newestRoster = rosters.maxByOrNull { it.createdAt }

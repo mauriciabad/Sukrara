@@ -21,21 +21,27 @@ object ContractFiles {
 
 /** contracts/protocol/ogs/ogs-draft1.json: throwaway keys, real signed + encrypted events from the Python reference. */
 class OgsVectors(val root: JsonObject = ContractFiles.json("protocol/ogs/ogs-draft1.json")) {
-    val now: Long = root.getValue("now").jsonPrimitive.content.toLong()
+    val now: Long =
+        root
+            .getValue("now")
+            .jsonPrimitive.content
+            .toLong()
     val sid: String = root.getValue("sid").jsonPrimitive.content
     val keys: Map<String, KeyPair> = root.getValue("keys").jsonObject.mapValues { (_, v) -> pair(v.jsonObject) }
-    val events: Map<String, SignedEvent> = root.getValue("events").jsonObject.mapValues { (name, v) ->
-        SignedEvent.parse(v.toString()) ?: error("event $name doesn't parse")
-    }
+    val events: Map<String, SignedEvent> =
+        root.getValue("events").jsonObject.mapValues { (name, v) ->
+            SignedEvent.parse(v.toString()) ?: error("event $name doesn't parse")
+        }
     val plaintexts: JsonObject = root.getValue("plaintexts").jsonObject
     val derivations: JsonObject = root.getValue("derivations").jsonObject
 
     /** Every secret the vectors know, by public key (the named keys and the invite key). */
-    val secretsByPub: Map<String, KeyPair> = buildMap {
-        this@OgsVectors.keys.values.forEach { put(it.public.hex, it) }
-        val inv = derivations.getValue("invite").jsonObject
-        put(inv.str("invite_key_pub"), KeyPair(SecretKey.ofHex(inv.str("invite_key_sec"))!!, PublicKeyHex(inv.str("invite_key_pub"))))
-    }
+    val secretsByPub: Map<String, KeyPair> =
+        buildMap {
+            this@OgsVectors.keys.values.forEach { put(it.public.hex, it) }
+            val inv = derivations.getValue("invite").jsonObject
+            put(inv.str("invite_key_pub"), KeyPair(SecretKey.ofHex(inv.str("invite_key_sec"))!!, PublicKeyHex(inv.str("invite_key_pub"))))
+        }
 
     fun key(name: String): KeyPair = keys.getValue(name)
 

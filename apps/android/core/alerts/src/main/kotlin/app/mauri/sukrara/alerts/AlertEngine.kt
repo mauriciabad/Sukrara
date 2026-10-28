@@ -48,12 +48,13 @@ class AlertEngine(private val newId: () -> String = ::randomId) {
         if (r != null && last.let { it == null || r.t > it.t }) last = r
     }
 
-    fun snapshot(): AlertMemory = AlertMemory(
-        episodes = episodes.mapValues { it.value.copy() },
-        snoozes = snoozes.toMap(),
-        muteAllUntil = muteAllUntil,
-        last = last,
-    )
+    fun snapshot(): AlertMemory =
+        AlertMemory(
+            episodes = episodes.mapValues { it.value.copy() },
+            snoozes = snoozes.toMap(),
+            muteAllUntil = muteAllUntil,
+            last = last,
+        )
 
     /**
      * Back to [m] (episodes over by [now] dropped, an expired Mute all off). Returns the firings whose notification was
@@ -96,7 +97,10 @@ class AlertEngine(private val newId: () -> String = ::randomId) {
         val quiet = e != null && (e.quiet != null || Rules.coveringDose(e.kind, s, d, now, e.lifted) != null)
         if (!muted && !quiet) return emptyList()
         if (sn != null) putSnooze(side, sn.copy(until = 0))
-        e?.let { it.lifted = now; it.liftPending = true }
+        e?.let {
+            it.lifted = now
+            it.liftPending = true
+        }
         return evaluate(s, d, now)
     }
 
@@ -127,8 +131,10 @@ class AlertEngine(private val newId: () -> String = ::randomId) {
     fun allMuted(now: Long): Long = muteAllUntil.takeIf { it > now } ?: 0
 
     /** This device's actions in force per side (ended mutes as 0). */
-    fun snoozes(now: Long): Map<Side, Snooze> = snoozes.filterValues { it.until > now || it.relaxMin > 0 }
-        .mapValues { (_, sn) -> sn.copy(until = sn.until.takeIf { it > now } ?: 0) }
+    fun snoozes(now: Long): Map<Side, Snooze> =
+        snoozes
+            .filterValues { it.until > now || it.relaxMin > 0 }
+            .mapValues { (_, sn) -> sn.copy(until = sn.until.takeIf { it > now } ?: 0) }
 
     fun relaxed(kind: AlertKind): Boolean = (snoozes[kind.side]?.relaxMin ?: 0) > 0
 
@@ -175,11 +181,12 @@ class AlertEngine(private val newId: () -> String = ::randomId) {
             if (sn.until in 1..now) putSnooze(side, sn.copy(until = 0)) // the Mute's time is over
             val cur = snoozes[side] ?: continue
             if (!fresh && side != Side.NO_DATA) continue // nothing new to judge the margin by
-            val back = when (side) {
-                Side.LOW, Side.HIGH -> r != null && Rules.backBy(side, r, s)
-                Side.NO_DATA -> !noData
-                else -> rateKind?.side != side
-            }
+            val back =
+                when (side) {
+                    Side.LOW, Side.HIGH -> r != null && Rules.backBy(side, r, s)
+                    Side.NO_DATA -> !noData
+                    else -> rateKind?.side != side
+                }
             if (!back) {
                 snoozes[side] = cur.copy(backSince = 0)
                 continue
@@ -250,11 +257,12 @@ class AlertEngine(private val newId: () -> String = ::randomId) {
         if (ep.shown.let { it != null && it.kind != want }) hide(ep, now, out)
 
         val cover = Rules.coveringDose(want, s, d, now, ep.lifted)
-        val treatmentQuiet = when {
-            cover != null -> EpisodeQuiet.TREATMENT
-            ep.lifted == 0L && Rules.fallingBackIntoRange(want, last, s) -> EpisodeQuiet.FALLING
-            else -> null
-        }
+        val treatmentQuiet =
+            when {
+                cover != null -> EpisodeQuiet.TREATMENT
+                ep.lifted == 0L && Rules.fallingBackIntoRange(want, last, s) -> EpisodeQuiet.FALLING
+                else -> null
+            }
         if (treatmentQuiet != null) {
             hide(ep, now, out)
             ep.quiet = treatmentQuiet
@@ -293,11 +301,12 @@ class AlertEngine(private val newId: () -> String = ::randomId) {
         val by = s.mutedBy(k)
         val dose = by?.let { d.of(it).filter { t -> t in fired..now && t > e.lifted }.maxOrNull() }
         // a treatment, the side's Mute or Mute all after the last alert: at once when its window ends
-        val ends = listOfNotNull(
-            if (dose != null && by != null) dose + s.quietSeconds(by) else null,
-            snoozes[e.side]?.until?.takeIf { it > fired },
-            muteAllUntil.takeIf { it > fired && it != Rules.NEVER },
-        )
+        val ends =
+            listOfNotNull(
+                if (dose != null && by != null) dose + s.quietSeconds(by) else null,
+                snoozes[e.side]?.until?.takeIf { it > fired },
+                muteAllUntil.takeIf { it > fired && it != Rules.NEVER },
+            )
         if (ends.isNotEmpty()) return maxOf(ends.max(), fired + 1)
         val base = s.rule(k).repeatMin
         val relax = snoozes[e.side]?.relaxMin ?: 0

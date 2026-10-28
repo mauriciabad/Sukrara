@@ -12,6 +12,7 @@ import org.junit.Test
 class AlertMachineTest {
     private val t0 = 1_760_000_040L
     private var ids = 0
+
     private fun machine(role: AlertRole = AlertRole.WEARER, s: AlertSettings = AlertSettings()) =
         AlertMachine(role, s, newId = { "id${ids++}" })
 
@@ -121,7 +122,10 @@ class AlertMachineTest {
         val ui = AlertUiState.of(m.engine, m.settings, m.doses, t0 + 60)
         assertEquals(QuietSide(AlertKind.LOW, true, QuietReason.NOTIFICATION, t0 + 30 * 60, 0, true), ui.quiet[0])
         assertEquals(QuietSide(AlertKind.HIGH, false, null, 0, 30, false), ui.quiet[1])
-        assertEquals(AlertStatus.Paused(AlertKind.LOW, t0 + 30 * 60), AlertStatus.of(AlertReading(t0, 60), m.settings, m.doses, t0 + 60, ui))
+        assertEquals(
+            AlertStatus.Paused(AlertKind.LOW, t0 + 30 * 60),
+            AlertStatus.of(AlertReading(t0, 60), m.settings, m.doses, t0 + 60, ui),
+        )
         val treated = AlertStatus.of(AlertReading(t0, 60), m.settings, Doses(carbs = listOf(t0)), t0 + 60, ui)
         assertEquals(AlertStatus.Taken(AlertKind.LOW, TreatmentKind.CARBS, t0, t0 + 15 * 60), treated)
     }
@@ -158,6 +162,13 @@ class AlertMachineTest {
         // the mirror's state survives a restart
         val again = machine(AlertRole.FOLLOWER_MIRROR)
         again.start(AlertStateCodec.decode(AlertStateCodec.encode(f.snapshot())), null, null, t0 + 60)
-        assertEquals(t0 + 30 * 60, again.uiState(t0 + 60).quiet.single().until)
+        assertEquals(
+            t0 + 30 * 60,
+            again
+                .uiState(t0 + 60)
+                .quiet
+                .single()
+                .until,
+        )
     }
 }

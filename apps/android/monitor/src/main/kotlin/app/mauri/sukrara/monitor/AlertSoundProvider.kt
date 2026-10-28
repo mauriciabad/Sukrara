@@ -34,7 +34,16 @@ class AlertSoundProvider : ContentProvider() {
         val ctx = context ?: return null
         val kind = uri.lastPathSegment?.let(AlertKind::fromWire) ?: return null
         val module = ctx.alertsModule
-        val sounds = module?.let { m -> runBlocking { withTimeoutOrNull(1_000) { m.store.settings.first().sounds } } } ?: SoundSettings()
+        val sounds =
+            module?.let { m ->
+                runBlocking {
+                    withTimeoutOrNull(1_000) {
+                        m.store.settings
+                            .first()
+                            .sounds
+                    }
+                }
+            } ?: SoundSettings()
         val picker = module?.soundPicker ?: AlertSoundPicker()
         // a file that can't be opened falls back to the system sound, never to silence
         return open(ctx, picker.pick(kind, sounds, System.currentTimeMillis())) ?: open(ctx, AlertSoundPicker.SYSTEM)
@@ -44,7 +53,10 @@ class AlertSoundProvider : ContentProvider() {
         if (name == AlertSoundPicker.SYSTEM) {
             ctx.contentResolver.openAssetFileDescriptor(Settings.System.DEFAULT_NOTIFICATION_URI, "r")
         } else {
-            ctx.resources.getIdentifier(name, "raw", ctx.packageName).takeIf { it != 0 }?.let { ctx.resources.openRawResourceFd(it) }
+            ctx.resources
+                .getIdentifier(name, "raw", ctx.packageName)
+                .takeIf { it != 0 }
+                ?.let { ctx.resources.openRawResourceFd(it) }
         }
 
     override fun getType(uri: Uri) = "audio/ogg"
@@ -60,7 +72,15 @@ class AlertSoundProvider : ContentProvider() {
         val title = "Sukrara" + (kind?.let { " · " + AlertNotifier.kindLabel(ctx, it) } ?: "")
         val cols = projection ?: arrayOf(OpenableColumns.DISPLAY_NAME, "title")
         return MatrixCursor(cols).apply {
-            addRow(cols.map { c -> when (c) { OpenableColumns.DISPLAY_NAME, "title" -> title; "_id" -> 0; else -> null } })
+            addRow(
+                cols.map { c ->
+                    when (c) {
+                        OpenableColumns.DISPLAY_NAME, "title" -> title
+                        "_id" -> 0
+                        else -> null
+                    }
+                },
+            )
         }
     }
 

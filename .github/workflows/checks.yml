@@ -88,7 +88,7 @@ jobs:
         # release artifact, so it is excluded here (release builds are checked by tools/release/verify-apk.sh).
         # Roborazzi verify only where goldens are committed (src/test/snapshots): :core:graph and :widgets. They are
         # recorded on this same runner image by goldens.yml (Mac renders differ in text antialiasing and blending).
-        # Spotless isn't enforced yet (QualityConventionPlugin isEnforceCheck = false) until the one-shot format.
+        # `check` includes spotlessCheck (ktlint + Compose rules + GPL header; QualityConventionPlugin).
         run: >-
           ./gradlew --no-daemon check -x verifyReleaseSigning
           :core:graph:verifyRoborazziDebug :widgets:verifyRoborazziDebug
@@ -109,6 +109,9 @@ jobs:
       DEVELOPER_DIR: /Applications/Xcode_27.1.app/Contents/Developer
     steps:
       - uses: actions/checkout@v7
+      - name: swift format lint --strict (apps/macos/.swift-format)
+        working-directory: apps/macos
+        run: swift format lint --strict --recursive Sources Tests
       - name: swift build + swift test (contract tests over contracts/)
         working-directory: apps/macos
         run: |

@@ -26,11 +26,12 @@ class OwnerIdentityStore(private val secure: SecureStore) {
     private val json = Json { ignoreUnknownKeys = true }
 
     suspend fun load(): Load {
-        val bytes = try {
-            secure.read(NAME)
-        } catch (e: SecretUnreadableException) {
-            return Load.Unreadable(e.transient)
-        } ?: return Load.Missing
+        val bytes =
+            try {
+                secure.read(NAME)
+            } catch (e: SecretUnreadableException) {
+                return Load.Unreadable(e.transient)
+            } ?: return Load.Missing
         return runCatching { json.decodeFromString(OwnerState.serializer(), bytes.decodeToString()) }
             .fold({ Load.Loaded(it) }, { Load.Unreadable(transient = false) })
     }

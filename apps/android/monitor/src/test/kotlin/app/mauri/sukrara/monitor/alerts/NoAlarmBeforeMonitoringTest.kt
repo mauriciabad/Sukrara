@@ -17,49 +17,53 @@ import java.time.Duration
 class NoAlarmBeforeMonitoringTest {
     private val rig = AlertRig()
 
-    @Test fun freshInstallWithoutRoleNeverAlertsOrSchedules() = runTest {
-        val runtime = rig.runtime()
-        runtime.onState(GlucoseState.Initial)
-        repeat(6) {
-            rig.clock.advance(Duration.ofHours(1))
-            runtime.tick()
+    @Test fun freshInstallWithoutRoleNeverAlertsOrSchedules() =
+        runTest {
+            val runtime = rig.runtime()
+            runtime.onState(GlucoseState.Initial)
+            repeat(6) {
+                rig.clock.advance(Duration.ofHours(1))
+                runtime.tick()
+            }
+            assertTrue(rig.presenter.log.isEmpty())
+            assertNull(rig.alarm.at)
         }
-        assertTrue(rig.presenter.log.isEmpty())
-        assertNull(rig.alarm.at)
-    }
 
-    @Test fun setupSkippedWithoutASensorNeverAlerts() = runTest {
-        val runtime = rig.runtime()
-        runtime.onState(rig.wearerState(latest = null, monitoring = false))
-        repeat(6) {
-            rig.clock.advance(Duration.ofHours(1))
-            runtime.tick()
+    @Test fun setupSkippedWithoutASensorNeverAlerts() =
+        runTest {
+            val runtime = rig.runtime()
             runtime.onState(rig.wearerState(latest = null, monitoring = false))
+            repeat(6) {
+                rig.clock.advance(Duration.ofHours(1))
+                runtime.tick()
+                runtime.onState(rig.wearerState(latest = null, monitoring = false))
+            }
+            assertTrue(rig.presenter.log.isEmpty())
+            assertNull(rig.alarm.at)
         }
-        assertTrue(rig.presenter.log.isEmpty())
-        assertNull(rig.alarm.at)
-    }
 
-    @Test fun firstReadingThenSilenceAlertsNoDataOnTime() = runTest {
-        val runtime = rig.runtime()
-        val first = rig.reading(120)
-        runtime.onState(rig.wearerState(latest = first))
-        val deadline = first.t.epochSecond + 20 * 60 // the default no-data threshold
-        assertEquals(deadline, followAlarmsUntilNoData(runtime))
-        assertTrue("no_data" in rig.published.firingKinds)
-    }
+    @Test fun firstReadingThenSilenceAlertsNoDataOnTime() =
+        runTest {
+            val runtime = rig.runtime()
+            val first = rig.reading(120)
+            runtime.onState(rig.wearerState(latest = first))
+            val deadline = first.t.epochSecond + 20 * 60 // the default no-data threshold
+            assertEquals(deadline, followAlarmsUntilNoData(runtime))
+            assertTrue("no_data" in rig.published.firingKinds)
+        }
 
-    @Test fun monitoringStoppedClearsNoDataAndDisarms() = runTest {
-        val runtime = rig.runtime()
-        runtime.onState(rig.wearerState(latest = rig.reading(120)))
-        rig.clock.advance(Duration.ofMinutes(25))
-        runtime.tick()
-        assertEquals("no_data", rig.presenter.slots[AlertGroup.NO_DATA])
-        // the source reports no sensor (removed / monitoring stopped on purpose): the hub clears monitoringStartedAt
-        runtime.onState(GlucoseState.Initial.copy(role = Role.Wearer, latest = null, monitoringStartedAt = null))
-        assertNull(rig.presenter.slots[AlertGroup.NO_DATA])
-        assertNull(rig.alarm.at)
-    }
+    @Test fun monitoringStoppedClearsNoDataAndDisarms() =
+        runTest {
+            val runtime = rig.runtime()
+            runtime.onState(rig.wearerState(latest = rig.reading(120)))
+            rig.clock.advance(Duration.ofMinutes(25))
+            runtime.tick()
+            assertEquals("no_data", rig.presenter.slots[AlertGroup.NO_DATA])
+            // the source reports no sensor (removed / monitoring stopped on purpose): the hub clears monitoringStartedAt
+            runtime.onState(GlucoseState.Initial.copy(role = Role.Wearer, latest = null, monitoringStartedAt = null))
+            assertNull(rig.presenter.slots[AlertGroup.NO_DATA])
+            assertNull(rig.alarm.at)
+        }
 
     /** Wakes at every alarm the runtime sets (as AlarmManager would) until no data posts; returns when it did. */
     private suspend fun followAlarmsUntilNoData(runtime: AlertRuntime): Long {

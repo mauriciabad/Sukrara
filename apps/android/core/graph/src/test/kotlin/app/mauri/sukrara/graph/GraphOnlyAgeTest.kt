@@ -62,10 +62,22 @@ class GraphOnlyAgeTest {
                     if (age == null || sgv == null) {
                         emptyList()
                     } else {
-                        (60 downTo 1).map { GlucosePoint(now - age - it * 60L, 120, 0.0) } + GlucosePoint(now - age, sgv, c["rate"].double())
+                        (60 downTo 1).map { GlucosePoint(now - age - it * 60L, 120, 0.0) } +
+                            GlucosePoint(now - age, sgv, c["rate"].double())
                     }
                 val model = CardModel(readings, emptyList(), now, words)
-                val lay = GlucoseCard.draw(Canvas(), 332f, 138f, model, st, GraphPalette.of(false), 1f, CardSurface.WIDGET_GRAPH, CardPart.ALL)
+                val lay =
+                    GlucoseCard.draw(
+                        Canvas(),
+                        332f,
+                        138f,
+                        model,
+                        st,
+                        GraphPalette.of(false),
+                        1f,
+                        CardSurface.WIDGET_GRAPH,
+                        CardPart.ALL,
+                    )
                 val mark = lay.first("graph.age")?.info
                 val chart = lay.first("chart") != null
                 val ok =

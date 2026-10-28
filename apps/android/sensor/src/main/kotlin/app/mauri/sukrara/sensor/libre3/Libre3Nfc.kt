@@ -69,22 +69,24 @@ internal object Libre3Nfc {
         data class Refused(val error: Int) : Second
     }
 
-    fun parseSecond(r: ByteArray, p: PatchInfo, now: Long): Second? = when {
-        r.size == 19 -> Second.Ok(parsePaired(r, p, now))
-        r.size == 4 && r[1] == 0xA5.toByte() && r[2] == 0x01.toByte() -> Second.Refused(r[3].toInt() and 0xFF)
-        else -> null
-    }
+    fun parseSecond(r: ByteArray, p: PatchInfo, now: Long): Second? =
+        when {
+            r.size == 19 -> Second.Ok(parsePaired(r, p, now))
+            r.size == 4 && r[1] == 0xA5.toByte() && r[2] == 0x01.toByte() -> Second.Refused(r[3].toInt() and 0xFF)
+            else -> null
+        }
 
     /** The tag's chip, from the UID's IC manufacturer byte (`Tag.getId()` is LSB first: `[7]` = 0xE0, `[6]` = maker). */
     enum class Chip { LIBRE3, LIBRE2, OTHER }
 
     /** 0x7A (Abbott) = Libre 3 / 3 Plus, the only chip our commands are for; 0x07 (TI) = Libre 1 / 2 / 2 Plus. */
-    fun chip(uid: ByteArray?): Chip = when {
-        uid == null || uid.size != 8 || uid[7] != 0xE0.toByte() -> Chip.OTHER
-        uid[6] == 0x7A.toByte() -> Chip.LIBRE3
-        uid[6] == 0x07.toByte() -> Chip.LIBRE2
-        else -> Chip.OTHER
-    }
+    fun chip(uid: ByteArray?): Chip =
+        when {
+            uid == null || uid.size != 8 || uid[7] != 0xE0.toByte() -> Chip.OTHER
+            uid[6] == 0x7A.toByte() -> Chip.LIBRE3
+            uid[6] == 0x07.toByte() -> Chip.LIBRE2
+            else -> Chip.OTHER
+        }
 
     /** One tap: [account] = the LibreView receiver ID (null = not signed in), [own] = Sukrara's own. */
     fun scan(tag: Tag, account: Long?, own: Long, log: (String) -> Unit): Result {
@@ -113,14 +115,19 @@ internal object Libre3Nfc {
         log("patch info: state=${p.state} product=${p.productType} warmup=${p.warmupMin}min wear=${p.wearMin}min")
         if (p.productType == 9) return Result.Unsupported("Lingo sensors aren't supported")
 
-        val ids = (if (p.activate) ReceiverIds.forStart(account) else ReceiverIds.forTakeover(account, own))
-            ?: return Result.NeedsAccount(p.serial, neverStarted = p.activate)
+        val ids =
+            (if (p.activate) ReceiverIds.forStart(account) else ReceiverIds.forTakeover(account, own))
+                ?: return Result.NeedsAccount(p.serial, neverStarted = p.activate)
         for (id in ids) {
             val now = clockMs() / 1000
-            val r = transceive(secondCommand(p.activate, id, now))
-                ?: return Result.Failed("the sensor didn't answer the ${if (p.activate) "start" else "takeover"} command")
+            val r =
+                transceive(secondCommand(p.activate, id, now))
+                    ?: return Result.Failed("the sensor didn't answer the ${if (p.activate) "start" else "takeover"} command")
             when (val a = parseSecond(r, p, now)) {
-                is Second.Ok -> return Result.Paired(a.pairing, p.activate, id)
+                is Second.Ok -> {
+                    return Result.Paired(a.pairing, p.activate, id)
+                }
+
                 is Second.Refused -> {
                     log("sensor refused: error ${"%02X".format(a.error)} state ${p.state}")
                     if (a.error != 0xB1) {
@@ -131,7 +138,10 @@ internal object Libre3Nfc {
                     }
                     // 0xB1: wrong receiver ID — try the next candidate in the same tap
                 }
-                null -> return Result.Failed("unexpected answer (${r.size} bytes)")
+
+                null -> {
+                    return Result.Failed("unexpected answer (${r.size} bytes)")
+                }
             }
         }
         return Result.OwnedByAnotherReceiver(p.serial)
@@ -152,14 +162,19 @@ internal object Libre3Nfc {
     private fun parsePaired(r: ByteArray, p: PatchInfo, now: Long): Pairing {
         val address = (8 downTo 3).joinToString(":") { "%02X".format(r[it]) }
         val pin = r.copyOfRange(9, 13)
-        var start = (r[13].toLong() and 0xFF) or ((r[14].toLong() and 0xFF) shl 8) or
-            ((r[15].toLong() and 0xFF) shl 16) or ((r[16].toLong() and 0xFF) shl 24)
+        var start =
+            (r[13].toLong() and 0xFF) or ((r[14].toLong() and 0xFF) shl 8) or
+                ((r[15].toLong() and 0xFF) shl 16) or ((r[16].toLong() and 0xFF) shl 24)
         if (start <= 0) start = now
         return Pairing(
-            serial = p.serial, address = address, startEpoch = start, securityVersion = 0,
+            serial = p.serial,
+            address = address,
+            startEpoch = start,
+            securityVersion = 0,
             wearMin = p.wearMin.takeIf { it > 0 } ?: SensorLife.DEFAULT_WEAR_MIN,
             warmupMin = p.warmupMin.takeIf { it > 0 } ?: SensorLife.DEFAULT_WARMUP_MIN,
-            pin = pin, kAuth = null,
+            pin = pin,
+            kAuth = null,
         )
     }
 

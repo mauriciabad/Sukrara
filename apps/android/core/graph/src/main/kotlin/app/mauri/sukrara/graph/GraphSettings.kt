@@ -34,7 +34,15 @@ object GraphSettings {
     val ColumnCrown = SchemaSettings.bool("graph.columnCrown", default = GraphConfig().columnCrown)
     val RingMarks = SchemaSettings.bool("graph.ringMarks", default = GraphConfig().ringMarks)
     val RingRange = SchemaSettings.text("graph.ringRange", GraphConfig().ringRange.name, TirRange.entries.map { it.name }.toSet())
-    val LastPlace = SchemaSettings.text("graph.lastPlace", GraphConfig().lastPlace.name, app.mauri.sukrara.graph.LastPlace.entries.map { it.name }.toSet())
+    val LastPlace =
+        SchemaSettings.text(
+            "graph.lastPlace",
+            GraphConfig().lastPlace.name,
+            app.mauri.sukrara.graph.LastPlace.entries
+                .map {
+                    it.name
+                }.toSet(),
+        )
 
     /** The person's graph settings, a new [GraphConfig] on every change (ranges always in order: [Bands.sane]). */
     fun config(settings: SettingsRepository): Flow<GraphConfig> {
@@ -58,7 +66,9 @@ object GraphSettings {
                 columnCrown = crown,
                 ringMarks = marks,
                 ringRange = TirRange.valueOf(range),
-                lastPlace = app.mauri.sukrara.graph.LastPlace.valueOf(last),
+                lastPlace =
+                    app.mauri.sukrara.graph.LastPlace
+                        .valueOf(last),
             )
         }.distinctUntilChanged()
     }

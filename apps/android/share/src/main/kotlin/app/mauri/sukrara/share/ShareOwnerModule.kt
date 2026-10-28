@@ -22,9 +22,9 @@ import app.mauri.sukrara.share.owner.usecase.OwnerContext
 import app.mauri.sukrara.share.owner.usecase.RandomBytes
 import app.mauri.sukrara.share.transport.OkHttpWebSockets
 import app.mauri.sukrara.share.transport.RelayPool
-import java.security.SecureRandom
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
+import java.security.SecureRandom
 
 /**
  * The wearer's sharing graph (composed by `AppGraph`, owner role only). Nothing is built until first use.
@@ -52,7 +52,9 @@ class ShareOwnerModule(
 
     /** Relays read gift wraps addressed to the identity only after NIP-42 AUTH as it: the pool gets I when known. */
     private val transport by lazy {
-        RelayPool(Wire.DEFAULT_RELAYS, authKey = { ownerEngine.identityKey() }, crypto, OkHttpWebSockets(data.http), dispatchers.io, { clock.now().epochSecond })
+        RelayPool(Wire.DEFAULT_RELAYS, authKey = {
+            ownerEngine.identityKey()
+        }, crypto, OkHttpWebSockets(data.http), dispatchers.io, { clock.now().epochSecond })
     }
 
     private val requests by lazy { RequestNotifier(requestNotifications) }
@@ -60,7 +62,14 @@ class ShareOwnerModule(
     val ownerEngine: OwnerEngine by lazy {
         val seen = SeenWraps { id, at -> data.database.seenWraps().markSeen(id, at) }
         OwnerEngine(
-            ownerContext, identityStore, transport, hub, seen, data.treatments, clock, dispatchers.default,
+            ownerContext,
+            identityStore,
+            transport,
+            hub,
+            seen,
+            data.treatments,
+            clock,
+            dispatchers.default,
             settings = settings,
             onRequest = { requests.onRequest(it) },
         ).also { engine ->

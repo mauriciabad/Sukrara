@@ -28,7 +28,10 @@ data class RestoreGate(val blocks: Set<RestoreBlock>) {
 
         private val OWN_SOURCES = setOf(SourceId.Libre3, SourceId.Juggluco)
 
-        fun evaluate(ownSensorLive: Boolean): RestoreGate = RestoreGate(if (ownSensorLive) emptySet() else setOf(RestoreBlock.NoLiveReading))
+        fun evaluate(ownSensorLive: Boolean): RestoreGate =
+            RestoreGate(
+                if (ownSensorLive) emptySet() else setOf(RestoreBlock.NoLiveReading),
+            )
 
         /** Readings are arriving live from this phone's own sensor (not a follower feed), the newest ≤ 15 min old. */
         fun ownSensorLive(

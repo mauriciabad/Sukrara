@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.protocol.event
 
+import app.mauri.sukrara.protocol.WireJson
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonNull
@@ -12,7 +13,6 @@ import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.doubleOrNull
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.longOrNull
-import app.mauri.sukrara.protocol.WireJson
 
 /** A payload that breaks the spec: the event carrying it is rejected with [reason]. */
 class InvalidPayload(val reason: String) : Exception(reason)

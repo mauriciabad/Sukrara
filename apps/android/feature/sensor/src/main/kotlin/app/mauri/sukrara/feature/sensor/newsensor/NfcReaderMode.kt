@@ -30,13 +30,14 @@ fun NfcReaderMode(enabled: Boolean, onTag: (Tag) -> Unit) {
         val adapter = NfcAdapter.getDefaultAdapter(activity)
         if (!enabled || adapter == null) return@DisposableEffect onDispose {}
         val callback = NfcAdapter.ReaderCallback { tag -> currentOnTag(tag) }
-        val observer = LifecycleEventObserver { _, event ->
-            when (event) {
-                Lifecycle.Event.ON_RESUME -> adapter.on(activity, callback)
-                Lifecycle.Event.ON_PAUSE -> adapter.off(activity)
-                else -> Unit
+        val observer =
+            LifecycleEventObserver { _, event ->
+                when (event) {
+                    Lifecycle.Event.ON_RESUME -> adapter.on(activity, callback)
+                    Lifecycle.Event.ON_PAUSE -> adapter.off(activity)
+                    else -> Unit
+                }
             }
-        }
         lifecycle.addObserver(observer) // replays ON_RESUME when already resumed
         onDispose {
             lifecycle.removeObserver(observer)

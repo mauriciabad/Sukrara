@@ -88,8 +88,18 @@ fun AlertKindContent(
             )
         }
         SettingsGroup(title = stringResource(R.string.st_alert_when)) {
-            ValueRow(stringResource(R.string.st_threshold), thresholdSentence(kind, rule.threshold), { dialog = "threshold" }, enabled = rule.on)
-            ValueRow(stringResource(R.string.st_repeat), numberLabel(repeatSpec, rule.repeatMin.toDouble()), { dialog = "repeat" }, enabled = rule.on)
+            ValueRow(
+                stringResource(R.string.st_threshold),
+                thresholdSentence(kind, rule.threshold),
+                { dialog = "threshold" },
+                enabled = rule.on,
+            )
+            ValueRow(
+                stringResource(R.string.st_repeat),
+                numberLabel(repeatSpec, rule.repeatMin.toDouble()),
+                { dialog = "repeat" },
+                enabled = rule.on,
+            )
         }
         SettingsGroup(title = stringResource(R.string.st_sound_title)) {
             SwitchRow(
@@ -115,35 +125,62 @@ fun AlertKindContent(
         FooterText(stringResource(if (kind.isLevel) R.string.st_kind_footer_level else R.string.st_kind_footer_other))
     }
     when (dialog) {
-        "off" ->
+        "off" -> {
             ConfirmDialog(
                 stringResource(R.string.st_kind_off_title, kindName(kind)),
                 stringResource(if (kind == AlertKind.NO_DATA) R.string.st_kind_off_text_no_data else R.string.st_kind_off_text_very_low),
                 stringResource(R.string.st_turn_off),
                 { dialog = null },
             ) { actions.edit(AlertEdits.kindOn(kind, false)) }
+        }
 
-        "alarmOff" ->
+        "alarmOff" -> {
             ConfirmDialog(
                 stringResource(R.string.st_alarm_off_title, kindName(kind)),
                 stringResource(R.string.st_alarm_off_text),
                 stringResource(R.string.st_turn_off),
                 { dialog = null },
             ) { actions.edit(AlertEdits.alarm(kind, false)) }
+        }
 
-        "threshold" ->
-            NumberDialog(stringResource(R.string.st_threshold), thresholdInput(ui.settings, kind), rule.threshold, { label(thresholdSpec, it) }, { dialog = null }) {
+        "threshold" -> {
+            NumberDialog(
+                stringResource(
+                    R.string.st_threshold,
+                ),
+                thresholdInput(ui.settings, kind),
+                rule.threshold,
+                { label(thresholdSpec, it) },
+                {
+                    dialog =
+                        null
+                },
+            ) {
                 actions.edit(AlertEdits.threshold(kind, it))
             }
+        }
 
-        "repeat" ->
-            NumberDialog(stringResource(R.string.st_repeat), NumberInput(repeatSpec), rule.repeatMin.toDouble(), { label(repeatSpec, it) }, { dialog = null }) {
+        "repeat" -> {
+            NumberDialog(
+                stringResource(
+                    R.string.st_repeat,
+                ),
+                NumberInput(repeatSpec),
+                rule.repeatMin.toDouble(),
+                { label(repeatSpec, it) },
+                {
+                    dialog =
+                        null
+                },
+            ) {
                 actions.edit(AlertEdits.repeat(kind, it))
             }
+        }
 
         "sound" -> {
             val same = stringResource(R.string.st_sound_same, packName(ui.settings.sounds.pack))
-            val options = listOf(Choice<String?>(same, null)) + SettingsSpec.OPTIONS.getValue("soundPack").map { Choice<String?>(packName(it), it) }
+            val options =
+                listOf(Choice<String?>(same, null)) + SettingsSpec.OPTIONS.getValue("soundPack").map { Choice<String?>(packName(it), it) }
             ChoiceDialog(stringResource(R.string.st_sound), options, ui.settings.sounds.perKind[kind], { dialog = null }) {
                 actions.edit(AlertEdits.sound(kind, it))
             }

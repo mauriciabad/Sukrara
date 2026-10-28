@@ -24,12 +24,16 @@ class LibreViewSignInViewModelTest {
     private class FakeAccount(var answer: SignInResult) : LibreViewPort {
         override val email = MutableStateFlow<String?>(null)
         var calls = 0
+
         override suspend fun signIn(email: String, password: String): SignInResult {
             calls++
             if (answer is SignInResult.SignedIn) this.email.value = email.trim()
             return answer
         }
-        override suspend fun signOut() { email.value = null }
+
+        override suspend fun signOut() {
+            email.value = null
+        }
     }
 
     @Before fun setUp() = Dispatchers.setMain(dispatcher)
@@ -60,23 +64,25 @@ class LibreViewSignInViewModelTest {
     @Test fun offline() =
         assertEquals(SignInUi.SignedOut(SignInError.Failed), result(SignInResult.Failed("UnknownHostException")).second)
 
-    @Test fun `an empty form sends nothing`() = runTest(dispatcher) {
-        val account = FakeAccount(SignInResult.BadCredentials)
-        val vm = LibreViewSignInViewModel(account)
-        vm.signIn("", "")
-        vm.signIn("me@example.com", "")
-        runCurrent()
-        assertEquals(0, account.calls)
-    }
+    @Test fun `an empty form sends nothing`() =
+        runTest(dispatcher) {
+            val account = FakeAccount(SignInResult.BadCredentials)
+            val vm = LibreViewSignInViewModel(account)
+            vm.signIn("", "")
+            vm.signIn("me@example.com", "")
+            runCurrent()
+            assertEquals(0, account.calls)
+        }
 
-    @Test fun `sign out`() = runTest(dispatcher) {
-        val account = FakeAccount(SignInResult.SignedIn(1)).apply { email.value = "me@example.com" }
-        val vm = LibreViewSignInViewModel(account)
-        runCurrent()
-        assertEquals(SignInUi.SignedIn("me@example.com"), vm.ui.value)
-        vm.signOut()
-        runCurrent()
-        assertEquals(SignInUi.SignedOut(), vm.ui.value)
-        assertEquals(null, account.email.value)
-    }
+    @Test fun `sign out`() =
+        runTest(dispatcher) {
+            val account = FakeAccount(SignInResult.SignedIn(1)).apply { email.value = "me@example.com" }
+            val vm = LibreViewSignInViewModel(account)
+            runCurrent()
+            assertEquals(SignInUi.SignedIn("me@example.com"), vm.ui.value)
+            vm.signOut()
+            runCurrent()
+            assertEquals(SignInUi.SignedOut(), vm.ui.value)
+            assertEquals(null, account.email.value)
+        }
 }

@@ -20,7 +20,9 @@ struct NumberSettingRow: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             Picker(label, selection: choice) {
-                ForEach(format.presets + format.special.keys.filter { !format.presets.contains($0) }.sorted(), id: \.self) {
+                ForEach(
+                    format.presets + format.special.keys.filter { !format.presets.contains($0) }.sorted(), id: \.self
+                ) {
                     Text(Self.word(format, $0)).tag(Optional($0))
                 }
                 if format.custom { Text(L10n.t("Custom…")).tag(Double?.none) }
@@ -29,11 +31,11 @@ struct NumberSettingRow: View {
             .accessibilityValue(Self.word(format, value))
             if isCustom && format.custom && !readOnly {
                 HStack {
-                    TextField(L10n.t("Value"), text: $text)  // settings-ok: the one number input
+                    TextField(L10n.t("Value"), text: $text)  // settings-ok: number input
                         .frame(width: 70)
                         .onSubmit(commit)
                         .accessibilityLabel(label)
-                    Stepper("", onIncrement: { nudge(1) }, onDecrement: { nudge(-1) })  // settings-ok: the one number input
+                    Stepper("", onIncrement: { nudge(1) }, onDecrement: { nudge(-1) })  // settings-ok: number input
                         .labelsHidden()
                         .accessibilityLabel(L10n.t("Adjust \(label)"))
                     Text(format.unit).foregroundStyle(.secondary)

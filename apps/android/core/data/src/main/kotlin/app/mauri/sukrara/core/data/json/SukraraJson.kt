@@ -6,7 +6,8 @@ package app.mauri.sukrara.core.data.json
 import kotlinx.serialization.json.Json
 
 /** The app's one JSON configuration: newer files and servers may add fields; absent optionals stay absent. */
-val SukraraJson: Json = Json {
-    ignoreUnknownKeys = true
-    explicitNulls = false
-}
+val SukraraJson: Json =
+    Json {
+        ignoreUnknownKeys = true
+        explicitNulls = false
+    }

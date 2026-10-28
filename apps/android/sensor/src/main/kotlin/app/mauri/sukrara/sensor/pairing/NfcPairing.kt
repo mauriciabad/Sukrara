@@ -47,10 +47,11 @@ class NfcPairing internal constructor(
     private val io: CoroutineDispatcher,
     private val log: (String) -> Unit = {},
 ) {
-    suspend fun pair(tag: Tag): PairOutcome = withContext(io) {
-        val (account, own) = receiverIds()
-        handle(Libre3Nfc.scan(tag, account, own, log))
-    }
+    suspend fun pair(tag: Tag): PairOutcome =
+        withContext(io) {
+            val (account, own) = receiverIds()
+            handle(Libre3Nfc.scan(tag, account, own, log))
+        }
 
     /** The account's receiver ID and Sukrara's own one (made once, on the first tap). */
     internal suspend fun receiverIds(): Pair<Long?, Long> {
@@ -59,17 +60,36 @@ class NfcPairing internal constructor(
         return s.account to checkNotNull(s.own)
     }
 
-    internal suspend fun handle(result: Libre3Nfc.Result): PairOutcome = when (result) {
-        is Libre3Nfc.Result.Paired -> {
-            pairings.save(result.pairing.copy(kAuth = null, ended = false))
-            onPaired()
-            PairOutcome.Paired(result.pairing.serial, result.activated)
+    internal suspend fun handle(result: Libre3Nfc.Result): PairOutcome =
+        when (result) {
+            is Libre3Nfc.Result.Paired -> {
+                pairings.save(result.pairing.copy(kAuth = null, ended = false))
+                onPaired()
+                PairOutcome.Paired(result.pairing.serial, result.activated)
+            }
+
+            is Libre3Nfc.Result.NeedsAccount -> {
+                PairOutcome.NeedsLibreViewSignIn(result.serial, result.neverStarted)
+            }
+
+            is Libre3Nfc.Result.OwnedByAnotherReceiver -> {
+                PairOutcome.OwnedByAnotherApp(result.serial)
+            }
+
+            is Libre3Nfc.Result.Ended -> {
+                PairOutcome.Ended(result.serial)
+            }
+
+            Libre3Nfc.Result.Libre2 -> {
+                PairOutcome.Libre2Unsupported
+            }
+
+            is Libre3Nfc.Result.Unsupported -> {
+                PairOutcome.Unsupported(result.why)
+            }
+
+            is Libre3Nfc.Result.Failed -> {
+                PairOutcome.Failed(result.why)
+            }
         }
-        is Libre3Nfc.Result.NeedsAccount -> PairOutcome.NeedsLibreViewSignIn(result.serial, result.neverStarted)
-        is Libre3Nfc.Result.OwnedByAnotherReceiver -> PairOutcome.OwnedByAnotherApp(result.serial)
-        is Libre3Nfc.Result.Ended -> PairOutcome.Ended(result.serial)
-        Libre3Nfc.Result.Libre2 -> PairOutcome.Libre2Unsupported
-        is Libre3Nfc.Result.Unsupported -> PairOutcome.Unsupported(result.why)
-        is Libre3Nfc.Result.Failed -> PairOutcome.Failed(result.why)
-    }
 }

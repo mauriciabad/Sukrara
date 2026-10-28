@@ -43,9 +43,13 @@ object BleFraming {
         return (0 until count).map { idx ->
             val from = idx * per
             val to = minOf(payload.size, from + per)
-            ByteBuffer.allocate(HEADER + (to - from))
-                .putShort(msgId.toShort()).putShort(idx.toShort()).putShort(count.toShort())
-                .put(payload, from, to - from).array()
+            ByteBuffer
+                .allocate(HEADER + (to - from))
+                .putShort(msgId.toShort())
+                .putShort(idx.toShort())
+                .putShort(count.toShort())
+                .put(payload, from, to - from)
+                .array()
         }
     }
 

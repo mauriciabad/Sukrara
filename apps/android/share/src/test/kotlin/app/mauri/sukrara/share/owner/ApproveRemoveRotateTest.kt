@@ -32,7 +32,8 @@ class ApproveRemoveRotateTest {
     /** Invite → Alice's request → approved: the state every test starts from. */
     private fun withAlice(): Pair<OwnerState, String> {
         val created = CreateInvite(ctx)(CreateIdentity(ctx)(null, NOW).state, "Alice", NOW)
-        val handled = HandleInbox(ctx)(created.step.state, OwnerFixtures.request(alice, created.step.state, created.link.token, "Alice"), NOW)
+        val handled =
+            HandleInbox(ctx)(created.step.state, OwnerFixtures.request(alice, created.step.state, created.link.token, "Alice"), NOW)
         val approved = ApproveRequest(ctx)(handled.step.state, alice.public.hex, NOW)!!
         return approved.state to created.link.token
     }
@@ -43,7 +44,12 @@ class ApproveRemoveRotateTest {
         val wrap = created.step.publish.first { it.kind == Wire.KIND_WRAP }
         val opened = Invites.open(crypto, InviteLink.parse(created.link.link)!!, listOf(wrap), NOW)
         assertTrue(opened is Invites.Result.Opened)
-        assertEquals("Alice", created.step.state.invites.single().label)
+        assertEquals(
+            "Alice",
+            created.step.state.invites
+                .single()
+                .label,
+        )
 
         val first = HandleInbox(ctx)(created.step.state, OwnerFixtures.request(alice, created.step.state, created.link.token, "Alice"), NOW)
         val request = (first.signal as InboxSignal.NewRequest).request
@@ -52,7 +58,12 @@ class ApproveRemoveRotateTest {
         // Bob uses the same (leaked) link: invite-used, and Alice's request counts the other attempt
         val second = HandleInbox(ctx)(first.step.state, OwnerFixtures.request(bob, first.step.state, created.link.token, "Bob"), NOW)
         assertEquals(Rumor.InviteUsed, OwnerFixtures.open(bob, second.step.publish.single()))
-        assertEquals(1, second.step.state.pending.single().others)
+        assertEquals(
+            1,
+            second.step.state.pending
+                .single()
+                .others,
+        )
     }
 
     @Test fun approveDeliversTheCurrentKeyAndUsesTheInviteUp() {
@@ -71,7 +82,11 @@ class ApproveRemoveRotateTest {
         val denied = DenyRequest(ctx)(handled.step.state, bob.public.hex, NOW)!!
         assertEquals(Rumor.Declined, OwnerFixtures.open(bob, denied.publish.first()))
         assertTrue(denied.state.followers.isEmpty())
-        assertTrue(denied.state.invites.single().done)
+        assertTrue(
+            denied.state.invites
+                .single()
+                .done,
+        )
     }
 
     @Test fun removeRotatesAndOnlyTheRemainingFollowersGetTheNewKey() {
@@ -85,7 +100,11 @@ class ApproveRemoveRotateTest {
         assertEquals(2, removed.state.current.n)
         val toAlice = removed.publish.drop(1).mapNotNull { OwnerFixtures.open(alice, it) }
         assertTrue("removed follower gets no new key", toAlice.none { it is Rumor.KeyDelivery })
-        val toBob = removed.publish.mapNotNull { OwnerFixtures.open(bob, it) }.filterIsInstance<Rumor.KeyDelivery>().single()
+        val toBob =
+            removed.publish
+                .mapNotNull { OwnerFixtures.open(bob, it) }
+                .filterIsInstance<Rumor.KeyDelivery>()
+                .single()
         assertEquals(2, toBob.epoch)
         // the new roster names this phone only and is encrypted to the new read key
         val roster = removed.publish.single { it.tag("d") == Wire.rosterD(both.sid) }

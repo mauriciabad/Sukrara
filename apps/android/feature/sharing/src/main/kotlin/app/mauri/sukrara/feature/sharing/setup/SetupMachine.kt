@@ -81,6 +81,7 @@ object SetupMachine {
         when (facts.role) {
             // follower join adds its own step here
             Role.Follower -> listOf(SetupStep.Welcome, SetupStep.Role, SetupStep.Permissions, SetupStep.Alerts)
+
             Role.Wearer, null -> SetupStep.entries
         }
 

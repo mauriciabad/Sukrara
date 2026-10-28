@@ -50,8 +50,9 @@ struct SyncFixtureTests {
             let outcome = session.receive(event, now: now)
             #expect(outcome.verdict.description == step["expect"] as? String, "\(label)")
             let have = try outcome.publish.map { wrap in
-                let body = try JSONSerialization.jsonObject(
-                    with: Data(try crypto.unwrap(wrap, with: identitySecret).content.utf8)) as? [String: Any]
+                let body =
+                    try JSONSerialization.jsonObject(
+                        with: Data(try crypto.unwrap(wrap, with: identitySecret).content.utf8)) as? [String: Any]
                 #expect(body?["type"] as? String == "rekey", "\(label)")
                 return body?["have"] as? String
             }

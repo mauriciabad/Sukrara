@@ -29,7 +29,8 @@ class JugglucoSourceTest {
     /** Juggluco's sgv.json `sensor_status` (watchserver.cpp firstdata) → the sensor's start; end = start + 15 days. */
     @Test
     fun sensorStatus() {
-        val json = """[{"_id":"3MH00ABCDE#1234","device":"Juggluco","date":1760776800000,"sgv":120,"sensor_status":"09-10-26 08:05 (9d 3h)"}]"""
+        val json =
+            """[{"_id":"3MH00ABCDE#1234","device":"Juggluco","date":1760776800000,"sgv":120,"sensor_status":"09-10-26 08:05 (9d 3h)"}]"""
         val start = ZonedDateTime.of(2026, 10, 9, 8, 5, 0, 0, zone).toEpochSecond()
         val info = JugglucoSource.parseSensorStatus(json, zone)!!
         assertEquals("3MH00ABCDE", info.serial)
@@ -71,56 +72,65 @@ class JugglucoSourceTest {
 
     /** A fake Juggluco on loopback: history, then the SSE stream feeds readings in order. */
     @Test
-    fun historyThenLiveFromALocalServer() = runBlocking {
-        val server = HttpServer.create(InetSocketAddress("127.0.0.1", 0), 0)
-        fun respond(path: String, type: String, body: String) = server.createContext(path) { ex ->
-            val out = body.encodeToByteArray()
-            ex.responseHeaders.add("Content-Type", type)
-            ex.sendResponseHeaders(200, out.size.toLong())
-            ex.responseBody.use { it.write(out) }
-        }
-        respond("/api/v1/entries.json", "application/json", """[{"date":1760776800000,"sgv":120,"delta":0,"direction":"Flat","device":"Juggluco"}]""")
-        respond("/sgv.json", "application/json", """[{"_id":"3MH00ABCDE#1","sgv":120,"sensor_status":"09-10-26 08:05 (9d 3h)"}]""")
-        respond(
-            "/x/live", "text/event-stream",
-            "event: glucose\ndata: {\"timestamp\":1760776860,\"glucoseMgDl\":121,\"rateMgDlPerMinute\":0.5,\"sensorId\":1}\n\n" +
-                "event: other\ndata: {\"timestamp\":1,\"glucoseMgDl\":999}\n\n",
-        )
-        server.start()
-        val readings = Collections.synchronizedList(ArrayList<Reading>())
-        val statuses = Collections.synchronizedList(ArrayList<JugglucoStatus>())
-        val gotLive = CompletableDeferred<Unit>()
-        var sensor: SensorInfo? = null
-        val sink = object : JugglucoSink {
-            override fun onReadings(readings: List<Reading>, live: Boolean) {
-                readings.forEach { readingsAdd(it) }
-            }
+    fun historyThenLiveFromALocalServer() =
+        runBlocking {
+            val server = HttpServer.create(InetSocketAddress("127.0.0.1", 0), 0)
 
-            fun readingsAdd(r: Reading) {
-                readings += r
-                if (r.mgdl == 121) gotLive.complete(Unit)
-            }
+            fun respond(path: String, type: String, body: String) =
+                server.createContext(path) { ex ->
+                    val out = body.encodeToByteArray()
+                    ex.responseHeaders.add("Content-Type", type)
+                    ex.sendResponseHeaders(200, out.size.toLong())
+                    ex.responseBody.use { it.write(out) }
+                }
+            respond(
+                "/api/v1/entries.json",
+                "application/json",
+                """[{"date":1760776800000,"sgv":120,"delta":0,"direction":"Flat","device":"Juggluco"}]""",
+            )
+            respond("/sgv.json", "application/json", """[{"_id":"3MH00ABCDE#1","sgv":120,"sensor_status":"09-10-26 08:05 (9d 3h)"}]""")
+            respond(
+                "/x/live",
+                "text/event-stream",
+                "event: glucose\ndata: {\"timestamp\":1760776860,\"glucoseMgDl\":121,\"rateMgDlPerMinute\":0.5,\"sensorId\":1}\n\n" +
+                    "event: other\ndata: {\"timestamp\":1,\"glucoseMgDl\":999}\n\n",
+            )
+            server.start()
+            val readings = Collections.synchronizedList(ArrayList<Reading>())
+            val statuses = Collections.synchronizedList(ArrayList<JugglucoStatus>())
+            val gotLive = CompletableDeferred<Unit>()
+            var sensor: SensorInfo? = null
+            val sink =
+                object : JugglucoSink {
+                    override fun onReadings(readings: List<Reading>, live: Boolean) {
+                        readings.forEach { readingsAdd(it) }
+                    }
 
-            override fun onStatus(status: JugglucoStatus) {
-                statuses += status
-            }
+                    fun readingsAdd(r: Reading) {
+                        readings += r
+                        if (r.mgdl == 121) gotLive.complete(Unit)
+                    }
 
-            override fun onSensor(info: SensorInfo) {
-                sensor = info
+                    override fun onStatus(status: JugglucoStatus) {
+                        statuses += status
+                    }
+
+                    override fun onSensor(info: SensorInfo) {
+                        sensor = info
+                    }
+                }
+            val source = JugglucoSource(OkHttpClient(), "http://127.0.0.1:${server.address.port}") { zone }
+            val job = launch(Dispatchers.IO) { source.run(sink) }
+            try {
+                withTimeout(10_000) { gotLive.await() }
+            } finally {
+                job.cancel()
+                source.cancelCall()
+                server.stop(0)
             }
+            assertEquals(listOf(120, 121), readings.take(2).map { it.mgdl })
+            assertEquals(0.5, readings[1].rateMgdlPerMin)
+            assertEquals("3MH00ABCDE", sensor?.serial)
+            assertEquals(listOf(JugglucoStatus.FetchingHistory, JugglucoStatus.Live), statuses.take(2))
         }
-        val source = JugglucoSource(OkHttpClient(), "http://127.0.0.1:${server.address.port}") { zone }
-        val job = launch(Dispatchers.IO) { source.run(sink) }
-        try {
-            withTimeout(10_000) { gotLive.await() }
-        } finally {
-            job.cancel()
-            source.cancelCall()
-            server.stop(0)
-        }
-        assertEquals(listOf(120, 121), readings.take(2).map { it.mgdl })
-        assertEquals(0.5, readings[1].rateMgdlPerMin)
-        assertEquals("3MH00ABCDE", sensor?.serial)
-        assertEquals(listOf(JugglucoStatus.FetchingHistory, JugglucoStatus.Live), statuses.take(2))
-    }
 }

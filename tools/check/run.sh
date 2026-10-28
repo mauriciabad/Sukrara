@@ -11,6 +11,8 @@
 #   tools/check/run.sh --help               what each check does
 #   tools/check/run.sh --layout             the cross-surface tests (one graph everywhere, freshness): Android
 #                                           :core:graph tests (JDK 21) and the Mac GraphTests
+#   tools/check/run.sh --format             the formatters over the whole tree: Android `./gradlew spotlessCheck`
+#                                           (also part of `check`) and Mac `swift format lint --strict`
 #   tools/check/run.sh --selftest           the checks' own tests (tools/check/selftest.sh)
 root="$(git rev-parse --show-toplevel)"
 if [ "$1" = "--layout" ]; then
@@ -25,6 +27,13 @@ if [ "$1" = "--layout" ]; then
   else
     echo "apps/macos: no Swift package yet, skipped"
   fi
+  exit 0
+fi
+if [ "$1" = "--format" ]; then
+  set -e
+  (cd "$root/apps/android" && ./gradlew -q spotlessCheck)
+  (cd "$root/apps/macos" && swift format lint --strict --recursive Sources Tests)
+  echo "format: Android and Mac clean"
   exit 0
 fi
 if [ "$1" = "--selftest" ]; then

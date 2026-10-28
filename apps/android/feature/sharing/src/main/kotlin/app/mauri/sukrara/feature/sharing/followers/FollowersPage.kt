@@ -63,13 +63,30 @@ fun FollowersPage(
         if (pending.isNotEmpty()) {
             SettingsGroup(title = stringResource(R.string.sh_followers_waiting)) {
                 for (p in pending) {
-                    NavigationRow(title = p.name.ifBlank { stringResource(R.string.sh_approve_unnamed) }, summary = stringResource(R.string.sh_followers_review), onClick = { onReview(p) })
+                    NavigationRow(
+                        title =
+                            p.name.ifBlank {
+                                stringResource(R.string.sh_approve_unnamed)
+                            },
+                        summary = stringResource(R.string.sh_followers_review),
+                        onClick = { onReview(p) },
+                    )
                 }
             }
         }
         SettingsGroup(title = pluralStringResource(R.plurals.sh_followers_count, active.size, active.size)) {
             for (f in active) {
-                NavigationRow(title = f.name.ifBlank { stringResource(R.string.sh_approve_unnamed) }, summary = stringResource(R.string.sh_followers_since, date(f.since)), onClick = { open = f.key })
+                NavigationRow(
+                    title =
+                        f.name.ifBlank {
+                            stringResource(R.string.sh_approve_unnamed)
+                        },
+                    summary = stringResource(R.string.sh_followers_since, date(f.since)),
+                    onClick = {
+                        open =
+                            f.key
+                    },
+                )
             }
         }
         NavigationRow(title = stringResource(R.string.sh_followers_share), onClick = onShare)
@@ -97,7 +114,9 @@ fun FollowerDialog(
             text = { Text(stringResource(R.string.sh_followers_since, date(follower.since))) },
             confirmButton = { TextButton(onClick = onClose) { Text(stringResource(R.string.sh_followers_close)) } },
             dismissButton = {
-                TextButton(onClick = { confirming = true }) { Text(stringResource(R.string.sh_followers_remove), color = MaterialTheme.colorScheme.error) }
+                TextButton(
+                    onClick = { confirming = true },
+                ) { Text(stringResource(R.string.sh_followers_remove), color = MaterialTheme.colorScheme.error) }
             },
         )
     } else {

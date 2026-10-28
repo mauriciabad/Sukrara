@@ -142,13 +142,22 @@ object WriterScope {
         creator: String?,
         heldOrigin: String?,
         devices: Collection<String>,
-    ): Verdict = when {
-        !fromDevice -> when {
-            creator == null || creator == author -> Verdict.Accept
-            creator in devices && heldOrigin == TreatmentCodec.ORIGIN_FOLLOWER -> Verdict.Ignore
-            else -> Verdict.Reject
+    ): Verdict =
+        when {
+            !fromDevice -> {
+                when {
+                    creator == null || creator == author -> Verdict.Accept
+                    creator in devices && heldOrigin == TreatmentCodec.ORIGIN_FOLLOWER -> Verdict.Ignore
+                    else -> Verdict.Reject
+                }
+            }
+
+            incomingOrigin != TreatmentCodec.ORIGIN_FOLLOWER && creator != null && creator !in devices -> {
+                Verdict.Override
+            }
+
+            else -> {
+                Verdict.Accept
+            }
         }
-        incomingOrigin != TreatmentCodec.ORIGIN_FOLLOWER && creator != null && creator !in devices -> Verdict.Override
-        else -> Verdict.Accept
-    }
 }

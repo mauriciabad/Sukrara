@@ -42,7 +42,13 @@ class SensorSettingsTest {
 
     private val now = Instant.parse("2026-10-27T14:00:00Z")
     private val sensor = SensorSummary("3MH00ABCDEF", now.minusSeconds(5 * 86_400), now.plusSeconds(10 * 86_400))
-    private val working = SensorSettingsState(SourceChoice.Libre3Direct, SensorState.Active(sensor.endsAt), sensor, LibreViewSummary("me@example.invalid", 123456789))
+    private val working =
+        SensorSettingsState(
+            SourceChoice.Libre3Direct,
+            SensorState.Active(sensor.endsAt),
+            sensor,
+            LibreViewSummary("me@example.invalid", 123456789),
+        )
 
     private class FakePort(initial: SensorSettingsState) : SensorSettingsPort {
         override val state = MutableStateFlow(initial)
@@ -145,7 +151,12 @@ class SensorSettingsTest {
     @Test
     fun `signed out shows Sign in`() {
         var signIn = 0
-        show(working.copy(state = SensorState.ActionNeeded(SensorAction.SignInLibreView), account = null), SensorSettingsActions(signIn = { signIn++ }))
+        show(
+            working.copy(state = SensorState.ActionNeeded(SensorAction.SignInLibreView), account = null),
+            SensorSettingsActions(signIn = {
+                signIn++
+            }),
+        )
         compose.onAllNodesWithTextFirst("Sign in to LibreView").performClick()
         assertEquals(1, signIn)
     }

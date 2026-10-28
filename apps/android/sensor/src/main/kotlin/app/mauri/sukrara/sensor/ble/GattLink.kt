@@ -96,11 +96,12 @@ internal class GattLink(
 
     override fun schedule(delayMs: Long, action: Runnable) {
         timers.remove(action)?.cancel()
-        timers[action] = scope.launch {
-            delay(delayMs)
-            timers.remove(action)
-            action.run()
-        }
+        timers[action] =
+            scope.launch {
+                delay(delayMs)
+                timers.remove(action)
+                action.run()
+            }
     }
 
     override fun cancel(action: Runnable) {
@@ -128,10 +129,11 @@ internal class GattLink(
         val wait = backoffMs
         backoffMs = (backoffMs * 2).coerceAtMost(MAX_BACKOFF_MS)
         reconnect?.cancel()
-        reconnect = scope.launch {
-            delay(wait)
-            connectNow()
-        }
+        reconnect =
+            scope.launch {
+                delay(wait)
+                connectNow()
+            }
     }
 
     /** Close the current connection now; reconnect with a new one after the backoff unless closing / Bluetooth off. */
@@ -157,7 +159,7 @@ internal class GattLink(
         val c = connection
         if (c == null || e.generation != generation) return
         when (e) {
-            is GattEvent.ConnectionChanged ->
+            is GattEvent.ConnectionChanged -> {
                 if (e.connected) {
                     events.onStatus(LinkStatus.DiscoveringServices)
                     armTimeout("service discovery") { drop(reconnectAfter = true) }
@@ -166,16 +168,20 @@ internal class GattLink(
                     log("sensor disconnected (status ${e.status})")
                     drop(reconnectAfter = true)
                 }
+            }
+
             is GattEvent.ServicesDiscovered -> {
                 timeout?.cancel()
                 driver.onConnected(this, e.characteristics, e.status)
             }
+
             is GattEvent.OperationDone -> {
                 timeout?.cancel()
                 if (e.status != 0) return driver.onLinkFailed("operation on ${e.characteristic} failed: ${e.status}")
                 opRunning = false
                 pumpOps()
             }
+
             is GattEvent.Notification -> {
                 backoffMs = FIRST_BACKOFF_MS // the sensor is talking: the next drop retries quickly again
                 driver.onNotification(e.characteristic, e.value)
@@ -198,10 +204,11 @@ internal class GattLink(
         opRunning = true
         armTimeout(op.toString()) { driver.onLinkFailed("$op timed out") }
         guarded {
-            val issued = when (op) {
-                is Op.Subscribe -> c.enableNotifications(op.characteristic)
-                is Op.Write -> c.write(op.characteristic, op.value)
-            }
+            val issued =
+                when (op) {
+                    is Op.Subscribe -> c.enableNotifications(op.characteristic)
+                    is Op.Write -> c.write(op.characteristic, op.value)
+                }
             if (!issued) {
                 timeout?.cancel()
                 driver.onLinkFailed("$op on ${op.characteristic} rejected")
@@ -211,11 +218,12 @@ internal class GattLink(
 
     private fun armTimeout(what: String, onTimeout: () -> Unit) {
         timeout?.cancel()
-        timeout = scope.launch {
-            delay(opTimeoutMs)
-            log("$what timed out")
-            onTimeout()
-        }
+        timeout =
+            scope.launch {
+                delay(opTimeoutMs)
+                log("$what timed out")
+                onTimeout()
+            }
     }
 
     /**
@@ -231,7 +239,11 @@ internal class GattLink(
             events.onStatus(LinkStatus.PermissionMissing)
         } catch (e: Exception) {
             log("Bluetooth call failed: ${e.javaClass.simpleName}")
-            if (connection != null) drop(reconnectAfter = true) else if (!closed && !bluetoothOff) scheduleReconnect()
+            if (connection != null) {
+                drop(reconnectAfter = true)
+            } else if (!closed && !bluetoothOff) {
+                scheduleReconnect()
+            }
         }
     }
 }

@@ -136,7 +136,7 @@ fun HomeContent(
     }
     val follower = state.glucose.role == Role.Follower
     val scroll = rememberScrollState()
-    val shownBanner = banner(state, callbacks, onDismissed = { haptics.confirm() })
+    val shownBanner = banner(state, callbacks, onDismiss = { haptics.confirm() })
     // a safety banner sits right under the card (seen without scrolling); a tip goes below the glucose block
     val safetyBanner = shownBanner?.takeIf { it.severity == BannerSeverity.Safety }
     val infoBanner = shownBanner?.takeIf { it.severity == BannerSeverity.Info }
@@ -205,7 +205,9 @@ private fun FollowerHeader(state: HomeUiState) {
             when {
                 // removed: just the name, so the title never says "Following" over "No longer following"
                 state.reason == NoDataReason.LinkRevoked -> name ?: stringResource(R.string.home_following_unnamed)
+
                 name != null -> stringResource(R.string.home_following, name)
+
                 else -> stringResource(R.string.home_following_unnamed)
             },
             maxLines = 1,
@@ -213,7 +215,10 @@ private fun FollowerHeader(state: HomeUiState) {
         )
         val (line, trouble) =
             when (val reason = state.reason) {
-                NoDataReason.LinkRevoked -> stringResource(R.string.home_link_revoked) to true
+                NoDataReason.LinkRevoked -> {
+                    stringResource(R.string.home_link_revoked) to true
+                }
+
                 is NoDataReason.WearerSilent -> {
                     val since = reason.since
                     when {
@@ -222,9 +227,14 @@ private fun FollowerHeader(state: HomeUiState) {
                         else -> stringResource(R.string.home_link_silent, name, sinceTime(since, state.now))
                     } to true
                 }
-                else ->
-                    (link?.lastHeardAt?.let { stringResource(R.string.home_link_heard, relative(it, state.now)) } ?: stringResource(R.string.home_link_never)) to
+
+                else -> {
+                    (
+                        link?.lastHeardAt?.let { stringResource(R.string.home_link_heard, relative(it, state.now)) }
+                            ?: stringResource(R.string.home_link_never)
+                    ) to
                         false
+                }
             }
         Text(
             line,
@@ -274,7 +284,11 @@ private fun GlucoseSection(
                 )
                 BannerSlot(safetyBanner)
                 // Monitoring stopped already has its safety banner (banner 0): never say it twice
-                val compact = state.reason?.takeUnless { it == NoDataReason.MonitoringStopped && state.banner == BannerKind.MonitoringStopped }
+                val compact =
+                    state.reason?.takeUnless {
+                        it == NoDataReason.MonitoringStopped &&
+                            state.banner == BannerKind.MonitoringStopped
+                    }
                 ReasonRow(compact, state.now) { callbacks.onAction(it) }
                 SensorLine(state)
             }
@@ -353,26 +367,57 @@ private fun reasonText(
     now: Instant,
 ): Pair<String, String> =
     when (reason) {
-        NoDataReason.SetupIncomplete -> stringResource(R.string.reason_setup_title) to stringResource(R.string.reason_setup_body)
-        is NoDataReason.NoSensorYet ->
+        NoDataReason.SetupIncomplete -> {
+            stringResource(R.string.reason_setup_title) to stringResource(R.string.reason_setup_body)
+        }
+
+        is NoDataReason.NoSensorYet -> {
             if (reason.follower) {
                 stringResource(R.string.reason_no_wearer_title) to stringResource(R.string.reason_no_wearer_body)
             } else {
                 stringResource(R.string.reason_no_sensor_title) to stringResource(R.string.reason_no_sensor_body)
             }
-        NoDataReason.CoreMissing -> stringResource(R.string.reason_core_missing_title) to stringResource(R.string.reason_core_missing_body)
-        NoDataReason.BluetoothOff -> stringResource(R.string.reason_bluetooth_title) to stringResource(R.string.reason_bluetooth_body)
-        NoDataReason.MonitoringStopped -> stringResource(R.string.reason_stopped_title) to stringResource(R.string.reason_stopped_body)
-        NoDataReason.SensorEnded -> stringResource(R.string.reason_ended_title) to stringResource(R.string.reason_ended_body)
-        is NoDataReason.WarmingUp ->
+        }
+
+        NoDataReason.CoreMissing -> {
+            stringResource(R.string.reason_core_missing_title) to stringResource(R.string.reason_core_missing_body)
+        }
+
+        NoDataReason.BluetoothOff -> {
+            stringResource(R.string.reason_bluetooth_title) to stringResource(R.string.reason_bluetooth_body)
+        }
+
+        NoDataReason.MonitoringStopped -> {
+            stringResource(R.string.reason_stopped_title) to stringResource(R.string.reason_stopped_body)
+        }
+
+        NoDataReason.SensorEnded -> {
+            stringResource(R.string.reason_ended_title) to stringResource(R.string.reason_ended_body)
+        }
+
+        is NoDataReason.WarmingUp -> {
             stringResource(R.string.reason_warmup_title) to stringResource(R.string.reason_warmup_body, clockTime(reason.readyAt))
-        NoDataReason.LinkRevoked -> stringResource(R.string.reason_revoked_title) to stringResource(R.string.reason_revoked_body)
-        is NoDataReason.WearerSilent ->
+        }
+
+        NoDataReason.LinkRevoked -> {
+            stringResource(R.string.reason_revoked_title) to stringResource(R.string.reason_revoked_body)
+        }
+
+        is NoDataReason.WearerSilent -> {
             stringResource(R.string.reason_wearer_silent_title) to
-                (reason.since?.let { stringResource(R.string.reason_wearer_silent_body, relative(it, now)) } ?: stringResource(R.string.reason_wearer_silent_never))
-        is NoDataReason.NoReadings ->
+                (
+                    reason.since?.let { stringResource(R.string.reason_wearer_silent_body, relative(it, now)) }
+                        ?: stringResource(R.string.reason_wearer_silent_never)
+                )
+        }
+
+        is NoDataReason.NoReadings -> {
             stringResource(R.string.reason_no_readings_title) to
-                (reason.since?.let { stringResource(R.string.reason_no_readings_body, relative(it, now)) } ?: stringResource(R.string.reason_no_readings_never))
+                (
+                    reason.since?.let { stringResource(R.string.reason_no_readings_body, relative(it, now)) }
+                        ?: stringResource(R.string.reason_no_readings_never)
+                )
+        }
     }
 
 @Composable
@@ -394,7 +439,7 @@ private fun actionLabel(reason: NoDataReason): String =
 private fun banner(
     state: HomeUiState,
     callbacks: HomeCallbacks,
-    onDismissed: () -> Unit,
+    onDismiss: () -> Unit,
 ): Banner? {
     val kind = state.banner ?: return null
     val dismiss: (() -> Unit)? =
@@ -402,52 +447,105 @@ private fun banner(
             null
         } else {
             {
-                onDismissed()
+                onDismiss()
                 callbacks.onDismiss(kind)
             }
         }
+
     fun open(action: HomeAction): () -> Unit = { callbacks.onAction(action) }
     val severity = if (kind.safety) BannerSeverity.Safety else BannerSeverity.Info
     return when (kind) {
-        BannerKind.MonitoringStopped ->
+        BannerKind.MonitoringStopped -> {
             Banner(
-                kind.name, R.drawable.home_ic_warning, stringResource(R.string.reason_stopped_title), stringResource(R.string.reason_stopped_body),
-                stringResource(R.string.reason_stopped_action), open(HomeAction.ResumeMonitoring), null, severity,
+                kind.name,
+                R.drawable.home_ic_warning,
+                stringResource(R.string.reason_stopped_title),
+                stringResource(R.string.reason_stopped_body),
+                stringResource(R.string.reason_stopped_action),
+                open(HomeAction.ResumeMonitoring),
+                null,
+                severity,
             )
+        }
+
         BannerKind.AlertsUnreliable -> {
             val problem = state.firstProblem ?: return null
             Banner(
-                kind.name, R.drawable.home_ic_warning, stringResource(R.string.banner_alerts_title), requirementText(problem),
-                stringResource(R.string.banner_alerts_action), { callbacks.onFix(problem) }, null, severity,
+                kind.name,
+                R.drawable.home_ic_warning,
+                stringResource(R.string.banner_alerts_title),
+                requirementText(problem),
+                stringResource(R.string.banner_alerts_action),
+                { callbacks.onFix(problem) },
+                null,
+                severity,
             )
         }
-        BannerKind.DataProblem ->
+
+        BannerKind.DataProblem -> {
             Banner(
-                kind.name, DsR.drawable.ds_ic_error, stringResource(R.string.banner_data_title),
+                kind.name,
+                DsR.drawable.ds_ic_error,
+                stringResource(R.string.banner_data_title),
                 pluralStringResource(R.plurals.banner_data_text, state.dataProblems.size, state.dataProblems.size),
-                stringResource(R.string.banner_data_action), callbacks.onOpenDataProblems, null, severity,
+                stringResource(R.string.banner_data_action),
+                callbacks.onOpenDataProblems,
+                null,
+                severity,
             )
-        BannerKind.FinishSetup ->
+        }
+
+        BannerKind.FinishSetup -> {
             Banner(
-                kind.name, DsR.drawable.ds_ic_info, stringResource(R.string.banner_setup_title),
+                kind.name,
+                DsR.drawable.ds_ic_info,
+                stringResource(R.string.banner_setup_title),
                 stringResource(R.string.banner_setup_text, state.nextSetupStep.orEmpty()),
-                stringResource(R.string.banner_setup_action), open(HomeAction.OpenSetup), dismiss, severity,
+                stringResource(R.string.banner_setup_action),
+                open(HomeAction.OpenSetup),
+                dismiss,
+                severity,
             )
-        BannerKind.NotBackedUp ->
+        }
+
+        BannerKind.NotBackedUp -> {
             Banner(
-                kind.name, DsR.drawable.ds_ic_info, stringResource(R.string.banner_backup_title), stringResource(R.string.banner_backup_text),
-                stringResource(R.string.banner_backup_action), open(HomeAction.OpenBackup), dismiss, severity,
+                kind.name,
+                DsR.drawable.ds_ic_info,
+                stringResource(R.string.banner_backup_title),
+                stringResource(R.string.banner_backup_text),
+                stringResource(R.string.banner_backup_action),
+                open(HomeAction.OpenBackup),
+                dismiss,
+                severity,
             )
-        BannerKind.AddWidget ->
+        }
+
+        BannerKind.AddWidget -> {
             Banner(
-                kind.name, DsR.drawable.ds_ic_info, stringResource(R.string.banner_widget_title), stringResource(R.string.banner_widget_text),
-                stringResource(R.string.banner_widget_action), open(HomeAction.AddWidget), dismiss, severity,
+                kind.name,
+                DsR.drawable.ds_ic_info,
+                stringResource(R.string.banner_widget_title),
+                stringResource(R.string.banner_widget_text),
+                stringResource(R.string.banner_widget_action),
+                open(HomeAction.AddWidget),
+                dismiss,
+                severity,
             )
-        BannerKind.ShareWithClinic ->
+        }
+
+        BannerKind.ShareWithClinic -> {
             Banner(
-                kind.name, DsR.drawable.ds_ic_info, stringResource(R.string.banner_clinic_title), stringResource(R.string.banner_clinic_text),
-                stringResource(R.string.banner_clinic_action), open(HomeAction.OpenClinicUpload), dismiss, severity,
+                kind.name,
+                DsR.drawable.ds_ic_info,
+                stringResource(R.string.banner_clinic_title),
+                stringResource(R.string.banner_clinic_text),
+                stringResource(R.string.banner_clinic_action),
+                open(HomeAction.OpenClinicUpload),
+                dismiss,
+                severity,
             )
+        }
     }
 }
 
@@ -525,7 +623,10 @@ private fun Treatments(
                 )
                 if (t.id !in readOnly) {
                     IconButton(onClick = { onDelete(t) }) {
-                        Icon(painterResource(R.drawable.home_ic_delete), contentDescription = stringResource(R.string.home_treatment_delete, label, time))
+                        Icon(
+                            painterResource(R.drawable.home_ic_delete),
+                            contentDescription = stringResource(R.string.home_treatment_delete, label, time),
+                        )
                     }
                 }
             }

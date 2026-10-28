@@ -82,6 +82,7 @@ class OwnerEngine(
     val state: StateFlow<OwnerShareState> = _state.asStateFlow()
 
     @Volatile private var owner: OwnerState? = null
+
     @Volatile private var jobs = emptyList<Job>()
 
     /** Whether sharing runs (started with an identity). */
@@ -97,14 +98,15 @@ class OwnerEngine(
     fun identityKey(): app.mauri.sukrara.protocol.KeyPair? = owner?.identity(ctx.crypto)
 
     /** Loads the identity and, if there is one, starts sharing in [scope] (the foreground service's). */
-    suspend fun start(scope: CoroutineScope) = locked {
-        if (jobs.isNotEmpty()) return@locked
-        when (val l = store.load()) {
-            OwnerIdentityStore.Load.Missing -> _state.value = OwnerShareState.NoIdentity
-            is OwnerIdentityStore.Load.Unreadable -> _state.value = OwnerShareState.IdentityUnreadable(l.transient)
-            is OwnerIdentityStore.Load.Loaded -> run(scope, l.state)
+    suspend fun start(scope: CoroutineScope) =
+        locked {
+            if (jobs.isNotEmpty()) return@locked
+            when (val l = store.load()) {
+                OwnerIdentityStore.Load.Missing -> _state.value = OwnerShareState.NoIdentity
+                is OwnerIdentityStore.Load.Unreadable -> _state.value = OwnerShareState.IdentityUnreadable(l.transient)
+                is OwnerIdentityStore.Load.Loaded -> run(scope, l.state)
+            }
         }
-    }
 
     suspend fun stop() = locked { halt() }
 
@@ -117,26 +119,27 @@ class OwnerEngine(
     private suspend fun run(scope: CoroutineScope, s: OwnerState) {
         owner = s
         val identity = s.identity(ctx.crypto).public.hex
-        jobs = listOf(
-            scope.launch(serial) { transport.inbound.collect { locked { onInbound(it) } } },
-            scope.launch(serial) { readingsFrom(hub) },
-            scope.launch(serial) { transport.status.collect { render() } },
-            scope.launch(serial) {
-                while (true) {
-                    delay(PublishReadings.CHUNK_EVERY * 1000)
-                    locked {
-                        owner?.let { publish(readings.tick(it, now())) }
-                        refreshControl()
-                        refreshShared()
+        jobs =
+            listOf(
+                scope.launch(serial) { transport.inbound.collect { locked { onInbound(it) } } },
+                scope.launch(serial) { readingsFrom(hub) },
+                scope.launch(serial) { transport.status.collect { render() } },
+                scope.launch(serial) {
+                    while (true) {
+                        delay(PublishReadings.CHUNK_EVERY * 1000)
+                        locked {
+                            owner?.let { publish(readings.tick(it, now())) }
+                            refreshControl()
+                            refreshShared()
+                        }
                     }
-                }
-            },
-            scope.launch(serial) {
-                settings.settings().debounce(SETTINGS_DEBOUNCE_MS).collect { w ->
-                    locked { owner?.let { apply(settingsMirror.onChange(it, w, now())) } }
-                }
-            },
-        )
+                },
+                scope.launch(serial) {
+                    settings.settings().debounce(SETTINGS_DEBOUNCE_MS).collect { w ->
+                        locked { owner?.let { apply(settingsMirror.onChange(it, w, now())) } }
+                    }
+                },
+            )
         transport.subscribe(INBOX, listOf(RelayFilter(kinds = listOf(Wire.KIND_WRAP), p = listOf(identity))))
         transport.subscribe(OWN, listOf(RelayFilter(kinds = listOf(Wire.KIND_DATA), authors = listOf(identity), since = now() - Wire.DAY)))
         transport.start()
@@ -159,15 +162,23 @@ class OwnerEngine(
     private suspend fun onInbound(m: RelayInbound) {
         val s = owner ?: return
         when (m) {
-            is RelayInbound.Ok -> if (m.accepted && s.pendingControl.any { it.eventId == m.eventId }) {
-                commit(s.copy(pendingControl = s.pendingControl.filter { it.eventId != m.eventId }))
+            is RelayInbound.Ok -> {
+                if (m.accepted && s.pendingControl.any { it.eventId == m.eventId }) {
+                    commit(s.copy(pendingControl = s.pendingControl.filter { it.eventId != m.eventId }))
+                }
             }
-            is RelayInbound.Event -> when (m.subscription) {
-                OWN -> conflicts.check(s, m.event, now())?.let { commit(it) }
-                INBOX -> if (s.conflict == null && seen.markSeen(m.event.id, now())) inbox(owner ?: s, m.event)
-                WRITERS -> treatments.receive(s, m.event, now(), m.relay).echo?.let(::send)
+
+            is RelayInbound.Event -> {
+                when (m.subscription) {
+                    OWN -> conflicts.check(s, m.event, now())?.let { commit(it) }
+                    INBOX -> if (s.conflict == null && seen.markSeen(m.event.id, now())) inbox(owner ?: s, m.event)
+                    WRITERS -> treatments.receive(s, m.event, now(), m.relay).echo?.let(::send)
+                }
             }
-            else -> Unit
+
+            else -> {
+                Unit
+            }
         }
     }
 
@@ -175,12 +186,20 @@ class OwnerEngine(
         val handled = HandleInbox(ctx)(s, wrap, now())
         apply(handled.step)
         when (val signal = handled.signal) {
-            is InboxSignal.NewRequest -> onRequest(signal.request)
-            is InboxSignal.HistoryWanted -> if (now() - historyRepublishedAt >= HISTORY_MIN_GAP) {
-                historyRepublishedAt = now()
-                publish(readings.republish(handled.step.state, now(), signal.since))
+            is InboxSignal.NewRequest -> {
+                onRequest(signal.request)
             }
-            null -> Unit
+
+            is InboxSignal.HistoryWanted -> {
+                if (now() - historyRepublishedAt >= HISTORY_MIN_GAP) {
+                    historyRepublishedAt = now()
+                    publish(readings.republish(handled.step.state, now(), signal.since))
+                }
+            }
+
+            null -> {
+                Unit
+            }
         }
     }
 
@@ -220,48 +239,52 @@ class OwnerEngine(
     }
 
     /** First-run "share with followers": a new identity. Refuses while an identity exists or is unreadable. */
-    suspend fun createIdentity(scope: CoroutineScope, profile: Profile?): Boolean = locked {
-        if (owner != null || store.load() !is OwnerIdentityStore.Load.Missing) return@locked false
-        val step = CreateIdentity(ctx)(profile, now())
-        if (!store.save(step.state)) return@locked false
-        run(scope, step.state)
-        true
-    }
+    suspend fun createIdentity(scope: CoroutineScope, profile: Profile?): Boolean =
+        locked {
+            if (owner != null || store.load() !is OwnerIdentityStore.Load.Missing) return@locked false
+            val step = CreateIdentity(ctx)(profile, now())
+            if (!store.save(step.state)) return@locked false
+            run(scope, step.state)
+            true
+        }
 
     /**
      * Restore from a recovery code. The UI gates it (setup's `RestoreGate`: this phone's sensor runs). Replaces an unreadable
      * identity only on success, and a working one only with [replaceExisting] (the UI confirms first); nothing
      * changes on any error.
      */
-    suspend fun restore(scope: CoroutineScope, code: String, password: String?, replaceExisting: Boolean = false): RestoreIdentity.Result = locked {
-        if (owner != null && !replaceExisting) return@locked RestoreIdentity.Result.AlreadySharing
-        val use = RestoreIdentity(ctx)
-        val (identity, error) = use.parse(code, password)
-        if (identity == null) return@locked error!!
-        transport.start()
-        val found = transport.fetch(use.identityEventsFilter(identity), FETCH_TIMEOUT_MS)
-        val result = use.restore(identity, found.events, found.answered, now())
-        if (result is RestoreIdentity.Result.Restored) {
-            halt()
-            store.save(result.step.state, replaceUnreadable = true)
-            // run() publishes the rotation from pendingControl (deliveries before the roster)
-            run(scope, result.step.state)
+    suspend fun restore(scope: CoroutineScope, code: String, password: String?, replaceExisting: Boolean = false): RestoreIdentity.Result =
+        locked {
+            if (owner != null && !replaceExisting) return@locked RestoreIdentity.Result.AlreadySharing
+            val use = RestoreIdentity(ctx)
+            val (identity, error) = use.parse(code, password)
+            if (identity == null) return@locked error!!
+            transport.start()
+            val found = transport.fetch(use.identityEventsFilter(identity), FETCH_TIMEOUT_MS)
+            val result = use.restore(identity, found.events, found.answered, now())
+            if (result is RestoreIdentity.Result.Restored) {
+                halt()
+                store.save(result.step.state, replaceUnreadable = true)
+                // run() publishes the rotation from pendingControl (deliveries before the roster)
+                run(scope, result.step.state)
+            }
+            result
         }
-        result
-    }
 
-    suspend fun exportRecovery(password: String): String? = locked {
-        val s = owner ?: return@locked null
-        ExportRecovery(ctx)(s, password).also { commit(s.copy(recoveryExportedAt = now())) }
-    }
+    suspend fun exportRecovery(password: String): String? =
+        locked {
+            val s = owner ?: return@locked null
+            ExportRecovery(ctx)(s, password).also { commit(s.copy(recoveryExportedAt = now())) }
+        }
 
     /** A new single-use invite link, or null without an identity or during a conflict. */
-    suspend fun createInvite(label: String): String? = locked {
-        val s = owner?.takeIf { it.conflict == null } ?: return@locked null
-        val created = CreateInvite(ctx)(s, label, now())
-        apply(created.step)
-        created.link.link
-    }
+    suspend fun createInvite(label: String): String? =
+        locked {
+            val s = owner?.takeIf { it.conflict == null } ?: return@locked null
+            val created = CreateInvite(ctx)(s, label, now())
+            apply(created.step)
+            created.link.link
+        }
 
     /**
      * Allow: true only when [follower] is now an active follower (false for an expired / used invite, a request no
@@ -285,9 +308,10 @@ class OwnerEngine(
 
     suspend fun deny(follower: String) = act { DenyRequest(ctx)(it, follower, now()) }
 
-    suspend fun remove(follower: String) = act { RemoveFollower(ctx)(it, follower, now()) }?.let { s ->
-        locked { publish(readings.republish(s, now())) }
-    }
+    suspend fun remove(follower: String) =
+        act { RemoveFollower(ctx)(it, follower, now()) }?.let { s ->
+            locked { publish(readings.republish(s, now())) }
+        }
 
     /** "I turned it off — retry". */
     suspend fun retryConflict() = locked { owner?.let { apply(conflicts.retry(it, now())) } }
@@ -296,12 +320,13 @@ class OwnerEngine(
     suspend fun publishAlert(alert: AlertPayload) = locked { owner?.let { send(readings.publishAlert(it, alert, now())) } }
 
     /** Runs a follower change; refused during a conflict (it would publish a backup / rotation). */
-    private suspend fun act(use: (OwnerState) -> Step?): OwnerState? = locked {
-        val s = owner?.takeIf { it.conflict == null } ?: return@locked null
-        val step = use(s) ?: return@locked null
-        apply(step)
-        step.state
-    }
+    private suspend fun act(use: (OwnerState) -> Step?): OwnerState? =
+        locked {
+            val s = owner?.takeIf { it.conflict == null } ?: return@locked null
+            val step = use(s) ?: return@locked null
+            apply(step)
+            step.state
+        }
 
     // ---------------------------------------------------------------------------------------------- plumbing
 

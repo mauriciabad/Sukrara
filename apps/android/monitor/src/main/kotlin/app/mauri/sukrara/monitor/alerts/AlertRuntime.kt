@@ -22,8 +22,6 @@ import app.mauri.sukrara.alerts.QuietReason
 import app.mauri.sukrara.alerts.Rules
 import app.mauri.sukrara.alerts.SensorWindow
 import app.mauri.sukrara.alerts.Side
-import app.mauri.sukrara.alerts.AlertUiState as EngineUiState
-import app.mauri.sukrara.alerts.TreatmentKind as EngineTreatmentKind
 import app.mauri.sukrara.core.model.AlertControls
 import app.mauri.sukrara.core.model.AlertDeliveryProblem
 import app.mauri.sukrara.core.model.AlertQuietReason
@@ -46,6 +44,8 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import java.time.Duration
 import java.time.Instant
+import app.mauri.sukrara.alerts.AlertUiState as EngineUiState
+import app.mauri.sukrara.alerts.TreatmentKind as EngineTreatmentKind
 
 /**
  * THE alert runtime of this process: the one owner of the [AlertMachine] (the rules). The monitoring service
@@ -250,16 +250,17 @@ class AlertRuntime(
     }
 
     /** Runs [input] and returns the effects applied (the scenario tests read them). */
-    internal suspend fun process(input: AlertInput): List<AlertEffect> = mutex.withLock {
-        ensureStarted()
-        when (input) {
-            is AlertInput.Settings -> own = input.settings
-            is AlertInput.Treatments -> doses = input.doses
-            is AlertInput.Sensor -> sensor = input.sensor
-            else -> Unit
+    internal suspend fun process(input: AlertInput): List<AlertEffect> =
+        mutex.withLock {
+            ensureStarted()
+            when (input) {
+                is AlertInput.Settings -> own = input.settings
+                is AlertInput.Treatments -> doses = input.doses
+                is AlertInput.Sensor -> sensor = input.sensor
+                else -> Unit
+            }
+            run(input, now())
         }
-        run(input, now())
-    }
 
     /** Resumes from the saved record (first input of this process); returns what resuming applied. */
     internal suspend fun start(): List<AlertEffect> = mutex.withLock { ensureStarted() }
@@ -339,14 +340,27 @@ class AlertRuntime(
                     shownRelax[group] = relax
                     post(m, group, e.firing, e.silent, relax)
                 }
-                is AlertEffect.Clear -> if (firing[e.kind.group].let { it == null || it.id == e.id }) {
-                    firing.remove(e.kind.group)
-                    unposted.remove(e.kind.group)
-                    attempt(Step.Notify, e.kind.group) { presenter.clear(e.kind.group) }
+
+                is AlertEffect.Clear -> {
+                    if (firing[e.kind.group].let { it == null || it.id == e.id }) {
+                        firing.remove(e.kind.group)
+                        unposted.remove(e.kind.group)
+                        attempt(Step.Notify, e.kind.group) { presenter.clear(e.kind.group) }
+                    }
                 }
-                is AlertEffect.Back -> Unit // the history line is the (it reads the state)
-                is AlertEffect.Mirror -> attempt(Step.Mirror) { events.publish(e.event) }
-                is AlertEffect.Schedule -> Unit // applied first, above
+
+                is AlertEffect.Back -> {
+                    Unit
+                }
+
+                // the history line is the (it reads the state)
+                is AlertEffect.Mirror -> {
+                    attempt(Step.Mirror) { events.publish(e.event) }
+                }
+
+                is AlertEffect.Schedule -> {
+                    Unit
+                } // applied first, above
             }
         }
         refreshRelaxed(m, now)
@@ -406,10 +420,13 @@ class AlertRuntime(
      */
     private suspend fun reconcileMutedCards(now: Long) {
         val m = machine ?: return
-        val want = m.uiState(now).quiet
-            .filter { it.reason == QuietReason.NOTIFICATION && it.until in (now + 1) until Rules.NEVER }
-            .associateBy { it.kind.group }
-            .filterKeys { it !in firing }
+        val want =
+            m
+                .uiState(now)
+                .quiet
+                .filter { it.reason == QuietReason.NOTIFICATION && it.until in (now + 1) until Rules.NEVER }
+                .associateBy { it.kind.group }
+                .filterKeys { it !in firing }
         for (group in mutedCards.keys - want.keys) attempt(Step.Notify, group) { presenter.clear(group) }
         mutedCards.keys.retainAll(want.keys)
         for ((group, q) in want) {
@@ -437,7 +454,11 @@ class AlertRuntime(
     private fun whoFor(m: AlertMachine) = who.takeIf { m.role != AlertRole.WEARER }
 
     private fun relaxedMin(m: AlertMachine, group: AlertGroup, now: Long) =
-        m.uiState(now).quiet.firstOrNull { it.kind.group == group }?.relaxMin ?: 0
+        m
+            .uiState(now)
+            .quiet
+            .firstOrNull { it.kind.group == group }
+            ?.relaxMin ?: 0
 
     private suspend fun save() {
         val snapshot = machine?.snapshot()
@@ -454,36 +475,40 @@ class AlertRuntime(
                 firingKinds = firing.values.map { it.kind.wire }.toSet(),
                 status = m?.status(now)?.let(::cardStatusOf) ?: CardStatus.None,
                 mutedUntil = instantOf(ui.muteAllUntil),
-                quiet = ui.quiet.map { q ->
-                    AlertQuietSide(
-                        kind = q.kind.wire,
-                        matching = q.matching,
-                        reason = when (q.reason) {
-                            QuietReason.NOTIFICATION -> AlertQuietReason.Muted
-                            QuietReason.CARBS -> AlertQuietReason.AfterCarbs
-                            QuietReason.INSULIN -> AlertQuietReason.AfterInsulin
-                            QuietReason.FALLING -> AlertQuietReason.FallingBack
-                            null -> null
-                        },
-                        until = q.until.takeIf { it in 1 until Rules.NEVER }?.let(Instant::ofEpochSecond),
-                        relaxMin = q.relaxMin,
-                        canRemindLess = q.canRelax,
-                    )
-                },
-                deliveryProblems = when {
-                    m == null -> emptySet()
-                    failed.isEmpty() -> presenter.deliveryProblems(alarmKinds)
-                    else -> presenter.deliveryProblems(alarmKinds) + AlertDeliveryProblem.AlertStepFailed
-                },
+                quiet =
+                    ui.quiet.map { q ->
+                        AlertQuietSide(
+                            kind = q.kind.wire,
+                            matching = q.matching,
+                            reason =
+                                when (q.reason) {
+                                    QuietReason.NOTIFICATION -> AlertQuietReason.Muted
+                                    QuietReason.CARBS -> AlertQuietReason.AfterCarbs
+                                    QuietReason.INSULIN -> AlertQuietReason.AfterInsulin
+                                    QuietReason.FALLING -> AlertQuietReason.FallingBack
+                                    null -> null
+                                },
+                            until = q.until.takeIf { it in 1 until Rules.NEVER }?.let(Instant::ofEpochSecond),
+                            relaxMin = q.relaxMin,
+                            canRemindLess = q.canRelax,
+                        )
+                    },
+                deliveryProblems =
+                    when {
+                        m == null -> emptySet()
+                        failed.isEmpty() -> presenter.deliveryProblems(alarmKinds)
+                        else -> presenter.deliveryProblems(alarmKinds) + AlertDeliveryProblem.AlertStepFailed
+                    },
             ),
         )
     }
 
-    private fun alertRoleOf(r: Role): AlertRole = when {
-        r == Role.Wearer -> AlertRole.WEARER
-        own.source == AlertSource.WEARER -> AlertRole.FOLLOWER_MIRROR
-        else -> AlertRole.FOLLOWER_OWN
-    }
+    private fun alertRoleOf(r: Role): AlertRole =
+        when {
+            r == Role.Wearer -> AlertRole.WEARER
+            own.source == AlertSource.WEARER -> AlertRole.FOLLOWER_MIRROR
+            else -> AlertRole.FOLLOWER_OWN
+        }
 
     private fun effectiveSettings(alertRole: AlertRole? = machine?.role): AlertSettings {
         val base = if (alertRole == null || alertRole == AlertRole.WEARER) own else AlertMirror.effective(own, wearer)
@@ -494,45 +519,74 @@ class AlertRuntime(
     companion object {
         fun readingOf(r: Reading) = AlertReading(r.t.epochSecond, r.mgdl, r.rateMgdlPerMin?.toDouble())
 
-        fun dosesOf(treatments: List<Treatment>) = Doses(
-            carbs = treatments.filter { !it.deleted && it.kind == TreatmentKind.Carbs }.map { it.at.epochSecond }.sorted(),
-            rapid = treatments.filter { !it.deleted && it.kind == TreatmentKind.RapidInsulin }.map { it.at.epochSecond }.sorted(),
-        )
+        fun dosesOf(treatments: List<Treatment>) =
+            Doses(
+                carbs = treatments.filter { !it.deleted && it.kind == TreatmentKind.Carbs }.map { it.at.epochSecond }.sorted(),
+                rapid = treatments.filter { !it.deleted && it.kind == TreatmentKind.RapidInsulin }.map { it.at.epochSecond }.sorted(),
+            )
 
         /** The engine's sensor life from what the hub shows (null: no window known, no data counts as usual). */
-        fun windowOf(s: SensorState): SensorWindow? = when (s) {
-            is SensorState.Active -> s.endsAt?.let { SensorWindow(startEpoch = 0, endEpoch = it.epochSecond, warmupEndEpoch = 0) }
-            is SensorState.WarmingUp -> s.readyAt.epochSecond.let { ready ->
-                SensorWindow(ready - SensorWindow.DEFAULT_WARMUP_MIN * 60L, ready + WEAR_S, ready)
+        fun windowOf(s: SensorState): SensorWindow? =
+            when (s) {
+                is SensorState.Active -> {
+                    s.endsAt?.let { SensorWindow(startEpoch = 0, endEpoch = it.epochSecond, warmupEndEpoch = 0) }
+                }
+
+                is SensorState.WarmingUp -> {
+                    s.readyAt.epochSecond.let { ready ->
+                        SensorWindow(ready - SensorWindow.DEFAULT_WARMUP_MIN * 60L, ready + WEAR_S, ready)
+                    }
+                }
+
+                SensorState.Ended -> {
+                    SensorWindow(startEpoch = 0, endEpoch = 1, warmupEndEpoch = 0)
+                }
+
+                else -> {
+                    null
+                }
             }
-            SensorState.Ended -> SensorWindow(startEpoch = 0, endEpoch = 1, warmupEndEpoch = 0)
-            else -> null
-        }
 
         private val WEAR_S = Duration.ofDays(15).seconds
 
         /** The badge's answer in the card's terms (contracts/graph/status.json). */
-        fun cardStatusOf(s: AlertStatus): CardStatus = when (s) {
-            AlertStatus.None -> CardStatus.None
-            is AlertStatus.Needed -> CardStatus.Needed(lowSide(s.kind))
-            is AlertStatus.Taken -> CardStatus.Taken(
-                if (s.treatment == EngineTreatmentKind.RAPID) TreatmentKind.RapidInsulin else TreatmentKind.Carbs,
-                s.at,
-                cardEnd(s.until),
-            )
-            is AlertStatus.Paused -> CardStatus.Paused(lowSide(s.kind), cardEnd(s.until))
-            is AlertStatus.Muted -> CardStatus.Muted(cardEnd(s.until))
-        }
+        fun cardStatusOf(s: AlertStatus): CardStatus =
+            when (s) {
+                AlertStatus.None -> {
+                    CardStatus.None
+                }
+
+                is AlertStatus.Needed -> {
+                    CardStatus.Needed(lowSide(s.kind))
+                }
+
+                is AlertStatus.Taken -> {
+                    CardStatus.Taken(
+                        if (s.treatment == EngineTreatmentKind.RAPID) TreatmentKind.RapidInsulin else TreatmentKind.Carbs,
+                        s.at,
+                        cardEnd(s.until),
+                    )
+                }
+
+                is AlertStatus.Paused -> {
+                    CardStatus.Paused(lowSide(s.kind), cardEnd(s.until))
+                }
+
+                is AlertStatus.Muted -> {
+                    CardStatus.Muted(cardEnd(s.until))
+                }
+            }
 
         /** The card's low side: very low, low and falling fast (what carbs answer). */
         private fun lowSide(k: AlertKind) = k.side == Side.LOW || k.side == Side.FALLING_FAST
 
         private fun cardEnd(until: Long) = if (until >= Rules.NEVER) CardStatus.NEVER else until
 
-        fun instantOf(muteAllUntil: Long): Instant? = when {
-            muteAllUntil <= 0 -> null
-            muteAllUntil >= Rules.NEVER -> AlertUiState.UNTIL_TURNED_OFF
-            else -> Instant.ofEpochSecond(muteAllUntil)
-        }
+        fun instantOf(muteAllUntil: Long): Instant? =
+            when {
+                muteAllUntil <= 0 -> null
+                muteAllUntil >= Rules.NEVER -> AlertUiState.UNTIL_TURNED_OFF
+                else -> Instant.ofEpochSecond(muteAllUntil)
+            }
     }
 }

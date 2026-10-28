@@ -103,10 +103,19 @@ class SetupViewModelTest {
             roles.role.value = Role.Wearer
             val vm = vm()
             vm.ui.launchIn(backgroundScope)
-            assertTrue(vm.ui.first { it != null }!!.readiness.ready)
+            assertTrue(
+                vm.ui
+                    .first { it != null }!!
+                    .readiness.ready,
+            )
             // the monitor answers later (its own dispatcher): setup must show it without another resume
             readiness.readiness.value = AlertReadiness(setOf(AlertRequirement.Bluetooth))
-            assertEquals(setOf(AlertRequirement.Bluetooth), vm.ui.first { it?.readiness?.ready == false }!!.readiness.missing)
+            assertEquals(
+                setOf(AlertRequirement.Bluetooth),
+                vm.ui
+                    .first { it?.readiness?.ready == false }!!
+                    .readiness.missing,
+            )
         }
 
     @Test
@@ -127,12 +136,28 @@ class SetupViewModelTest {
             vm.ui.launchIn(backgroundScope)
             vm.ui.first { it != null }
             vm.editThreshold(AlertKind.LOW, 75.0)
-            assertEquals(70.0, alerts.settings.value.rule(AlertKind.LOW).threshold, 0.0)
+            assertEquals(
+                70.0,
+                alerts.settings.value
+                    .rule(AlertKind.LOW)
+                    .threshold,
+                0.0,
+            )
             vm.confirmAlerts()
-            assertEquals(75.0, alerts.settings.value.rule(AlertKind.LOW).threshold, 0.0)
+            assertEquals(
+                75.0,
+                alerts.settings.value
+                    .rule(AlertKind.LOW)
+                    .threshold,
+                0.0,
+            )
             assertTrue(SetupStep.Alerts in record.data.first().completed)
             // the confirmation is recorded where Settings › Alerts reads it
-            assertTrue(vm.ui.first { it?.facts?.alertsConfirmed == true }!!.facts.alertsConfirmed)
+            assertTrue(
+                vm.ui
+                    .first { it?.facts?.alertsConfirmed == true }!!
+                    .facts.alertsConfirmed,
+            )
         }
 
     @Test
@@ -166,7 +191,12 @@ class SetupViewModelTest {
         runTest {
             roles.role.value = Role.Wearer
             // setup finished with the alerts still to confirm and the identity skipped
-            record.update { SetupRecord(completed = setOf(SetupStep.Welcome, SetupStep.Permissions, SetupStep.Sensor), skipped = setOf(SetupStep.Identity)) }
+            record.update {
+                SetupRecord(
+                    completed = setOf(SetupStep.Welcome, SetupStep.Permissions, SetupStep.Sensor),
+                    skipped = setOf(SetupStep.Identity),
+                )
+            }
             val vm = vm(startAt = SetupStep.Identity)
             vm.ui.launchIn(backgroundScope)
             val u = vm.ui.first { it != null }!!
@@ -182,7 +212,12 @@ class SetupViewModelTest {
             roles.role.value = Role.Wearer
             sharing.state.value = OwnerShareState.Sharing(1, emptyList(), emptyList(), emptyMap(), 0, 0)
             val skipped = setOf(SetupStep.Sensor, SetupStep.Alerts)
-            record.update { SetupRecord(completed = setOf(SetupStep.Welcome, SetupStep.Permissions, SetupStep.Identity), skipped = skipped) }
+            record.update {
+                SetupRecord(
+                    completed = setOf(SetupStep.Welcome, SetupStep.Permissions, SetupStep.Identity),
+                    skipped = skipped,
+                )
+            }
             val vm = vm()
             vm.ui.launchIn(backgroundScope)
             assertEquals(null, vm.ui.first { it != null }!!.step)
@@ -230,7 +265,8 @@ class SetupViewModelTest {
         override val state = MutableStateFlow(GlucoseState.Initial)
 
         fun live(clock: FakeClock) {
-            state.value = state.value.copy(latest = Reading(clock.now(), 120, null, SourceId.Libre3), source = SourceStatus.Live(clock.now()))
+            state.value =
+                state.value.copy(latest = Reading(clock.now(), 120, null, SourceId.Libre3), source = SourceStatus.Live(clock.now()))
         }
 
         override suspend fun ingest(

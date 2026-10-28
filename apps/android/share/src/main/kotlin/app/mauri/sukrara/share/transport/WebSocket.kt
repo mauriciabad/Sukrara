@@ -3,12 +3,12 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.share.transport
 
-import java.util.concurrent.TimeUnit
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.Response
 import okhttp3.WebSocket
 import okhttp3.WebSocketListener
+import java.util.concurrent.TimeUnit
 
 /** What a relay socket reports. Delivered on any thread; the pool hands it to its own dispatcher. */
 sealed interface SocketEvent {
@@ -38,20 +38,21 @@ class OkHttpWebSockets(base: OkHttpClient) : WebSocketFactory {
     private val client = base.newBuilder().pingInterval(PING_SECONDS, TimeUnit.SECONDS).build()
 
     override fun connect(url: String, onEvent: (SocketEvent) -> Unit): RelaySocket {
-        val socket = client.newWebSocket(
-            Request.Builder().url(url).build(),
-            object : WebSocketListener() {
-                override fun onMessage(webSocket: WebSocket, text: String) = onEvent(SocketEvent.Message(text))
+        val socket =
+            client.newWebSocket(
+                Request.Builder().url(url).build(),
+                object : WebSocketListener() {
+                    override fun onMessage(webSocket: WebSocket, text: String) = onEvent(SocketEvent.Message(text))
 
-                override fun onClosing(webSocket: WebSocket, code: Int, reason: String) {
-                    webSocket.close(NORMAL_CLOSURE, null)
-                    onEvent(SocketEvent.Closed("closed $code"))
-                }
+                    override fun onClosing(webSocket: WebSocket, code: Int, reason: String) {
+                        webSocket.close(NORMAL_CLOSURE, null)
+                        onEvent(SocketEvent.Closed("closed $code"))
+                    }
 
-                override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) =
-                    onEvent(SocketEvent.Closed(t.javaClass.simpleName))
-            },
-        )
+                    override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) =
+                        onEvent(SocketEvent.Closed(t.javaClass.simpleName))
+                },
+            )
         return object : RelaySocket {
             override fun send(text: String) = socket.send(text)
 

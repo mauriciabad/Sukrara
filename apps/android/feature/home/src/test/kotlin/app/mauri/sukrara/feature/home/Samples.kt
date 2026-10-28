@@ -46,19 +46,39 @@ object Samples {
             recent = recent,
             sensor = sensor,
             source = SourceStatus.Live(recent.last().t),
-            alerts = app.mauri.sukrara.core.model.AlertUiState(),
+            alerts =
+                app.mauri.sukrara.core.model
+                    .AlertUiState(),
             link = null,
             monitoringStartedAt = NOW.minus(Duration.ofDays(3)),
         )
     }
 
     fun noSensorYet(role: Role = Role.Wearer) =
-        GlucoseState.Initial.copy(role = role, link = if (role == Role.Follower) app.mauri.sukrara.core.model.LinkState("Ana", null) else null)
+        GlucoseState.Initial.copy(
+            role = role,
+            link =
+                if (role ==
+                    Role.Follower
+                ) {
+                    app.mauri.sukrara.core.model
+                        .LinkState("Ana", null)
+                } else {
+                    null
+                },
+        )
 
     fun treatment(
         id: String = "t1",
         kind: TreatmentKind = TreatmentKind.RapidInsulin,
         amount: Double = 4.0,
         minutesAgo: Long = 40,
-    ) = Treatment(id, kind, amount, NOW.minus(Duration.ofMinutes(minutesAgo)), modifiedAt = NOW.minus(Duration.ofMinutes(minutesAgo)), origin = TreatmentOrigin.Phone)
+    ) = Treatment(
+        id,
+        kind,
+        amount,
+        NOW.minus(Duration.ofMinutes(minutesAgo)),
+        modifiedAt = NOW.minus(Duration.ofMinutes(minutesAgo)),
+        origin = TreatmentOrigin.Phone,
+    )
 }

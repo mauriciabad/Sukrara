@@ -20,7 +20,9 @@ class PillContrastTest {
     private val kinds = listOf("rapid", "long", "carbs", "note")
 
     /** What the pill sits on: the card, and the app's light background `#F7F8FC` behind a transparent card. */
-    private fun grounds(dark: Boolean) = if (dark) listOf(GraphPalette.of(true).bg, 0xFF0B0C0E.toInt()) else listOf(GraphPalette.of(false).bg, 0xFFF7F8FC.toInt())
+    private fun grounds(
+        dark: Boolean,
+    ) = if (dark) listOf(GraphPalette.of(true).bg, 0xFF0B0C0E.toInt()) else listOf(GraphPalette.of(false).bg, 0xFFF7F8FC.toInt())
 
     private fun check(dark: Boolean) {
         val p = TreatmentMarks.palette(dark)

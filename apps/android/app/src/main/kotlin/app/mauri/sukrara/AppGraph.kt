@@ -22,7 +22,6 @@ import app.mauri.sukrara.feature.sharing.SetupModule
 import app.mauri.sukrara.feature.sharing.SharingDeps
 import app.mauri.sukrara.feature.sharing.setup.SetupRecord
 import app.mauri.sukrara.feature.sharing.setup.label
-import app.mauri.sukrara.graph.Clock as ClockText
 import app.mauri.sukrara.feature.treatments.TreatmentsModule
 import app.mauri.sukrara.graph.GraphConfig
 import app.mauri.sukrara.graph.GraphSettings
@@ -62,6 +61,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.shareIn
 import kotlinx.coroutines.launch
 import java.time.Duration
+import app.mauri.sukrara.graph.Clock as ClockText
 
 /**
  * The app's object graph (manual DI, docs/ARCHITECTURE.md §Android DI, apps/android/README.md "DI").
@@ -272,7 +272,9 @@ class AppGraph(
         )
     }
 
-    val treatments: TreatmentsModule by lazy { TreatmentsModule(data.treatments, ShareTreatmentSync(shareOwner), clock, home.glucose, data.settings, scope) }
+    val treatments: TreatmentsModule by lazy {
+        TreatmentsModule(data.treatments, ShareTreatmentSync(shareOwner), clock, home.glucose, data.settings, scope)
+    }
 
     /**
      * Loads what the modules need from disk, once, off the main thread. [App] starts it; anything that reads state

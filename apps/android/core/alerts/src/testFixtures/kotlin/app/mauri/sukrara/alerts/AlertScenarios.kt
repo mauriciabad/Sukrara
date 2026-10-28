@@ -66,26 +66,50 @@ object AlertScenarios {
         var lines = mutableListOf<Line>()
         var end: Int? = null
         var mirror = false
+
         fun flush() {
             val t = title ?: return
             out += Scenario(file, t, settings, lines, end ?: lines.maxOf { it.minute }, mirror)
-            title = null; settings = emptyList(); lines = mutableListOf(); end = null; mirror = false
+            title = null
+            settings = emptyList()
+            lines = mutableListOf()
+            end = null
+            mirror = false
         }
         for (raw in text.lines()) {
             val l = raw.substringBefore('#').trim()
             if (l.isEmpty()) continue
             when {
-                l.startsWith("scenario ") -> { flush(); title = l.removePrefix("scenario ").trim() }
-                l.startsWith("settings ") -> settings = l.removePrefix("settings ").trim().split(Regex("\\s+"))
-                l.startsWith("end ") -> end = l.removePrefix("end ").trim().toInt()
-                l == "mirror" -> mirror = true
+                l.startsWith("scenario ") -> {
+                    flush()
+                    title = l.removePrefix("scenario ").trim()
+                }
+
+                l.startsWith("settings ") -> {
+                    settings = l.removePrefix("settings ").trim().split(Regex("\\s+"))
+                }
+
+                l.startsWith("end ") -> {
+                    end = l.removePrefix("end ").trim().toInt()
+                }
+
+                l == "mirror" -> {
+                    mirror = true
+                }
+
                 else -> {
                     requireNotNull(title) { "$file: a line before any scenario: $raw" }
                     val (left, right) = if ("=>" in l) l.substringBefore("=>") to l.substringAfter("=>") else l to ""
                     val time = left.trim().substringBefore(' ')
                     require(time.matches(Regex("""\d+(:\d{2})?"""))) { "$file: not a time: $raw" }
                     val at = time.split(':').let { it[0].toInt() * 60 + (it.getOrNull(1)?.toInt() ?: 0) }
-                    val events = left.trim().removePrefix(time).split(',').map { it.trim() }.filter { it.isNotEmpty() }
+                    val events =
+                        left
+                            .trim()
+                            .removePrefix(time)
+                            .split(',')
+                            .map { it.trim() }
+                            .filter { it.isNotEmpty() }
                     val expect = right.split(';').map { it.trim() }.filter { it.isNotEmpty() && it != "nothing" }
                     require(lines.none { it.minute == at / 60 }) { "$file: two lines for minute ${at / 60}" }
                     lines += Line(at / 60, at, events, expect)
@@ -99,25 +123,62 @@ object AlertScenarios {
     /** One `key=value` of a `settings` line or `set` event on top of [s]. */
     fun set(s: AlertSettings, kv: String): AlertSettings {
         val (k, v) = kv.split('=', limit = 2).also { require(it.size == 2) { "not key=value: $kv" } }.let { it[0] to it[1] }
+
         fun quiet(q: QuietRule) = if (v == "off") q.copy(on = false) else QuietRule(on = true, min = v.toInt())
         return when (k) {
-            "alerts" -> s.copy(on = v == "on")
-            "carbs.mute" -> s.copy(afterCarbs = quiet(s.afterCarbs))
-            "insulin.mute" -> s.copy(afterInsulin = quiet(s.afterInsulin))
-            "falling.mute" -> s.copy(fallingHigh = quiet(s.fallingHigh))
-            "mute.min" -> s.copy(actions = s.actions.copy(muteMin = v.toInt()))
-            "relax.min" -> s.copy(actions = s.actions.copy(relaxMin = v.toInt()))
-            "back.mgdl" -> s.copy(actions = s.actions.copy(backMgdl = v.toInt()))
-            "back.min" -> s.copy(actions = s.actions.copy(backMin = v.toInt()))
+            "alerts" -> {
+                s.copy(on = v == "on")
+            }
+
+            "carbs.mute" -> {
+                s.copy(afterCarbs = quiet(s.afterCarbs))
+            }
+
+            "insulin.mute" -> {
+                s.copy(afterInsulin = quiet(s.afterInsulin))
+            }
+
+            "falling.mute" -> {
+                s.copy(fallingHigh = quiet(s.fallingHigh))
+            }
+
+            "mute.min" -> {
+                s.copy(actions = s.actions.copy(muteMin = v.toInt()))
+            }
+
+            "relax.min" -> {
+                s.copy(actions = s.actions.copy(relaxMin = v.toInt()))
+            }
+
+            "back.mgdl" -> {
+                s.copy(actions = s.actions.copy(backMgdl = v.toInt()))
+            }
+
+            "back.min" -> {
+                s.copy(actions = s.actions.copy(backMin = v.toInt()))
+            }
+
             else -> {
                 val kind = requireNotNull(AlertKind.fromWire(k.substringBefore('.'))) { "unknown setting $kv" }
                 val r = s.rule(kind)
                 s.withRule(
                     kind,
                     when (k.substringAfter('.', "")) {
-                        "" -> when (v) { "on" -> r.copy(on = true); "off" -> r.copy(on = false); else -> r.copy(threshold = v.toDouble()) }
-                        "repeat" -> r.copy(repeatMin = v.toInt())
-                        else -> error("unknown setting $kv")
+                        "" -> {
+                            when (v) {
+                                "on" -> r.copy(on = true)
+                                "off" -> r.copy(on = false)
+                                else -> r.copy(threshold = v.toDouble())
+                            }
+                        }
+
+                        "repeat" -> {
+                            r.copy(repeatMin = v.toInt())
+                        }
+
+                        else -> {
+                            error("unknown setting $kv")
+                        }
                     },
                 )
             }
@@ -141,9 +202,13 @@ object AlertScenarios {
         var s = sc.settings.fold(AlertSettings()) { acc, kv -> set(acc, kv) }
         val got = HashMap<Int, MutableList<String>>()
         var t = T0
-        fun note(what: String) { got.getOrPut(((t - T0) / 60).toInt()) { mutableListOf() } += what }
+
+        fun note(what: String) {
+            got.getOrPut(((t - T0) / 60).toInt()) { mutableListOf() } += what
+        }
 
         val wearer = device(s, T0)
+
         // the follower's own no_data isn't run (SPEC §7)
         fun followerSettings() = s.withRule(AlertKind.NO_DATA, s.rule(AlertKind.NO_DATA).copy(on = false))
         val follower = AlertMachine(AlertRole.FOLLOWER_MIRROR, followerSettings()).also { it.start(null, null, null, T0) }
@@ -152,32 +217,53 @@ object AlertScenarios {
         var sensor: SensorWindow? = null
         var timer: Long? = null
 
-        fun followerSaw(effects: List<AlertEffect>) = effects.forEach { e ->
-            when (e) {
-                is AlertEffect.Fire -> note("follower ${Headlines.english(e.firing.kind, e.firing.treated)}")
-                is AlertEffect.Clear -> note("follower clear ${e.kind.wire}")
-                is AlertEffect.Back -> note("follower back ${e.side.wire}")
-                is AlertEffect.Mirror -> error("a follower never publishes")
-                is AlertEffect.Schedule -> Unit
+        fun followerSaw(effects: List<AlertEffect>) =
+            effects.forEach { e ->
+                when (e) {
+                    is AlertEffect.Fire -> note("follower ${Headlines.english(e.firing.kind, e.firing.treated)}")
+                    is AlertEffect.Clear -> note("follower clear ${e.kind.wire}")
+                    is AlertEffect.Back -> note("follower back ${e.side.wire}")
+                    is AlertEffect.Mirror -> error("a follower never publishes")
+                    is AlertEffect.Schedule -> Unit
+                }
             }
+
+        fun follow(input: AlertInput) {
+            if (sc.mirror) followerSaw(follower.handle(input, t))
         }
 
-        fun follow(input: AlertInput) { if (sc.mirror) followerSaw(follower.handle(input, t)) }
+        fun wearerDid(effects: List<AlertEffect>) =
+            effects.forEach { e ->
+                when (e) {
+                    is AlertEffect.Fire -> {
+                        note(
+                            if (e.silent) "resume ${e.firing.kind.wire}" else Headlines.english(e.firing.kind, e.firing.treated),
+                        )
+                    }
 
-        fun wearerDid(effects: List<AlertEffect>) = effects.forEach { e ->
-            when (e) {
-                is AlertEffect.Fire -> note(if (e.silent) "resume ${e.firing.kind.wire}" else Headlines.english(e.firing.kind, e.firing.treated))
-                is AlertEffect.Clear -> note("clear ${e.kind.wire}")
-                is AlertEffect.Back -> note("back ${e.side.wire}")
-                is AlertEffect.Mirror -> follow(AlertInput.Remote(e.event))
-                is AlertEffect.Schedule -> timer = e.at
+                    is AlertEffect.Clear -> {
+                        note("clear ${e.kind.wire}")
+                    }
+
+                    is AlertEffect.Back -> {
+                        note("back ${e.side.wire}")
+                    }
+
+                    is AlertEffect.Mirror -> {
+                        follow(AlertInput.Remote(e.event))
+                    }
+
+                    is AlertEffect.Schedule -> {
+                        timer = e.at
+                    }
+                }
             }
-        }
 
-        fun doses() = Doses(
-            carbs = doses.filterIndexed { i, d -> i !in deleted && d.first == TreatmentKind.CARBS }.map { it.second },
-            rapid = doses.filterIndexed { i, d -> i !in deleted && d.first == TreatmentKind.RAPID }.map { it.second },
-        )
+        fun doses() =
+            Doses(
+                carbs = doses.filterIndexed { i, d -> i !in deleted && d.first == TreatmentKind.CARBS }.map { it.second },
+                rapid = doses.filterIndexed { i, d -> i !in deleted && d.first == TreatmentKind.RAPID }.map { it.second },
+            )
 
         var glucose = 0
         var rate = 0.0
@@ -187,10 +273,18 @@ object AlertScenarios {
         var nextReading: Long? = null
         val byTime = sc.lines.associateBy { T0 + it.at }
         val stop = T0 + (sc.end + 1) * 60L
+
         fun allEnd(w: List<String>, from: Int): Long =
             if (w.getOrNull(from) == "never") Rules.NEVER else t + minutes(w.drop(from).joinToString(" ")) * 60L
+
         fun kind(word: String) = requireNotNull(AlertKind.fromWire(word)) { "unknown kind $word" }
-        fun length(w: List<String>, from: Int) = w.drop(from).joinToString(" ").takeIf { it.isNotBlank() }?.let(::minutes) ?: s.actions.muteMin
+
+        fun length(w: List<String>, from: Int) =
+            w
+                .drop(from)
+                .joinToString(" ")
+                .takeIf { it.isNotBlank() }
+                ?.let(::minutes) ?: s.actions.muteMin
 
         while (t < stop) {
             byTime[t]?.events?.forEach { ev ->
@@ -202,28 +296,74 @@ object AlertScenarios {
                         age = w.indexOf("age").takeIf { it > 0 }?.let { w[it + 1].toInt() } ?: 0
                         if (nextReading == null) nextReading = t
                     }
-                    "readings" -> every = w[2].toInt()
-                    "sensor" -> when (w[1]) {
-                        "ended" -> { sensorOn = false; sensor = SensorWindow(t - 15 * 86_400L, t, t - 15 * 86_400L + 3600); wearerDid(wearer.handle(AlertInput.Sensor(sensor), t)) }
-                        "started" -> { sensorOn = false; sensor = SensorWindow.started(t, 15 * 1440); wearerDid(wearer.handle(AlertInput.Sensor(sensor), t)) }
-                        "on", "off" -> { sensorOn = w[1] == "on"; if (sensorOn) nextReading = t }
-                        else -> error("unknown event: $ev")
+
+                    "readings" -> {
+                        every = w[2].toInt()
                     }
+
+                    "sensor" -> {
+                        when (w[1]) {
+                            "ended" -> {
+                                sensorOn = false
+                                sensor = SensorWindow(t - 15 * 86_400L, t, t - 15 * 86_400L + 3600)
+                                wearerDid(wearer.handle(AlertInput.Sensor(sensor), t))
+                            }
+
+                            "started" -> {
+                                sensorOn = false
+                                sensor = SensorWindow.started(t, 15 * 1440)
+                                wearerDid(wearer.handle(AlertInput.Sensor(sensor), t))
+                            }
+
+                            "on", "off" -> {
+                                sensorOn = w[1] == "on"
+                                if (sensorOn) nextReading = t
+                            }
+
+                            else -> {
+                                error("unknown event: $ev")
+                            }
+                        }
+                    }
+
                     "carbs", "insulin" -> {
                         doses += (if (w[0] == "carbs") TreatmentKind.CARBS else TreatmentKind.RAPID) to t
                         wearerDid(wearer.handle(AlertInput.Treatments(doses()), t))
                     }
+
                     "delete" -> {
                         val k = if (w[1] == "carbs") TreatmentKind.CARBS else TreatmentKind.RAPID
                         deleted += doses.indices.last { it !in deleted && doses[it].first == k }
                         wearerDid(wearer.handle(AlertInput.Treatments(doses()), t))
                     }
-                    "mute" -> wearerDid(
-                        wearer.handle(if (w[1] == "all") AlertInput.MuteAll(allEnd(w, 2)) else AlertInput.Mute(kind(w[1]), length(w, 2)), t),
-                    )
-                    "relax" -> wearerDid(wearer.handle(AlertInput.RemindLess(kind(w[1])), t))
-                    "unmute" -> wearerDid(wearer.handle(if (w[1] == "all") AlertInput.UnmuteAll else AlertInput.Unmute(kind(w[1])), t))
-                    "unrelax" -> wearerDid(wearer.handle(AlertInput.RemindAsUsual(kind(w[1])), t))
+
+                    "mute" -> {
+                        wearerDid(
+                            wearer.handle(
+                                if (w[1] ==
+                                    "all"
+                                ) {
+                                    AlertInput.MuteAll(allEnd(w, 2))
+                                } else {
+                                    AlertInput.Mute(kind(w[1]), length(w, 2))
+                                },
+                                t,
+                            ),
+                        )
+                    }
+
+                    "relax" -> {
+                        wearerDid(wearer.handle(AlertInput.RemindLess(kind(w[1])), t))
+                    }
+
+                    "unmute" -> {
+                        wearerDid(wearer.handle(if (w[1] == "all") AlertInput.UnmuteAll else AlertInput.Unmute(kind(w[1])), t))
+                    }
+
+                    "unrelax" -> {
+                        wearerDid(wearer.handle(AlertInput.RemindAsUsual(kind(w[1])), t))
+                    }
+
                     "follower" -> {
                         require(sc.mirror) { "follower event without mirror: $ev" }
                         follow(
@@ -236,14 +376,21 @@ object AlertScenarios {
                             },
                         )
                     }
+
                     "set" -> {
                         s = w.drop(1).fold(s) { acc, kv -> set(acc, kv) }
                         follow(AlertInput.Settings(followerSettings()))
                         wearerDid(wearer.handle(AlertInput.Settings(s), t))
                     }
+
                     // the process restarts: the device resumes from its saved state and last reading
-                    "restart" -> wearerDid(wearer.restart(s, doses(), sensor, t))
-                    else -> error("unknown event: $ev")
+                    "restart" -> {
+                        wearerDid(wearer.restart(s, doses(), sensor, t))
+                    }
+
+                    else -> {
+                        error("unknown event: $ev")
+                    }
                 }
             }
             val due = nextReading
@@ -256,43 +403,59 @@ object AlertScenarios {
                 wearerDid(wearer.handle(AlertInput.Tick, t))
                 follow(AlertInput.Tick)
             }
-            t = listOfNotNull(byTime.keys.filter { it > t }.minOrNull(), nextReading?.takeIf { sensorOn }, timer).filter { it > t }.minOrNull() ?: break
+            t =
+                listOfNotNull(
+                    byTime.keys.filter { it > t }.minOrNull(),
+                    nextReading?.takeIf { sensorOn },
+                    timer,
+                ).filter { it > t }.minOrNull()
+                    ?: break
         }
+
         // the wearer's and the follower's actions are compared apart (their order within a minute is free)
         fun split(l: List<String>) = l.partition { !it.startsWith("follower ") }.let { (w, f) -> w + f }
         val expected = sc.lines.associate { it.minute to it.expect }
         return (0..sc.end).mapNotNull { m ->
             val want = split(expected[m].orEmpty())
             val have = split(got[m].orEmpty())
-            if (want == have) null else "minute $m: expected ${want.ifEmpty { listOf("nothing") }}, got ${have.ifEmpty { listOf("nothing") }}"
+            if (want ==
+                have
+            ) {
+                null
+            } else {
+                "minute $m: expected ${want.ifEmpty { listOf("nothing") }}, got ${have.ifEmpty { listOf("nothing") }}"
+            }
         }
     }
 }
 
 /** SPEC §1's English headlines (the apps word them from their own strings; the scenarios use these). */
 object Headlines {
-    private fun label(k: AlertKind) = when (k) {
-        AlertKind.VERY_LOW -> "Very low"
-        AlertKind.LOW -> "Low"
-        AlertKind.HIGH -> "High"
-        AlertKind.VERY_HIGH -> "Very high"
-        AlertKind.EXTREMELY_HIGH -> "Extremely high"
-        AlertKind.FALLING_FAST -> "Falling fast"
-        AlertKind.RISING_FAST -> "Rising fast"
-        AlertKind.NO_DATA -> "No data"
-    }
+    private fun label(k: AlertKind) =
+        when (k) {
+            AlertKind.VERY_LOW -> "Very low"
+            AlertKind.LOW -> "Low"
+            AlertKind.HIGH -> "High"
+            AlertKind.VERY_HIGH -> "Very high"
+            AlertKind.EXTREMELY_HIGH -> "Extremely high"
+            AlertKind.FALLING_FAST -> "Falling fast"
+            AlertKind.RISING_FAST -> "Rising fast"
+            AlertKind.NO_DATA -> "No data"
+        }
 
     fun english(k: AlertKind, treated: Int): String {
-        val base = when {
-            k.isLevel -> "${label(k)} glucose"
-            k == AlertKind.NO_DATA -> "No glucose data"
-            else -> label(k)
-        }
-        val more = when {
-            treated <= 0 || !k.isLevel -> null
-            k.side == Side.LOW -> if (treated == 1) "eat more" else "eat more again"
-            else -> if (treated == 1) "still high after insulin" else "still high after more insulin"
-        }
+        val base =
+            when {
+                k.isLevel -> "${label(k)} glucose"
+                k == AlertKind.NO_DATA -> "No glucose data"
+                else -> label(k)
+            }
+        val more =
+            when {
+                treated <= 0 || !k.isLevel -> null
+                k.side == Side.LOW -> if (treated == 1) "eat more" else "eat more again"
+                else -> if (treated == 1) "still high after insulin" else "still high after more insulin"
+            }
         return if (more == null) base else "$base · $more"
     }
 }

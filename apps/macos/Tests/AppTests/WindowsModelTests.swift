@@ -258,8 +258,9 @@ final class RecordingSender: TreatmentActions {
 @Suite struct QRImportTests {
     /// The short invite link of contracts/protocol/identity/vectors.json.
     static let link: String = {
-        let root = try! JSONSerialization.jsonObject(
-            with: Data(contentsOf: Contracts.url("protocol/identity/vectors.json"))) as! [String: Any]
+        let root =
+            try! JSONSerialization.jsonObject(
+                with: Data(contentsOf: Contracts.url("protocol/identity/vectors.json"))) as! [String: Any]
         return (root["invite"] as! [String: String])["short_link"]!
     }()
 
@@ -309,7 +310,8 @@ final class RecordingSender: TreatmentActions {
         for n in MacSettings.bands + [MacSettings.graphHours, MacSettings.gridHours, MacSettings.countdownHours] {
             let info = SettingsSpec.settings.first { $0.id == n.id }
             #expect(info != nil, "\(n.id)")
-            #expect(info.map { "defaults:" + n.spec.key == $0.mac || $0.mac.hasPrefix("defaults:" + n.spec.key) } == true)
+            #expect(
+                info.map { "defaults:" + n.spec.key == $0.mac || $0.mac.hasPrefix("defaults:" + n.spec.key) } == true)
             #expect(SettingsSpec.numbers[info?.number ?? ""] == n.format, "\(n.id)")
         }
     }
@@ -326,7 +328,8 @@ final class RecordingSender: TreatmentActions {
     }
 
     @Test func wearerSettingsMirrorByWirePath() {
-        let json = #"{"v":2,"type":"settings","u":1,"graph":{"low":65,"defaultHours":999},"alerts":{"alerts":{"low":{"on":false,"mgdl":72}}}}"#
+        let json =
+            #"{"v":2,"type":"settings","u":1,"graph":{"low":65,"defaultHours":999},"alerts":{"alerts":{"low":{"on":false,"mgdl":72}}}}"#
         let w = WearerSettings(json: json, wearer: "Ana")!
         #expect(w.number("graph.band.low") == 65)
         #expect(w.number("graph.hours") == 48)  // coerced to the schema's range

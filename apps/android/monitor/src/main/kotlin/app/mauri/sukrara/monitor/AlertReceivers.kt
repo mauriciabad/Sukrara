@@ -42,10 +42,22 @@ class AlertActionReceiver : BroadcastReceiver() {
                     val minutes = typed?.let(Durations::parse)?.takeIf { it > 0 && AlertLimits.ACTION_MUTE.valid(it.toDouble()) }
                     if (minutes != null) runtime.mute(kind, minutes) else runtime.reshow(kind)
                 }
-                REMIND_LESS -> runtime.remindLess(kind)
-                REMIND_AS_USUAL -> runtime.remindAsUsual(kind)
-                UNMUTE -> runtime.unmute(kind)
-                TIDY -> NotificationGroups.tidy(context, NotificationGroups.Group.ALERTS)
+
+                REMIND_LESS -> {
+                    runtime.remindLess(kind)
+                }
+
+                REMIND_AS_USUAL -> {
+                    runtime.remindAsUsual(kind)
+                }
+
+                UNMUTE -> {
+                    runtime.unmute(kind)
+                }
+
+                TIDY -> {
+                    NotificationGroups.tidy(context, NotificationGroups.Group.ALERTS)
+                }
             }
         }
     }

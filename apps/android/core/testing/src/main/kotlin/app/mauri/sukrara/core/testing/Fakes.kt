@@ -126,9 +126,13 @@ class InMemoryTreatmentsRepository : TreatmentsRepository {
     override fun between(
         from: Instant,
         to: Instant,
-    ): Flow<List<Treatment>> = records.map { all ->
-        all.values.map { it.treatment }.filter { !it.deleted && it.at >= from && it.at < to }.sortedBy { it.at }
-    }
+    ): Flow<List<Treatment>> =
+        records.map { all ->
+            all.values
+                .map { it.treatment }
+                .filter { !it.deleted && it.at >= from && it.at < to }
+                .sortedBy { it.at }
+        }
 
     override suspend fun get(id: String): TreatmentRecord? = records.value[id]
 
@@ -140,5 +144,7 @@ class InMemoryTreatmentsRepository : TreatmentsRepository {
     }
 
     override suspend fun changedSince(since: Instant): List<TreatmentRecord> =
-        records.value.values.filter { it.treatment.modifiedAt > since }.sortedBy { it.treatment.modifiedAt }
+        records.value.values
+            .filter { it.treatment.modifiedAt > since }
+            .sortedBy { it.treatment.modifiedAt }
 }

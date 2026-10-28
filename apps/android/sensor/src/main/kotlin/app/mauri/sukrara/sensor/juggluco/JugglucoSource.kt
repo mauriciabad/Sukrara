@@ -92,13 +92,17 @@ internal class JugglucoSource(http: OkHttpClient, private val baseUrl: String = 
          * Juggluco's `sensor_status` (watchserver.cpp `firstdata`): `"dd-mm-yy HH:MM (3d 5h)"`, the start in the phone's
          * local time; the serial is the entry's `_id` before `#`. No wear length published → the Libre 3 Plus default.
          */
-        fun parseSensorStatus(body: String, zone: ZoneId): SensorInfo? = runCatching {
-            val e = (json.parseToJsonElement(body) as JsonArray).first().jsonObject
-            val st = e.str("sensor_status")?.takeIf { it.length >= 14 } ?: return null
-            val start = LocalDateTime.parse(st.substring(0, 14), DateTimeFormatter.ofPattern("dd-MM-yy HH:mm"))
-                .atZone(zone).toEpochSecond()
-            SensorLife.fromStart(e.str("_id").orEmpty().substringBefore('#'), start, 0)
-        }.getOrNull()
+        fun parseSensorStatus(body: String, zone: ZoneId): SensorInfo? =
+            runCatching {
+                val e = (json.parseToJsonElement(body) as JsonArray).first().jsonObject
+                val st = e.str("sensor_status")?.takeIf { it.length >= 14 } ?: return null
+                val start =
+                    LocalDateTime
+                        .parse(st.substring(0, 14), DateTimeFormatter.ofPattern("dd-MM-yy HH:mm"))
+                        .atZone(zone)
+                        .toEpochSecond()
+                SensorLife.fromStart(e.str("_id").orEmpty().substringBefore('#'), start, 0)
+            }.getOrNull()
 
         private fun JsonObject.str(key: String) = this[key]?.takeIf { it !is JsonNull }?.jsonPrimitive?.contentOrNull
 
@@ -106,10 +110,12 @@ internal class JugglucoSource(http: OkHttpClient, private val baseUrl: String = 
             Reading(Instant.ofEpochSecond(epochSec), mgdl, rate, SourceId.Juggluco)
     }
 
-    private val http = http.newBuilder()
-        .connectTimeout(5, TimeUnit.SECONDS)
-        .readTimeout(90, TimeUnit.SECONDS) // > Juggluco's 20 s SSE keep-alive: a silent stream fails and reconnects
-        .build()
+    private val http =
+        http
+            .newBuilder()
+            .connectTimeout(5, TimeUnit.SECONDS)
+            .readTimeout(90, TimeUnit.SECONDS) // > Juggluco's 20 s SSE keep-alive: a silent stream fails and reconnects
+            .build()
 
     @Volatile private var call: Call? = null
 
@@ -152,7 +158,12 @@ internal class JugglucoSource(http: OkHttpClient, private val baseUrl: String = 
     private fun sensor(): SensorInfo? = runCatching { get("/sgv.json?count=1&sensor=Y") { parseSensorStatus(it, zone()) } }.getOrNull()
 
     private fun live(sink: JugglucoSink, onData: () -> Unit) {
-        val req = Request.Builder().url("$baseUrl/x/live").header("Accept", "text/event-stream").build()
+        val req =
+            Request
+                .Builder()
+                .url("$baseUrl/x/live")
+                .header("Accept", "text/event-stream")
+                .build()
         http.newCall(req).also { liveCall = it }.execute().use { resp ->
             check(resp.isSuccessful) { "HTTP ${resp.code}" }
             sink.onStatus(JugglucoStatus.Live)
@@ -162,8 +173,14 @@ internal class JugglucoSource(http: OkHttpClient, private val baseUrl: String = 
             while (true) {
                 val line = src.readUtf8Line() ?: return
                 when {
-                    line.isEmpty() -> event = ""
-                    line.startsWith("event:") -> event = line.substring(6).trim()
+                    line.isEmpty() -> {
+                        event = ""
+                    }
+
+                    line.startsWith("event:") -> {
+                        event = line.substring(6).trim()
+                    }
+
                     line.startsWith("data:") && event == "glucose" -> {
                         val (reading, id) = parseLive(line.substring(5).trim()) ?: continue
                         onData()

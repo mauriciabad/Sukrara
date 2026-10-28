@@ -7,7 +7,8 @@ import Foundation
 /// `SettingsSpec.Keys`, number defaults from the generated `NumberSpec`s). Number values are always read through
 /// their format (`NumberSpec.coerce`), so only values the settings accept get in.
 public enum MacSettings {
-    public static let bandVeryLow = number("graph.band.veryLow", SettingsSpec.Keys.bandVeryLow, SettingsSpec.bandVeryLow)
+    public static let bandVeryLow = number(
+        "graph.band.veryLow", SettingsSpec.Keys.bandVeryLow, SettingsSpec.bandVeryLow)
     public static let bandLow = number("graph.band.low", SettingsSpec.Keys.bandLow, SettingsSpec.bandLow)
     public static let bandTight = number("graph.band.tight", SettingsSpec.Keys.bandTight, SettingsSpec.bandTight)
     public static let bandHigh = number("graph.band.high", SettingsSpec.Keys.bandHigh, SettingsSpec.bandHigh)

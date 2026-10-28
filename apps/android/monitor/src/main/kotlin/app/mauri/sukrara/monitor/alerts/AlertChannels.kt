@@ -3,8 +3,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.monitor.alerts
 
-import android.app.NotificationChannel
 import android.app.Notification
+import android.app.NotificationChannel
 import android.content.Context
 import android.media.AudioAttributes
 import android.net.Uri
@@ -28,22 +28,25 @@ object AlertChannels {
 
     val ALL: List<String> = AlertKind.entries.flatMap { listOf(id(it, false), id(it, true)) }
 
-    fun audioAttributes(alarm: Boolean): AudioAttributes = AudioAttributes.Builder()
-        .setUsage(if (alarm) AudioAttributes.USAGE_ALARM else AudioAttributes.USAGE_NOTIFICATION_EVENT)
-        .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
-        .build()
+    fun audioAttributes(alarm: Boolean): AudioAttributes =
+        AudioAttributes
+            .Builder()
+            .setUsage(if (alarm) AudioAttributes.USAGE_ALARM else AudioAttributes.USAGE_NOTIFICATION_EVENT)
+            .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+            .build()
 
     fun soundUri(ctx: Context, kind: AlertKind): Uri = "content://${ctx.packageName}.alertsound/${kind.wire}".toUri()
 
     /** The alert setup of a channel [Channels] creates (sound, usage, vibration, Do Not Disturb for alarms). */
-    fun configure(channel: NotificationChannel, ctx: Context, kind: AlertKind, alarm: Boolean) = channel.apply {
-        setSound(soundUri(ctx, kind), audioAttributes(alarm))
-        enableVibration(true)
-        vibrationEffect = AlertHaptics.effect(ctx, kind)
-        setBypassDnd(alarm)
-        setShowBadge(false)
-        lockscreenVisibility = Notification.VISIBILITY_PUBLIC
-    }
+    fun configure(channel: NotificationChannel, ctx: Context, kind: AlertKind, alarm: Boolean) =
+        channel.apply {
+            setSound(soundUri(ctx, kind), audioAttributes(alarm))
+            enableVibration(true)
+            vibrationEffect = AlertHaptics.effect(ctx, kind)
+            setBypassDnd(alarm)
+            setShowBadge(false)
+            lockscreenVisibility = Notification.VISIBILITY_PUBLIC
+        }
 
     /** Creates the app's channels (registry, idempotent), the alert ones with [configure]. */
     fun ensure(ctx: Context) = Channels.create(ctx)

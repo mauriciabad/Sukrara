@@ -30,14 +30,15 @@ data class RelayFilter(
         }
     }
 
-    fun toJson(): String = buildJsonObject {
-        kinds?.let { put("kinds", JsonArray(it.map(::JsonPrimitive))) }
-        authors?.let { put("authors", strings(it)) }
-        p?.let { put("#p", strings(it)) }
-        d?.let { put("#d", strings(it)) }
-        c?.let { put("#c", strings(it)) }
-        since?.let { put("since", it) }
-    }.toString()
+    fun toJson(): String =
+        buildJsonObject {
+            kinds?.let { put("kinds", JsonArray(it.map(::JsonPrimitive))) }
+            authors?.let { put("authors", strings(it)) }
+            p?.let { put("#p", strings(it)) }
+            d?.let { put("#d", strings(it)) }
+            c?.let { put("#c", strings(it)) }
+            since?.let { put("since", it) }
+        }.toString()
 
     private fun strings(values: List<String>) = JsonArray(values.map(::JsonPrimitive))
 }

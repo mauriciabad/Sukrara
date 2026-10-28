@@ -87,6 +87,8 @@ class SensorSettingsViewModel(private val port: SensorSettingsPort) : ViewModel(
     }
 
     companion object {
-        fun factory(port: SensorSettingsPort): ViewModelProvider.Factory = viewModelFactory { initializer { SensorSettingsViewModel(port) } }
+        fun factory(
+            port: SensorSettingsPort,
+        ): ViewModelProvider.Factory = viewModelFactory { initializer { SensorSettingsViewModel(port) } }
     }
 }

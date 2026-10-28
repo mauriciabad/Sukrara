@@ -39,22 +39,24 @@ class AlertRuntimeTest(private val name: String, private val sc: AlertScenarios.
             }
         }
 
-        override fun handle(input: AlertInput, t: Long): List<AlertEffect> = runBlocking {
-            clock.instant = Instant.ofEpochSecond(t)
-            when (input) {
-                is AlertInput.Settings -> rig.store.setSettings(input.settings)
-                is AlertInput.Treatments -> rig.treatments.value = treatmentsOf(input.doses)
-                else -> Unit
+        override fun handle(input: AlertInput, t: Long): List<AlertEffect> =
+            runBlocking {
+                clock.instant = Instant.ofEpochSecond(t)
+                when (input) {
+                    is AlertInput.Settings -> rig.store.setSettings(input.settings)
+                    is AlertInput.Treatments -> rig.treatments.value = treatmentsOf(input.doses)
+                    else -> Unit
+                }
+                runtime.process(input)
             }
-            runtime.process(input)
-        }
 
-        override fun restart(settings: AlertSettings, doses: Doses, sensor: SensorWindow?, t: Long): List<AlertEffect> = runBlocking {
-            clock.instant = Instant.ofEpochSecond(t)
-            // a process death: a new runtime over the same stores (settings, treatments, saved record)
-            runtime = rig.runtime()
-            runtime.start()
-        }
+        override fun restart(settings: AlertSettings, doses: Doses, sensor: SensorWindow?, t: Long): List<AlertEffect> =
+            runBlocking {
+                clock.instant = Instant.ofEpochSecond(t)
+                // a process death: a new runtime over the same stores (settings, treatments, saved record)
+                runtime = rig.runtime()
+                runtime.start()
+            }
     }
 
     @Test fun timeline() {
@@ -65,7 +67,10 @@ class AlertRuntimeTest(private val name: String, private val sc: AlertScenarios.
     companion object {
         @JvmStatic
         @Parameterized.Parameters(name = "{0}")
-        fun scenarios(): List<Array<Any>> = AlertScenarios.load().also { assertTrue("no scenarios found", it.isNotEmpty()) }
-            .map { arrayOf("${it.file}: ${it.title}", it) }
+        fun scenarios(): List<Array<Any>> =
+            AlertScenarios
+                .load()
+                .also { assertTrue("no scenarios found", it.isNotEmpty()) }
+                .map { arrayOf("${it.file}: ${it.title}", it) }
     }
 }

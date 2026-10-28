@@ -54,14 +54,30 @@ class SettingsGallery {
     private val clock = FakeClock(now, zone)
     private val muted = AlertUiState(mutedUntil = now.plusSeconds(90 * 60))
     private val lowMuted =
-        AlertUiState(quiet = listOf(AlertQuietSide("low", matching = true, reason = AlertQuietReason.Muted, until = now.plusSeconds(1800), relaxMin = 0, canRemindLess = false)))
+        AlertUiState(
+            quiet =
+                listOf(
+                    AlertQuietSide(
+                        "low",
+                        matching = true,
+                        reason = AlertQuietReason.Muted,
+                        until = now.plusSeconds(1800),
+                        relaxMin = 0,
+                        canRemindLess = false,
+                    ),
+                ),
+        )
     private val release =
         Release(
             "v0.12.1",
             "https://example.invalid/r",
             prerelease = true,
             draft = false,
-            assets = listOf(ReleaseAsset("Sukrara-0.12.1.dmg", "https://example.invalid/d"), ReleaseAsset("Sukrara-0.12.1.apk", "https://example.invalid/a")),
+            assets =
+                listOf(
+                    ReleaseAsset("Sukrara-0.12.1.dmg", "https://example.invalid/d"),
+                    ReleaseAsset("Sukrara-0.12.1.apk", "https://example.invalid/a"),
+                ),
         )
 
     private val sensorWorking =
@@ -74,30 +90,71 @@ class SettingsGallery {
 
     private val pages: List<Pair<String, @Composable () -> Unit>> =
         listOf(
-            "overview" to { SettingsOverviewContent(true, AlertUiState(), AlertReadiness(setOf(AlertRequirement.ExactAlarm)), clock, OverviewActions()) {} },
+            "overview" to
+                {
+                    SettingsOverviewContent(
+                        true,
+                        AlertUiState(),
+                        AlertReadiness(setOf(AlertRequirement.ExactAlarm)),
+                        clock,
+                        OverviewActions(),
+                    ) {}
+                },
             "overview-muted" to { SettingsOverviewContent(true, muted, AlertReadiness.Ready, clock, OverviewActions()) {} },
             "alerts" to { AlertsSettingsContent(AlertsUi(AlertSettings(), AlertUiState()), null, clock, AlertsActions()) {} },
             "alerts-muted-forever" to {
-                AlertsSettingsContent(AlertsUi(AlertSettings(), AlertUiState(mutedUntil = AlertUiState.UNTIL_TURNED_OFF)), now, clock, AlertsActions()) {}
+                AlertsSettingsContent(
+                    AlertsUi(AlertSettings(), AlertUiState(mutedUntil = AlertUiState.UNTIL_TURNED_OFF)),
+                    now,
+                    clock,
+                    AlertsActions(),
+                ) {}
             },
-            "alert-kind-low-muted" to { AlertKindContent(AlertKind.LOW, AlertsUi(AlertSettings(), lowMuted), clock, AlertKindActions()) {} },
-            "alert-kind-very-low" to { AlertKindContent(AlertKind.VERY_LOW, AlertsUi(AlertSettings(), AlertUiState()), clock, AlertKindActions()) {} },
+            "alert-kind-low-muted" to {
+                AlertKindContent(
+                    AlertKind.LOW,
+                    AlertsUi(AlertSettings(), lowMuted),
+                    clock,
+                    AlertKindActions(),
+                ) {}
+            },
+            "alert-kind-very-low" to
+                { AlertKindContent(AlertKind.VERY_LOW, AlertsUi(AlertSettings(), AlertUiState()), clock, AlertKindActions()) {} },
             "threshold-review" to { AlertThresholdReviewContent(AlertSettings(), { _, _ -> }, {}, {}) },
             "ranges" to { RangesContent(GraphPrefs(), { _, _ -> }) {} },
             "graph" to { GraphBasicsContent(GraphPrefs(), { _, _ -> }, { _, _ -> }) {} },
-            "reliability" to { ReliabilityContent(AlertReadiness(setOf(AlertRequirement.FullScreenIntent, AlertRequirement.BatteryExemption)), {}) {} },
+            "reliability" to
+                { ReliabilityContent(AlertReadiness(setOf(AlertRequirement.FullScreenIntent, AlertRequirement.BatteryExemption)), {}) {} },
             "about-update" to { AboutContent("0.12.0", UpdateState.Available(release), {}) {} },
             "about-offline" to { AboutContent("0.12.0", UpdateState.Offline, {}) {} },
             "sensor" to { SensorSettingsContent(sensorWorking, now, zone, SensorSettingsActions()) {} },
-            "sensor-ended" to { SensorSettingsContent(sensorWorking.copy(state = SensorState.Ended), now, zone, SensorSettingsActions()) {} },
+            "sensor-ended" to
+                { SensorSettingsContent(sensorWorking.copy(state = SensorState.Ended), now, zone, SensorSettingsActions()) {} },
             "sensor-juggluco-signed-out" to {
-                SensorSettingsContent(sensorWorking.copy(source = SourceChoice.Juggluco, sensor = null, account = null), now, zone, SensorSettingsActions()) {}
+                SensorSettingsContent(
+                    sensorWorking.copy(source = SourceChoice.Juggluco, sensor = null, account = null),
+                    now,
+                    zone,
+                    SensorSettingsActions(),
+                ) {
+                }
             },
             "sensor-juggluco-unreachable" to {
-                SensorSettingsContent(sensorWorking.copy(source = SourceChoice.Juggluco, link = SourceLink.JugglucoUnreachable), now, zone, SensorSettingsActions()) {}
+                SensorSettingsContent(
+                    sensorWorking.copy(source = SourceChoice.Juggluco, link = SourceLink.JugglucoUnreachable),
+                    now,
+                    zone,
+                    SensorSettingsActions(),
+                ) {
+                }
             },
             "sensor-none" to {
-                SensorSettingsContent(SensorSettingsState(SourceChoice.Libre3Direct, SensorState.None, null, null), now, zone, SensorSettingsActions()) {}
+                SensorSettingsContent(
+                    SensorSettingsState(SourceChoice.Libre3Direct, SensorState.None, null, null),
+                    now,
+                    zone,
+                    SensorSettingsActions(),
+                ) {}
             },
         )
 
@@ -131,6 +188,22 @@ class SettingsGallery {
 
     @Test fun darkLargest() = gallery(dark = true, fontScale = 2f)
 
-    @Test @Config(qualifiers = "es")
-    fun spanish() = gallery(dark = true, fontScale = 1f, prefix = "es-", only = setOf("alerts", "alert-kind-low-muted", "threshold-review", "about-update", "sensor", "sensor-juggluco-signed-out", "sensor-juggluco-unreachable"))
+    @Test
+    @Config(qualifiers = "es")
+    fun spanish() =
+        gallery(
+            dark = true,
+            fontScale = 1f,
+            prefix = "es-",
+            only =
+                setOf(
+                    "alerts",
+                    "alert-kind-low-muted",
+                    "threshold-review",
+                    "about-update",
+                    "sensor",
+                    "sensor-juggluco-signed-out",
+                    "sensor-juggluco-unreachable",
+                ),
+        )
 }

@@ -19,44 +19,51 @@ import app.mauri.sukrara.alerts.TreatmentKind as EngineTreatmentKind
 class AlertCardStatusTest {
     private val rig = AlertRig()
 
-    @Test fun lowAsksForCarbsThenTheCarbsCoverIt() = runTest {
-        val runtime = rig.runtime()
-        val low = rig.reading(60)
-        runtime.onState(rig.wearerState(latest = low))
-        assertEquals(CardStatus.Needed(lowSide = true), rig.published.status)
-        val at = rig.clock.now().epochSecond
-        runtime.onDoses(Doses(carbs = listOf(at)))
-        assertEquals(CardStatus.Taken(TreatmentKind.Carbs, at, at + 15 * 60), rig.published.status)
-    }
+    @Test fun lowAsksForCarbsThenTheCarbsCoverIt() =
+        runTest {
+            val runtime = rig.runtime()
+            val low = rig.reading(60)
+            runtime.onState(rig.wearerState(latest = low))
+            assertEquals(CardStatus.Needed(lowSide = true), rig.published.status)
+            val at = rig.clock.now().epochSecond
+            runtime.onDoses(Doses(carbs = listOf(at)))
+            assertEquals(CardStatus.Taken(TreatmentKind.Carbs, at, at + 15 * 60), rig.published.status)
+        }
 
-    @Test fun highAsksForInsulin() = runTest {
-        val runtime = rig.runtime()
-        runtime.onState(rig.wearerState(latest = rig.reading(260)))
-        assertEquals(CardStatus.Needed(lowSide = false), rig.published.status)
-    }
+    @Test fun highAsksForInsulin() =
+        runTest {
+            val runtime = rig.runtime()
+            runtime.onState(rig.wearerState(latest = rig.reading(260)))
+            assertEquals(CardStatus.Needed(lowSide = false), rig.published.status)
+        }
 
-    @Test fun inRangeShowsNothingAndMuteAllShowsMuted() = runTest {
-        val runtime = rig.runtime()
-        runtime.onState(rig.wearerState(latest = rig.reading(120)))
-        assertEquals(CardStatus.None, rig.published.status)
-        runtime.muteAll(60)
-        assertEquals(CardStatus.Muted(rig.clock.now().epochSecond + 3600), rig.published.status)
-        runtime.muteAll(null)
-        assertEquals(CardStatus.Muted(CardStatus.NEVER), rig.published.status)
-    }
+    @Test fun inRangeShowsNothingAndMuteAllShowsMuted() =
+        runTest {
+            val runtime = rig.runtime()
+            runtime.onState(rig.wearerState(latest = rig.reading(120)))
+            assertEquals(CardStatus.None, rig.published.status)
+            runtime.muteAll(60)
+            assertEquals(CardStatus.Muted(rig.clock.now().epochSecond + 3600), rig.published.status)
+            runtime.muteAll(null)
+            assertEquals(CardStatus.Muted(CardStatus.NEVER), rig.published.status)
+        }
 
-    @Test fun aSideMutedFromTheNotificationIsPaused() = runTest {
-        val runtime = rig.runtime()
-        runtime.onState(rig.wearerState(latest = rig.reading(60)))
-        runtime.mute("low", 30)
-        assertEquals(CardStatus.Paused(lowSide = true, until = rig.clock.now().epochSecond + 30 * 60), rig.published.status)
-        rig.clock.advance(Duration.ofMinutes(31))
-        runtime.onState(rig.wearerState(latest = rig.reading(62)))
-        assertEquals(CardStatus.Needed(lowSide = true), rig.published.status)
-    }
+    @Test fun aSideMutedFromTheNotificationIsPaused() =
+        runTest {
+            val runtime = rig.runtime()
+            runtime.onState(rig.wearerState(latest = rig.reading(60)))
+            runtime.mute("low", 30)
+            assertEquals(CardStatus.Paused(lowSide = true, until = rig.clock.now().epochSecond + 30 * 60), rig.published.status)
+            rig.clock.advance(Duration.ofMinutes(31))
+            runtime.onState(rig.wearerState(latest = rig.reading(62)))
+            assertEquals(CardStatus.Needed(lowSide = true), rig.published.status)
+        }
 
     @Test fun mappingKeepsNeverAndTheTreatment() {
-        assertEquals(CardStatus.Paused(false, CardStatus.NEVER), AlertRuntime.cardStatusOf(AlertStatus.Paused(AlertKind.EXTREMELY_HIGH, Rules.NEVER)))
+        assertEquals(
+            CardStatus.Paused(false, CardStatus.NEVER),
+            AlertRuntime.cardStatusOf(AlertStatus.Paused(AlertKind.EXTREMELY_HIGH, Rules.NEVER)),
+        )
         assertEquals(
             CardStatus.Taken(TreatmentKind.RapidInsulin, 10, 20),
             AlertRuntime.cardStatusOf(AlertStatus.Taken(AlertKind.HIGH, EngineTreatmentKind.RAPID, 10, 20)),

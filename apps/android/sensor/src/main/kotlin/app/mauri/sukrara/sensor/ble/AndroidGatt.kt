@@ -33,28 +33,30 @@ internal class AndroidGatt(private val context: Context) : GattConnector {
     override fun connect(address: String, generation: Int, onEvent: (GattEvent) -> Unit): GattConnection {
         val device = checkNotNull(adapter) { "no Bluetooth adapter" }.getRemoteDevice(address)
         val chars = ConcurrentHashMap<UUID, BluetoothGattCharacteristic>()
-        val callback = object : BluetoothGattCallback() {
-            override fun onConnectionStateChange(g: BluetoothGatt, status: Int, newState: Int) =
-                onEvent(GattEvent.ConnectionChanged(generation, newState == BluetoothProfile.STATE_CONNECTED, status))
+        val callback =
+            object : BluetoothGattCallback() {
+                override fun onConnectionStateChange(g: BluetoothGatt, status: Int, newState: Int) =
+                    onEvent(GattEvent.ConnectionChanged(generation, newState == BluetoothProfile.STATE_CONNECTED, status))
 
-            override fun onServicesDiscovered(g: BluetoothGatt, status: Int) {
-                chars.clear()
-                g.services.forEach { s -> s.characteristics.forEach { chars[it.uuid] = it } }
-                onEvent(GattEvent.ServicesDiscovered(generation, status, chars.keys.toSet()))
+                override fun onServicesDiscovered(g: BluetoothGatt, status: Int) {
+                    chars.clear()
+                    g.services.forEach { s -> s.characteristics.forEach { chars[it.uuid] = it } }
+                    onEvent(GattEvent.ServicesDiscovered(generation, status, chars.keys.toSet()))
+                }
+
+                override fun onDescriptorWrite(g: BluetoothGatt, d: BluetoothGattDescriptor, status: Int) =
+                    onEvent(GattEvent.OperationDone(generation, d.characteristic.uuid, status))
+
+                override fun onCharacteristicWrite(g: BluetoothGatt, ch: BluetoothGattCharacteristic, status: Int) =
+                    onEvent(GattEvent.OperationDone(generation, ch.uuid, status))
+
+                override fun onCharacteristicChanged(g: BluetoothGatt, ch: BluetoothGattCharacteristic, value: ByteArray) =
+                    onEvent(GattEvent.Notification(generation, ch.uuid, value))
             }
-
-            override fun onDescriptorWrite(g: BluetoothGatt, d: BluetoothGattDescriptor, status: Int) =
-                onEvent(GattEvent.OperationDone(generation, d.characteristic.uuid, status))
-
-            override fun onCharacteristicWrite(g: BluetoothGatt, ch: BluetoothGattCharacteristic, status: Int) =
-                onEvent(GattEvent.OperationDone(generation, ch.uuid, status))
-
-            override fun onCharacteristicChanged(g: BluetoothGatt, ch: BluetoothGattCharacteristic, value: ByteArray) =
-                onEvent(GattEvent.Notification(generation, ch.uuid, value))
-        }
         // autoConnect = true: the controller reconnects whenever the sensor advertises, with no app-level scanning.
-        val gatt = device.connectGatt(context, true, callback, BluetoothDevice.TRANSPORT_LE)
-            ?: error("connectGatt returned null")
+        val gatt =
+            device.connectGatt(context, true, callback, BluetoothDevice.TRANSPORT_LE)
+                ?: error("connectGatt returned null")
         return object : GattConnection {
             override fun discoverServices() = gatt.discoverServices()
 

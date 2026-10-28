@@ -48,5 +48,7 @@ object SchemaPrefs {
 
     /** Whether (and when) the alert thresholds were confirmed; home's Finish-setup card asks until they are. */
     fun thresholdsConfirmedAt(settings: SettingsRepository): Flow<Instant?> =
-        settings.flow(ThresholdsConfirmedAt).map { text -> text.takeIf { it.isNotEmpty() }?.let { runCatching { Instant.parse(it) }.getOrNull() } }
+        settings.flow(ThresholdsConfirmedAt).map { text ->
+            text.takeIf { it.isNotEmpty() }?.let { runCatching { Instant.parse(it) }.getOrNull() }
+        }
 }

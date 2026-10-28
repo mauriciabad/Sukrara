@@ -29,11 +29,12 @@ class NewSensorPageTest {
     fun `before the tap the exit cancels, after it the exit only closes the screen`() {
         Steps.all.forEach { (name, step) ->
             val exit = step.page().actions.lastOrNull() ?: return@forEach
-            val expected = when {
-                step.isPaired -> NewSensorAction.Close
-                step.isFinal || step is NewSensorStep.NfcFailed || step is NewSensorStep.TakeoverFailed -> NewSensorAction.Done
-                else -> NewSensorAction.Cancel
-            }
+            val expected =
+                when {
+                    step.isPaired -> NewSensorAction.Close
+                    step.isFinal || step is NewSensorStep.NfcFailed || step is NewSensorStep.TakeoverFailed -> NewSensorAction.Done
+                    else -> NewSensorAction.Cancel
+                }
             assertEquals(name, expected, exit)
         }
     }
@@ -47,6 +48,14 @@ class NewSensorPageTest {
 
     @Test
     fun `a failed tap can always switch to Juggluco`() {
-        NfcFailure.entries.forEach { assertTrue(NewSensorStep.NfcFailed(it).page().actions.contains(NewSensorAction.UseJuggluco)) }
+        NfcFailure.entries.forEach {
+            assertTrue(
+                NewSensorStep
+                    .NfcFailed(it)
+                    .page()
+                    .actions
+                    .contains(NewSensorAction.UseJuggluco),
+            )
+        }
     }
 }

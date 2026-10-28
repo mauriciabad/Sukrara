@@ -54,38 +54,99 @@ class FollowerModel(private val crypto: NostrCrypto, initial: FollowerState) {
         val s = follower.state
         return buildJsonObject {
             put("status", s.status.name.lowercase())
-            put("epochs", buildJsonArray { s.epochs.values.map { it.n }.sorted().forEach { add(JsonPrimitive(it)) } })
+            put(
+                "epochs",
+                buildJsonArray {
+                    s.epochs.values
+                        .map { it.n }
+                        .sorted()
+                        .forEach { add(JsonPrimitive(it)) }
+                },
+            )
             put("devices", buildJsonArray { s.devices.forEach { add(JsonPrimitive(it)) } })
             put("writers", buildJsonArray { s.writers.forEach { add(JsonPrimitive(it)) } })
-            put("readings", buildJsonArray { readings.values.forEach { r -> add(buildJsonArray { add(JsonPrimitive(r.t)); add(JsonPrimitive(r.sgv)); add(r.rate?.let(::JsonPrimitive) ?: JsonNull) }) } })
-            put("sensor", sensor?.let { buildJsonObject { put("ss", it.start); put("se", it.end); put("sw", it.warmupEnd) } } ?: JsonNull)
+            put(
+                "readings",
+                buildJsonArray {
+                    readings.values.forEach { r ->
+                        add(
+                            buildJsonArray {
+                                add(JsonPrimitive(r.t))
+                                add(JsonPrimitive(r.sgv))
+                                add(r.rate?.let(::JsonPrimitive) ?: JsonNull)
+                            },
+                        )
+                    }
+                },
+            )
+            put(
+                "sensor",
+                sensor?.let {
+                    buildJsonObject {
+                        put("ss", it.start)
+                        put("se", it.end)
+                        put("sw", it.warmupEnd)
+                    }
+                } ?: JsonNull,
+            )
             put(
                 "treatments",
                 buildJsonArray {
                     treatments.values.sortedBy { it.id }.forEach {
-                        add(buildJsonObject { put("id", it.id); put("k", it.kind); put("a", it.amount); put("u", it.u); put("o", it.origin); put("del", it.deleted) })
+                        add(
+                            buildJsonObject {
+                                put("id", it.id)
+                                put("k", it.kind)
+                                put("a", it.amount)
+                                put("u", it.u)
+                                put("o", it.origin)
+                                put("del", it.deleted)
+                            },
+                        )
                     }
                 },
             )
-            put("settings", settings?.let { buildJsonObject { put("u", it.u); put("graph", it.graph); put("alerts", it.alerts) } } ?: JsonNull)
+            put(
+                "settings",
+                settings?.let {
+                    buildJsonObject {
+                        put("u", it.u)
+                        put("graph", it.graph)
+                        put("alerts", it.alerts)
+                    }
+                } ?: JsonNull,
+            )
             put("alerts", alerts.size)
         }
     }
 
     private fun apply(item: Item) {
         when (item) {
-            is Item.Chunk -> item.chunk.readings.forEach { readings.putIfAbsent(it.t, it) }
+            is Item.Chunk -> {
+                item.chunk.readings.forEach { readings.putIfAbsent(it.t, it) }
+            }
+
             is Item.Live -> {
                 item.live.reading?.let { readings.putIfAbsent(it.t, it) }
                 if (item.sensorChanged) sensor = item.live.sensor
             }
+
             is Item.Treatment -> {
                 val held = treatments[item.treatment.id]
                 if (held == null || item.override || item.treatment.newerThan(held)) treatments[item.treatment.id] = item.treatment
             }
-            is Item.Settings -> settings = item.settings
-            is Item.Alert -> alerts += item.alert
-            else -> Unit
+
+            is Item.Settings -> {
+                settings = item.settings
+            }
+
+            is Item.Alert -> {
+                alerts += item.alert
+            }
+
+            else -> {
+                Unit
+            }
         }
     }
 }

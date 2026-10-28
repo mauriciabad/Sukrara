@@ -192,6 +192,7 @@ internal class Libre3Driver(
                 secAt = 0
                 secBuf = ByteArray(secLen)
             }
+
             CH_CHALLENGE, CH_CERT -> {
                 val seq = value[0].toInt() and 0xFF
                 if (seq != secSeq + 1) return fail("security fragment out of order")
@@ -202,6 +203,7 @@ internal class Libre3Driver(
                 secAt += n
                 if (secAt >= secLen) securityDataComplete()
             }
+
             CH_GLUCOSE -> {
                 glucoseBuf += value
                 if (glucoseBuf.size >= 35) {
@@ -210,9 +212,18 @@ internal class Libre3Driver(
                     onGlucosePacket(packet)
                 }
             }
-            CH_PATCH_STATUS -> onPatchStatus(value)
-            CH_HISTORIC -> onHistoric(value)
-            else -> Unit // subscribed (the sensor requires it) but not parsed
+
+            CH_PATCH_STATUS -> {
+                onPatchStatus(value)
+            }
+
+            CH_HISTORIC -> {
+                onHistoric(value)
+            }
+
+            else -> {
+                Unit
+            } // subscribed (the sensor requires it) but not parsed
         }
     }
 
@@ -244,15 +255,17 @@ internal class Libre3Driver(
         r1 = secBuf.copyOfRange(0, 16)
         val nonce = secBuf.copyOfRange(16, 23)
         r2 = ByteArray(16).also { random(it) }
-        val reply = security.encryptChallengeReply(ctx, nonce, r1 + r2 + pairing.pin)
-            ?: return fail("challenge encryption failed")
+        val reply =
+            security.encryptChallengeReply(ctx, nonce, r1 + r2 + pairing.pin)
+                ?: return fail("challenge encryption failed")
         writeFragments(CH_CHALLENGE, reply)
         write(CH_COMMAND, byteArrayOf(0x08))
     }
 
     private fun checkChallengeResponse() {
-        val plain = security.decryptChallengeResponse(ctx, secBuf.copyOfRange(60, 67), secBuf.copyOfRange(0, 60))
-            ?: return fail("challenge response could not be decrypted")
+        val plain =
+            security.decryptChallengeResponse(ctx, secBuf.copyOfRange(60, 67), secBuf.copyOfRange(0, 60))
+                ?: return fail("challenge response could not be decrypted")
         if (!plain.copyOfRange(0, 16).contentEquals(r2) || !plain.copyOfRange(16, 32).contentEquals(r1)) {
             return rejected("challenge mismatch")
         }
@@ -287,6 +300,7 @@ internal class Libre3Driver(
     private fun onGlucosePacket(packet: ByteArray) {
         val d = decrypt(KIND_GLUCOSE, packet) ?: return fail("glucose packet could not be decrypted")
         if (d.size < 29) return fail("short glucose packet (${d.size})")
+
         fun u16(o: Int) = (d[o].toInt() and 0xFF) or ((d[o + 1].toInt() and 0xFF) shl 8)
 
         val lifeCount = u16(0)
@@ -310,11 +324,12 @@ internal class Libre3Driver(
         // The packet also carries the matching 5-minute value, which fills a follower's chart a bit faster.
         val histLifeCount = u16(10)
         val hist = u16(12)
-        val histPoint = if (hist in VALID_MGDL && histLifeCount in 1..lifeCount) {
-            SensorGlucose(histLifeCount, hist, pairing.startEpoch + 60L * (histLifeCount + 1))
-        } else {
-            null
-        }
+        val histPoint =
+            if (hist in VALID_MGDL && histLifeCount in 1..lifeCount) {
+                SensorGlucose(histLifeCount, hist, pairing.startEpoch + 60L * (histLifeCount + 1))
+            } else {
+                null
+            }
         histPoint?.let { events.onHistory(listOf(reading(it.epochSec, it.mgdl, null))) }
         events.onSensorGlucose(SensorGlucose(lifeCount, mgdl, now, rate), listOfNotNull(histPoint))
     }
@@ -334,9 +349,13 @@ internal class Libre3Driver(
         log("requesting history from lifeCount $from")
         sendControl(
             byteArrayOf(
-                1, 0, 1,
-                (from and 0xFF).toByte(), ((from shr 8) and 0xFF).toByte(),
-                ((from shr 16) and 0xFF).toByte(), ((from shr 24) and 0xFF).toByte(),
+                1,
+                0,
+                1,
+                (from and 0xFF).toByte(),
+                ((from shr 8) and 0xFF).toByte(),
+                ((from shr 16) and 0xFF).toByte(),
+                ((from shr 24) and 0xFF).toByte(),
             ),
         )
     }
@@ -374,6 +393,7 @@ internal class Libre3Driver(
     private fun onHistoric(packet: ByteArray) {
         val d = decrypt(KIND_HISTORIC, packet) ?: return
         if (d.size < 4) return
+
         fun u16(o: Int) = (d[o].toInt() and 0xFF) or ((d[o + 1].toInt() and 0xFF) shl 8)
         val start = u16(0)
         val out = ArrayList<SensorGlucose>()

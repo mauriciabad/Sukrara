@@ -73,7 +73,10 @@ class ThresholdReviewViewModel(
         viewModelScope.launch {
             var saved = reviewed
             store.update { current ->
-                ReviewedKinds.fold(current) { acc, kind -> acc.withRule(kind, acc.rule(kind).copy(threshold = reviewed.rule(kind).threshold)) }
+                ReviewedKinds
+                    .fold(
+                        current,
+                    ) { acc, kind -> acc.withRule(kind, acc.rule(kind).copy(threshold = reviewed.rule(kind).threshold)) }
                     .also { saved = it }
             }
             settings.set(SchemaPrefs.ThresholdsConfirmedAt, clock.now().toString())
@@ -90,7 +93,7 @@ class ThresholdReviewViewModel(
 
 /** The review's content: one row per reviewed kind, then *Use these thresholds* and *Cancel*. */
 @Composable
-fun AlertThresholdReviewContent(
+internal fun AlertThresholdReviewContent(
     draft: AlertSettings,
     onThreshold: (AlertKind, Double) -> Unit,
     onConfirm: () -> Unit,

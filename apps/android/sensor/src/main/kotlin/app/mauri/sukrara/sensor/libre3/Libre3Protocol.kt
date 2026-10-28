@@ -42,11 +42,17 @@ internal object Libre3Protocol {
     const val BACKFILL_MINUTES = 24 * 60
 
     /** AES-CCM packet descriptors by kind (index = kind). */
-    val DESCRIPTORS = arrayOf(
-        byteArrayOf(0, 0, 0), byteArrayOf(0, 0, 0x0F), byteArrayOf(0, 0, 0xF0.toByte()),
-        byteArrayOf(0, 0x0F, 0), byteArrayOf(0, 0xF0.toByte(), 0), byteArrayOf(0x0F, 0, 0),
-        byteArrayOf(0xF0.toByte(), 0, 0), byteArrayOf(0x44, 0, 0),
-    )
+    val DESCRIPTORS =
+        arrayOf(
+            byteArrayOf(0, 0, 0),
+            byteArrayOf(0, 0, 0x0F),
+            byteArrayOf(0, 0, 0xF0.toByte()),
+            byteArrayOf(0, 0x0F, 0),
+            byteArrayOf(0, 0xF0.toByte(), 0),
+            byteArrayOf(0x0F, 0, 0),
+            byteArrayOf(0xF0.toByte(), 0, 0),
+            byteArrayOf(0x44, 0, 0),
+        )
     const val KIND_CONTROL = 0
     const val KIND_PATCH_STATUS = 2
     const val KIND_GLUCOSE = 3
@@ -56,11 +62,12 @@ internal object Libre3Protocol {
      * App certificate for security level 1, sent during a fresh pairing (public; from Juggluco's KEYSCrypto.java,
      * LIBRE3_APP_CERTIFICATES_B[1]).
      */
-    val APP_CERTIFICATE: ByteArray = (
-        "03030102030405060708090a0b0c0d0e0f10000161897655010000000000000000" +
-            "048242be33f1a330880112fa62cc4842a43d1204922ad201d8775bb226f611f75b0ef3d5bc6cc4317caa457584ab003f" +
-            "1712336089d3a4f29838ed0dc666deaea2" +
-            "d65a00dfff5d7bcae21655e302e3458e774daaaaca87af75f1b87884b18d4ce875d0d108c903a834471a4ff674b2d30b" +
-            "cba062373014b7786e4437b177aec3c8"
+    val APP_CERTIFICATE: ByteArray =
+        (
+            "03030102030405060708090a0b0c0d0e0f10000161897655010000000000000000" +
+                "048242be33f1a330880112fa62cc4842a43d1204922ad201d8775bb226f611f75b0ef3d5bc6cc4317caa457584ab003f" +
+                "1712336089d3a4f29838ed0dc666deaea2" +
+                "d65a00dfff5d7bcae21655e302e3458e774daaaaca87af75f1b87884b18d4ce875d0d108c903a834471a4ff674b2d30b" +
+                "cba062373014b7786e4437b177aec3c8"
         ).chunked(2).map { it.toInt(16).toByte() }.toByteArray()
 }

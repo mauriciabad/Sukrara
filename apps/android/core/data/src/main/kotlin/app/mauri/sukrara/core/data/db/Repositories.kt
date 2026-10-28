@@ -50,38 +50,41 @@ internal fun ReadingEntity.toReading() = Reading(Instant.ofEpochMilli(t), mgdl, 
 
 internal fun Reading.toEntity() = ReadingEntity(t.toEpochMilli(), source.id, mgdl, rateMgdlPerMin)
 
-internal fun TreatmentRecord.toEntity() = TreatmentEntity(
-    id = treatment.id,
-    kind = treatment.kind.name,
-    amount = treatment.amount,
-    at = treatment.at.toEpochMilli(),
-    note = treatment.note,
-    modifiedAt = treatment.modifiedAt.toEpochMilli(),
-    deleted = treatment.deleted,
-    origin = treatment.origin.name,
-    creator = creator,
-    author = author,
-    via = via,
-    receivedAt = receivedAt?.toEpochMilli(),
-    delivery = delivery.name,
-    penJson = penJson,
-)
+internal fun TreatmentRecord.toEntity() =
+    TreatmentEntity(
+        id = treatment.id,
+        kind = treatment.kind.name,
+        amount = treatment.amount,
+        at = treatment.at.toEpochMilli(),
+        note = treatment.note,
+        modifiedAt = treatment.modifiedAt.toEpochMilli(),
+        deleted = treatment.deleted,
+        origin = treatment.origin.name,
+        creator = creator,
+        author = author,
+        via = via,
+        receivedAt = receivedAt?.toEpochMilli(),
+        delivery = delivery.name,
+        penJson = penJson,
+    )
 
-internal fun TreatmentEntity.toRecord() = TreatmentRecord(
-    treatment = Treatment(
-        id = id,
-        kind = TreatmentKind.valueOf(kind),
-        amount = amount,
-        at = Instant.ofEpochMilli(at),
-        note = note,
-        modifiedAt = Instant.ofEpochMilli(modifiedAt),
-        deleted = deleted,
-        origin = TreatmentOrigin.valueOf(origin),
-    ),
-    creator = creator,
-    author = author,
-    via = via,
-    receivedAt = receivedAt?.let(Instant::ofEpochMilli),
-    delivery = TreatmentDelivery.valueOf(delivery),
-    penJson = penJson,
-)
+internal fun TreatmentEntity.toRecord() =
+    TreatmentRecord(
+        treatment =
+            Treatment(
+                id = id,
+                kind = TreatmentKind.valueOf(kind),
+                amount = amount,
+                at = Instant.ofEpochMilli(at),
+                note = note,
+                modifiedAt = Instant.ofEpochMilli(modifiedAt),
+                deleted = deleted,
+                origin = TreatmentOrigin.valueOf(origin),
+            ),
+        creator = creator,
+        author = author,
+        via = via,
+        receivedAt = receivedAt?.let(Instant::ofEpochMilli),
+        delivery = TreatmentDelivery.valueOf(delivery),
+        penJson = penJson,
+    )

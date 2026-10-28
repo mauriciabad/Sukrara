@@ -34,12 +34,20 @@ object RecoveryCode {
     fun import(crypto: NostrCrypto, text: String, password: String?): Import {
         val t = text.trim()
         return when {
-            t.startsWith("ncryptsec1") -> when {
-                password.isNullOrEmpty() -> Import.NeedsPassword
-                else -> crypto.parseNcryptsec(t, password)?.let(Import::Restored) ?: Import.WrongPassword
+            t.startsWith("ncryptsec1") -> {
+                when {
+                    password.isNullOrEmpty() -> Import.NeedsPassword
+                    else -> crypto.parseNcryptsec(t, password)?.let(Import::Restored) ?: Import.WrongPassword
+                }
             }
-            t.startsWith("nsec1") -> crypto.parseNsec(t)?.let(Import::Restored) ?: Import.NotAKey
-            else -> SecretKey.ofHex(t.lowercase())?.takeIf { crypto.keyPair(it) != null }?.let(Import::Restored) ?: Import.NotAKey
+
+            t.startsWith("nsec1") -> {
+                crypto.parseNsec(t)?.let(Import::Restored) ?: Import.NotAKey
+            }
+
+            else -> {
+                SecretKey.ofHex(t.lowercase())?.takeIf { crypto.keyPair(it) != null }?.let(Import::Restored) ?: Import.NotAKey
+            }
         }
     }
 }

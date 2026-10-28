@@ -57,24 +57,33 @@ fun AboutContent(
         SettingsGroup {
             InfoRow(stringResource(R.string.st_about_version), summary = installed)
             when (update) {
-                UpdateState.Checking -> InfoRow(stringResource(R.string.st_update_checking))
+                UpdateState.Checking -> {
+                    InfoRow(stringResource(R.string.st_update_checking))
+                }
 
-                is UpdateState.UpToDate ->
-                    NavigationRow(stringResource(R.string.st_update_none), onCheckAgain, summary = stringResource(R.string.st_update_check_again))
+                is UpdateState.UpToDate -> {
+                    NavigationRow(
+                        stringResource(R.string.st_update_none),
+                        onCheckAgain,
+                        summary = stringResource(R.string.st_update_check_again),
+                    )
+                }
 
-                is UpdateState.Available ->
+                is UpdateState.Available -> {
                     NavigationRow(
                         stringResource(R.string.st_update_available, update.release.tag.removePrefix("v")),
                         { context.openUrl(update.release.url) },
                         summary = stringResource(if (update.release.prerelease) R.string.st_update_prerelease else R.string.st_update_open),
                     )
+                }
 
-                UpdateState.Offline ->
+                UpdateState.Offline -> {
                     NavigationRow(
                         stringResource(R.string.st_update_offline),
                         { context.openUrl(UpdateCheck.RELEASES_URL) },
                         summary = stringResource(R.string.st_update_offline_summary),
                     )
+                }
             }
         }
         val latest =
@@ -90,8 +99,12 @@ fun AboutContent(
             }
         }
         SettingsGroup {
-            NavigationRow(stringResource(R.string.st_report_problem), { context.openUrl(UpdateCheck.ISSUES_URL) }, summary = stringResource(R.string.st_report_problem_summary))
-            NavigationRow(stringResource(R.string.st_source_code), { context.openUrl(UpdateCheck.REPO_URL) }, summary = stringResource(R.string.st_license))
+            NavigationRow(stringResource(R.string.st_report_problem), {
+                context.openUrl(UpdateCheck.ISSUES_URL)
+            }, summary = stringResource(R.string.st_report_problem_summary))
+            NavigationRow(stringResource(R.string.st_source_code), {
+                context.openUrl(UpdateCheck.REPO_URL)
+            }, summary = stringResource(R.string.st_license))
         }
     }
 }

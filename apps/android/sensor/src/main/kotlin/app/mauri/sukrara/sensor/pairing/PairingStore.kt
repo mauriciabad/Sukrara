@@ -55,26 +55,50 @@ class PairingStore(private val secure: SecureStore) {
     )
 
     suspend fun load(): PairingLoad {
-        val bytes = try {
-            secure.read(NAME) ?: return PairingLoad.None
-        } catch (e: SecretUnreadableException) {
-            return PairingLoad.Corrupt("secure storage unreadable", transient = e.transient)
-        } catch (e: Exception) {
-            return PairingLoad.Corrupt("secure storage unreadable (${e.javaClass.simpleName})")
-        }
+        val bytes =
+            try {
+                secure.read(NAME) ?: return PairingLoad.None
+            } catch (e: SecretUnreadableException) {
+                return PairingLoad.Corrupt("secure storage unreadable", transient = e.transient)
+            } catch (e: Exception) {
+                return PairingLoad.Corrupt("secure storage unreadable (${e.javaClass.simpleName})")
+            }
         return try {
             val r = json.decodeFromString(Record.serializer(), bytes.decodeToString())
             val pin = r.pinHex.hexToByteArray()
             val kAuth = r.kAuthHex?.hexToByteArray()
             when {
-                pin.size != PIN_BYTES -> PairingLoad.Corrupt("PIN has ${pin.size} bytes")
-                kAuth != null && kAuth.size != KAUTH_BYTES -> PairingLoad.Corrupt("authorization has ${kAuth.size} bytes")
-                r.serial.isEmpty() || r.address.isEmpty() -> PairingLoad.Corrupt("serial or address missing")
-                else -> PairingLoad.Ok(
-                    Pairing(r.serial, r.address, r.startEpoch, r.securityVersion, r.wearMin, r.warmupMin, r.profile, pin, kAuth, r.ended),
-                )
+                pin.size != PIN_BYTES -> {
+                    PairingLoad.Corrupt("PIN has ${pin.size} bytes")
+                }
+
+                kAuth != null && kAuth.size != KAUTH_BYTES -> {
+                    PairingLoad.Corrupt("authorization has ${kAuth.size} bytes")
+                }
+
+                r.serial.isEmpty() || r.address.isEmpty() -> {
+                    PairingLoad.Corrupt("serial or address missing")
+                }
+
+                else -> {
+                    PairingLoad.Ok(
+                        Pairing(
+                            r.serial,
+                            r.address,
+                            r.startEpoch,
+                            r.securityVersion,
+                            r.wearMin,
+                            r.warmupMin,
+                            r.profile,
+                            pin,
+                            kAuth,
+                            r.ended,
+                        ),
+                    )
+                }
             }
-        } catch (e: IllegalArgumentException) { // SerializationException and bad hex are IllegalArgumentExceptions
+        } catch (e: IllegalArgumentException) {
+            // SerializationException and bad hex are IllegalArgumentExceptions
             PairingLoad.Corrupt("record unreadable (${e.javaClass.simpleName})")
         }
     }
@@ -83,10 +107,19 @@ class PairingStore(private val secure: SecureStore) {
     suspend fun save(p: Pairing) = writes.withLock { write(p) }
 
     private suspend fun write(p: Pairing) {
-        val r = Record(
-            p.serial, p.address.uppercase(), p.startEpoch, p.securityVersion, p.wearMin, p.warmupMin, p.profile,
-            p.pin.toHexString(), p.kAuth?.toHexString(), p.ended,
-        )
+        val r =
+            Record(
+                p.serial,
+                p.address.uppercase(),
+                p.startEpoch,
+                p.securityVersion,
+                p.wearMin,
+                p.warmupMin,
+                p.profile,
+                p.pin.toHexString(),
+                p.kAuth?.toHexString(),
+                p.ended,
+            )
         secure.write(NAME, json.encodeToString(Record.serializer(), r).encodeToByteArray())
     }
 
@@ -102,10 +135,11 @@ class PairingStore(private val secure: SecureStore) {
 
     suspend fun forget() = writes.withLock { secure.delete(NAME) }
 
-    private suspend fun updateIf(matches: (Pairing) -> Boolean, change: (Pairing) -> Pairing) = writes.withLock {
-        val current = (load() as? PairingLoad.Ok)?.pairing ?: return@withLock
-        if (matches(current)) write(change(current))
-    }
+    private suspend fun updateIf(matches: (Pairing) -> Boolean, change: (Pairing) -> Pairing) =
+        writes.withLock {
+            val current = (load() as? PairingLoad.Ok)?.pairing ?: return@withLock
+            if (matches(current)) write(change(current))
+        }
 
     private fun Pairing.sameSession(o: Pairing) = serial == o.serial && startEpoch == o.startEpoch && pin.contentEquals(o.pin)
 }

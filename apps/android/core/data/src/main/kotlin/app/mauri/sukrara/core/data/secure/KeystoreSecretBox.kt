@@ -76,7 +76,8 @@ class KeystoreSecretBox : SecretBox {
     private fun createKey(alias: String): SecretKey {
         val generator = KeyGenerator.getInstance(KeyProperties.KEY_ALGORITHM_AES, PROVIDER)
         generator.init(
-            KeyGenParameterSpec.Builder(alias, KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT)
+            KeyGenParameterSpec
+                .Builder(alias, KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT)
                 .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
                 .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
                 .setKeySize(KEY_BITS)
@@ -87,8 +88,9 @@ class KeystoreSecretBox : SecretBox {
 
     /** A platform [KeyStoreException] in the cause chain says whether the key itself is gone; otherwise assume transient. */
     private fun isTransient(error: Throwable): Boolean {
-        val keystore = generateSequence(error) { it.cause }.filterIsInstance<KeyStoreException>().firstOrNull()
-            ?: return true
+        val keystore =
+            generateSequence(error) { it.cause }.filterIsInstance<KeyStoreException>().firstOrNull()
+                ?: return true
         return when (keystore.numericErrorCode) {
             KeyStoreException.ERROR_KEY_DOES_NOT_EXIST, KeyStoreException.ERROR_KEY_CORRUPTED -> false
             else -> true

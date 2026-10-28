@@ -14,11 +14,15 @@ import org.junit.Test
 class ClockAndSideTest {
     private val t0 = 1_760_000_040L
     private var ids = 0
-    private fun machine(role: AlertRole = AlertRole.WEARER) = AlertMachine(role, AlertSettings(), newId = { "id${ids++}" })
-        .also { it.start(null, null, null, t0) }
+
+    private fun machine(role: AlertRole = AlertRole.WEARER) =
+        AlertMachine(role, AlertSettings(), newId = { "id${ids++}" })
+            .also { it.start(null, null, null, t0) }
 
     private fun List<AlertEffect>.fires() = filterIsInstance<AlertEffect.Fire>().map { it.firing.kind }
+
     private fun List<AlertEffect>.clears() = filterIsInstance<AlertEffect.Clear>().map { it.kind }
+
     private fun fire(id: String, k: AlertKind, at: Long = t0) =
         AlertInput.Remote(AlertEvent(id = id, k = k, state = AlertEvent.State.FIRE, at = at, t = at, sgv = 65, th = 70.0, n = 1))
 
@@ -74,7 +78,13 @@ class ClockAndSideTest {
         m.handle(AlertInput.Mute(AlertKind.LOW, 30), t0)
         val back = t0 - 3600
         m.handle(AlertInput.Tick, back + 60)
-        assertEquals(back + 60 + 30 * 60, m.engine.snoozes(back + 60).getValue(Side.LOW).until)
+        assertEquals(
+            back + 60 + 30 * 60,
+            m.engine
+                .snoozes(back + 60)
+                .getValue(Side.LOW)
+                .until,
+        )
     }
 
     /** No data counts from the last reading's age, also across a clock set back while the process was down. */

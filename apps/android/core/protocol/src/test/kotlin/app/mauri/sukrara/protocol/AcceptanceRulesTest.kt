@@ -51,7 +51,12 @@ class AcceptanceRulesTest {
         val fin = sc.getValue("final").jsonObject
         val st = m.follower.state
         assertEquals(FollowStatus.Revoked, st.status)
-        assertEquals(fin.getValue("epochs").jsonArray.map { it.jsonPrimitive.content.toInt() }, st.epochs.values.map { it.n }.sorted())
+        assertEquals(
+            fin.getValue("epochs").jsonArray.map { it.jsonPrimitive.content.toInt() },
+            st.epochs.values
+                .map { it.n }
+                .sorted(),
+        )
         assertEquals(fin.str("readings").toInt(), m.readings.size)
         assertEquals(fin.str("treatments").toInt(), m.treatments.size)
         assertEquals(fin.str("deleted").toInt(), m.treatments.values.count { it.deleted })
@@ -64,13 +69,20 @@ class AcceptanceRulesTest {
     }
 
     /** A follower with key-1 and roster-1 applied (epoch 1, device D). */
-    private fun joined(): FollowerModel = model().apply {
-        assertEquals("accepted:key", feed(v.events.getValue("key-1"), v.now).code)
-        assertEquals("accepted:roster", feed(v.events.getValue("roster-1"), v.now).code)
-    }
+    private fun joined(): FollowerModel =
+        model().apply {
+            assertEquals("accepted:key", feed(v.events.getValue("key-1"), v.now).code)
+            assertEquals("accepted:roster", feed(v.events.getValue("roster-1"), v.now).code)
+        }
 
     private fun settings(signer: KeyPair, u: Long, createdAt: Long) =
-        factory.settings(signer, g1.public, v.sid, SettingsPayload(u, JsonObject(mapOf("low" to JsonPrimitive(70))), JsonObject(emptyMap())), createdAt)
+        factory.settings(
+            signer,
+            g1.public,
+            v.sid,
+            SettingsPayload(u, JsonObject(mapOf("low" to JsonPrimitive(70))), JsonObject(emptyMap())),
+            createdAt,
+        )
 
     @Test fun settingsNewestUWinsAndOnlyFromADevice() {
         val m = joined()
@@ -85,10 +97,24 @@ class AcceptanceRulesTest {
 
     @Test fun rosterMustNameTheEpochOfItsKeyAndNewestWins() {
         val m = joined()
-        val wrongEpoch = factory.roster(i, g1.public, v.sid, RosterPayload(2, listOf(d.public.hex), emptyList(), emptyList(), null), v.now + 10)
+        val wrongEpoch =
+            factory.roster(
+                i,
+                g1.public,
+                v.sid,
+                RosterPayload(2, listOf(d.public.hex), emptyList(), emptyList(), null),
+                v.now + 10,
+            )
         assertEquals("rejected:roster-epoch-mismatch", m.feed(wrongEpoch, v.now).code)
         val olderAt = v.events.getValue("roster-1").createdAt - 1
-        val older = factory.roster(i, g1.public, v.sid, RosterPayload(1, listOf(v.key("X").public.hex), emptyList(), emptyList(), null), olderAt)
+        val older =
+            factory.roster(
+                i,
+                g1.public,
+                v.sid,
+                RosterPayload(1, listOf(v.key("X").public.hex), emptyList(), emptyList(), null),
+                olderAt,
+            )
         assertEquals("ignored:roster-older", m.feed(older, v.now).code)
         assertEquals(listOf(d.public.hex), m.follower.state.devices)
     }
@@ -110,7 +136,15 @@ class AcceptanceRulesTest {
     @Test fun aKeyNewerThanTheRevokeReApprovesAndAnOldRevokeIsIgnored() {
         val f = v.key("F").public
         val m = joined()
-        val key = { at: Long -> factory.gift(i, f, Rumor.KeyDelivery(v.sid, 1, crypto.nsec(g1.secret), listOf(d.public.hex), emptyList()), at, at + Wire.TTL_KEY_DELIVERY) }
+        val key = { at: Long ->
+            factory.gift(
+                i,
+                f,
+                Rumor.KeyDelivery(v.sid, 1, crypto.nsec(g1.secret), listOf(d.public.hex), emptyList()),
+                at,
+                at + Wire.TTL_KEY_DELIVERY,
+            )
+        }
         assertEquals("ignored:revoked-before-latest-key", m.feed(factory.gift(i, f, Rumor.Revoked, v.now - 10, v.now + 600), v.now).code)
         assertEquals("accepted:revoked", m.feed(factory.gift(i, f, Rumor.Revoked, v.now + 10, v.now + 600), v.now + 10).code)
         assertEquals("ignored:revoked", m.feed(v.events.getValue("live"), v.now + 10).code)

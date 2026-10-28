@@ -50,55 +50,59 @@ class SensorUiModule(
 ) {
     private val app = context.applicationContext
 
-    val newSensor: NewSensorPort = object : NewSensorPort {
-        override suspend fun env(): SensorEnv {
-            val nfc = NfcAdapter.getDefaultAdapter(app)
-            return SensorEnv(
-                coreAvailable = sensors.hasLibre3Core,
-                nfcAvailable = nfc != null,
-                nfcOn = nfc?.isEnabled == true,
-                signedIn = sensors.libreView.email.first() != null,
-                officialAppInstalled = OfficialApps.anyInstalled(app.packageManager),
-                bluetoothPermission = granted(Manifest.permission.BLUETOOTH_CONNECT),
-                bluetoothOn = app.getSystemService(BluetoothManager::class.java)?.adapter?.isEnabled == true,
-                notificationsAllowed = NotificationManagerCompat.from(app).areNotificationsEnabled(),
-            )
+    val newSensor: NewSensorPort =
+        object : NewSensorPort {
+            override suspend fun env(): SensorEnv {
+                val nfc = NfcAdapter.getDefaultAdapter(app)
+                return SensorEnv(
+                    coreAvailable = sensors.hasLibre3Core,
+                    nfcAvailable = nfc != null,
+                    nfcOn = nfc?.isEnabled == true,
+                    signedIn = sensors.libreView.email.first() != null,
+                    officialAppInstalled = OfficialApps.anyInstalled(app.packageManager),
+                    bluetoothPermission = granted(Manifest.permission.BLUETOOTH_CONNECT),
+                    bluetoothOn = app.getSystemService(BluetoothManager::class.java)?.adapter?.isEnabled == true,
+                    notificationsAllowed = NotificationManagerCompat.from(app).areNotificationsEnabled(),
+                )
+            }
+
+            override suspend fun pair(tag: Tag): PairOutcome = sensors.nfc.pair(tag)
+
+            override val detail: StateFlow<SensorStatus> get() = sensors.source.detail
+            override val sensor: StateFlow<SensorState> get() = sensors.source.sensor
+
+            override fun retryLink() = sensors.source.retry()
+
+            override suspend fun useJuggluco() {
+                settings.set(SOURCE, SensorSourceKind.Juggluco.id)
+                startMonitoring() // Juggluco is a source to monitor even with no sensor paired here
+            }
+
+            override suspend fun onPaired() {
+                settings.set(SOURCE, SensorSourceKind.Libre3.id)
+                startMonitoring()
+            }
         }
 
-        override suspend fun pair(tag: Tag): PairOutcome = sensors.nfc.pair(tag)
+    val libreView: LibreViewPort =
+        object : LibreViewPort {
+            override val email: Flow<String?> get() = sensors.libreView.email
 
-        override val detail: StateFlow<SensorStatus> get() = sensors.source.detail
-        override val sensor: StateFlow<SensorState> get() = sensors.source.sensor
+            override suspend fun signIn(email: String, password: String): SignInResult = sensors.libreView.signIn(email, password)
 
-        override fun retryLink() = sensors.source.retry()
-
-        override suspend fun useJuggluco() {
-            settings.set(SOURCE, SensorSourceKind.Juggluco.id)
-            startMonitoring() // Juggluco is a source to monitor even with no sensor paired here
+            override suspend fun signOut() = sensors.libreView.signOut()
         }
-
-        override suspend fun onPaired() {
-            settings.set(SOURCE, SensorSourceKind.Libre3.id)
-            startMonitoring()
-        }
-    }
-
-    val libreView: LibreViewPort = object : LibreViewPort {
-        override val email: Flow<String?> get() = sensors.libreView.email
-
-        override suspend fun signIn(email: String, password: String): SignInResult = sensors.libreView.signIn(email, password)
-
-        override suspend fun signOut() = sensors.libreView.signOut()
-    }
 
     /** For `viewModel(factory = …)` in the app's navigation entries. */
-    val newSensorViewModels: ViewModelProvider.Factory = viewModelFactory {
-        initializer { NewSensorViewModel(newSensor, clock, appScope) }
-    }
+    val newSensorViewModels: ViewModelProvider.Factory =
+        viewModelFactory {
+            initializer { NewSensorViewModel(newSensor, clock, appScope) }
+        }
 
-    val libreViewViewModels: ViewModelProvider.Factory = viewModelFactory {
-        initializer { LibreViewSignInViewModel(libreView) }
-    }
+    val libreViewViewModels: ViewModelProvider.Factory =
+        viewModelFactory {
+            initializer { LibreViewSignInViewModel(libreView) }
+        }
 
     private fun granted(permission: String) = ContextCompat.checkSelfPermission(app, permission) == PackageManager.PERMISSION_GRANTED
 

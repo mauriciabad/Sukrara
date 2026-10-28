@@ -46,8 +46,12 @@ fun SettingsOverviewContent(
             )
         }
         SettingsGroup {
-            NavigationRow(stringResource(R.string.st_ranges_title), { actions.open(SettingsRoute.Ranges) }, summary = stringResource(R.string.st_overview_ranges))
-            NavigationRow(stringResource(R.string.st_graph_title), { actions.open(SettingsRoute.Graph) }, summary = stringResource(R.string.st_overview_graph))
+            NavigationRow(stringResource(R.string.st_ranges_title), {
+                actions.open(SettingsRoute.Ranges)
+            }, summary = stringResource(R.string.st_overview_ranges))
+            NavigationRow(stringResource(R.string.st_graph_title), {
+                actions.open(SettingsRoute.Graph)
+            }, summary = stringResource(R.string.st_overview_graph))
         }
         SettingsGroup {
             NavigationRow(stringResource(R.string.st_sensor), actions.openSensor, summary = stringResource(R.string.st_sensor_summary))

@@ -93,8 +93,12 @@ private fun BannerCard(b: Banner) {
         Column(Modifier.padding(start = 16.dp, top = 12.dp, end = 4.dp, bottom = 12.dp)) {
             Row(verticalAlignment = Alignment.Top) {
                 // a safety banner's icon is never the informational primary blue
-                Icon(painterResource(b.icon), contentDescription = null, tint = if (safety) content else colors.primary,
-                    modifier = Modifier.padding(top = 12.dp))
+                Icon(
+                    painterResource(b.icon),
+                    contentDescription = null,
+                    tint = if (safety) content else colors.primary,
+                    modifier = Modifier.padding(top = 12.dp),
+                )
                 Spacer(Modifier.width(16.dp))
                 Column(Modifier.weight(1f).padding(top = 10.dp)) {
                     Text(b.title, style = MaterialTheme.typography.titleMedium)
@@ -113,7 +117,10 @@ private fun BannerCard(b: Banner) {
                     horizontalArrangement = if (safety) Arrangement.Start else Arrangement.End,
                 ) {
                     if (safety) {
-                        Button(onClick = b.onAction, colors = ButtonDefaults.buttonColors(containerColor = colors.error, contentColor = colors.onError)) {
+                        Button(
+                            onClick = b.onAction,
+                            colors = ButtonDefaults.buttonColors(containerColor = colors.error, contentColor = colors.onError),
+                        ) {
                             Text(label)
                         }
                     } else {

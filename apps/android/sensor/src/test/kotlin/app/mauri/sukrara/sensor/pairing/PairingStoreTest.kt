@@ -16,56 +16,61 @@ class PairingStoreTest {
     private val pairing = Pairing("3MH0001", "18:32:19:b7:1d:11", 1_700_000_000L, 0, 21_600, 60, pin = pin, kAuth = null)
 
     @Test
-    fun roundTripWithEverythingInTheSecureStore() = runTest {
-        val secure = InMemorySecureStore()
-        val store = PairingStore(secure)
-        assertEquals(PairingLoad.None, store.load())
-        store.save(pairing)
-        assertEquals(PairingLoad.Ok(pairing.copy(address = "18:32:19:B7:1D:11")), store.load())
-        assertTrue(secure.read(PairingStore.NAME) != null) // the whole record, encrypted by the SecureStore
-    }
+    fun roundTripWithEverythingInTheSecureStore() =
+        runTest {
+            val secure = InMemorySecureStore()
+            val store = PairingStore(secure)
+            assertEquals(PairingLoad.None, store.load())
+            store.save(pairing)
+            assertEquals(PairingLoad.Ok(pairing.copy(address = "18:32:19:B7:1D:11")), store.load())
+            assertTrue(secure.read(PairingStore.NAME) != null) // the whole record, encrypted by the SecureStore
+        }
 
     @Test
-    fun authorizationAndEndedOnlyForTheSavedSerial() = runTest {
-        val store = PairingStore(InMemorySecureStore())
-        store.save(pairing)
-        store.setAuthorization(pairing.copy(serial = "OTHER"), ByteArray(149) { 1 })
-        // a late authorization from a driver that ran with the sensor's previous PIN (re-scanned meanwhile)
-        store.setAuthorization(pairing.copy(pin = byteArrayOf(1, 2, 3, 4)), ByteArray(149) { 1 })
-        assertEquals(null, (store.load() as PairingLoad.Ok).pairing.kAuth)
-        store.setAuthorization(pairing, ByteArray(149) { 1 })
-        store.markEnded("3MH0001")
-        val p = (store.load() as PairingLoad.Ok).pairing
-        assertEquals(149, p.kAuth?.size)
-        assertTrue(p.ended)
-        store.forget()
-        assertEquals(PairingLoad.None, store.load())
-    }
+    fun authorizationAndEndedOnlyForTheSavedSerial() =
+        runTest {
+            val store = PairingStore(InMemorySecureStore())
+            store.save(pairing)
+            store.setAuthorization(pairing.copy(serial = "OTHER"), ByteArray(149) { 1 })
+            // a late authorization from a driver that ran with the sensor's previous PIN (re-scanned meanwhile)
+            store.setAuthorization(pairing.copy(pin = byteArrayOf(1, 2, 3, 4)), ByteArray(149) { 1 })
+            assertEquals(null, (store.load() as PairingLoad.Ok).pairing.kAuth)
+            store.setAuthorization(pairing, ByteArray(149) { 1 })
+            store.markEnded("3MH0001")
+            val p = (store.load() as PairingLoad.Ok).pairing
+            assertEquals(149, p.kAuth?.size)
+            assertTrue(p.ended)
+            store.forget()
+            assertEquals(PairingLoad.None, store.load())
+        }
 
     @Test
-    fun unreadableRecordsAreCorruptNeverPartial() = runTest {
-        val secure = InMemorySecureStore()
-        val store = PairingStore(secure)
-        secure.write(PairingStore.NAME, "not json".encodeToByteArray())
-        assertTrue(store.load() is PairingLoad.Corrupt)
-        store.save(pairing.copy(pin = byteArrayOf(1, 2)))
-        assertEquals(PairingLoad.Corrupt("PIN has 2 bytes"), store.load())
-        store.save(pairing.copy(kAuth = ByteArray(10)))
-        assertEquals(PairingLoad.Corrupt("authorization has 10 bytes"), store.load())
-    }
+    fun unreadableRecordsAreCorruptNeverPartial() =
+        runTest {
+            val secure = InMemorySecureStore()
+            val store = PairingStore(secure)
+            secure.write(PairingStore.NAME, "not json".encodeToByteArray())
+            assertTrue(store.load() is PairingLoad.Corrupt)
+            store.save(pairing.copy(pin = byteArrayOf(1, 2)))
+            assertEquals(PairingLoad.Corrupt("PIN has 2 bytes"), store.load())
+            store.save(pairing.copy(kAuth = ByteArray(10)))
+            assertEquals(PairingLoad.Corrupt("authorization has 10 bytes"), store.load())
+        }
 
     /** The Keystore key is gone (restore to a new phone, key invalidated): a visible state, not a crash. */
     @Test
-    fun aFailingSecureStoreIsCorrupt() = runTest {
-        val broken = object : SecureStore {
-            override suspend fun read(name: String): ByteArray = throw java.security.GeneralSecurityException("key invalidated")
+    fun aFailingSecureStoreIsCorrupt() =
+        runTest {
+            val broken =
+                object : SecureStore {
+                    override suspend fun read(name: String): ByteArray = throw java.security.GeneralSecurityException("key invalidated")
 
-            override suspend fun write(name: String, bytes: ByteArray) = Unit
+                    override suspend fun write(name: String, bytes: ByteArray) = Unit
 
-            override suspend fun delete(name: String) = Unit
+                    override suspend fun delete(name: String) = Unit
+                }
+            assertEquals(PairingLoad.Corrupt("secure storage unreadable (GeneralSecurityException)"), PairingStore(broken).load())
         }
-        assertEquals(PairingLoad.Corrupt("secure storage unreadable (GeneralSecurityException)"), PairingStore(broken).load())
-    }
 
     @Test
     fun noSecretsInToString() {

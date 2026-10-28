@@ -19,8 +19,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
 import java.time.Instant
@@ -72,7 +72,8 @@ class NewSensorViewModel(
         }
         viewModelScope.launch {
             // a 1 s clock only while something counts (Bluetooth timeout, warm-up countdown)
-            state.map { it.step is NewSensorStep.ConnectingBle || it.step is NewSensorStep.WarmingUp }
+            state
+                .map { it.step is NewSensorStep.ConnectingBle || it.step is NewSensorStep.WarmingUp }
                 .distinctUntilChanged()
                 .collect { counting ->
                     while (counting && (_state.value.step.let { it is NewSensorStep.ConnectingBle || it is NewSensorStep.WarmingUp })) {
@@ -115,13 +116,14 @@ class NewSensorViewModel(
         send(NewSensorEvent.TagFound)
         appScope.launch {
             // a failing read (storage, the sensor gone) must still end the tap page: it has no other way out
-            val outcome = try {
-                read()
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                PairOutcome.Failed(e.javaClass.simpleName)
-            }
+            val outcome =
+                try {
+                    read()
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    PairOutcome.Failed(e.javaClass.simpleName)
+                }
             if (outcome is PairOutcome.Paired) port.onPaired()
             send(NewSensorEvent.Tapped(outcome))
         }

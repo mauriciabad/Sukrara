@@ -41,9 +41,10 @@ class DiagLog(
     }
 
     /** Both files, oldest first (for "Copy report"). */
-    suspend fun snapshot(): String = withContext(writer) {
-        listOf(previous, current).filter { it.exists() }.joinToString("") { it.readText() }
-    }
+    suspend fun snapshot(): String =
+        withContext(writer) {
+            listOf(previous, current).filter { it.exists() }.joinToString("") { it.readText() }
+        }
 
     /** A failing write (disk full) loses the line, never crashes the app. */
     private fun append(line: String) {
@@ -68,19 +69,20 @@ class DiagLog(
 
 /** Removes secrets from free text before it is logged. */
 object Redact {
-    private val rules: List<Pair<Regex, String>> = listOf(
-        // Nostr keys and other bech32 entities
-        Regex("\\b(nsec|npub|nprofile|ncryptsec)1[02-9ac-hj-np-z]{20,}\\b") to "$1…",
-        // credentials in URLs and headers
-        Regex("(?i)\\b(token|secret|api-secret|password|pass|key|auth)=([^&\\s]+)") to "$1=…",
-        Regex("(?i)\\b(Bearer|Basic)\\s+[A-Za-z0-9._~+/=-]+") to "$1 …",
-        // long hex (keys, hashes, event ids) and long opaque tokens (JWT, base64)
-        Regex("\\b[0-9a-fA-F]{16,}\\b") to "<hex>",
-        Regex("\\b[A-Za-z0-9_-]{8,}\\.[A-Za-z0-9_-]{8,}\\.[A-Za-z0-9_-]{8,}\\b") to "<token>",
-        Regex("[A-Za-z0-9+/]{32,}={0,2}") to "<token>",
-        // sensor serials (Libre: 9–11 upper-case letters and digits with at least two of each)
-        Regex("\\b(?=[A-Z0-9]*[0-9][A-Z0-9]*[0-9])(?=[A-Z0-9]*[A-Z][A-Z0-9]*[A-Z])[A-Z0-9]{9,11}\\b") to "<serial>",
-    )
+    private val rules: List<Pair<Regex, String>> =
+        listOf(
+            // Nostr keys and other bech32 entities
+            Regex("\\b(nsec|npub|nprofile|ncryptsec)1[02-9ac-hj-np-z]{20,}\\b") to "$1…",
+            // credentials in URLs and headers
+            Regex("(?i)\\b(token|secret|api-secret|password|pass|key|auth)=([^&\\s]+)") to "$1=…",
+            Regex("(?i)\\b(Bearer|Basic)\\s+[A-Za-z0-9._~+/=-]+") to "$1 …",
+            // long hex (keys, hashes, event ids) and long opaque tokens (JWT, base64)
+            Regex("\\b[0-9a-fA-F]{16,}\\b") to "<hex>",
+            Regex("\\b[A-Za-z0-9_-]{8,}\\.[A-Za-z0-9_-]{8,}\\.[A-Za-z0-9_-]{8,}\\b") to "<token>",
+            Regex("[A-Za-z0-9+/]{32,}={0,2}") to "<token>",
+            // sensor serials (Libre: 9–11 upper-case letters and digits with at least two of each)
+            Regex("\\b(?=[A-Z0-9]*[0-9][A-Z0-9]*[0-9])(?=[A-Z0-9]*[A-Z][A-Z0-9]*[A-Z])[A-Z0-9]{9,11}\\b") to "<serial>",
+        )
 
     fun scrub(text: String): String = rules.fold(text) { acc, (pattern, replacement) -> pattern.replace(acc, replacement) }
 }

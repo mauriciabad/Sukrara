@@ -7,6 +7,7 @@ import android.content.Intent
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -42,6 +43,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -50,7 +52,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
-import androidx.compose.ui.semantics.Role as SemanticsRole
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
@@ -68,7 +69,7 @@ import app.mauri.sukrara.designsystem.rows.nameRes
 import app.mauri.sukrara.designsystem.rows.whyRes
 import app.mauri.sukrara.feature.sharing.R
 import app.mauri.sukrara.feature.sharing.restore.IdentityStep
-import androidx.compose.animation.AnimatedContent
+import androidx.compose.ui.semantics.Role as SemanticsRole
 
 /**
  * The first-run setup (brief 24, binding order): welcome → role → permissions → sensor →
@@ -95,10 +96,11 @@ fun SetupScreen(
     // opened from home after setup was finished: show the first Finish-setup row's step; finishing setup goes home
     val openedFinished = remember { u.step == null }
     if (u.step == null) {
+        val currentOnDone by rememberUpdatedState(onDone)
         LaunchedEffect(Unit) {
             if (!openedFinished || !viewModel.reopenFirstUnfinished()) {
                 haptics.confirm()
-                onDone()
+                currentOnDone()
             }
         }
         return
@@ -172,45 +174,45 @@ fun SetupContent(
     val step = u.step ?: return
     val reduced = LocalReducedMotion.current
     Surface(modifier.fillMaxSize(), color = MaterialTheme.colorScheme.surface) {
-    Column(Modifier.fillMaxSize().safeDrawingPadding()) {
-        Row(Modifier.fillMaxWidth().heightIn(min = 56.dp).padding(horizontal = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-            if (u.canBack || u.single) {
-                IconButton(onClick = actions.back) {
-                    Icon(painterResource(R.drawable.sharing_ic_back), contentDescription = stringResource(R.string.sh_setup_back))
+        Column(Modifier.fillMaxSize().safeDrawingPadding()) {
+            Row(Modifier.fillMaxWidth().heightIn(min = 56.dp).padding(horizontal = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+                if (u.canBack || u.single) {
+                    IconButton(onClick = actions.back) {
+                        Icon(painterResource(R.drawable.sharing_ic_back), contentDescription = stringResource(R.string.sh_setup_back))
+                    }
+                } else {
+                    Spacer(Modifier.size(48.dp))
                 }
-            } else {
-                Spacer(Modifier.size(48.dp))
+                Text(
+                    stringResource(R.string.sh_setup_step_of, u.index, u.count),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
+                )
             }
-            Text(
-                stringResource(R.string.sh_setup_step_of, u.index, u.count),
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
-            )
-        }
-        AnimatedContent(step, transitionSpec = { Motion.fadeThrough(reduced) }, label = "setup-step") { s ->
-            Column(
-                Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 24.dp, vertical = 8.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp),
-            ) {
-                when (s) {
-                    SetupStep.Welcome -> WelcomeStep(actions)
-                    SetupStep.Role -> RoleStep(u, actions)
-                    SetupStep.Permissions -> PermissionsStep(u, actions)
-                    SetupStep.Sensor -> SensorStep(u, actions)
-                    SetupStep.Alerts -> AlertConfirmStep(u, actions)
-                    SetupStep.Identity -> IdentityStep(u, actions)
+            AnimatedContent(step, transitionSpec = { Motion.fadeThrough(reduced) }, label = "setup-step") { s ->
+                Column(
+                    Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 24.dp, vertical = 8.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                ) {
+                    when (s) {
+                        SetupStep.Welcome -> WelcomeStep(actions)
+                        SetupStep.Role -> RoleStep(u, actions)
+                        SetupStep.Permissions -> PermissionsStep(u, actions)
+                        SetupStep.Sensor -> SensorStep(u, actions)
+                        SetupStep.Alerts -> AlertConfirmStep(u, actions)
+                        SetupStep.Identity -> IdentityStep(u, actions)
+                    }
+                    Spacer(Modifier.size(24.dp))
                 }
-                Spacer(Modifier.size(24.dp))
             }
         }
-    }
     }
 }
 
 /** A step's title (a heading for TalkBack) and its plain-words explanation. */
 @Composable
-internal fun StepHeader(
+internal fun ColumnScope.StepHeader(
     title: String,
     body: String?,
 ) {
@@ -227,7 +229,11 @@ internal fun StepButtons(
     secondary: List<Pair<String, () -> Unit>> = emptyList(),
 ) {
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        if (primary != null) Button(onClick = onPrimary, enabled = enabled, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text(primary) }
+        if (primary !=
+            null
+        ) {
+            Button(onClick = onPrimary, enabled = enabled, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text(primary) }
+        }
         for ((label, action) in secondary) {
             TextButton(onClick = action, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text(label) }
         }
@@ -275,8 +281,16 @@ private fun ColumnScope.RoleStep(
     var confirming by rememberSaveable { mutableStateOf(false) }
     StepHeader(stringResource(R.string.sh_setup_role_title), stringResource(R.string.sh_setup_role_body))
     Column(Modifier.selectableGroup(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        RoleOption(stringResource(R.string.sh_setup_role_wearer), stringResource(R.string.sh_setup_role_wearer_means), selected == Role.Wearer) { selected = Role.Wearer }
-        RoleOption(stringResource(R.string.sh_setup_role_follower), stringResource(R.string.sh_setup_role_follower_means), selected == Role.Follower) {
+        RoleOption(
+            stringResource(R.string.sh_setup_role_wearer),
+            stringResource(R.string.sh_setup_role_wearer_means),
+            selected == Role.Wearer,
+        ) { selected = Role.Wearer }
+        RoleOption(
+            stringResource(R.string.sh_setup_role_follower),
+            stringResource(R.string.sh_setup_role_follower_means),
+            selected == Role.Follower,
+        ) {
             selected = Role.Follower
         }
     }
@@ -309,7 +323,10 @@ private fun RoleOption(
     onClick: () -> Unit,
 ) {
     Card(
-        colors = CardDefaults.cardColors(containerColor = if (selected) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceContainer),
+        colors =
+            CardDefaults.cardColors(
+                containerColor = if (selected) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceContainer,
+            ),
         modifier = Modifier.fillMaxWidth().selectable(selected, role = SemanticsRole.RadioButton, onClick = onClick),
     ) {
         Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -415,7 +432,10 @@ private fun ChecklistRow(
 ) {
     val title = stringResource(r.nameRes())
     val why = stringResource(r.whyRes())
-    Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer), modifier = Modifier.fillMaxWidth()) {
+    Card(
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
         Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
             Icon(
                 painterResource(if (ok) R.drawable.sharing_ic_check else R.drawable.sharing_ic_todo),
@@ -426,7 +446,12 @@ private fun ChecklistRow(
                 Text(title, style = MaterialTheme.typography.titleSmall)
                 Text(why, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            if (!ok) OutlinedButton(onClick = onFix, modifier = Modifier.heightIn(min = 48.dp)) { Text(stringResource(R.string.sh_setup_allow)) }
+            if (!ok) {
+                OutlinedButton(
+                    onClick = onFix,
+                    modifier = Modifier.heightIn(min = 48.dp),
+                ) { Text(stringResource(R.string.sh_setup_allow)) }
+            }
         }
     }
 }

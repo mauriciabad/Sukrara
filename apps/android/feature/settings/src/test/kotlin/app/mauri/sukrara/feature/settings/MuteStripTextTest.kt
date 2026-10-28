@@ -30,7 +30,17 @@ class MuteStripTextTest {
     private fun side(
         reason: AlertQuietReason?,
         min: Long?,
-    ) = AlertQuietSide("low", matching = true, reason = reason, until = min?.let { now.plusSeconds(it * 60) }, relaxMin = 30, canRemindLess = false)
+    ) = AlertQuietSide(
+        "low",
+        matching = true,
+        reason = reason,
+        until =
+            min?.let {
+                now.plusSeconds(it * 60)
+            },
+        relaxMin = 30,
+        canRemindLess = false,
+    )
 
     private fun showStrip(q: AlertQuietSide) =
         compose.setContent { SukraraTheme(dark = false, dynamic = false) { QuietStrip(AlertKind.VERY_LOW, q, clock, AlertKindActions()) } }
@@ -62,7 +72,8 @@ class MuteStripTextTest {
         compose.onNodeWithText("Low reminders every 30 min").assertExists()
     }
 
-    @Test @Config(qualifiers = "es")
+    @Test
+    @Config(qualifiers = "es")
     fun spanish() {
         showStrip(side(AlertQuietReason.Muted, 1))
         compose.onNodeWithText("Alertas de glucosa baja silenciadas · queda 1 min").assertExists()

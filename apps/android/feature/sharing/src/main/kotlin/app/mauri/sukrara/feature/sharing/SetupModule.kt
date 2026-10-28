@@ -4,28 +4,28 @@
 package app.mauri.sukrara.feature.sharing
 
 import android.content.Context
+import app.mauri.sukrara.core.data.settings.SchemaSettings
+import app.mauri.sukrara.core.model.AlertReadinessSource
 import app.mauri.sukrara.core.model.Clock
 import app.mauri.sukrara.core.model.GlucoseHub
 import app.mauri.sukrara.core.model.Role
+import app.mauri.sukrara.core.model.storage.SettingsRepository
 import app.mauri.sukrara.core.model.storage.StateStore
 import app.mauri.sukrara.feature.sharing.setup.AlertSettingsAccess
-import app.mauri.sukrara.core.model.AlertReadinessSource
-import app.mauri.sukrara.feature.sharing.setup.SetupRecord
+import app.mauri.sukrara.feature.sharing.setup.AlertThresholds
 import app.mauri.sukrara.feature.sharing.setup.FinishItem
 import app.mauri.sukrara.feature.sharing.setup.RestoreGate
 import app.mauri.sukrara.feature.sharing.setup.SetupFacts
 import app.mauri.sukrara.feature.sharing.setup.SetupMachine
+import app.mauri.sukrara.feature.sharing.setup.SetupRecord
+import app.mauri.sukrara.feature.sharing.setup.ThresholdField
 import app.mauri.sukrara.share.owner.OwnerShareState
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import java.time.Instant
-import app.mauri.sukrara.feature.sharing.setup.AlertThresholds
-import app.mauri.sukrara.feature.sharing.setup.ThresholdField
-import kotlinx.coroutines.flow.first
-import app.mauri.sukrara.core.data.settings.SchemaSettings
-import app.mauri.sukrara.core.model.storage.SettingsRepository
 
 /** The phone's role (`AppGraph`'s own `role` store, read by the hub and the alert runtime). */
 interface RoleStore {
@@ -71,7 +71,9 @@ class SetupModule(
 ) {
     /** When the alert thresholds were confirmed (setup or Settings › Alerts), null = never. */
     val alertsConfirmedAt: Flow<Instant?> by lazy {
-        settings.flow(THRESHOLDS_CONFIRMED_AT).map { text -> text.takeIf { it.isNotEmpty() }?.let { runCatching { Instant.parse(it) }.getOrNull() } }
+        settings.flow(THRESHOLDS_CONFIRMED_AT).map { text ->
+            text.takeIf { it.isNotEmpty() }?.let { runCatching { Instant.parse(it) }.getOrNull() }
+        }
     }
 
     /**
@@ -94,11 +96,11 @@ class SetupModule(
     /** The home "Finish setup" card's items ([FinishSetupCard]); empty before a role and once nothing is left. */
     val finishItems: Flow<List<FinishItem>> by lazy {
         combine(setupStore.data, roles.role, hub.state, sharing.state, combine(alertsConfirmedAt, readiness.readiness, ::Pair)) {
-                record,
-                role,
-                glucose,
-                share,
-                (confirmed, checklist),
+            record,
+            role,
+            glucose,
+            share,
+            (confirmed, checklist),
             ->
             val facts =
                 SetupFacts(

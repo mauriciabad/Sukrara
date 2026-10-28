@@ -39,11 +39,16 @@ class CorruptionLog {
 
     /** Reports every kept copy under [roots] (a previous process found them; nobody acknowledged them yet). */
     fun rescan(roots: List<File>) {
-        roots.filter { it.isDirectory }
+        roots
+            .filter { it.isDirectory }
             .flatMap { root -> root.walkTopDown().filter { it.isFile && QUARANTINE_MARK in it.name } }
             .forEach { copy ->
                 val store = copy.name.substringBefore(QUARANTINE_MARK)
-                val at = copy.name.substringAfter(QUARANTINE_MARK).toLongOrNull()?.let(Instant::ofEpochMilli) ?: Instant.EPOCH
+                val at =
+                    copy.name
+                        .substringAfter(QUARANTINE_MARK)
+                        .toLongOrNull()
+                        ?.let(Instant::ofEpochMilli) ?: Instant.EPOCH
                 report(CorruptFile(store, copy, at, "found at start"))
             }
     }

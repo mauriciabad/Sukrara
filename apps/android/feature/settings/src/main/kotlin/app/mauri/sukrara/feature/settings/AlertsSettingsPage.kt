@@ -92,7 +92,13 @@ fun AlertsSettingsContent(
             ValueRow(
                 stringResource(R.string.st_mute_all),
                 ui.alerts.mutedUntil?.let {
-                    if (ui.alerts.mutedUntilTurnedOff) stringResource(R.string.st_special_until_turned_off) else stringResource(R.string.st_until, clockTime(it, clock.zone))
+                    if (ui.alerts.mutedUntilTurnedOff) {
+                        stringResource(
+                            R.string.st_special_until_turned_off,
+                        )
+                    } else {
+                        stringResource(R.string.st_until, clockTime(it, clock.zone))
+                    }
                 } ?: stringResource(R.string.st_not_muted),
                 { dialog = "muteAll" },
             )
@@ -136,23 +142,50 @@ fun AlertsSettingsContent(
                     summary = stringResource(R.string.st_quiet_for, numberLabel(spec, rule.min.toDouble())),
                 )
                 if (rule.on) {
-                    ValueRow(stringResource(R.string.st_quiet_length), numberLabel(spec, rule.min.toDouble()), { dialog = "quiet:${which.name}" })
+                    ValueRow(stringResource(R.string.st_quiet_length), numberLabel(spec, rule.min.toDouble()), {
+                        dialog =
+                            "quiet:${which.name}"
+                    })
                 }
             }
         }
         SettingsGroup(title = stringResource(R.string.st_actions_title)) {
-            ValueRow(stringResource(R.string.st_action_mute), numberLabel(SchemaPrefs.spec("alerts.actions.muteMin"), s.actions.muteMin.toDouble()), {
-                dialog = "actionMute"
-            })
-            ValueRow(stringResource(R.string.st_action_relax), numberLabel(SchemaPrefs.spec("alerts.actions.relaxMin"), s.actions.relaxMin.toDouble()), {
-                dialog = "actionRelax"
-            })
-            ValueRow(stringResource(R.string.st_action_back_mgdl), numberLabel(SchemaPrefs.spec("alerts.actions.backMgdl"), s.actions.backMgdl.toDouble()), {
-                dialog = "backMgdl"
-            })
-            ValueRow(stringResource(R.string.st_action_back_min), numberLabel(SchemaPrefs.spec("alerts.actions.backMin"), s.actions.backMin.toDouble()), {
-                dialog = "backMin"
-            })
+            ValueRow(
+                stringResource(
+                    R.string.st_action_mute,
+                ),
+                numberLabel(SchemaPrefs.spec("alerts.actions.muteMin"), s.actions.muteMin.toDouble()),
+                {
+                    dialog = "actionMute"
+                },
+            )
+            ValueRow(
+                stringResource(
+                    R.string.st_action_relax,
+                ),
+                numberLabel(SchemaPrefs.spec("alerts.actions.relaxMin"), s.actions.relaxMin.toDouble()),
+                {
+                    dialog = "actionRelax"
+                },
+            )
+            ValueRow(
+                stringResource(
+                    R.string.st_action_back_mgdl,
+                ),
+                numberLabel(SchemaPrefs.spec("alerts.actions.backMgdl"), s.actions.backMgdl.toDouble()),
+                {
+                    dialog = "backMgdl"
+                },
+            )
+            ValueRow(
+                stringResource(
+                    R.string.st_action_back_min,
+                ),
+                numberLabel(SchemaPrefs.spec("alerts.actions.backMin"), s.actions.backMin.toDouble()),
+                {
+                    dialog = "backMin"
+                },
+            )
         }
         SettingsGroup(title = stringResource(R.string.st_sounds_title)) {
             ValueRow(stringResource(R.string.st_sound_pack), packName(s.sounds.pack), { dialog = "pack" })
@@ -183,32 +216,49 @@ private fun AlertsDialogs(
     val s = ui.settings
     val label = numberLabeler()
     when {
-        dialog == null -> Unit
+        dialog == null -> {
+            Unit
+        }
 
-        dialog == "alertsOff" ->
+        dialog == "alertsOff" -> {
             ConfirmDialog(
                 stringResource(R.string.st_alerts_off_title),
                 stringResource(R.string.st_alerts_off_text),
                 stringResource(R.string.st_turn_off),
                 close,
             ) { actions.edit { it.copy(on = false) } }
+        }
 
         dialog == "muteAll" -> {
             val spec = SettingsSpec.MUTE_ALL
-            NumberDialog(stringResource(R.string.st_mute_all), NumberInput(spec), spec.default, { label(spec, it) }, close) { actions.muteAll(it) }
+            NumberDialog(
+                stringResource(R.string.st_mute_all),
+                NumberInput(spec),
+                spec.default,
+                { label(spec, it) },
+                close,
+            ) { actions.muteAll(it) }
         }
 
         dialog.startsWith("quiet:") -> {
             val which = QuietKind.valueOf(dialog.removePrefix("quiet:"))
             val spec = SchemaPrefs.spec(AlertEdits.quietSpecId(which))
-            NumberDialog(stringResource(R.string.st_quiet_length), NumberInput(spec), AlertEdits.quietRule(s, which).min.toDouble(), { label(spec, it) }, close) { v ->
+            NumberDialog(stringResource(R.string.st_quiet_length), NumberInput(spec), AlertEdits.quietRule(s, which).min.toDouble(), {
+                label(spec, it)
+            }, close) { v ->
                 actions.edit(AlertEdits.quiet(which) { it.copy(min = spec.coerce(v).toInt()) })
             }
         }
 
         dialog == "actionMute" -> {
             val spec = SchemaPrefs.spec("alerts.actions.muteMin")
-            NumberDialog(stringResource(R.string.st_action_mute), NumberInput(spec), s.actions.muteMin.toDouble(), { label(spec, it) }, close) { v ->
+            NumberDialog(
+                stringResource(R.string.st_action_mute),
+                NumberInput(spec),
+                s.actions.muteMin.toDouble(),
+                { label(spec, it) },
+                close,
+            ) { v ->
                 actions.edit { it.copy(actions = it.actions.copy(muteMin = spec.coerce(v).toInt())) }
             }
         }
@@ -216,7 +266,12 @@ private fun AlertsDialogs(
         dialog == "actionRelax" -> {
             val spec = SchemaPrefs.spec("alerts.actions.relaxMin")
             // only intervals slower than every level alert's repeat (SPEC §3 relaxMin)
-            val input = NumberInput(spec, presets = s.relaxChoices().map { it.toDouble() }, customMin = (s.relaxFloor() + 1).toDouble().coerceAtMost(spec.max))
+            val input =
+                NumberInput(
+                    spec,
+                    presets = s.relaxChoices().map { it.toDouble() },
+                    customMin = (s.relaxFloor() + 1).toDouble().coerceAtMost(spec.max),
+                )
             NumberDialog(stringResource(R.string.st_action_relax), input, s.actions.relaxMin.toDouble(), { label(spec, it) }, close) { v ->
                 actions.edit { it.copy(actions = it.actions.copy(relaxMin = spec.coerce(v).toInt())) }
             }
@@ -224,14 +279,18 @@ private fun AlertsDialogs(
 
         dialog == "backMgdl" -> {
             val spec = SchemaPrefs.spec("alerts.actions.backMgdl")
-            NumberDialog(stringResource(R.string.st_action_back_mgdl), NumberInput(spec), s.actions.backMgdl.toDouble(), { label(spec, it) }, close) { v ->
+            NumberDialog(stringResource(R.string.st_action_back_mgdl), NumberInput(spec), s.actions.backMgdl.toDouble(), {
+                label(spec, it)
+            }, close) { v ->
                 actions.edit { it.copy(actions = it.actions.copy(backMgdl = spec.coerce(v).toInt())) }
             }
         }
 
         dialog == "backMin" -> {
             val spec = SchemaPrefs.spec("alerts.actions.backMin")
-            NumberDialog(stringResource(R.string.st_action_back_min), NumberInput(spec), s.actions.backMin.toDouble(), { label(spec, it) }, close) { v ->
+            NumberDialog(stringResource(R.string.st_action_back_min), NumberInput(spec), s.actions.backMin.toDouble(), {
+                label(spec, it)
+            }, close) { v ->
                 actions.edit { it.copy(actions = it.actions.copy(backMin = spec.coerce(v).toInt())) }
             }
         }

@@ -40,13 +40,18 @@ class AlertNotifier(private val ctx: Context) : AlertPresenter {
     override fun show(firing: Firing, settings: AlertSettings, silent: Boolean, who: String?, relaxedMin: Int) {
         val kind = firing.kind
         val alarm = settings.rule(kind).alarm
-        val b = base(kind, alarm, silent)
-            .setContentTitle(headline(kind, firing.treated))
-            .setContentText(text(firing))
-            .setWhen(firing.at * 1000)
-            .setShowWhen(true)
-            .setAutoCancel(true)
-        val relaxed = relaxedMin.takeIf { it > 0 }?.let { ctx.getString(R.string.alert_relaxed_subtext, Durations.text(it.toLong(), words.durations)) }
+        val b =
+            base(kind, alarm, silent)
+                .setContentTitle(headline(kind, firing.treated))
+                .setContentText(text(firing))
+                .setWhen(firing.at * 1000)
+                .setShowWhen(true)
+                .setAutoCancel(true)
+        val relaxed =
+            relaxedMin
+                .takeIf {
+                    it > 0
+                }?.let { ctx.getString(R.string.alert_relaxed_subtext, Durations.text(it.toLong(), words.durations)) }
         listOfNotNull(who, relaxed).takeIf { it.isNotEmpty() }?.let { b.setSubText(it.joinToString(" · ")) }
         b.addMuteAction(kind, ctx.getString(R.string.alert_action_mute), settings.muteChoices())
         when {
@@ -59,28 +64,30 @@ class AlertNotifier(private val ctx: Context) : AlertPresenter {
 
     override fun showMuted(group: AlertGroup, side: Side, kind: AlertKind, until: Long, settings: AlertSettings, now: Long) {
         val alarm = settings.rule(kind).alarm
-        val b = base(kind, alarm, silent = true)
-            .setContentTitle(MuteText.line(MuteLine.SideMuted(side, null), words))
-            .setContentText(MuteText.line(MuteLine.NotifUntil(until), words, ::clockTime))
-            .setWhen(until * 1000)
-            .setShowWhen(true)
-            .setUsesChronometer(true)
-            .setChronometerCountDown(true)
-            .setOnlyAlertOnce(true)
-            .setTimeoutAfter(((until - now) * 1000).coerceAtLeast(1_000))
-            .addAction(action(kind, AlertActionReceiver.UNMUTE, R.string.alert_action_unmute))
+        val b =
+            base(kind, alarm, silent = true)
+                .setContentTitle(MuteText.line(MuteLine.SideMuted(side, null), words))
+                .setContentText(MuteText.line(MuteLine.NotifUntil(until), words, ::clockTime))
+                .setWhen(until * 1000)
+                .setShowWhen(true)
+                .setUsesChronometer(true)
+                .setChronometerCountDown(true)
+                .setOnlyAlertOnce(true)
+                .setTimeoutAfter(((until - now) * 1000).coerceAtLeast(1_000))
+                .addAction(action(kind, AlertActionReceiver.UNMUTE, R.string.alert_action_unmute))
         b.addMuteAction(kind, ctx.getString(R.string.alert_action_change), settings.muteChoices())
         post(group, b.build(), AlertChannels.id(kind, alarm))
     }
 
     override fun clear(group: AlertGroup) = NotificationGroups.cancel(ctx, idOf(group), NotificationGroups.Group.ALERTS)
 
-    override fun deliveryProblems(alarmKinds: Set<AlertKind>): Set<AlertDeliveryProblem> = buildSet {
-        if (!nm.areNotificationsEnabled()) add(AlertDeliveryProblem.NotificationsOff)
-        val blocked = AlertChannels.ALL.any { id -> nm.getNotificationChannel(id)?.importance == NotificationManager.IMPORTANCE_NONE }
-        if (blocked) add(AlertDeliveryProblem.AlertChannelBlocked)
-        if (alarmKinds.isNotEmpty() && !nm.canUseFullScreenIntent()) add(AlertDeliveryProblem.FullScreenDenied)
-    }
+    override fun deliveryProblems(alarmKinds: Set<AlertKind>): Set<AlertDeliveryProblem> =
+        buildSet {
+            if (!nm.areNotificationsEnabled()) add(AlertDeliveryProblem.NotificationsOff)
+            val blocked = AlertChannels.ALL.any { id -> nm.getNotificationChannel(id)?.importance == NotificationManager.IMPORTANCE_NONE }
+            if (blocked) add(AlertDeliveryProblem.AlertChannelBlocked)
+            if (alarmKinds.isNotEmpty() && !nm.canUseFullScreenIntent()) add(AlertDeliveryProblem.FullScreenDenied)
+        }
 
     @Volatile private var channelsReady = false
 
@@ -94,7 +101,8 @@ class AlertNotifier(private val ctx: Context) : AlertPresenter {
     }
 
     private fun base(kind: AlertKind, alarm: Boolean, silent: Boolean): Notification.Builder =
-        Notification.Builder(ctx, AlertChannels.id(kind, alarm))
+        Notification
+            .Builder(ctx, AlertChannels.id(kind, alarm))
             .setSmallIcon(ctx.applicationInfo.icon)
             .setCategory(if (alarm) Notification.CATEGORY_ALARM else Notification.CATEGORY_REMINDER)
             .setVisibility(Notification.VISIBILITY_PUBLIC)
@@ -107,11 +115,12 @@ class AlertNotifier(private val ctx: Context) : AlertPresenter {
 
     private fun headline(kind: AlertKind, treated: Int): String {
         val base = words.get("alert_headline_${kind.wire}")
-        val context = when {
-            treated <= 0 || !kind.isLevel -> return base
-            kind.side == Side.LOW -> if (treated == 1) R.string.alert_context_eat_more else R.string.alert_context_eat_more_again
-            else -> if (treated == 1) R.string.alert_context_after_insulin else R.string.alert_context_after_more_insulin
-        }
+        val context =
+            when {
+                treated <= 0 || !kind.isLevel -> return base
+                kind.side == Side.LOW -> if (treated == 1) R.string.alert_context_eat_more else R.string.alert_context_eat_more_again
+                else -> if (treated == 1) R.string.alert_context_after_insulin else R.string.alert_context_after_more_insulin
+            }
         return ctx.getString(R.string.alert_headline_with_context, base, ctx.getString(context))
     }
 
@@ -120,33 +129,37 @@ class AlertNotifier(private val ctx: Context) : AlertPresenter {
     private fun clockTime(epochS: Long): String = Clock.time(epochS)
 
     /** *Mute…* / *Change time*: a direct reply with the lengths as one-tap chips (and a typed one). */
-    private fun Notification.Builder.addMuteAction(kind: AlertKind, title: String, choices: List<Int>) = addAction(
-        Notification.Action.Builder(null, title, broadcast(kind, AlertActionReceiver.MUTE, mutable = true))
-            .addRemoteInput(
-                RemoteInput.Builder(AlertActionReceiver.TYPED)
-                    .setLabel(ctx.getString(R.string.alert_action_mute_for_label))
-                    .setChoices(choices.map { Durations.text(it.toLong(), words.durations) }.toTypedArray())
-                    .setAllowFreeFormInput(true)
-                    .setEditChoicesBeforeSending(RemoteInput.EDIT_CHOICES_BEFORE_SENDING_DISABLED)
-                    .build(),
-            )
-            .build(),
-    )
+    private fun Notification.Builder.addMuteAction(kind: AlertKind, title: String, choices: List<Int>) =
+        addAction(
+            Notification.Action
+                .Builder(null, title, broadcast(kind, AlertActionReceiver.MUTE, mutable = true))
+                .addRemoteInput(
+                    RemoteInput
+                        .Builder(AlertActionReceiver.TYPED)
+                        .setLabel(ctx.getString(R.string.alert_action_mute_for_label))
+                        .setChoices(choices.map { Durations.text(it.toLong(), words.durations) }.toTypedArray())
+                        .setAllowFreeFormInput(true)
+                        .setEditChoicesBeforeSending(RemoteInput.EDIT_CHOICES_BEFORE_SENDING_DISABLED)
+                        .build(),
+                ).build(),
+        )
 
     private fun action(kind: AlertKind, what: String, label: Int) =
         Notification.Action.Builder(null, ctx.getString(label), broadcast(kind, what, mutable = false)).build()
 
     /** A broadcast to the non-exported [AlertActionReceiver]; only the direct reply's is mutable (the system adds the text). */
-    private fun broadcast(kind: AlertKind, what: String, mutable: Boolean): PendingIntent = PendingIntent.getBroadcast(
-        ctx,
-        requestCode(kind, what),
-        Intent(ctx, AlertActionReceiver::class.java).setAction(what).putExtra(AlertActionReceiver.KIND, kind.wire),
-        PendingIntent.FLAG_UPDATE_CURRENT or if (mutable) PendingIntent.FLAG_MUTABLE else PendingIntent.FLAG_IMMUTABLE,
-    )
+    private fun broadcast(kind: AlertKind, what: String, mutable: Boolean): PendingIntent =
+        PendingIntent.getBroadcast(
+            ctx,
+            requestCode(kind, what),
+            Intent(ctx, AlertActionReceiver::class.java).setAction(what).putExtra(AlertActionReceiver.KIND, kind.wire),
+            PendingIntent.FLAG_UPDATE_CURRENT or if (mutable) PendingIntent.FLAG_MUTABLE else PendingIntent.FLAG_IMMUTABLE,
+        )
 
     private fun openApp(): PendingIntent {
-        val launch = ctx.packageManager.getLaunchIntentForPackage(ctx.packageName)
-            ?: Intent().setPackage(ctx.packageName)
+        val launch =
+            ctx.packageManager.getLaunchIntentForPackage(ctx.packageName)
+                ?: Intent().setPackage(ctx.packageName)
         return PendingIntent.getActivity(ctx, 1, launch.addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP), PendingIntent.FLAG_IMMUTABLE)
     }
 

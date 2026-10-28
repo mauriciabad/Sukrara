@@ -30,8 +30,11 @@ data class AlertEvent(
 ) {
     @Serializable
     enum class State {
-        @SerialName("fire") FIRE,
-        @SerialName("clear") CLEAR,
+        @SerialName("fire")
+        FIRE,
+
+        @SerialName("clear")
+        CLEAR,
     }
 
     /** The firing a follower shows for a `fire` event. */
@@ -43,21 +46,44 @@ data class AlertEvent(
         /** Followers ignore events older than this (SPEC §4). */
         const val MAX_AGE_S = 10 * 60L
 
-        private val json = Json { ignoreUnknownKeys = true; encodeDefaults = true; explicitNulls = false }
+        private val json =
+            Json {
+                ignoreUnknownKeys = true
+                encodeDefaults = true
+                explicitNulls = false
+            }
 
-        fun fire(f: Firing) = AlertEvent(
-            id = f.id, k = f.kind, state = State.FIRE, at = f.at, t = f.reading?.t, sgv = f.reading?.mgdl,
-            r = f.reading?.rate, th = f.threshold, n = f.n, tr = f.treated,
-        )
+        fun fire(f: Firing) =
+            AlertEvent(
+                id = f.id,
+                k = f.kind,
+                state = State.FIRE,
+                at = f.at,
+                t = f.reading?.t,
+                sgv = f.reading?.mgdl,
+                r = f.reading?.rate,
+                th = f.threshold,
+                n = f.n,
+                tr = f.treated,
+            )
 
-        fun clear(kind: AlertKind, id: String, at: Long, last: AlertReading?) = AlertEvent(
-            id = id, k = kind, state = State.CLEAR, at = at, t = last?.t, sgv = last?.mgdl, r = last?.rate,
-        )
+        fun clear(kind: AlertKind, id: String, at: Long, last: AlertReading?) =
+            AlertEvent(
+                id = id,
+                k = kind,
+                state = State.CLEAR,
+                at = at,
+                t = last?.t,
+                sgv = last?.mgdl,
+                r = last?.rate,
+            )
 
         fun encode(e: AlertEvent): String = json.encodeToString(serializer(), e)
 
         /** A decrypted payload as an alert event, or null (not one, another version, unknown kind). */
-        fun decode(text: String): AlertEvent? = runCatching { json.decodeFromString(serializer(), text) }.getOrNull()
-            ?.takeIf { it.v == 2 && it.type == TYPE }
+        fun decode(text: String): AlertEvent? =
+            runCatching { json.decodeFromString(serializer(), text) }
+                .getOrNull()
+                ?.takeIf { it.v == 2 && it.type == TYPE }
     }
 }

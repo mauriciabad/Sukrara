@@ -11,8 +11,8 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.FlowRow
-import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -20,10 +20,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LargeTopAppBar
@@ -44,7 +44,6 @@ import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import app.mauri.sukrara.alerts.AlertKind
-import app.mauri.sukrara.core.designsystem.R as DsR
 import app.mauri.sukrara.core.model.DurationWords
 import app.mauri.sukrara.core.model.Durations
 import app.mauri.sukrara.graph.CardWords
@@ -52,6 +51,7 @@ import app.mauri.sukrara.graph.Clock
 import app.mauri.sukrara.settings.NumberSpec
 import java.time.Instant
 import java.time.ZoneId
+import app.mauri.sukrara.core.designsystem.R as DsR
 
 /**
  * A settings page: large collapsing title, a back button, the groups scrolling below. [scroll] false: the content
@@ -62,12 +62,13 @@ import java.time.ZoneId
 fun SettingsPage(
     title: String,
     onBack: () -> Unit,
+    modifier: Modifier = Modifier,
     scroll: Boolean = true,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val bar = TopAppBarDefaults.exitUntilCollapsedScrollBehavior(rememberTopAppBarState())
     Scaffold(
-        modifier = Modifier.fillMaxSize().nestedScroll(bar.nestedScrollConnection),
+        modifier = modifier.fillMaxSize().nestedScroll(bar.nestedScrollConnection),
         containerColor = MaterialTheme.colorScheme.surfaceContainer,
         topBar = {
             LargeTopAppBar(

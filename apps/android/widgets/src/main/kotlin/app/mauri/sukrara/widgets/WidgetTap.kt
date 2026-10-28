@@ -47,10 +47,14 @@ sealed interface WidgetTap {
             tap: WidgetTap,
         ): Intent =
             when (tap) {
-                is QuickTreatment -> QuickTreatmentIntents.open(context, QuickSource.Widget, tap.focusCarbs)
-                OpenApp ->
+                is QuickTreatment -> {
+                    QuickTreatmentIntents.open(context, QuickSource.Widget, tap.focusCarbs)
+                }
+
+                OpenApp -> {
                     context.packageManager.getLaunchIntentForPackage(context.packageName)
                         ?: Intent(Intent.ACTION_MAIN).setPackage(context.packageName)
+                }
             }
     }
 }

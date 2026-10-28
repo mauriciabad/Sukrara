@@ -16,8 +16,13 @@ import org.junit.Test
 
 class AlertSettingsCodecTest {
     /** The JSON block of contracts/alerts/SPEC.md §3: the defaults, written by hand in the spec. */
-    private val specJson: String = Contracts.file("alerts/SPEC.md").readText()
-        .substringAfter("## 3. Settings").substringAfter("```json").substringBefore("```")
+    private val specJson: String =
+        Contracts
+            .file("alerts/SPEC.md")
+            .readText()
+            .substringAfter("## 3. Settings")
+            .substringAfter("```json")
+            .substringBefore("```")
 
     @Test fun defaultsAreTheSpecsDefaults() {
         assertEquals(AlertSettings(), AlertSettingsCodec.decode(specJson))
@@ -25,14 +30,15 @@ class AlertSettingsCodecTest {
     }
 
     @Test fun roundTrips() {
-        val s = AlertSettings(
-            on = false,
-            rules = AlertSettings.DEFAULT_RULES + (AlertKind.FALLING_FAST to KindRule(true, 2.5, 0, alarm = true)),
-            afterInsulin = QuietRule(false, 90),
-            sounds = SoundSettings("arcade", mapOf(AlertKind.LOW to "soft"), shuffle = false),
-            actions = NotificationActions(45, 60, 5, 15),
-            source = AlertSource.OWN,
-        )
+        val s =
+            AlertSettings(
+                on = false,
+                rules = AlertSettings.DEFAULT_RULES + (AlertKind.FALLING_FAST to KindRule(true, 2.5, 0, alarm = true)),
+                afterInsulin = QuietRule(false, 90),
+                sounds = SoundSettings("arcade", mapOf(AlertKind.LOW to "soft"), shuffle = false),
+                actions = NotificationActions(45, 60, 5, 15),
+                source = AlertSource.OWN,
+            )
         assertEquals(s, AlertSettingsCodec.decode(AlertSettingsCodec.encode(s)))
     }
 
@@ -52,9 +58,10 @@ class AlertSettingsCodecTest {
 
     /** A bad value never switches an alert off: out of range is coerced, a mistyped value falls back to its default. */
     @Test fun badValuesAreCoercedNotDropped() {
-        val s = AlertSettingsCodec.decode(
-            """{"alerts":{"low":{"on":"yes","mgdl":500,"repeatMin":-3},"very_low":{"mgdl":"x"}},"notificationActions":{"muteMin":5000}}""",
-        )!!
+        val s =
+            AlertSettingsCodec.decode(
+                """{"alerts":{"low":{"on":"yes","mgdl":500,"repeatMin":-3},"very_low":{"mgdl":"x"}},"notificationActions":{"muteMin":5000}}""",
+            )!!
         assertEquals(KindRule(true, 120.0, 1, false), s.rule(AlertKind.LOW))
         assertEquals(55.0, s.rule(AlertKind.VERY_LOW).threshold, 0.0)
         assertEquals(720, s.actions.muteMin)
@@ -75,7 +82,13 @@ class AlertSettingsCodecTest {
             assertEquals(name, n["step"]!!.jsonPrimitive.double, limit.step, 1e-9)
             assertEquals(name, n["default"]!!.jsonPrimitive.double, limit.default, 1e-9)
             assertEquals(name, n["presets"]!!.jsonArray.map { it.jsonPrimitive.double }, limit.presets)
-            val specials = n["special"]?.jsonObject?.keys?.map { it.toDouble() }?.toSet().orEmpty()
+            val specials =
+                n["special"]
+                    ?.jsonObject
+                    ?.keys
+                    ?.map { it.toDouble() }
+                    ?.toSet()
+                    .orEmpty()
             assertEquals(name, specials, limit.specials)
         }
     }

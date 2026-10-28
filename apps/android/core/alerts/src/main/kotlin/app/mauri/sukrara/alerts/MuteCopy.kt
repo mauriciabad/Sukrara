@@ -57,13 +57,14 @@ object MuteCopy {
     }
 
     /** The state line of a [QuietSide] at [now] (relaxed and not quiet: the remind-less line). */
-    fun of(q: QuietSide, now: Long): MuteLine = when (q.reason) {
-        QuietReason.NOTIFICATION -> sideMuted(q.kind.side, q.until, now)
-        QuietReason.CARBS -> MuteLine.SideAfter(q.kind.side, TreatmentKind.CARBS, leftMin(q.until, now))
-        QuietReason.INSULIN -> MuteLine.SideAfter(q.kind.side, TreatmentKind.RAPID, leftMin(q.until, now))
-        QuietReason.FALLING -> MuteLine.SideFalling(q.kind.side)
-        null -> MuteLine.SideLess(q.kind.side, q.relaxMin)
-    }
+    fun of(q: QuietSide, now: Long): MuteLine =
+        when (q.reason) {
+            QuietReason.NOTIFICATION -> sideMuted(q.kind.side, q.until, now)
+            QuietReason.CARBS -> MuteLine.SideAfter(q.kind.side, TreatmentKind.CARBS, leftMin(q.until, now))
+            QuietReason.INSULIN -> MuteLine.SideAfter(q.kind.side, TreatmentKind.RAPID, leftMin(q.until, now))
+            QuietReason.FALLING -> MuteLine.SideFalling(q.kind.side)
+            null -> MuteLine.SideLess(q.kind.side, q.relaxMin)
+        }
 
     fun sideMuted(side: Side, until: Long, now: Long): MuteLine =
         MuteLine.SideMuted(side, if (until >= Rules.NEVER) null else leftMin(until, now))
@@ -75,5 +76,14 @@ object MuteCopy {
     fun pill(until: Long, now: Long): MuteLine = if (until >= Rules.NEVER) MuteLine.PillForever else MuteLine.Pill(leftMin(until, now))
 
     /** The Mute all choices: the presets in order, 0 = until turned off. */
-    fun muteAllChoices(): List<MuteLine> = AlertLimits.MUTE_ALL.presetMinutes.map { if (it == 0) MuteLine.ChoiceForever else MuteLine.Choice(it) }
+    fun muteAllChoices(): List<MuteLine> =
+        AlertLimits.MUTE_ALL.presetMinutes.map {
+            if (it ==
+                0
+            ) {
+                MuteLine.ChoiceForever
+            } else {
+                MuteLine.Choice(it)
+            }
+        }
 }

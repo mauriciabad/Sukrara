@@ -77,8 +77,9 @@ class LibreViewAccount internal constructor(
 
         /** Pure: one login answer (status 0 + 36-char user id, redirect, 2 = credentials, 4 = terms). */
         fun parse(body: String): LoginAnswer {
-            val o = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
-                ?: return LoginAnswer.Failed("answer is not JSON")
+            val o =
+                runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull()
+                    ?: return LoginAnswer.Failed("answer is not JSON")
             val status = o["status"]?.jsonPrimitive?.intOrNull
             val data = o["data"] as? JsonObject
             val region = data?.get("region")?.jsonPrimitive?.contentOrNull
@@ -101,45 +102,69 @@ class LibreViewAccount internal constructor(
     /** The signed-in account's receiver ID (shown in Settings › Sensor to compare with other apps), or null. */
     val receiverId: Flow<Long?> = state.data.map { it.account }
 
-    suspend fun signIn(email: String, password: String): SignInResult = withContext(io) {
-        val body = buildJsonObject {
-            put("email", email.trim())
-            put("password", password)
-        }.toString()
-        var host = baseHost
-        repeat(2) {
-            val answer = try {
-                post("$scheme://$host/llu/auth/login", body)
-            } catch (e: IOException) {
-                return@withContext SignInResult.Failed("${e.javaClass.simpleName}")
-            }
-            when (answer) {
-                is LoginAnswer.Redirect -> host = "api-${answer.region}.libreview.io"
-                is LoginAnswer.Account -> {
-                    val rid = ReceiverIds.fromAccountId(answer.accountId)
-                    state.update { it.copy(account = rid, accountEmail = email.trim()) }
-                    return@withContext SignInResult.SignedIn(rid)
+    suspend fun signIn(email: String, password: String): SignInResult =
+        withContext(io) {
+            val body =
+                buildJsonObject {
+                    put("email", email.trim())
+                    put("password", password)
+                }.toString()
+            var host = baseHost
+            repeat(2) {
+                val answer =
+                    try {
+                        post("$scheme://$host/llu/auth/login", body)
+                    } catch (e: IOException) {
+                        return@withContext SignInResult.Failed("${e.javaClass.simpleName}")
+                    }
+                when (answer) {
+                    is LoginAnswer.Redirect -> {
+                        host = "api-${answer.region}.libreview.io"
+                    }
+
+                    is LoginAnswer.Account -> {
+                        val rid = ReceiverIds.fromAccountId(answer.accountId)
+                        state.update { it.copy(account = rid, accountEmail = email.trim()) }
+                        return@withContext SignInResult.SignedIn(rid)
+                    }
+
+                    LoginAnswer.BadCredentials -> {
+                        return@withContext SignInResult.BadCredentials
+                    }
+
+                    LoginAnswer.AcceptTerms -> {
+                        return@withContext SignInResult.AcceptTerms
+                    }
+
+                    is LoginAnswer.Failed -> {
+                        return@withContext SignInResult.Failed(answer.why)
+                    }
                 }
-                LoginAnswer.BadCredentials -> return@withContext SignInResult.BadCredentials
-                LoginAnswer.AcceptTerms -> return@withContext SignInResult.AcceptTerms
-                is LoginAnswer.Failed -> return@withContext SignInResult.Failed(answer.why)
             }
+            SignInResult.Failed("LibreView kept redirecting")
         }
-        SignInResult.Failed("LibreView kept redirecting")
-    }
 
     /** Forgets the account's receiver ID and email. Sukrara's own ID and a running sensor's pairing stay. */
     suspend fun signOut() = state.update { it.copy(account = null, accountEmail = null) }
 
     private fun post(url: String, body: String): LoginAnswer {
-        val request = Request.Builder().url(url)
-            .header("Accept", "application/json")
-            .header("product", "llu.android")
-            .header("version", "4.16.0")
-            .post(body.toRequestBody(JSON))
+        val request =
+            Request
+                .Builder()
+                .url(url)
+                .header("Accept", "application/json")
+                .header("product", "llu.android")
+                .header("version", "4.16.0")
+                .post(body.toRequestBody(JSON))
+                .build()
+        http
+            .newBuilder()
+            .connectTimeout(10, TimeUnit.SECONDS)
+            .readTimeout(20, TimeUnit.SECONDS)
             .build()
-        http.newBuilder().connectTimeout(10, TimeUnit.SECONDS).readTimeout(20, TimeUnit.SECONDS).build()
-            .newCall(request).execute().use { resp ->
+            .newCall(request)
+            .execute()
+            .use { resp ->
                 if (resp.code == 401) return LoginAnswer.BadCredentials
                 if (resp.code != 200) return LoginAnswer.Failed("HTTP ${resp.code}")
                 return parse(resp.body?.string().orEmpty())

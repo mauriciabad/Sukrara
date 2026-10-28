@@ -17,7 +17,12 @@ class NumberInput(
     private val reject: (Double) -> String? = { null },
 ) {
     /** The radio options: special values (sorted, e.g. 0 = "Off") first, then the presets. */
-    val options: List<Double> = (spec.special.keys.filter { k -> presets.none { same(it, k) } }.sorted() + presets).distinct()
+    val options: List<Double> =
+        (
+            spec.special.keys
+                .filter { k -> presets.none { same(it, k) } }
+                .sorted() + presets
+        ).distinct()
 
     /** Whether the dialog shows a "Custom" choice with a number field. */
     val hasCustom: Boolean get() = spec.custom

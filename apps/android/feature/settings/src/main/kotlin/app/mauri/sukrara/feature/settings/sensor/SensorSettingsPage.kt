@@ -132,30 +132,55 @@ private fun StateNotice(
         return
     }
     when (val s = state.state) {
-        SensorState.None ->
+        SensorState.None -> {
             if (state.source == SourceChoice.Libre3Direct) StateStrip(stringResource(R.string.st_sensor_none_text), listOf(pair))
+        }
 
-        SensorState.Ended -> StateStrip(stringResource(R.string.st_sensor_ended_text), listOf(pair))
+        SensorState.Ended -> {
+            StateStrip(stringResource(R.string.st_sensor_ended_text), listOf(pair))
+        }
 
-        is SensorState.ActionNeeded ->
+        is SensorState.ActionNeeded -> {
             when (s.action) {
-                SensorAction.SignInLibreView -> StateStrip(stringResource(R.string.st_sensor_sign_in_needed), listOf(stringResource(R.string.st_sensor_sign_in) to actions.signIn))
-                SensorAction.GrantBluetooth -> StateStrip(stringResource(R.string.st_sensor_bluetooth_permission_text), listOf(pair))
-                SensorAction.ScanSensor -> StateStrip(stringResource(R.string.st_sensor_scan_again_text), listOf(pair))
-            }
+                SensorAction.SignInLibreView -> {
+                    StateStrip(
+                        stringResource(R.string.st_sensor_sign_in_needed),
+                        listOf(stringResource(R.string.st_sensor_sign_in) to actions.signIn),
+                    )
+                }
 
-        SensorState.BluetoothOff ->
+                SensorAction.GrantBluetooth -> {
+                    StateStrip(stringResource(R.string.st_sensor_bluetooth_permission_text), listOf(pair))
+                }
+
+                SensorAction.ScanSensor -> {
+                    StateStrip(stringResource(R.string.st_sensor_scan_again_text), listOf(pair))
+                }
+            }
+        }
+
+        SensorState.BluetoothOff -> {
             StateStrip(
                 stringResource(R.string.st_sensor_bluetooth_off_text),
-                listOf(stringResource(R.string.st_sensor_open_bluetooth) to { context.startActivity(Intent(Settings.ACTION_BLUETOOTH_SETTINGS)) }),
+                listOf(
+                    stringResource(R.string.st_sensor_open_bluetooth) to
+                        { context.startActivity(Intent(Settings.ACTION_BLUETOOTH_SETTINGS)) },
+                ),
             )
+        }
 
-        SensorState.CoreMissing ->
+        SensorState.CoreMissing -> {
             if (state.source == SourceChoice.Libre3Direct) {
-                StateStrip(stringResource(R.string.st_sensor_core_missing_text), listOf(stringResource(R.string.st_sensor_to_juggluco_confirm) to useJuggluco))
+                StateStrip(
+                    stringResource(R.string.st_sensor_core_missing_text),
+                    listOf(stringResource(R.string.st_sensor_to_juggluco_confirm) to useJuggluco),
+                )
             }
+        }
 
-        is SensorState.WarmingUp, is SensorState.Active -> Unit
+        is SensorState.WarmingUp, is SensorState.Active -> {
+            Unit
+        }
     }
 }
 
@@ -181,7 +206,14 @@ private fun SensorGroup(
             val words = CardWords.of(LocalContext.current.resources).durations
             InfoRow(
                 stringResource(R.string.st_sensor_ends),
-                summary = if (running && left > 0) stringResource(R.string.st_sensor_ends_in, endsAt, Durations.whole(left, words)) else endsAt,
+                summary =
+                    if (running &&
+                        left > 0
+                    ) {
+                        stringResource(R.string.st_sensor_ends_in, endsAt, Durations.whole(left, words))
+                    } else {
+                        endsAt
+                    },
             )
         }
         NavigationRow(
@@ -189,7 +221,13 @@ private fun SensorGroup(
             actions.pairNewSensor,
             summary =
                 stringResource(
-                    if (state.source == SourceChoice.Juggluco) R.string.st_sensor_pair_new_juggluco else R.string.st_sensor_pair_new_summary,
+                    if (state.source ==
+                        SourceChoice.Juggluco
+                    ) {
+                        R.string.st_sensor_pair_new_juggluco
+                    } else {
+                        R.string.st_sensor_pair_new_summary
+                    },
                 ),
         )
     }
@@ -202,20 +240,67 @@ private fun statusText(
     zone: ZoneId,
 ): String =
     when (val s = state.state) {
-        SensorState.None -> stringResource(if (state.source == SourceChoice.Juggluco) R.string.st_sensor_status_waiting_juggluco else R.string.st_sensor_status_none)
-        is SensorState.WarmingUp -> stringResource(R.string.st_sensor_status_warming, ClockText.time(s.readyAt.epochSecond, zone = zone))
-        is SensorState.Active ->
+        SensorState.None -> {
+            stringResource(
+                if (state.source ==
+                    SourceChoice.Juggluco
+                ) {
+                    R.string.st_sensor_status_waiting_juggluco
+                } else {
+                    R.string.st_sensor_status_none
+                },
+            )
+        }
+
+        is SensorState.WarmingUp -> {
+            stringResource(R.string.st_sensor_status_warming, ClockText.time(s.readyAt.epochSecond, zone = zone))
+        }
+
+        is SensorState.Active -> {
             when (state.link) {
-                SourceLink.JugglucoUnreachable -> stringResource(R.string.st_sensor_status_juggluco_unreachable)
-                SourceLink.Connecting ->
-                    stringResource(if (state.source == SourceChoice.Juggluco) R.string.st_sensor_status_connecting_juggluco else R.string.st_sensor_status_connecting)
-                SourceLink.Receiving ->
-                    stringResource(if (state.source == SourceChoice.Juggluco) R.string.st_sensor_status_juggluco else R.string.st_sensor_status_active)
+                SourceLink.JugglucoUnreachable -> {
+                    stringResource(R.string.st_sensor_status_juggluco_unreachable)
+                }
+
+                SourceLink.Connecting -> {
+                    stringResource(
+                        if (state.source ==
+                            SourceChoice.Juggluco
+                        ) {
+                            R.string.st_sensor_status_connecting_juggluco
+                        } else {
+                            R.string.st_sensor_status_connecting
+                        },
+                    )
+                }
+
+                SourceLink.Receiving -> {
+                    stringResource(
+                        if (state.source ==
+                            SourceChoice.Juggluco
+                        ) {
+                            R.string.st_sensor_status_juggluco
+                        } else {
+                            R.string.st_sensor_status_active
+                        },
+                    )
+                }
             }
-        SensorState.Ended -> stringResource(R.string.st_sensor_status_ended)
-        SensorState.CoreMissing -> stringResource(R.string.st_sensor_status_core_missing)
-        SensorState.BluetoothOff -> stringResource(R.string.st_sensor_status_bluetooth_off)
-        is SensorState.ActionNeeded ->
+        }
+
+        SensorState.Ended -> {
+            stringResource(R.string.st_sensor_status_ended)
+        }
+
+        SensorState.CoreMissing -> {
+            stringResource(R.string.st_sensor_status_core_missing)
+        }
+
+        SensorState.BluetoothOff -> {
+            stringResource(R.string.st_sensor_status_bluetooth_off)
+        }
+
+        is SensorState.ActionNeeded -> {
             stringResource(
                 when (s.action) {
                     SensorAction.ScanSensor -> R.string.st_sensor_status_scan_again
@@ -223,6 +308,7 @@ private fun statusText(
                     SensorAction.GrantBluetooth -> R.string.st_sensor_status_permission
                 },
             )
+        }
     }
 
 /** Libre 3 direct ↔ Juggluco: tapping the other one asks first ([onChoose]); the current one does nothing. */
@@ -247,11 +333,27 @@ private fun SourceGroup(
                     RadioButton(selected = selected, onClick = null)
                     Column(Modifier.padding(start = 16.dp).weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                         Text(
-                            stringResource(if (source == SourceChoice.Juggluco) R.string.st_sensor_source_juggluco else R.string.st_sensor_source_direct),
+                            stringResource(
+                                if (source ==
+                                    SourceChoice.Juggluco
+                                ) {
+                                    R.string.st_sensor_source_juggluco
+                                } else {
+                                    R.string.st_sensor_source_direct
+                                },
+                            ),
                             style = MaterialTheme.typography.bodyLarge,
                         )
                         Text(
-                            stringResource(if (source == SourceChoice.Juggluco) R.string.st_sensor_source_juggluco_why else R.string.st_sensor_source_direct_why),
+                            stringResource(
+                                if (source ==
+                                    SourceChoice.Juggluco
+                                ) {
+                                    R.string.st_sensor_source_juggluco_why
+                                } else {
+                                    R.string.st_sensor_source_direct_why
+                                },
+                            ),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )

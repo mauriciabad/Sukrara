@@ -21,15 +21,17 @@ data class NumberLimit(
 ) {
     val presetMinutes: List<Int> get() = presets.map { it.toInt() }
 
-    fun valid(v: Double): Boolean = v in specials ||
-        (v in min..max && abs((v - min) / step - ((v - min) / step).roundToLong()) < 1e-6)
+    fun valid(v: Double): Boolean =
+        v in specials ||
+            (v in min..max && abs((v - min) / step - ((v - min) / step).roundToLong()) < 1e-6)
 
     /** [v] if valid, else the nearest value on the step inside the range (NaN → default), like the settings UI. */
-    fun coerce(v: Double): Double = when {
-        valid(v) -> v
-        v.isNaN() -> default
-        else -> (min + ((v.coerceIn(min, max) - min) / step).roundToLong() * step).coerceIn(min, max)
-    }
+    fun coerce(v: Double): Double =
+        when {
+            valid(v) -> v
+            v.isNaN() -> default
+            else -> (min + ((v.coerceIn(min, max) - min) / step).roundToLong() * step).coerceIn(min, max)
+        }
 
     fun coerce(v: Int): Int = coerce(v.toDouble()).roundToLong().toInt()
 }
@@ -56,22 +58,34 @@ object AlertLimits {
     val MUTE_ALL = NumberLimit(5.0, 1440.0, 1.0, 60.0, listOf(30.0, 60.0, 120.0, 240.0, 480.0, 0.0), setOf(0.0))
 
     /** The schema's name of each format above (for the drift test). */
-    val BY_SCHEMA_NAME: Map<String, NumberLimit> = mapOf(
-        "thresholdVeryLow" to THRESHOLD_VERY_LOW, "thresholdLow" to THRESHOLD_LOW, "thresholdHigh" to THRESHOLD_HIGH,
-        "thresholdVeryHigh" to THRESHOLD_VERY_HIGH, "thresholdExtremelyHigh" to THRESHOLD_EXTREMELY_HIGH,
-        "thresholdRate" to THRESHOLD_RATE, "thresholdNoData" to THRESHOLD_NO_DATA, "alertRepeat" to ALERT_REPEAT,
-        "muteInsulin" to MUTE_INSULIN, "muteFalling" to MUTE_FALLING, "muteCarbs" to MUTE_CARBS,
-        "actionMute" to ACTION_MUTE, "actionRelax" to ACTION_RELAX, "backMgdl" to BACK_MGDL, "backMin" to BACK_MIN,
-        "muteAll" to MUTE_ALL,
-    )
+    val BY_SCHEMA_NAME: Map<String, NumberLimit> =
+        mapOf(
+            "thresholdVeryLow" to THRESHOLD_VERY_LOW,
+            "thresholdLow" to THRESHOLD_LOW,
+            "thresholdHigh" to THRESHOLD_HIGH,
+            "thresholdVeryHigh" to THRESHOLD_VERY_HIGH,
+            "thresholdExtremelyHigh" to THRESHOLD_EXTREMELY_HIGH,
+            "thresholdRate" to THRESHOLD_RATE,
+            "thresholdNoData" to THRESHOLD_NO_DATA,
+            "alertRepeat" to ALERT_REPEAT,
+            "muteInsulin" to MUTE_INSULIN,
+            "muteFalling" to MUTE_FALLING,
+            "muteCarbs" to MUTE_CARBS,
+            "actionMute" to ACTION_MUTE,
+            "actionRelax" to ACTION_RELAX,
+            "backMgdl" to BACK_MGDL,
+            "backMin" to BACK_MIN,
+            "muteAll" to MUTE_ALL,
+        )
 
-    fun threshold(kind: AlertKind): NumberLimit = when (kind) {
-        AlertKind.VERY_LOW -> THRESHOLD_VERY_LOW
-        AlertKind.LOW -> THRESHOLD_LOW
-        AlertKind.HIGH -> THRESHOLD_HIGH
-        AlertKind.VERY_HIGH -> THRESHOLD_VERY_HIGH
-        AlertKind.EXTREMELY_HIGH -> THRESHOLD_EXTREMELY_HIGH
-        AlertKind.FALLING_FAST, AlertKind.RISING_FAST -> THRESHOLD_RATE
-        AlertKind.NO_DATA -> THRESHOLD_NO_DATA
-    }
+    fun threshold(kind: AlertKind): NumberLimit =
+        when (kind) {
+            AlertKind.VERY_LOW -> THRESHOLD_VERY_LOW
+            AlertKind.LOW -> THRESHOLD_LOW
+            AlertKind.HIGH -> THRESHOLD_HIGH
+            AlertKind.VERY_HIGH -> THRESHOLD_VERY_HIGH
+            AlertKind.EXTREMELY_HIGH -> THRESHOLD_EXTREMELY_HIGH
+            AlertKind.FALLING_FAST, AlertKind.RISING_FAST -> THRESHOLD_RATE
+            AlertKind.NO_DATA -> THRESHOLD_NO_DATA
+        }
 }

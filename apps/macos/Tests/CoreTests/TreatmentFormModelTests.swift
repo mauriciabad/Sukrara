@@ -68,7 +68,8 @@ import Testing
         for c in Self.list("times") {
             let hms = (c["now"] as! String).split(separator: ":").map { Int($0)! }
             let pick = (c["pick"] as! String).split(separator: ":").map { Int($0)! }
-            let now = cal.date(from: DateComponents(year: 2026, month: 6, day: 15, hour: hms[0], minute: hms[1], second: hms[2]))!
+            let now = cal.date(
+                from: DateComponents(year: 2026, month: 6, day: 15, hour: hms[0], minute: hms[1], second: hms[2]))!
             let t = TreatmentForm.pick(hour: pick[0], minute: pick[1], now: now, calendar: cal)
             let ago = t.map { Int(now.timeIntervalSince1970) - Int($0) }
             #expect(ago == (c["ago_s"] as? NSNumber)?.intValue, "\(c)")

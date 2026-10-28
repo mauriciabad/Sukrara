@@ -7,27 +7,27 @@ import app.mauri.sukrara.core.data.CorruptFile
 import app.mauri.sukrara.core.data.DataModule
 import app.mauri.sukrara.core.model.AlertReadiness
 import app.mauri.sukrara.core.model.AlertReadinessSource
-import app.mauri.sukrara.core.model.Treatment
-import app.mauri.sukrara.feature.treatments.TreatmentLog
 import app.mauri.sukrara.core.model.AlertRequirement
 import app.mauri.sukrara.core.model.Clock
 import app.mauri.sukrara.core.model.GlucoseState
+import app.mauri.sukrara.core.model.Treatment
 import app.mauri.sukrara.core.model.storage.StateStore
 import app.mauri.sukrara.core.model.storage.TreatmentsRepository
 import app.mauri.sukrara.feature.home.DataProblem
 import app.mauri.sukrara.feature.home.HomeDeps
 import app.mauri.sukrara.feature.home.banners.BannerMemory
 import app.mauri.sukrara.feature.home.banners.HomeEnvironment
+import app.mauri.sukrara.feature.treatments.TreatmentLog
 import app.mauri.sukrara.graph.GraphConfig
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
 
 /**
  * The home screen's ports, built from the modules `AppGraph` composes: [glucose] is the hub's state and [readiness]

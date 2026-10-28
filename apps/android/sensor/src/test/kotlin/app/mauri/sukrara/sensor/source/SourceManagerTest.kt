@@ -21,26 +21,27 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.withTimeout
-import java.net.InetSocketAddress
-import java.time.ZoneOffset
-import java.util.concurrent.Executors
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.withTimeout
 import okhttp3.OkHttpClient
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.net.InetSocketAddress
 import java.time.Duration
 import java.time.Instant
+import java.time.ZoneOffset
 import java.util.UUID
+import java.util.concurrent.Executors
 
 class SourceManagerTest {
     private val start = Instant.parse("2026-10-20T08:00:00Z")
-    private val pairing = Pairing("3MH0001", "AA:BB:CC:DD:EE:FF", start.epochSecond, 0, 21_600, 60, pin = ByteArray(4), kAuth = ByteArray(149))
+    private val pairing =
+        Pairing("3MH0001", "AA:BB:CC:DD:EE:FF", start.epochSecond, 0, 21_600, 60, pin = ByteArray(4), kAuth = ByteArray(149))
 
     private class FakeConnector : GattConnector {
         override var isBluetoothOn = true
@@ -92,150 +93,172 @@ class SourceManagerTest {
         val kind = MutableStateFlow(SensorSourceKind.Libre3)
         val clock = FakeClock(start.plus(Duration.ofDays(2)))
         private val dispatcher = StandardTestDispatcher(test.testScheduler)
-        val manager = SourceManager(
-            kind, store, security, connector,
-            juggluco = { JugglucoSource(OkHttpClient(), "http://127.0.0.1:1") { clock.zone } },
-            clock = clock, dispatcher = dispatcher, io = dispatcher,
-        )
+        val manager =
+            SourceManager(
+                kind,
+                store,
+                security,
+                connector,
+                juggluco = { JugglucoSource(OkHttpClient(), "http://127.0.0.1:1") { clock.zone } },
+                clock = clock,
+                dispatcher = dispatcher,
+                io = dispatcher,
+            )
     }
 
     @Test
-    fun noSensorYetIsNotMonitoringAndNeverInventsReadings() = runTest {
-        val r = Rig(this)
-        r.manager.start()
-        runCurrent()
-        assertEquals(SensorStatus.NoSensor, r.manager.detail.value)
-        assertEquals(SensorState.None, r.manager.sensor.value)
-        assertEquals(SourceStatus.NotStarted, r.manager.status.value)
-        assertTrue(r.connector.opened.isEmpty())
-        r.manager.stop()
-        runCurrent()
-    }
+    fun noSensorYetIsNotMonitoringAndNeverInventsReadings() =
+        runTest {
+            val r = Rig(this)
+            r.manager.start()
+            runCurrent()
+            assertEquals(SensorStatus.NoSensor, r.manager.detail.value)
+            assertEquals(SensorState.None, r.manager.sensor.value)
+            assertEquals(SourceStatus.NotStarted, r.manager.status.value)
+            assertTrue(r.connector.opened.isEmpty())
+            r.manager.stop()
+            runCurrent()
+        }
 
     @Test
-    fun aBuildWithoutTheNativeCoreSaysSo() = runTest {
-        val r = Rig(this, security = null)
-        r.store.save(pairing)
-        r.manager.start()
-        runCurrent()
-        assertEquals(SensorState.CoreMissing, r.manager.sensor.value)
-        assertTrue(r.connector.opened.isEmpty())
-        r.manager.stop()
-        runCurrent()
-    }
+    fun aBuildWithoutTheNativeCoreSaysSo() =
+        runTest {
+            val r = Rig(this, security = null)
+            r.store.save(pairing)
+            r.manager.start()
+            runCurrent()
+            assertEquals(SensorState.CoreMissing, r.manager.sensor.value)
+            assertTrue(r.connector.opened.isEmpty())
+            r.manager.stop()
+            runCurrent()
+        }
 
     @Test
-    fun anUnreadablePairingAsksForAScan() = runTest {
-        val r = Rig(this)
-        r.secure.write(PairingStore.NAME, "garbage".encodeToByteArray())
-        r.manager.start()
-        runCurrent()
-        assertEquals(SensorState.ActionNeeded(SensorAction.ScanSensor), r.manager.sensor.value)
-        r.manager.stop()
-        runCurrent()
-    }
+    fun anUnreadablePairingAsksForAScan() =
+        runTest {
+            val r = Rig(this)
+            r.secure.write(PairingStore.NAME, "garbage".encodeToByteArray())
+            r.manager.start()
+            runCurrent()
+            assertEquals(SensorState.ActionNeeded(SensorAction.ScanSensor), r.manager.sensor.value)
+            r.manager.stop()
+            runCurrent()
+        }
 
     @Test
-    fun anEndedSensorIsNotConnected() = runTest {
-        val r = Rig(this)
-        r.store.save(pairing.copy(ended = true))
-        r.manager.start()
-        runCurrent()
-        assertEquals(SensorState.Ended, r.manager.sensor.value)
-        assertTrue(r.connector.opened.isEmpty())
-        r.manager.stop()
-        runCurrent()
-    }
+    fun anEndedSensorIsNotConnected() =
+        runTest {
+            val r = Rig(this)
+            r.store.save(pairing.copy(ended = true))
+            r.manager.start()
+            runCurrent()
+            assertEquals(SensorState.Ended, r.manager.sensor.value)
+            assertTrue(r.connector.opened.isEmpty())
+            r.manager.stop()
+            runCurrent()
+        }
 
     @Test
-    fun aRunningSensorConnectsAndTheWatchdogRestartsASilentLink() = runTest {
-        val r = Rig(this)
-        r.store.save(pairing)
-        r.manager.start()
-        runCurrent()
-        assertEquals(listOf(1), r.connector.opened)
-        assertEquals(SensorState.Active(Instant.ofEpochSecond(pairing.info.endEpoch)), r.manager.sensor.value)
-        advanceTimeBy(SourceManager.WATCHDOG_MS - 120_000)
-        r.clock.advance(Duration.ofMillis(SourceManager.WATCHDOG_MS - 120_000))
-        assertEquals(listOf(1), r.connector.opened)
-        r.clock.advance(Duration.ofMinutes(3))
-        advanceTimeBy(3 * 60_000L)
-        runCurrent()
-        assertEquals(listOf(1), r.connector.closed) // the old connection is closed before the new one opens
-        assertEquals(2, r.connector.opened.size)
-        r.manager.stop()
-        runCurrent()
-        assertEquals(r.connector.opened.size, r.connector.closed.size)
-    }
+    fun aRunningSensorConnectsAndTheWatchdogRestartsASilentLink() =
+        runTest {
+            val r = Rig(this)
+            r.store.save(pairing)
+            r.manager.start()
+            runCurrent()
+            assertEquals(listOf(1), r.connector.opened)
+            assertEquals(SensorState.Active(Instant.ofEpochSecond(pairing.info.endEpoch)), r.manager.sensor.value)
+            advanceTimeBy(SourceManager.WATCHDOG_MS - 120_000)
+            r.clock.advance(Duration.ofMillis(SourceManager.WATCHDOG_MS - 120_000))
+            assertEquals(listOf(1), r.connector.opened)
+            r.clock.advance(Duration.ofMinutes(3))
+            advanceTimeBy(3 * 60_000L)
+            runCurrent()
+            assertEquals(listOf(1), r.connector.closed) // the old connection is closed before the new one opens
+            assertEquals(2, r.connector.opened.size)
+            r.manager.stop()
+            runCurrent()
+            assertEquals(r.connector.opened.size, r.connector.closed.size)
+        }
 
     @Test
-    fun bluetoothOffAndBackOn() = runTest {
-        val r = Rig(this)
-        r.store.save(pairing)
-        r.manager.start()
-        runCurrent()
-        r.connector.isBluetoothOn = false
-        r.manager.onBluetoothOff()
-        runCurrent()
-        assertEquals(SensorState.BluetoothOff, r.manager.sensor.value)
-        assertEquals(listOf(1), r.connector.closed)
-        r.connector.isBluetoothOn = true
-        r.manager.onBluetoothOn()
-        runCurrent()
-        assertEquals(2, r.connector.opened.size)
-        assertTrue(r.manager.sensor.value is SensorState.Active)
-        r.manager.stop()
-        runCurrent()
-    }
+    fun bluetoothOffAndBackOn() =
+        runTest {
+            val r = Rig(this)
+            r.store.save(pairing)
+            r.manager.start()
+            runCurrent()
+            r.connector.isBluetoothOn = false
+            r.manager.onBluetoothOff()
+            runCurrent()
+            assertEquals(SensorState.BluetoothOff, r.manager.sensor.value)
+            assertEquals(listOf(1), r.connector.closed)
+            r.connector.isBluetoothOn = true
+            r.manager.onBluetoothOn()
+            runCurrent()
+            assertEquals(2, r.connector.opened.size)
+            assertTrue(r.manager.sensor.value is SensorState.Active)
+            r.manager.stop()
+            runCurrent()
+        }
 
     @Test
-    fun switchingToJugglucoClosesTheSensorLinkFirst() = runTest {
-        val r = Rig(this)
-        r.store.save(pairing)
-        r.manager.start()
-        runCurrent()
-        r.kind.value = SensorSourceKind.Juggluco
-        runCurrent()
-        assertEquals(listOf(1), r.connector.closed)
-        assertTrue(r.manager.detail.value is SensorStatus.Juggluco)
-        assertTrue((r.manager.detail.value as SensorStatus.Juggluco).status !is JugglucoStatus.Live)
-        r.manager.stop()
-        runCurrent()
-    }
+    fun switchingToJugglucoClosesTheSensorLinkFirst() =
+        runTest {
+            val r = Rig(this)
+            r.store.save(pairing)
+            r.manager.start()
+            runCurrent()
+            r.kind.value = SensorSourceKind.Juggluco
+            runCurrent()
+            assertEquals(listOf(1), r.connector.closed)
+            assertTrue(r.manager.detail.value is SensorStatus.Juggluco)
+            assertTrue((r.manager.detail.value as SensorStatus.Juggluco).status !is JugglucoStatus.Live)
+            r.manager.stop()
+            runCurrent()
+        }
 
     /** A switch away from Juggluco must not wait for its open live stream (it never ends by itself). Real threads. */
     @Test
-    fun switchingAwayFromAnOpenJugglucoStreamIsImmediate(): Unit = runBlocking {
-        val server = HttpServer.create(InetSocketAddress("127.0.0.1", 0), 0)
-        fun respond(path: String, body: String, holdOpen: Boolean = false) = server.createContext(path) { ex ->
-            val out = body.encodeToByteArray()
-            ex.sendResponseHeaders(200, if (holdOpen) 0 else out.size.toLong())
-            ex.responseBody.write(out)
-            ex.responseBody.flush()
-            if (holdOpen) runCatching { Thread.sleep(60_000) }
-            ex.responseBody.close()
+    fun switchingAwayFromAnOpenJugglucoStreamIsImmediate(): Unit =
+        runBlocking {
+            val server = HttpServer.create(InetSocketAddress("127.0.0.1", 0), 0)
+
+            fun respond(path: String, body: String, holdOpen: Boolean = false) =
+                server.createContext(path) { ex ->
+                    val out = body.encodeToByteArray()
+                    ex.sendResponseHeaders(200, if (holdOpen) 0 else out.size.toLong())
+                    ex.responseBody.write(out)
+                    ex.responseBody.flush()
+                    if (holdOpen) runCatching { Thread.sleep(60_000) }
+                    ex.responseBody.close()
+                }
+            respond("/api/v1/entries.json", "[]")
+            respond("/sgv.json", "[]")
+            respond("/x/live", "event: glucose\ndata: {\"timestamp\":1760776860,\"glucoseMgDl\":121,\"sensorId\":1}\n\n", holdOpen = true)
+            server.executor = Executors.newCachedThreadPool()
+            server.start()
+            val kind = MutableStateFlow(SensorSourceKind.Juggluco)
+            val manager =
+                SourceManager(
+                    kind,
+                    PairingStore(InMemorySecureStore()),
+                    NoSecurity,
+                    FakeConnector(),
+                    juggluco = { JugglucoSource(OkHttpClient(), "http://127.0.0.1:${server.address.port}") { ZoneOffset.UTC } },
+                    clock = FakeClock(),
+                    dispatcher = Dispatchers.Default.limitedParallelism(1),
+                    io = Dispatchers.IO,
+                )
+            try {
+                manager.start()
+                withTimeout(10_000) { manager.status.first { it is SourceStatus.Live } }
+                kind.value = SensorSourceKind.Libre3
+                withTimeout(5_000) { manager.detail.first { it == SensorStatus.NoSensor } }
+            } finally {
+                manager.stop()
+                server.stop(0)
+            }
         }
-        respond("/api/v1/entries.json", "[]")
-        respond("/sgv.json", "[]")
-        respond("/x/live", "event: glucose\ndata: {\"timestamp\":1760776860,\"glucoseMgDl\":121,\"sensorId\":1}\n\n", holdOpen = true)
-        server.executor = Executors.newCachedThreadPool()
-        server.start()
-        val kind = MutableStateFlow(SensorSourceKind.Juggluco)
-        val manager = SourceManager(
-            kind, PairingStore(InMemorySecureStore()), NoSecurity, FakeConnector(),
-            juggluco = { JugglucoSource(OkHttpClient(), "http://127.0.0.1:${server.address.port}") { ZoneOffset.UTC } },
-            clock = FakeClock(), dispatcher = Dispatchers.Default.limitedParallelism(1), io = Dispatchers.IO,
-        )
-        try {
-            manager.start()
-            withTimeout(10_000) { manager.status.first { it is SourceStatus.Live } }
-            kind.value = SensorSourceKind.Libre3
-            withTimeout(5_000) { manager.detail.first { it == SensorStatus.NoSensor } }
-        } finally {
-            manager.stop()
-            server.stop(0)
-        }
-    }
 
     @Test
     fun everyProblemHasItsAction() {

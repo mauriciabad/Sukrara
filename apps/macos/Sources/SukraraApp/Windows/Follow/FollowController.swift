@@ -19,7 +19,9 @@ public enum FollowFailure: Error, Equatable, Sendable {
         case .offline: L10n.t("Can't reach the relays. Check the internet connection and try again.")
         case .fingerprintMismatch: L10n.t("This invite doesn't match the link. Ask for a new invite on the phone.")
         case .alreadyFollowing:
-            L10n.t("This Mac already follows someone. Stop following in Settings › General first, then open the link again.")
+            L10n.t(
+                "This Mac already follows someone. Stop following in Settings › General first, then open the link again."
+            )
         case .keychain: L10n.t("Sukrara couldn't save the follow key in the Keychain. Try again.")
         case .noQRCode: L10n.t("No Sukrara invite QR code found in that image.")
         }
@@ -66,7 +68,9 @@ public final class FollowModel {
     /// Look for phones offering nearby pairing (on while a follow step is on screen and not following).
     @ObservationIgnored public var searchNearby: (Bool) -> Void = { _ in }
 
-    public init(status: FollowStatus, actions: (any FollowActions)?, macName: String = Host.current().localizedName ?? "Mac") {
+    public init(
+        status: FollowStatus, actions: (any FollowActions)?, macName: String = Host.current().localizedName ?? "Mac"
+    ) {
         self.status = status
         self.actions = actions
         self.macName = macName

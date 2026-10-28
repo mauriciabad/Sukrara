@@ -11,10 +11,10 @@ import app.mauri.sukrara.share.OwnerFixtures
 import app.mauri.sukrara.share.OwnerFixtures.crypto
 import app.mauri.sukrara.share.owner.usecase.CreateIdentity
 import app.mauri.sukrara.share.owner.usecase.PublishReadings
-import java.time.Instant
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.time.Instant
 
 /** Synthetic readings only. Events are decoded with :core:protocol as a follower would. */
 class PublishReadingsTest {

@@ -56,19 +56,21 @@ class Avatar private constructor(val json: JsonObject) {
         }
 
         /** A normalised v1 avatar: `c` mod 8, unknown shape → cube, `a` mod 360 down to a multiple of 15, `n` & 0x7fffffff. */
-        fun v1(colors: Int, shape: String, angle: Int, seed: Long) = Avatar(
-            buildJsonObject {
-                put("v", 1)
-                put("c", Math.floorMod(colors, PALETTES))
-                put("s", shape.takeIf { it in SHAPES } ?: "cube")
-                put("a", Math.floorMod(angle, 360) / 15 * 15)
-                put("n", seed and 0x7fffffffL)
-            },
-        )
+        fun v1(colors: Int, shape: String, angle: Int, seed: Long) =
+            Avatar(
+                buildJsonObject {
+                    put("v", 1)
+                    put("c", Math.floorMod(colors, PALETTES))
+                    put("s", shape.takeIf { it in SHAPES } ?: "cube")
+                    put("a", Math.floorMod(angle, 360) / 15 * 15)
+                    put("n", seed and 0x7fffffffL)
+                },
+            )
 
         /** v1 `dots`: five circles from `sha256("sukrara/avatar/v1/dots:" + n)` (contracts/protocol/identity/avatar-v1.json). */
         fun v1Dots(seed: Long): List<Dot> {
             val h = Hex.sha256("sukrara/avatar/v1/dots:$seed".toByteArray())
+
             fun u(i: Int) = (h[i].toInt() and 0xff) / 255.0
             return (0 until 5).map { k ->
                 Dot(0.25 + 0.5 * u(4 * k + 1), 0.25 + 0.5 * u(4 * k + 2), 0.08 + 0.12 * u(4 * k), 90 + (110 * u(4 * k + 3)).toInt())
@@ -79,10 +81,11 @@ class Avatar private constructor(val json: JsonObject) {
 
 /** A person's self-asserted name and picture. Travels only inside encrypted messages; authenticates nothing. */
 data class Profile(val name: String, val avatar: Avatar?) {
-    fun toJson(): JsonObject = buildJsonObject {
-        put("name", name)
-        put("avatar", avatar?.json ?: JsonNull)
-    }
+    fun toJson(): JsonObject =
+        buildJsonObject {
+            put("name", name)
+            put("avatar", avatar?.json ?: JsonNull)
+        }
 
     companion object {
         const val MAX_NAME = 40
@@ -92,7 +95,14 @@ data class Profile(val name: String, val avatar: Avatar?) {
 
         fun of(e: JsonElement?): Profile? {
             val o = e as? JsonObject ?: return null
-            return Profile(o.string("name").orEmpty().trim().take(MAX_NAME), Avatar.of(o.obj("avatar")))
+            return Profile(
+                o
+                    .string("name")
+                    .orEmpty()
+                    .trim()
+                    .take(MAX_NAME),
+                Avatar.of(o.obj("avatar")),
+            )
         }
     }
 }

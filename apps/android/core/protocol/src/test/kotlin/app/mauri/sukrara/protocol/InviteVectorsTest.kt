@@ -24,12 +24,13 @@ class InviteVectorsTest {
     private val ogs = OgsVectors()
 
     @Test fun hkdfMatchesRfc5869TestCase1() {
-        val okm = Derive.hkdf(
-            Hex.decode("0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b")!!,
-            Hex.decode("000102030405060708090a0b0c")!!,
-            Hex.decode("f0f1f2f3f4f5f6f7f8f9")!!,
-            42,
-        )
+        val okm =
+            Derive.hkdf(
+                Hex.decode("0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b")!!,
+                Hex.decode("000102030405060708090a0b0c")!!,
+                Hex.decode("f0f1f2f3f4f5f6f7f8f9")!!,
+                42,
+            )
         assertEquals("3cb25f25faacd57a90434f64d0362f2a2d2d0a90cf1a5a4c5db02d56ecc4c5bf34007208d5b887185865", Hex.encode(okm))
     }
 
@@ -51,7 +52,10 @@ class InviteVectorsTest {
         assertEquals(inv.str("token"), link.token)
         assertEquals(inv.str("invite_key_pub"), Invites.inviteKey(crypto, link).public.hex)
         assertEquals(inv.str("match_code(F)"), Invites.matchCode(ogs.key("F").public, link.token))
-        assertEquals(link.link, InviteLink.parse("  " + inv.str("link").replace(InviteLink.INVITE_BASE, InviteLink.APP_SCHEME) + "\n")!!.link)
+        assertEquals(
+            link.link,
+            InviteLink.parse("  " + inv.str("link").replace(InviteLink.INVITE_BASE, InviteLink.APP_SCHEME) + "\n")!!.link,
+        )
     }
 
     @Test fun onlyTheExactFormIsAnInvite() {
@@ -66,17 +70,24 @@ class InviteVectorsTest {
     }
 
     @Test fun invitesOpenOnlyWithFingerprintAndExpiry() {
-        val link = InviteLink.parse(ogs.derivations.getValue("invite").jsonObject.str("link"))!!
+        val link =
+            InviteLink.parse(
+                ogs.derivations
+                    .getValue("invite")
+                    .jsonObject
+                    .str("link"),
+            )!!
         ogs.root.getValue("invite_checks").jsonArray.forEach { c ->
             val o = c.jsonObject
             val now = o["now"]?.jsonPrimitive?.content?.toLong() ?: ogs.now
             val result = Invites.open(crypto, link, listOf(ogs.events.getValue(o.str("wrap"))), now)
-            val expected = when (o.str("expect")) {
-                "ok" -> null
-                "fingerprint-mismatch" -> InviteFailure.FingerprintMismatch
-                "expired" -> InviteFailure.Expired
-                else -> error("unknown expectation")
-            }
+            val expected =
+                when (o.str("expect")) {
+                    "ok" -> null
+                    "fingerprint-mismatch" -> InviteFailure.FingerprintMismatch
+                    "expired" -> InviteFailure.Expired
+                    else -> error("unknown expectation")
+                }
             if (expected == null) {
                 val opened = (result as Invites.Result.Opened).invite
                 assertEquals(ogs.key("I").public, opened.identity)
@@ -86,13 +97,25 @@ class InviteVectorsTest {
             }
         }
         assertEquals(Invites.Result.Failed(InviteFailure.NothingFound), Invites.open(crypto, link, emptyList(), ogs.now))
-        assertEquals(Invites.Result.Failed(InviteFailure.DoesNotOpen), Invites.open(crypto, link, listOf(ogs.events.getValue("key-1")), ogs.now))
+        assertEquals(
+            Invites.Result.Failed(InviteFailure.DoesNotOpen),
+            Invites.open(crypto, link, listOf(ogs.events.getValue("key-1")), ogs.now),
+        )
     }
 
     @Test fun createdInvitesOpenWithTheirOwnLink() {
         val i = ogs.key("I")
         val secret = ByteArray(16) { it.toByte() }
-        val (link, wrap) = Invites.create(crypto, i, secret, ogs.now, ogs.now + 86_400, listOf("wss://nos.lol", "ws://bad"), Profile("Alex", null))
+        val (link, wrap) =
+            Invites.create(
+                crypto,
+                i,
+                secret,
+                ogs.now,
+                ogs.now + 86_400,
+                listOf("wss://nos.lol", "ws://bad"),
+                Profile("Alex", null),
+            )
         val opened = Invites.open(crypto, InviteLink.parse(link.link)!!, listOf(wrap), ogs.now) as Invites.Result.Opened
         assertEquals(listOf("wss://nos.lol"), opened.invite.relays)
         assertEquals("Alex", opened.invite.profile?.name)

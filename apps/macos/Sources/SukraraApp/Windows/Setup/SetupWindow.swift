@@ -46,14 +46,20 @@ public struct SetupView: View {
                 case .welcome: welcome
                 case .follow: page(.follow, L10n.t("Follow someone")) { FollowStep(follow: model.follow) }
                 case .alerts: page(.alerts, L10n.t("Check your alerts")) { thresholds }
-                case .notifications: page(.notifications, L10n.t("Allow notifications")) {
-                    Text(L10n.t("Alerts reach you as notifications, even when Sukrara is in the background."))
-                    Text(L10n.t("A Focus (Do Not Disturb, Sleep…) can hold back Sukrara's alarms on this Mac. Allow Sukrara in each Focus, and keep the phone as the alarm."))
+                case .notifications:
+                    page(.notifications, L10n.t("Allow notifications")) {
+                        Text(L10n.t("Alerts reach you as notifications, even when Sukrara is in the background."))
+                        Text(
+                            L10n.t(
+                                "A Focus (Do Not Disturb, Sleep…) can hold back Sukrara's alarms on this Mac. Allow Sukrara in each Focus, and keep the phone as the alarm."
+                            )
+                        )
                         .foregroundStyle(.secondary)
-                }
-                case .openAtLogin: page(.openAtLogin, L10n.t("Open at login")) {
-                    Text(L10n.t("Sukrara starts when you log in, so the menu bar always shows the glucose."))
-                }
+                    }
+                case .openAtLogin:
+                    page(.openAtLogin, L10n.t("Open at login")) {
+                        Text(L10n.t("Sukrara starts when you log in, so the menu bar always shows the glucose."))
+                    }
                 case nil: done
                 }
             }
@@ -67,10 +73,15 @@ public struct SetupView: View {
     private var welcome: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text(L10n.t("Welcome to Sukrara")).font(.largeTitle.bold())
-            Text(L10n.t("Sukrara shows the glucose of someone you follow in the menu bar and alerts you when it's out of range."))
+            Text(
+                L10n.t(
+                    "Sukrara shows the glucose of someone you follow in the menu bar and alerts you when it's out of range."
+                ))
             HStack {
                 Spacer()
-                Button(L10n.t("Set up later")) { model.skip(.welcome); close() }
+                Button(L10n.t("Set up later")) {
+                    model.skip(.welcome); close()
+                }
                 Button(L10n.t("Start")) { model.complete(.welcome) }.keyboardShortcut(.defaultAction)
             }
         }
@@ -81,7 +92,9 @@ public struct SetupView: View {
             Text(L10n.t("Sukrara alerts at these values. Use them, or change them in Settings › Alerts."))
             ForEach([AlertKind.veryLow, .low, .high, .veryHigh, .extremelyHigh], id: \.self) { k in
                 LabeledContent(AlertsRangesPane.kindName(k)) {
-                    Text(model.alerts.settings[k].on ? "\(Int(model.alerts.settings[k].threshold)) mg/dL" : L10n.t("Off"))
+                    Text(
+                        model.alerts.settings[k].on ? "\(Int(model.alerts.settings[k].threshold)) mg/dL" : L10n.t("Off")
+                    )
                 }
                 .frame(minHeight: 24)
             }

@@ -11,7 +11,6 @@ import app.mauri.sukrara.protocol.UnsignedEvent
 import app.mauri.sukrara.protocol.Wire
 import app.mauri.sukrara.protocol.ble.HelloProof
 import app.mauri.sukrara.protocol.testing.OgsVectors.Companion.str
-import java.security.MessageDigest
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonArray
@@ -24,6 +23,7 @@ import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.security.MessageDigest
 
 /**
  * What every [NostrCrypto] implementation must do, checked against the OGS vectors (the Python reference's bytes).
@@ -90,26 +90,31 @@ abstract class NostrCryptoContractTest {
     private fun handMadeWrap(sealer: KeyPair, rumorAuthor: PublicKeyHex, to: PublicKeyHex): SignedEvent {
         val content = """{"v":2,"type":"rekey","have":"00000000"}"""
         val createdAt = v.now
-        val serial = buildJsonArray {
-            add(JsonPrimitive(0))
-            add(JsonPrimitive(rumorAuthor.hex))
-            add(JsonPrimitive(createdAt))
-            add(JsonPrimitive(Wire.KIND_TO_OWNER))
-            add(JsonArray(emptyList()))
-            add(JsonPrimitive(content))
-        }.toString()
+        val serial =
+            buildJsonArray {
+                add(JsonPrimitive(0))
+                add(JsonPrimitive(rumorAuthor.hex))
+                add(JsonPrimitive(createdAt))
+                add(JsonPrimitive(Wire.KIND_TO_OWNER))
+                add(JsonArray(emptyList()))
+                add(JsonPrimitive(content))
+            }.toString()
         val id = MessageDigest.getInstance("SHA-256").digest(serial.toByteArray()).joinToString("") { "%02x".format(it) }
-        val rumor = buildJsonObject {
-            put("id", id)
-            put("pubkey", rumorAuthor.hex)
-            put("created_at", createdAt)
-            put("kind", Wire.KIND_TO_OWNER)
-            put("tags", JsonArray(emptyList()))
-            put("content", content)
-        }.toString()
+        val rumor =
+            buildJsonObject {
+                put("id", id)
+                put("pubkey", rumorAuthor.hex)
+                put("created_at", createdAt)
+                put("kind", Wire.KIND_TO_OWNER)
+                put("tags", JsonArray(emptyList()))
+                put("content", content)
+            }.toString()
         val seal = crypto.sign(sealer, UnsignedEvent(13, crypto.encrypt(sealer.secret, to, rumor), emptyList(), createdAt))
         val oneTime = crypto.generate()
-        return crypto.sign(oneTime, UnsignedEvent(Wire.KIND_WRAP, crypto.encrypt(oneTime.secret, to, seal.toJson()), listOf(listOf("p", to.hex)), createdAt))
+        return crypto.sign(
+            oneTime,
+            UnsignedEvent(Wire.KIND_WRAP, crypto.encrypt(oneTime.secret, to, seal.toJson()), listOf(listOf("p", to.hex)), createdAt),
+        )
     }
 
     @Test fun signedEventsVerifyAndKeepTheirFields() {
@@ -138,7 +143,12 @@ abstract class NostrCryptoContractTest {
     }
 
     @Test fun helloProofFromTheVectorIdentifiesTheFollowerAndDevice() {
-        val h = v.root.getValue("ble").jsonObject.getValue("hello_id").jsonObject
+        val h =
+            v.root
+                .getValue("ble")
+                .jsonObject
+                .getValue("hello_id")
+                .jsonObject
         val sig = h.getValue("hello").let { (it as JsonArray)[1].jsonObject.str("id") }
         val f = PublicKeyHex(h.str("follower"))
         val found = HelloProof.identify(crypto, sig, h.str("sid"), h.str("nonce"), listOf(v.key("W").public, f))

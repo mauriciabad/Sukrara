@@ -71,16 +71,18 @@ class AlertRig(val clock: FakeClock = FakeClock(Instant.ofEpochSecond(1_760_000_
 
     fun reading(mgdl: Int, at: Instant = clock.now()) = Reading(at, mgdl, null, SourceId.Libre3)
 
-    fun wearerState(latest: Reading?, monitoring: Boolean = true) = GlucoseState.Initial.copy(
-        role = Role.Wearer,
-        latest = latest,
-        monitoringStartedAt = if (monitoring) latest?.t ?: clock.now() else null,
-    )
+    fun wearerState(latest: Reading?, monitoring: Boolean = true) =
+        GlucoseState.Initial.copy(
+            role = Role.Wearer,
+            latest = latest,
+            monitoringStartedAt = if (monitoring) latest?.t ?: clock.now() else null,
+        )
 }
 
 /** [d] as the treatment log the runtime reads after a restart. */
 fun treatmentsOf(d: Doses): List<Treatment> =
-    d.carbs.mapIndexed { i, t -> treatment("c$i", TreatmentKind.Carbs, t) } + d.rapid.mapIndexed { i, t -> treatment("r$i", TreatmentKind.RapidInsulin, t) }
+    d.carbs.mapIndexed { i, t -> treatment("c$i", TreatmentKind.Carbs, t) } +
+        d.rapid.mapIndexed { i, t -> treatment("r$i", TreatmentKind.RapidInsulin, t) }
 
 private fun treatment(id: String, kind: TreatmentKind, t: Long) =
     Treatment(id, kind, 1.0, Instant.ofEpochSecond(t), modifiedAt = Instant.ofEpochSecond(t), origin = TreatmentOrigin.Phone)

@@ -7,9 +7,9 @@ import android.Manifest
 import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
+import android.icu.text.MeasureFormat
 import android.icu.util.Measure
 import android.icu.util.MeasureUnit
-import android.icu.text.MeasureFormat
 import android.net.Uri
 import android.provider.Settings
 import androidx.activity.compose.BackHandler
@@ -33,6 +33,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
@@ -82,8 +83,9 @@ fun NewSensorRoute(
     LaunchedEffect(viewModel) {
         viewModel.effects.collect { haptics.confirm() } // the tap worked / the sensor is ready
     }
+    val currentOnDone by rememberUpdatedState(onDone)
     LaunchedEffect(step) {
-        if (step == NewSensorStep.Cancelled || step == NewSensorStep.LeftRunning) onDone()
+        if (step == NewSensorStep.Cancelled || step == NewSensorStep.LeftRunning) currentOnDone()
     }
     // on for the whole flow, also while a tag is being read (turning it off mid-read restarts polling and can cut the
     // exchange, and the system's own tag dispatch would take the tag); the view model takes a tag only when it may
@@ -108,18 +110,49 @@ fun NewSensorRoute(
 
     NewSensorContent(step, now, modifier) { action ->
         when (action) {
-            NewSensorAction.TryAgain -> viewModel.onRetry()
-            NewSensorAction.SignIn -> onSignIn()
-            NewSensorAction.NfcSettings -> context.open(Intent(Settings.ACTION_NFC_SETTINGS))
-            NewSensorAction.BluetoothSettings -> context.open(Intent(Settings.ACTION_BLUETOOTH_SETTINGS))
-            NewSensorAction.AllowBluetooth -> bluetoothPermission.launch(Manifest.permission.BLUETOOTH_CONNECT)
-            NewSensorAction.AllowNotifications -> notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
-            NewSensorAction.AppSettings ->
+            NewSensorAction.TryAgain -> {
+                viewModel.onRetry()
+            }
+
+            NewSensorAction.SignIn -> {
+                onSignIn()
+            }
+
+            NewSensorAction.NfcSettings -> {
+                context.open(Intent(Settings.ACTION_NFC_SETTINGS))
+            }
+
+            NewSensorAction.BluetoothSettings -> {
+                context.open(Intent(Settings.ACTION_BLUETOOTH_SETTINGS))
+            }
+
+            NewSensorAction.AllowBluetooth -> {
+                bluetoothPermission.launch(Manifest.permission.BLUETOOTH_CONNECT)
+            }
+
+            NewSensorAction.AllowNotifications -> {
+                notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
+            }
+
+            NewSensorAction.AppSettings -> {
                 context.open(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", context.packageName, null)))
-            NewSensorAction.Continue, NewSensorAction.NotNow -> viewModel.onContinue()
-            NewSensorAction.UseJuggluco -> viewModel.onUseJuggluco()
-            NewSensorAction.Cancel, NewSensorAction.Close -> viewModel.onCancel()
-            NewSensorAction.Done -> if (step.isFinal) onDone() else viewModel.onCancel()
+            }
+
+            NewSensorAction.Continue, NewSensorAction.NotNow -> {
+                viewModel.onContinue()
+            }
+
+            NewSensorAction.UseJuggluco -> {
+                viewModel.onUseJuggluco()
+            }
+
+            NewSensorAction.Cancel, NewSensorAction.Close -> {
+                viewModel.onCancel()
+            }
+
+            NewSensorAction.Done -> {
+                if (step.isFinal) onDone() else viewModel.onCancel()
+            }
         }
     }
 }
@@ -192,8 +225,10 @@ private fun Countdown(readyAt: Instant, now: Instant) {
     val minutes = (seconds + 59) / 60
     val resources = LocalContext.current.resources
     val shown = Durations.text(minutes, CardWords.of(resources).durations)
-    val spoken = MeasureFormat.getInstance(LocalConfiguration.current.locales[0], MeasureFormat.FormatWidth.WIDE)
-        .format(Measure(minutes, MeasureUnit.MINUTE))
+    val spoken =
+        MeasureFormat
+            .getInstance(LocalConfiguration.current.locales[0], MeasureFormat.FormatWidth.WIDE)
+            .format(Measure(minutes, MeasureUnit.MINUTE))
     val description = stringResource(R.string.newsensor_ready_in, spoken)
     Text(
         stringResource(R.string.newsensor_ready_in, shown),

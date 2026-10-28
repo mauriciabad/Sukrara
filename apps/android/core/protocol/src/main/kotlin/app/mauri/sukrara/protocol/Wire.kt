@@ -53,11 +53,17 @@ object Wire {
     fun hourOf(t: Long): Long = t - Math.floorMod(t, HOUR)
 
     fun chunkD(sid: String, hour: Long) = h("cgm2:h:$sid:$hour")
+
     fun glucoseC(sid: String) = h("cgm2:glucose:$sid")
+
     fun rosterD(sid: String) = h("cgm2:roster:$sid")
+
     fun backupD(identity: PublicKeyHex) = h("cgm2:backup:${identity.hex}")
+
     fun treatmentsC(sid: String) = h("cgm2:treatments:$sid")
+
     fun treatmentD(sid: String, id: String) = h("cgm2:tr:$sid:$id")
+
     fun settingsD(sid: String) = h("cgm2:settings:$sid")
 
     /** Relay URLs the protocol accepts from a payload: secure websockets only. */
