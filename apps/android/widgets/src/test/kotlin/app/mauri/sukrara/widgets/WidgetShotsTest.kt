@@ -36,7 +36,7 @@ import kotlin.math.sin
 /**
  * Roborazzi goldens of the three widgets through [renderWidget] (synthetic readings only) at 2×2 and 4×2 on one phone:
  * light + dark × default + largest font (a taller cell) while fresh; stale (6 min) and hidden (25 min) in light.
- * `recordRoborazziDebug` writes src/test/snapshots.
+ * The Goldens workflow (CI, Linux) records src/test/snapshots.
  */
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)

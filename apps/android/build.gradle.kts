@@ -20,3 +20,14 @@ plugins {
 tasks.register("check") {
     dependsOn(gradle.includedBuild("build-logic").task(":convention:test"))
 }
+
+// The verified goldens (:core:graph, :widgets) are recorded only on CI (.github/workflows/goldens.yml): Robolectric
+// draws text and blends a little differently on macOS and Linux, so a Mac recording fails CI's verify. Locally,
+// `compareRoborazziDebug` shows the diff. (Other modules' screenshot galleries still record locally.)
+val recordsGoldens = Regex("^(:core:graph:|:widgets:)?recordRoborazzi")
+if (System.getenv("CI") == null && gradle.startParameter.taskNames.any { recordsGoldens.containsMatchIn(it) }) {
+    throw GradleException(
+        "Roborazzi goldens are recorded on CI only: gh workflow run goldens.yml --ref <branch> " +
+            "(locally, compareRoborazziDebug shows the diff)",
+    )
+}

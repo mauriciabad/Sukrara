@@ -9,7 +9,7 @@ screenshots so no other apps' notifications show, and keep phone checks read-onl
 
 Automated already (don't repeat by hand): `tools/check/run.sh` (repo rules, `--layout` for the cross-surface card
 tests), Android unit tests (`cd apps/android && ./gradlew check`: alert scenarios, graph fixtures, strings parity,
-Roborazzi goldens), Mac tests (`cd apps/macos && swift test`). CI runs all of them (`.github/workflows/checks.yml`).
+Roborazzi goldens: verified on CI only, re-recorded by `gh workflow run goldens.yml --ref <branch>`), Mac tests (`cd apps/macos && swift test`). CI runs all of them (`.github/workflows/checks.yml`).
 
 - **Emulator**: `medium_phone` (wearer, debug build = synthetic glucose) and `small_phone` (follower); at most two at
   once. DebugReceiver: `adb shell am broadcast -n app.mauri.sukrara/.debug.DebugReceiver
