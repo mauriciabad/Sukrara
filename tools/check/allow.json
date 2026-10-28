@@ -90,6 +90,10 @@
     {
       "path": "apps/android/integrations/src/main/kotlin/app/mauri/sukrara/integrations/localserver/LocalHttpServer.kt",
       "reason": "xDrip+ server for Garmin watches: listens (never connects) on 127.0.0.1 only; bounded pool, request head and deadline; off by default"
+    },
+    {
+      "path": "apps/android/integrations/src/main/kotlin/app/mauri/sukrara/integrations/tidepool/TidepoolClient.kt",
+      "reason": "Tidepool upload: fixed https api.tidepool.org (tests: MockWebServer on loopback); redirects never followed; the session token never in logs or reasons"
     }
   ],
   "durations_ok": {},

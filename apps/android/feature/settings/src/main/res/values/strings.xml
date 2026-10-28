@@ -124,6 +124,7 @@
     <string name="st_apps_libreview" translatable="false">LibreView</string>
     <string name="st_apps_nightscout">Nightscout upload</string>
     <string name="st_apps_xdrip">xDrip+ server</string>
+    <string name="st_apps_tidepool">Tidepool</string>
     <string name="st_apps_nightscout_api">Nightscout API</string>
     <string name="st_show_closed_tips">Show closed tips</string>
     <plurals name="st_closed_tips">

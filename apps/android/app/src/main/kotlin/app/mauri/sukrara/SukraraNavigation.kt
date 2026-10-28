@@ -65,6 +65,7 @@ import app.mauri.sukrara.integrations.export.ExportPage
 import app.mauri.sukrara.integrations.libreview.LibreViewPage
 import app.mauri.sukrara.integrations.localserver.NightscoutApiPage
 import app.mauri.sukrara.integrations.nightscout.NightscoutPage
+import app.mauri.sukrara.integrations.tidepool.TidepoolPage
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.serialization.Serializable
@@ -124,6 +125,10 @@ data object ExportRoute : NavKey
 /** Settings › Share with apps › LibreView. */
 @Serializable
 data object LibreViewRoute : NavKey
+
+/** Settings › Share with apps › Tidepool. */
+@Serializable
+data object TidepoolRoute : NavKey
 
 /** Settings › Share with apps › Nightscout API on this phone. */
 @Serializable
@@ -376,7 +381,13 @@ fun SukraraNavigation(
                                 openExport = { backStack.push(ExportRoute) },
                                 openLibreView = { backStack.push(LibreViewRoute) },
                                 openNightscoutApi = { backStack.push(NightscoutApiRoute) },
+                                openTidepool = { backStack.push(TidepoolRoute) },
                             )
+                        }
+                    }
+                    entry<TidepoolRoute> {
+                        SettingsPage(stringResource(IntegrationsR.string.in_tp_title), { backStack.pop(TidepoolRoute) }) {
+                            TidepoolPage(viewModel(factory = graph.integrations.tidepoolViewModels))
                         }
                     }
                     entry<NightscoutApiRoute> {

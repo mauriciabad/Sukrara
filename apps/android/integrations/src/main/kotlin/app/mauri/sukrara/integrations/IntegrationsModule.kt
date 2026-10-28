@@ -31,6 +31,9 @@ import app.mauri.sukrara.integrations.localserver.XdripServer
 import app.mauri.sukrara.integrations.nightscout.NightscoutUploader
 import app.mauri.sukrara.integrations.nightscout.NightscoutViewModel
 import app.mauri.sukrara.integrations.nightscout.NsState
+import app.mauri.sukrara.integrations.tidepool.TidepoolUploader
+import app.mauri.sukrara.integrations.tidepool.TidepoolViewModel
+import app.mauri.sukrara.integrations.tidepool.TpState
 import app.mauri.sukrara.integrations.upload.UploadStatus
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
@@ -45,6 +48,7 @@ data class AppsSummary(
     val xdripServer: Boolean,
     val libreView: Boolean,
     val nightscoutApi: Boolean = false,
+    val tidepool: Boolean = false,
 )
 
 /**
@@ -58,6 +62,8 @@ class IntegrationsModule(
     secure: SecureStore,
     nightscoutState: StateStore<NsState>,
     libreViewState: StateStore<LvState>,
+    tidepoolState: StateStore<TpState>,
+    appVersion: String,
     readings: ReadingsRepository,
     treatments: TreatmentsRepository,
     sensor: Flow<CurrentSensor?>,
@@ -109,11 +115,32 @@ class IntegrationsModule(
 
     val xdrip = XdripServer(settings, readings, sensor, jugglucoIsSource, clock, dispatchers.io)
 
+    val tidepool =
+        TidepoolUploader(
+            settings,
+            secure,
+            tidepoolState,
+            readings,
+            treatments,
+            role,
+            http,
+            appVersion,
+            clock,
+            dispatchers.io,
+            log,
+        )
+
     val nightscoutApi = NightscoutApiServer(settings, secure, readings, treatments, clock, dispatchers.io)
 
     val summary: Flow<AppsSummary> =
-        combine(nightscout.page, xdrip.on, libreView.page, nightscoutApi.on) { ns, x, lv, api ->
-            AppsSummary(ns.status != UploadStatus.Off, x, lv.status != UploadStatus.Off && lv.status != UploadStatus.Setup, api)
+        combine(nightscout.page, xdrip.on, libreView.page, nightscoutApi.on, tidepool.status) { ns, x, lv, api, tp ->
+            AppsSummary(
+                ns.status != UploadStatus.Off,
+                x,
+                lv.status != UploadStatus.Off && lv.status != UploadStatus.Setup,
+                api,
+                tp != UploadStatus.Off && tp != UploadStatus.Setup,
+            )
         }
 
     /**
@@ -129,6 +156,7 @@ class IntegrationsModule(
     suspend fun load() {
         nightscout.load()
         libreView.load()
+        tidepool.load()
         // a shared export never lingers in the cache
         ExportViewModel.exportDir(context)
     }
@@ -136,6 +164,7 @@ class IntegrationsModule(
     fun start(scope: CoroutineScope) {
         nightscout.start(scope)
         libreView.start(scope)
+        tidepool.start(scope)
         xdrip.start(scope)
         nightscoutApi.start(scope)
     }
@@ -144,6 +173,9 @@ class IntegrationsModule(
 
     val appsViewModels: ViewModelProvider.Factory
         get() = viewModelFactory { initializer { AppsViewModel(this@IntegrationsModule, context, dispatchers.io) } }
+
+    val tidepoolViewModels: ViewModelProvider.Factory
+        get() = viewModelFactory { initializer { TidepoolViewModel(tidepool) { clock.now() } } }
 
     val nightscoutApiViewModels: ViewModelProvider.Factory
         get() = viewModelFactory { initializer { NightscoutApiViewModel(nightscoutApi) } }

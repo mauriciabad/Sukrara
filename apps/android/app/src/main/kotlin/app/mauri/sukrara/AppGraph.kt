@@ -39,6 +39,7 @@ import app.mauri.sukrara.integrations.libreview.LvGlucose
 import app.mauri.sukrara.integrations.libreview.LvReadings
 import app.mauri.sukrara.integrations.libreview.LvState
 import app.mauri.sukrara.integrations.nightscout.NsState
+import app.mauri.sukrara.integrations.tidepool.TpState
 import app.mauri.sukrara.monitor.MonitorModule
 import app.mauri.sukrara.monitor.alerts.AlertRecord
 import app.mauri.sukrara.monitor.alerts.AlertsModule
@@ -248,6 +249,7 @@ class AppGraph(
                         AppOutput.NightscoutUpload.takeIf { s.nightscoutUpload },
                         AppOutput.XdripServer.takeIf { s.xdripServer },
                         AppOutput.NightscoutApi.takeIf { s.nightscoutApi },
+                        AppOutput.Tidepool.takeIf { s.tidepool },
                     )
                 },
         )
@@ -263,6 +265,9 @@ class AppGraph(
             nightscoutState = data.typedStore("nightscout-upload", NsState.serializer(), NsState(), whenCorrupt = NsState()),
             // a lost state re-sends nothing old (each part starts again from now) but can't retract versions sent before
             libreViewState = data.typedStore("libreview-upload", LvState.serializer(), LvState(), whenCorrupt = LvState()),
+            // a lost state re-sends what the phone keeps; Tidepool replaces each datum by its origin id (no duplicates)
+            tidepoolState = data.typedStore("tidepool-upload", TpState.serializer(), TpState(), whenCorrupt = TpState()),
+            appVersion = appVersion,
             readings = data.readings,
             treatments = data.treatments,
             sensor =
