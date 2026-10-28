@@ -1,4 +1,4 @@
-// Sukrara — https://github.com/mauriciabad/Sukrara
+// Sukrara — https://github.com/mauriciabad/sukrara
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.core.model
@@ -6,7 +6,7 @@ package app.mauri.sukrara.core.model
 import kotlinx.coroutines.flow.StateFlow
 
 /**
- * What alerts need from the phone to ring, as one checklist (CHANGES P5): the home screen's reliability row and the
+ * What alerts need from the phone to ring, as one checklist: the home screen's reliability row and the
  * first-run setup's permission step render the same items in the same order. Implemented by the alert runtime /
  * monitor (it reads the permissions and channel settings); screens only render it and ask to fix an item.
  */

@@ -1,4 +1,4 @@
-// Sukrara — https://github.com/mauriciabad/Sukrara
+// Sukrara — https://github.com/mauriciabad/sukrara
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.feature.sensor.libreview
@@ -12,7 +12,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
-/** Chunk 12's LibreView account (receiver ID only; it stores the email and the receiver ID, never the password). */
+/** The LibreView account (receiver ID only; it stores the email and the receiver ID, never the password). */
 interface LibreViewPort {
     val email: Flow<String?>
 
@@ -35,7 +35,7 @@ sealed interface SignInUi {
 }
 
 /**
- * LibreView sign-in for the account receiver ID (CHANGES P1). The password exists only in the form field and the one
+ * LibreView sign-in for the account receiver ID. The password exists only in the form field and the one
  * call; nothing is uploaded. Signing out keeps a running sensor going; the next start needs a sign-in again.
  */
 class LibreViewSignInViewModel(private val port: LibreViewPort) : ViewModel() {

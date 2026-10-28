@@ -1,4 +1,4 @@
-// Sukrara — https://github.com/mauriciabad/Sukrara
+// Sukrara — https://github.com/mauriciabad/sukrara
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.share.owner
@@ -18,7 +18,6 @@ import app.mauri.sukrara.share.owner.usecase.HandleInbox
 import app.mauri.sukrara.share.owner.usecase.RestoreIdentity
 import app.mauri.sukrara.share.owner.usecase.RestoreIdentity.Result
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -28,7 +27,7 @@ class RestoreIdentityTest {
     private val use = RestoreIdentity(ctx)
     private val follower = crypto.generate()
 
-    /** The old phone (or the showcase): identity, one approved follower, its published roster + backup. */
+    /** The old phone: identity, one approved follower, its published roster + backup. */
     private val identityStep = CreateIdentity(ctx)(null, NOW - 50)
     private val old = run {
         val created = CreateInvite(ctx)(identityStep.state, "Mac", NOW)
@@ -81,11 +80,5 @@ class RestoreIdentityTest {
         assertTrue(use.restore(identity, emptyList(), answered = 3, now = NOW) is Result.NoBackupFound)
         val stranger = crypto.generate()
         assertTrue(use.restore(stranger, relayEvents, answered = 1, now = NOW) is Result.NoBackupFound)
-    }
-
-    @Test fun restoreGate() {
-        assertTrue(RestoreIdentity.restoreAllowed(showcaseInstalled = false, userConfirmedShowcaseOff = false))
-        assertFalse(RestoreIdentity.restoreAllowed(showcaseInstalled = true, userConfirmedShowcaseOff = false))
-        assertTrue(RestoreIdentity.restoreAllowed(showcaseInstalled = true, userConfirmedShowcaseOff = true))
     }
 }

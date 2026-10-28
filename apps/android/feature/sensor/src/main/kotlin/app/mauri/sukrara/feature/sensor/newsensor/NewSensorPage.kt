@@ -1,4 +1,4 @@
-// Sukrara — https://github.com/mauriciabad/Sukrara
+// Sukrara — https://github.com/mauriciabad/sukrara
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.feature.sensor.newsensor
@@ -10,7 +10,6 @@ import app.mauri.sukrara.feature.sensor.R
 enum class NewSensorAction(@param:StringRes val label: Int) {
     TryAgain(R.string.newsensor_action_try_again),
     SignIn(R.string.newsensor_action_sign_in),
-    OpenShowcase(R.string.newsensor_action_open_showcase),
     NfcSettings(R.string.newsensor_action_nfc_settings),
     BluetoothSettings(R.string.newsensor_action_bt_settings),
     AllowBluetooth(R.string.newsensor_action_allow),
@@ -63,11 +62,6 @@ fun NewSensorStep.page(): NewSensorPage =
             R.string.newsensor_signin_text,
             listOf(NewSensorAction.SignIn, NewSensorAction.Cancel),
         )
-        NewSensorStep.ShowcaseWarning -> NewSensorPage(
-            R.string.newsensor_showcase_title,
-            R.string.newsensor_showcase_text,
-            listOf(NewSensorAction.OpenShowcase, NewSensorAction.Continue, NewSensorAction.Cancel),
-        )
         NewSensorStep.OfficialAppWarning -> NewSensorPage(
             R.string.newsensor_official_title,
             R.string.newsensor_official_text,
@@ -108,19 +102,11 @@ fun NewSensorStep.page(): NewSensorPage =
                 listOf(NewSensorAction.TryAgain, NewSensorAction.UseJuggluco, NewSensorAction.Done),
             )
         }
-        is NewSensorStep.TakeoverFailed -> if (showcaseInstalled) {
-            NewSensorPage(
-                R.string.newsensor_takeover_title,
-                R.string.newsensor_takeover_showcase_text,
-                listOf(NewSensorAction.OpenShowcase, NewSensorAction.TryAgain, NewSensorAction.Done),
-            )
-        } else {
-            NewSensorPage(
-                R.string.newsensor_takeover_title,
-                R.string.newsensor_takeover_other_text,
-                listOf(NewSensorAction.TryAgain, NewSensorAction.Done),
-            )
-        }
+        NewSensorStep.TakeoverFailed -> NewSensorPage(
+            R.string.newsensor_takeover_title,
+            R.string.newsensor_takeover_other_text,
+            listOf(NewSensorAction.TryAgain, NewSensorAction.Done),
+        )
         is NewSensorStep.ConnectingBle -> NewSensorPage(
             R.string.newsensor_connecting_title,
             if (activated) R.string.newsensor_connecting_started_text else R.string.newsensor_connecting_paired_text,

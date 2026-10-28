@@ -1,4 +1,4 @@
-// Sukrara — https://github.com/mauriciabad/Sukrara
+// Sukrara — https://github.com/mauriciabad/sukrara
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.sensor.source
@@ -85,7 +85,7 @@ class SourceManagerTest {
         override fun ccmEncrypt(key16: ByteArray, nonce13: ByteArray, plain: ByteArray): ByteArray? = null
     }
 
-    private inner class Rig(test: TestScope, security: Libre3Security? = NoSecurity, showcase: Boolean = false) {
+    private inner class Rig(test: TestScope, security: Libre3Security? = NoSecurity) {
         val secure = InMemorySecureStore()
         val store = PairingStore(secure)
         val connector = FakeConnector()
@@ -95,7 +95,7 @@ class SourceManagerTest {
         val manager = SourceManager(
             kind, store, security, connector,
             juggluco = { JugglucoSource(OkHttpClient(), "http://127.0.0.1:1") { clock.zone } },
-            showcaseInstalled = { showcase }, clock = clock, dispatcher = dispatcher, io = dispatcher,
+            clock = clock, dispatcher = dispatcher, io = dispatcher,
         )
     }
 
@@ -224,7 +224,7 @@ class SourceManagerTest {
         val manager = SourceManager(
             kind, PairingStore(InMemorySecureStore()), NoSecurity, FakeConnector(),
             juggluco = { JugglucoSource(OkHttpClient(), "http://127.0.0.1:${server.address.port}") { ZoneOffset.UTC } },
-            showcaseInstalled = { false }, clock = FakeClock(), dispatcher = Dispatchers.Default.limitedParallelism(1), io = Dispatchers.IO,
+            clock = FakeClock(), dispatcher = Dispatchers.Default.limitedParallelism(1), io = Dispatchers.IO,
         )
         try {
             manager.start()
@@ -238,9 +238,8 @@ class SourceManagerTest {
     }
 
     @Test
-    fun ownedByAnotherAppNamesTheShowcaseWhenItIsInstalled() {
-        assertEquals(SensorAction.StopOtherApp, SensorStatus.OwnedByAnotherApp(showcaseInstalled = true).action)
-        assertEquals(SensorAction.ScanSensor, SensorStatus.OwnedByAnotherApp(showcaseInstalled = false).action)
+    fun everyProblemHasItsAction() {
+        assertEquals(SensorAction.ScanSensor, SensorStatus.OwnedByAnotherApp.action)
         assertEquals(SensorAction.GrantBluetooth, SensorStatus.BluetoothPermissionMissing.action)
     }
 }

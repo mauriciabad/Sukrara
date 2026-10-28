@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Sukrara — https://github.com/mauriciabad/Sukrara
+<!-- Sukrara — https://github.com/mauriciabad/sukrara
      Copyright (C) 2026 Maurici Abad
      SPDX-License-Identifier: GPL-3.0-or-later -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
@@ -14,14 +14,9 @@
     <uses-feature android:name="android.hardware.bluetooth_le" android:required="false" />
     <uses-feature android:name="android.hardware.nfc" android:required="false" />
 
-    <!-- The Sukrara showcase may own the sensor while both apps are installed (SensorModule.showcaseInstalled). -->
-    <queries>
-        <package android:name="app.mauri.sukrara.poc" />
-    </queries>
-
     <application>
-        <!-- Android 17: NFC intents reach only activities protected by DISPATCH_NFC_MESSAGE. Disabled until chunk 18
-             adds the activity (it hands the tag to NfcPairing). -->
+        <!-- Android 17: NFC intents reach only activities protected by DISPATCH_NFC_MESSAGE. Declared disabled:
+             the new-sensor screen reads taps with reader mode. -->
         <activity
             android:name=".SensorTapActivity"
             android:enabled="false"

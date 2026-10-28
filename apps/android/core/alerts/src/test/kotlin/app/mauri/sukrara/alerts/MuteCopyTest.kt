@@ -1,4 +1,4 @@
-// Sukrara — https://github.com/mauriciabad/Sukrara
+// Sukrara — https://github.com/mauriciabad/sukrara
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.alerts
@@ -18,7 +18,7 @@ import org.junit.Test
 /**
  * [MuteLine]s against contracts/alerts/copy.json: every case maps to a line that carries everything its text needs —
  * proven by wording it in English with a minimal renderer here. The real en + es strings live in the Android
- * resources and are checked against the same file by chunk 11's Robolectric test.
+ * resources and are checked against the same file by the Robolectric test.
  */
 class MuteCopyTest {
     private val cases = Json.parseToJsonElement(Contracts.file("alerts/copy.json").readText()).jsonObject["cases"]!!.jsonArray

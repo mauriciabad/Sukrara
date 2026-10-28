@@ -1,4 +1,4 @@
-// Sukrara — https://github.com/mauriciabad/Sukrara
+// Sukrara — https://github.com/mauriciabad/sukrara
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.share.owner
@@ -229,7 +229,7 @@ class OwnerEngine(
     }
 
     /**
-     * Restore from a recovery code. The UI gates it with [RestoreIdentity.restoreAllowed]. Replaces an unreadable
+     * Restore from a recovery code. Replaces an unreadable
      * identity only on success, and a working one only with [replaceExisting] (the UI confirms first); nothing
      * changes on any error.
      */

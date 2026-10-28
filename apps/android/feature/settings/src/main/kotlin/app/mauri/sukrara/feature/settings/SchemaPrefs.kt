@@ -1,4 +1,4 @@
-// Sukrara — https://github.com/mauriciabad/Sukrara
+// Sukrara — https://github.com/mauriciabad/sukrara
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.feature.settings
@@ -30,7 +30,7 @@ object SchemaPrefs {
     val ColumnCrown = GraphSettings.ColumnCrown
     val RingMarks = GraphSettings.RingMarks
 
-    /** When the wearer confirmed the alert thresholds (ISO instant; empty = never: CHANGES P4). */
+    /** When the wearer confirmed the alert thresholds (ISO instant; empty = never). */
     val ThresholdsConfirmedAt = SchemaSettings.text("alerts.thresholdsConfirmedAt", default = "")
 
     /** The number format of a setting by schema id (e.g. `alerts.threshold.low`). */

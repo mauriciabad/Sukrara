@@ -1,4 +1,4 @@
-// Sukrara — https://github.com/mauriciabad/Sukrara
+// Sukrara — https://github.com/mauriciabad/sukrara
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.share.owner.usecase
@@ -46,9 +46,9 @@ class ExportRecovery(private val ctx: OwnerContext) {
 }
 
 /**
- * Phone change / switching from Sukrara Showcase (PROTOCOL-identity "Restore"): the identity from the recovery code →
+ * Phone change (PROTOCOL-identity "Restore"): the identity from the recovery code →
  * the newest owner backup on the relays → a new device key D′ and a new epoch (deliveries to every follower, roster
- * `[D′]`, backup). Followers keep following; the old phone's (or the showcase's) events stop being accepted.
+ * `[D′]`, backup). Followers keep following; the old phone's events stop being accepted.
  */
 class RestoreIdentity(private val ctx: OwnerContext) {
     sealed interface Result {
@@ -70,7 +70,7 @@ class RestoreIdentity(private val ctx: OwnerContext) {
 
         /**
          * The newest roster names an epoch the newest backup doesn't hold: another device is still publishing as this
-         * identity (e.g. the showcase rotated after its last backup). Rotating now could reuse its epoch number.
+         * identity (e.g. the old phone rotated after its last backup). Rotating now could reuse its epoch number.
          * Turn the other app's sharing off, wait a minute, retry.
          */
         data object BackupOutdated : Result
@@ -109,13 +109,5 @@ class RestoreIdentity(private val ctx: OwnerContext) {
         val lastRoster = newestRoster?.createdAt ?: 0
         val seeded = restored.copy(rosterPublishedAt = lastRoster, backupPublishedAt = newest.createdAt)
         return Result.Restored(Rotate(ctx)(seeded, now), restored.activeFollowers().size)
-    }
-
-    companion object {
-        /**
-         * A3 gate for the restore screen (chunk 24): restore rotates the stream, so Sukrara Showcase must not keep
-         * publishing as the same identity — either it isn't installed or the person confirmed its sharing is off.
-         */
-        fun restoreAllowed(showcaseInstalled: Boolean, userConfirmedShowcaseOff: Boolean): Boolean = !showcaseInstalled || userConfirmedShowcaseOff
     }
 }

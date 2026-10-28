@@ -1,4 +1,4 @@
-// Sukrara — https://github.com/mauriciabad/Sukrara
+// Sukrara — https://github.com/mauriciabad/sukrara
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.sensor.libre3
@@ -41,9 +41,8 @@ import java.util.UUID
  *
  * Read-only: nothing is written to the sensor beyond the security handshake and history requests.
  *
- * Ported from the PoC's `Libre3Driver` with the same operations in the same order, the same timers and states
- * (`Libre3DriverTest`). Dropped: the minimal-subscription and connection-priority experiments (the PoC's defaults —
- * every notification, no priority request — are what V1 always does). Runs on the link's serial dispatcher only.
+ * The operations, their order, the timers and states are pinned by `Libre3DriverTest`: every notification is
+ * subscribed and no connection priority is requested. Runs on the link's serial dispatcher only.
  */
 internal class Libre3Driver(
     private val pairing: Pairing,
@@ -132,8 +131,8 @@ internal class Libre3Driver(
     }
 
     /**
-     * The sensor refused our authorization. Once is a glitch (reconnect, like the PoC); [MAX_REJECTIONS] in a row means
-     * the sensor now belongs to another app or receiver (the showcase took it back over NFC, a new PIN): stop
+     * The sensor refused our authorization. Once is a glitch (reconnect); [MAX_REJECTIONS] in a row means
+     * the sensor now belongs to another app or receiver (another app took it over NFC, a new PIN): stop
      * reconnecting for ever and say so, so the person can scan the sensor again.
      */
     private fun rejected(why: String) {

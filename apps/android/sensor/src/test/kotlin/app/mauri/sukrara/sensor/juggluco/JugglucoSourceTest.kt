@@ -1,4 +1,4 @@
-// Sukrara — https://github.com/mauriciabad/Sukrara
+// Sukrara — https://github.com/mauriciabad/sukrara
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.sensor.juggluco
@@ -26,7 +26,7 @@ import java.util.Collections
 class JugglucoSourceTest {
     private val zone = ZoneId.of("Europe/Madrid")
 
-    /** Juggluco's sgv.json `sensor_status` (watchserver.cpp firstdata) → the sensor's start; end = start + 15 days. PoC test. */
+    /** Juggluco's sgv.json `sensor_status` (watchserver.cpp firstdata) → the sensor's start; end = start + 15 days. */
     @Test
     fun sensorStatus() {
         val json = """[{"_id":"3MH00ABCDE#1234","device":"Juggluco","date":1760776800000,"sgv":120,"sensor_status":"09-10-26 08:05 (9d 3h)"}]"""

@@ -1,4 +1,4 @@
-// Sukrara — https://github.com/mauriciabad/Sukrara
+// Sukrara — https://github.com/mauriciabad/sukrara
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.protocol.event
@@ -53,7 +53,7 @@ object AlertCodec {
             put("tr", a.tr)
         }.toString()
 
-    /** Whole thresholds go out as integers (`"th":180`), like the PoC. */
+    /** Whole thresholds go out as integers (`"th":180`). */
     private fun threshold(th: Double) = if (th == Math.floor(th)) JsonPrimitive(th.toLong()) else JsonPrimitive(th)
 
     fun decode(json: String): AlertPayload {

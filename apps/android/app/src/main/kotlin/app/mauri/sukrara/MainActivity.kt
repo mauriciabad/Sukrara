@@ -1,4 +1,4 @@
-// Sukrara — https://github.com/mauriciabad/Sukrara
+// Sukrara — https://github.com/mauriciabad/sukrara
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara
@@ -50,7 +50,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
-        // permissions, the showcase app and the checklist change outside the app
+        // permissions and the checklist change outside the app
         graph.home.refresh()
         // opening the app is an allowed foreground-service start: (re)start monitoring if something is set up; not
         // once the app has gone to the background again (Android would refuse and "Monitoring stopped" would show)

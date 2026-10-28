@@ -1,4 +1,4 @@
-// Sukrara — https://github.com/mauriciabad/Sukrara
+// Sukrara — https://github.com/mauriciabad/sukrara
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.share
@@ -27,7 +27,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
 /**
- * The wearer's sharing graph (A4: composed by `AppGraph`, owner role only). Nothing is built until first use.
+ * The wearer's sharing graph (composed by `AppGraph`, owner role only). Nothing is built until first use.
  * [requestNotifications] = the access-request notification (the app's notification table posts it); [settings] = the
  * wearer's settings for the followers' mirror; [scope] = the process scope (the notification's Allow / Deny).
  */

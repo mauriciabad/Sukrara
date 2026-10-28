@@ -1,4 +1,4 @@
-// Sukrara — https://github.com/mauriciabad/Sukrara
+// Sukrara — https://github.com/mauriciabad/sukrara
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.sensor.pairing
@@ -15,9 +15,9 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * CHANGES P1: a new sensor is started only with the LibreView account's receiver ID (nothing is sent without it), a
- * takeover tries the account's ID and then V1's own. This is what lets the owner take over the showcase's sensor and
- * hand it back. The tap logic runs over a scripted NFC transceiver: we check every command that reaches the sensor.
+ * A new sensor is started only with the LibreView account's receiver ID (nothing is sent without it), a takeover
+ * tries the account's ID and then Sukrara's own. This is what lets the owner take over another app's sensor and hand
+ * it back. The tap logic runs over a scripted NFC transceiver: we check every command that reaches the sensor.
  */
 class ReceiverIdPolicyTest {
     private fun hex(s: String) = ByteArray(s.length / 2) { s.substring(it * 2, it * 2 + 2).toInt(16).toByte() }
@@ -78,7 +78,7 @@ class ReceiverIdPolicyTest {
         assertEquals(listOf(account), tag.receiverIds())
     }
 
-    /** V1's own ID can never take over a sensor (V1 never starts one with it): without the account ID, send nothing. */
+    /** Sukrara's own ID can never take over a sensor (Sukrara never starts one with it): without the account ID, send nothing. */
     @Test
     fun aTakeoverWithoutAnAccountIdSendsNothing() {
         val tag = FakeTag(running, paired)
@@ -105,7 +105,7 @@ class ReceiverIdPolicyTest {
 
     @Test
     fun receiverIdFromLibreViewAccount() {
-        // Juggluco's getlibreaccountidnumber(), computed independently in Python (PoC vector)
+        // Juggluco's getlibreaccountidnumber(), computed independently in Python
         assertEquals(3078366504L, ReceiverIds.fromAccountId("01234567-89ab-cdef-0123-456789abcdef"))
     }
 
@@ -113,7 +113,7 @@ class ReceiverIdPolicyTest {
     fun ownIdIsMadeOnceAndSurvivesSignOutAndAForgottenSensor() = runTest {
         val ids = InMemoryStateStore(ReceiverIdState(account = account, accountEmail = "a@b.c"))
         val store = PairingStore(InMemorySecureStore())
-        val nfc = NfcPairing(store, ids, { false }, {}, StandardTestDispatcher(testScheduler))
+        val nfc = NfcPairing(store, ids, {}, StandardTestDispatcher(testScheduler))
         val (acc, first) = nfc.receiverIds()
         assertEquals(account, acc)
         assertEquals(first, nfc.receiverIds().second)
@@ -128,7 +128,7 @@ class ReceiverIdPolicyTest {
     fun aPairedTapReplacesThePairingAndRestartsTheSource() = runTest {
         val store = PairingStore(InMemorySecureStore())
         var restarts = 0
-        val nfc = NfcPairing(store, InMemoryStateStore(ReceiverIdState()), { true }, { restarts++ }, StandardTestDispatcher(testScheduler))
+        val nfc = NfcPairing(store, InMemoryStateStore(ReceiverIdState()), { restarts++ }, StandardTestDispatcher(testScheduler))
         val p = (Libre3Nfc.run(FakeTag(running, paired)::transceive, account, own, { nowMs }, {}) as Libre3Nfc.Result.Paired)
         store.save(p.pairing.copy(kAuth = ByteArray(149), ended = true))
         assertEquals(PairOutcome.Paired("068ZMRF18", activated = false), nfc.handle(p))
@@ -137,7 +137,7 @@ class ReceiverIdPolicyTest {
         assertEquals(false, saved.ended)
         assertEquals(1, restarts)
         assertEquals(
-            PairOutcome.OwnedByAnotherApp("X", showcaseInstalled = true),
+            PairOutcome.OwnedByAnotherApp("X"),
             nfc.handle(Libre3Nfc.Result.OwnedByAnotherReceiver("X")),
         )
     }

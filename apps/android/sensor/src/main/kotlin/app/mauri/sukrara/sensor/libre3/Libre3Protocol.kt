@@ -1,11 +1,11 @@
-// Sukrara — https://github.com/mauriciabad/Sukrara
+// Sukrara — https://github.com/mauriciabad/sukrara
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.sensor.libre3
 
 import java.util.UUID
 
-/** The Libre 3 / 3 Plus GATT layout, packet kinds and timings (after Juggluco's Libre3GattCallback; unchanged from the PoC). */
+/** The Libre 3 / 3 Plus GATT layout, packet kinds and timings (after Juggluco's Libre3GattCallback). */
 internal object Libre3Protocol {
     private fun u(short: String) = UUID.fromString("0898$short-EF89-11E9-81B4-2A2AE2DBCCE4")
 

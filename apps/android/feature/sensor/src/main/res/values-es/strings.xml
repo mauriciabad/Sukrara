@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Sukrara — https://github.com/mauriciabad/Sukrara
+<!-- Sukrara — https://github.com/mauriciabad/sukrara
      Copyright (C) 2026 Maurici Abad
      SPDX-License-Identifier: GPL-3.0-or-later -->
 <resources>
@@ -14,9 +14,7 @@
     <string name="newsensor_nfc_off_title">Activa el NFC</string>
     <string name="newsensor_nfc_off_text">El sensor se inicia acercándole el móvil. Para eso el NFC tiene que estar activado.</string>
     <string name="newsensor_signin_title">Inicia sesión en LibreView</string>
-    <string name="newsensor_signin_text">Sukrara inicia el sensor con tu cuenta de LibreView, como la app Libre. Así la app Libre o la showcase pueden recuperarlo más tarde. Sukrara no sube nada.</string>
-    <string name="newsensor_showcase_title">Primero detén el sensor en Sukrara Showcase</string>
-    <string name="newsensor_showcase_text">Solo una app puede leer el sensor. En la showcase abre Ajustes › Sensor › Detener y vuelve.</string>
+    <string name="newsensor_signin_text">Sukrara inicia el sensor con tu cuenta de LibreView, como la app Libre. Así la app Libre puede recuperarlo más tarde. Sukrara no sube nada.</string>
     <string name="newsensor_official_title">Primero cierra la app Libre</string>
     <string name="newsensor_official_text">Si la app Libre y Sukrara leen el sensor a la vez, puede dejar de funcionar. Cierra la app Libre (o desinstálala) antes de seguir.</string>
     <string name="newsensor_bt_permission_title">Permite dispositivos cercanos</string>
@@ -38,7 +36,6 @@
     <string name="newsensor_failed_ended_title">Este sensor ha terminado</string>
     <string name="newsensor_failed_ended_text">Ponte un sensor nuevo y acércale el móvil.</string>
     <string name="newsensor_takeover_title">Otra app tiene este sensor</string>
-    <string name="newsensor_takeover_showcase_text">Sukrara Showcase todavía lo lee. En la showcase abre Ajustes › Sensor › Detener y vuelve a intentarlo. No ha cambiado nada en el sensor.</string>
     <string name="newsensor_takeover_other_text">Otra app u otra cuenta de LibreView lo lee. Detenlo allí y vuelve a intentarlo. No ha cambiado nada en el sensor.</string>
 
     <string name="newsensor_connecting_title">Conectando por Bluetooth…</string>
@@ -66,7 +63,6 @@
     <string name="newsensor_action_try_again">Volver a intentarlo</string>
     <string name="newsensor_action_use_juggluco">Usar Juggluco</string>
     <string name="newsensor_action_sign_in">Iniciar sesión en LibreView</string>
-    <string name="newsensor_action_open_showcase">Abrir Sukrara Showcase</string>
     <string name="newsensor_action_nfc_settings">Abrir ajustes de NFC</string>
     <string name="newsensor_action_bt_settings">Abrir ajustes de Bluetooth</string>
     <string name="newsensor_action_allow">Permitir</string>

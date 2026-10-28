@@ -1,4 +1,4 @@
-// Sukrara — https://github.com/mauriciabad/Sukrara
+// Sukrara — https://github.com/mauriciabad/sukrara
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara
@@ -83,7 +83,7 @@ class AppGraph(
     val data by lazy { DataModule(app, appVersion, dispatchers, clock) }
 
     /**
-     * The phone's role, chosen in first-run setup (chunk 24 writes it with `role.update`); null = setup not done. Two
+     * The phone's role, chosen in first-run setup (written with `role.update`); null = setup not done. Two
      * copies, so one damaged file (reported on home) never stops monitoring ([RoleStore]).
      */
     val role by lazy {
@@ -271,7 +271,7 @@ class AppGraph(
     /**
      * The role's one reading source, or null when nothing is set up to monitor (then the service doesn't run).
      * Wearer: a debug build's synthetic source when switched on, else the sensor source once a sensor is paired (or
-     * Juggluco is the source). Follower: the follower engine (chunk 25).
+     * Juggluco is the source). Follower: the follower engine.
      */
     private suspend fun readingSource(role: Role): ReadingSource? =
         when (role) {

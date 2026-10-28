@@ -1,4 +1,4 @@
-// Sukrara — https://github.com/mauriciabad/Sukrara
+// Sukrara — https://github.com/mauriciabad/sukrara
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara.share.owner
@@ -25,7 +25,7 @@ import org.junit.Test
 
 /**
  * PROTOCOL-v2 §Settings, owner side: only the schema's `"mirror": true` rows go out, `u` moves only on a real change,
- * and V1's follower accepts what the wearer publishes (keys and roster from contracts/protocol/sync/settings-mirror.json).
+ * and the follower accepts what the wearer publishes (keys and roster from contracts/protocol/sync/settings-mirror.json).
  */
 class SettingsMirrorTest {
     private val fx = ContractFiles.json("protocol/sync/settings-mirror.json")

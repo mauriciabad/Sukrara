@@ -1,4 +1,4 @@
-// Sukrara — https://github.com/mauriciabad/Sukrara
+// Sukrara — https://github.com/mauriciabad/sukrara
 // Copyright (C) 2026 Maurici Abad
 // SPDX-License-Identifier: GPL-3.0-or-later
 package app.mauri.sukrara
@@ -89,7 +89,7 @@ data class SettingsKey(
     }
 }
 
-/** The new-sensor flow (chunk 18): home's Pair sensor, the "Sensor ended" notification, [NavTargets.ACTION_SENSOR_SETUP]. */
+/** The new-sensor flow: home's Pair sensor, the "Sensor ended" notification, [NavTargets.ACTION_SENSOR_SETUP]. */
 @Serializable
 data object NewSensorKey : NavKey
 
@@ -104,7 +104,7 @@ data object SensorSettingsKey : NavKey
 fun opensNewSensor(action: String?): Boolean =
     action == NavTargets.ACTION_SENSOR_SETUP || action == AndroidSensorEndPresenter.ACTION_PAIR_SENSOR
 
-/** Invite links (`sukrara:` / `https://sukrara.mauri.app/join…`) open setup's join step (chunk 24). */
+/** Invite links (`sukrara:` / `https://sukrara.mauri.app/join…`) open setup's join step. */
 fun isInviteLink(uri: Uri?): Boolean =
     uri != null &&
         (uri.scheme == "sukrara" || (uri.scheme == "https" && uri.host == "sukrara.mauri.app" && uri.path.orEmpty().startsWith("/join")))
@@ -173,7 +173,7 @@ fun SukraraNavigation(
                         navigate = { backStack.push(SettingsKey.of(it)) },
                         onBack = { backStack.pop(key) },
                         openSensor = { backStack.push(SensorSettingsKey) },
-                        // the sharing pages come with chunk 24; until then setup is where sharing starts
+                        // setup is where sharing starts
                         openSharing = { backStack.add(SetupRoute) },
                     )
                 }
