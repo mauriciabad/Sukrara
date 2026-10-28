@@ -27,6 +27,11 @@ import app.mauri.sukrara.integrations.export.ExportContent
 import app.mauri.sukrara.integrations.export.ExportData
 import app.mauri.sukrara.integrations.export.ExportPeriod
 import app.mauri.sukrara.integrations.export.ExportUi
+import app.mauri.sukrara.integrations.libreview.LibreViewActions
+import app.mauri.sukrara.integrations.libreview.LibreViewContent
+import app.mauri.sukrara.integrations.libreview.LvPageState
+import app.mauri.sukrara.integrations.libreview.LvSettings
+import app.mauri.sukrara.integrations.libreview.LvSignInUi
 import app.mauri.sukrara.integrations.localserver.XdripState
 import app.mauri.sukrara.integrations.nightscout.NightscoutActions
 import app.mauri.sukrara.integrations.nightscout.NightscoutContent
@@ -61,12 +66,21 @@ class IntegrationsGallery {
     private val readings = (0L until 300L).map { Reading(now - Duration.ofMinutes(it * 5), 120, null, SourceId.Libre3) }
     private val export = ExportData(now - Duration.ofDays(14), now, readings, emptyList(), null)
 
+    private val lvFrom = now - Duration.ofDays(2)
+
     private val pages: List<Pair<String, @Composable () -> Unit>> =
         listOf(
             "apps-off" to { AppsContent(AppsUi(true, false, XdripState.Off, emptyList(), UploadStatus.Off), now, AppsActions()) },
             "apps-on" to {
                 AppsContent(
-                    AppsUi(true, true, XdripState.Listening(now - Duration.ofMinutes(2)), listOf("Garmin Connect"), configured.status),
+                    AppsUi(
+                        true,
+                        true,
+                        XdripState.Listening(now - Duration.ofMinutes(2)),
+                        listOf("Garmin Connect"),
+                        configured.status,
+                        UploadStatus.Ok(now - Duration.ofMinutes(1), 1),
+                    ),
                     now,
                     AppsActions(),
                 )
@@ -87,6 +101,42 @@ class IntegrationsGallery {
                     NsTestUi.Idle,
                     now,
                     NightscoutActions(),
+                )
+            },
+            "libreview-signed-out" to {
+                LibreViewContent(
+                    LvPageState(LvSettings(), false, "", UploadStatus.Off, null),
+                    true,
+                    LvSignInUi.Idle,
+                    "",
+                    now,
+                    LibreViewActions(),
+                    false,
+                    {},
+                )
+            },
+            "libreview-ok" to {
+                LibreViewContent(
+                    LvPageState(LvSettings(on = true), true, "person@example.com", UploadStatus.Ok(now - Duration.ofMinutes(4), 3), lvFrom),
+                    true,
+                    LvSignInUi.Idle,
+                    "",
+                    now,
+                    LibreViewActions(),
+                    false,
+                    {},
+                )
+            },
+            "libreview-auth-failed" to {
+                LibreViewContent(
+                    LvPageState(LvSettings(on = true), true, "person@example.com", UploadStatus.AuthFailed, lvFrom),
+                    true,
+                    LvSignInUi.Idle,
+                    "",
+                    now,
+                    LibreViewActions(),
+                    false,
+                    {},
                 )
             },
             "export" to { ExportContent(ExportUi(ExportPeriod.Days(14), true, export), ExportActions()) },

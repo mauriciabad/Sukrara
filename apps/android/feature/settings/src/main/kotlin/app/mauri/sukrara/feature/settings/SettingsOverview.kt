@@ -77,13 +77,14 @@ fun SettingsOverviewContent(
     }
 }
 
-/** "Nightscout upload · xDrip+ server", or what the page is for while nothing is on. */
+/** "LibreView · Nightscout upload · xDrip+ server", or what the page is for while nothing is on. */
 @Composable
 private fun appsSummary(on: Set<AppOutput>): String {
     if (on.isEmpty()) return stringResource(R.string.st_apps_summary)
     val names =
         on.sortedBy { it.ordinal }.map {
             when (it) {
+                AppOutput.LibreView -> stringResource(R.string.st_apps_libreview)
                 AppOutput.NightscoutUpload -> stringResource(R.string.st_apps_nightscout)
                 AppOutput.XdripServer -> stringResource(R.string.st_apps_xdrip)
             }

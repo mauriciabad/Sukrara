@@ -394,8 +394,8 @@ TTLs, JSON field names and number forms, invite link `https://sukrara.mauri.app/
 ## Android integrations (`apps/android/integrations`)
 
 `IntegrationsModule` (built by `AppGraph.integrations`; `load()` + `start(scope)` in `ready`) owns everything that
-sends the person's data to other apps; its pages (`AppsPage`, `NightscoutPage`, `ExportPage`) are content the app wraps
-in the settings page frame (`AppsRoute`, `NightscoutUploadRoute`, `ExportRoute`).
+sends the person's data to other apps; its pages (`AppsPage`, `LibreViewPage`, `NightscoutPage`, `ExportPage`) are
+content the app wraps in the settings page frame (`AppsRoute`, `LibreViewRoute`, `NightscoutUploadRoute`, `ExportRoute`).
 - `upload/` — the shared upload design: no outbox (the readings / treatments stores are the queue; each uploader keeps
   what the service has), `UploadLoop` (one cycle per kick or 5 min, on IO, never in the reading path), `UploadBackoff`,
   `SentRanges`, one `UploadStatus` for every page.
@@ -403,6 +403,12 @@ in the settings page frame (`AppsRoute`, `NightscoutUploadRoute`, `ExportRoute`)
   token → JWT), `NsDocs`, `NightscoutQueue` (pure plan + reconcile: covered minutes, another-uploader pause),
   `NightscoutUploader` (settings JSON `apps.nightscoutUpload`, credential only in SecureStore `nightscout`, state in the
   typed store `nightscout-upload`, device `Sukrara-<6 hex>` per site).
+- `libreview/` — `LibreViewPayload` (contracts/treatments §3, byte for byte), `LibreViewClient` (Abbott's config →
+  sign-in / measurements / sensor registration; https only, no redirects), `LibreViewQueue` (pure: entries LibreView
+  lacks from the version ledger, glucose by life count), `LibreViewUploader` (settings JSON `apps.libreview`; token +
+  profile only in SecureStore `libreview`, the password never stored; ledger, sent life counts, device id and
+  `glucoseFrom` / `entriesFrom` in the typed store `libreview-upload`). Glucose comes from `:sensor`'s
+  `SourceManager.sensorGlucose` (Libre 3 only, each batch tagged with its serial), mapped in `AppGraph`.
 - `localserver/` — `LocalHttpServer` (127.0.0.1, fixed pool, bounded head and deadline), `XdripEndpoint` (Juggluco's
   JSON, pure), `XdripServer` (follows `apps.xdrip` and the sensor source; readings from the store, "last asked" in
   memory).

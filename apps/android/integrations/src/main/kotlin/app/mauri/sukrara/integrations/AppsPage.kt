@@ -17,6 +17,7 @@ import app.mauri.sukrara.designsystem.rows.FooterText
 import app.mauri.sukrara.designsystem.rows.NavigationRow
 import app.mauri.sukrara.designsystem.rows.SettingsGroup
 import app.mauri.sukrara.designsystem.rows.SwitchRow
+import app.mauri.sukrara.integrations.libreview.libreViewStatusText
 import app.mauri.sukrara.integrations.localserver.XdripState
 import app.mauri.sukrara.integrations.ui.IntroText
 import app.mauri.sukrara.integrations.ui.ago
@@ -41,12 +42,15 @@ data class AppsUi(
     val readers: List<String>,
     /** The Nightscout upload's state (wearer only). */
     val nightscout: UploadStatus,
+    /** The LibreView upload's state (wearer only). */
+    val libreView: UploadStatus = UploadStatus.Off,
 )
 
 class AppsActions(
     val setXdrip: (Boolean) -> Unit = {},
     val openNightscout: () -> Unit = {},
     val openExport: () -> Unit = {},
+    val openLibreView: () -> Unit = {},
 )
 
 /**
@@ -82,8 +86,20 @@ class AppsViewModel(
 ) : ViewModel() {
     private val readers = MutableStateFlow<List<String>>(emptyList())
     val ui: StateFlow<AppsUi?> =
-        combine(module.wearer, module.xdrip.on, module.xdrip.state, readers, module.nightscout.page) { w, on, x, r, ns ->
-            AppsUi(w, on, x, r, ns.status)
+        combine(
+            combine(module.wearer, module.xdrip.on, module.xdrip.state) { w, on, x -> Triple(w, on, x) },
+            readers,
+            module.nightscout.page,
+            module.libreView.page,
+        ) { (w, on, x), r, ns, lv ->
+            AppsUi(
+                w,
+                on,
+                x,
+                r,
+                ns.status,
+                lv.status,
+            )
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
     init {
@@ -102,14 +118,15 @@ fun AppsPage(
     now: () -> Instant,
     openNightscout: () -> Unit,
     openExport: () -> Unit,
+    openLibreView: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val ui by viewModel.ui.collectAsStateWithLifecycle()
-    ui?.let { AppsContent(it, now(), AppsActions(viewModel::setXdrip, openNightscout, openExport), modifier) }
+    ui?.let { AppsContent(it, now(), AppsActions(viewModel::setXdrip, openNightscout, openExport, openLibreView), modifier) }
 }
 
 /**
- * Settings › Share with apps: the Nightscout upload (wearer), the xDrip+ server for Garmin watches with who reads it and
+ * Settings › Share with apps: LibreView and the Nightscout upload (wearer), the xDrip+ server for Garmin watches with who reads it and
  * when it was last asked, and Export data.
  */
 @Composable
@@ -121,6 +138,9 @@ fun AppsContent(
 ) = Column(modifier) {
     IntroText(stringResource(if (ui.wearer) R.string.in_apps_intro_wearer else R.string.in_apps_intro_follower))
     if (ui.wearer) {
+        SettingsGroup(title = stringResource(R.string.in_apps_clinic_group)) {
+            NavigationRow(stringResource(R.string.in_lv_title), actions.openLibreView, summary = libreViewStatusText(ui.libreView, now))
+        }
         SettingsGroup(title = stringResource(R.string.in_apps_nightscout_group)) {
             NavigationRow(stringResource(R.string.in_ns_title), actions.openNightscout, summary = uploadStatusText(ui.nightscout, now))
         }

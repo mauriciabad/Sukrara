@@ -16,6 +16,7 @@ import app.mauri.sukrara.sensor.ble.GattLink
 import app.mauri.sukrara.sensor.ble.LinkStatus
 import app.mauri.sukrara.sensor.ble.SensorEvents
 import app.mauri.sukrara.sensor.ble.SensorGlucose
+import app.mauri.sukrara.sensor.ble.SensorGlucoseBatch
 import app.mauri.sukrara.sensor.juggluco.JugglucoSink
 import app.mauri.sukrara.sensor.juggluco.JugglucoSource
 import app.mauri.sukrara.sensor.juggluco.JugglucoStatus
@@ -83,7 +84,7 @@ class SourceManager internal constructor(
     private val _detail = MutableStateFlow<SensorStatus>(SensorStatus.NoSensor)
     private val _sensor = MutableStateFlow<SensorState>(SensorState.None)
     private val _status = MutableStateFlow<SourceStatus>(SourceStatus.NotStarted)
-    private val _sensorGlucose = MutableSharedFlow<Pair<SensorGlucose?, List<SensorGlucose>>>(extraBufferCapacity = 64)
+    private val _sensorGlucose = MutableSharedFlow<SensorGlucoseBatch>(extraBufferCapacity = 64)
     private val infoState = MutableStateFlow<SensorInfo?>(null)
     private var info: SensorInfo?
         get() = infoState.value
@@ -107,8 +108,8 @@ class SourceManager internal constructor(
     /** The current sensor's serial, start and end (Libre 3 pairing or Juggluco's sensor), null when none is known. */
     val sensorInfo: StateFlow<SensorInfo?> = infoState.asStateFlow()
 
-    /** Libre 3 readings by life count, for the LibreView upload. */
-    val sensorGlucose: Flow<Pair<SensorGlucose?, List<SensorGlucose>>> = _sensorGlucose.asSharedFlow()
+    /** Libre 3 readings by life count, tagged with their sensor's serial, for the LibreView upload. */
+    val sensorGlucose: Flow<SensorGlucoseBatch> = _sensorGlucose.asSharedFlow()
 
     /** Starts following the setting; idempotent. */
     fun start() {
@@ -236,7 +237,7 @@ class SourceManager internal constructor(
 
         override fun onSensorGlucose(current: SensorGlucose?, history: List<SensorGlucose>) {
             current?.let { lastLifeCount = pairing.serial to it.lifeCount }
-            _sensorGlucose.tryEmit(current to history)
+            _sensorGlucose.tryEmit(SensorGlucoseBatch(pairing.serial, current, history))
         }
 
         override fun onSensorEnded(serial: String) {

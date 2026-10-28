@@ -114,7 +114,7 @@ interface AlertPlayback {
 }
 
 /** An output to other apps that is switched on (Settings › Share with apps). */
-enum class AppOutput { NightscoutUpload, XdripServer }
+enum class AppOutput { LibreView, NightscoutUpload, XdripServer }
 
 /** Reads and changes the alert settings; [update] applies a change to the stored value (never to a stale copy). */
 interface AlertSettingsStore {
