@@ -44,6 +44,8 @@ final class WindowCoordinator {
     func apply(_ snapshot: FollowerSnapshot) {
         adapter?.update(snapshot)
         follow.status = FollowerAdapter.status(snapshot)
+        follow.source = FollowerAdapter.source(snapshot)
+        follow.problem = FollowerAdapter.problem(snapshot)
         follow.nearby = snapshot.nearbyOffer.map { NearbyPhone(wearer: $0.wearerName ?? L10n.t("A phone")) }
         settings.wearer = Self.wearerSettings(snapshot)
         let canWrite = if case .following(_, true) = snapshot.link { true } else { false }

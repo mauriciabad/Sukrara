@@ -185,8 +185,18 @@ struct FollowingRows: View {
                     ?? L10n.t("No reading yet")
             )
             .foregroundStyle(.secondary)
+            if let source = follow.source { Text(source).foregroundStyle(.secondary) }
             Text(canWrite ? L10n.t("Can add treatments") : L10n.t("Can't add treatments (the wearer decides)"))
                 .foregroundStyle(.secondary)
+            if let problem = follow.problem {
+                // the colour only on the symbol: the words keep full contrast
+                Label {
+                    Text(problem)
+                } icon: {
+                    Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.orange)
+                }
+                .fixedSize(horizontal: false, vertical: true)
+            }
             Button(L10n.t("Stop following…"), role: .destructive) { follow.confirmingUnfollow = true }
                 .confirmationDialog(
                     L10n.t("Stop following \(wearer ?? L10n.t("the wearer"))?"), isPresented: $follow.confirmingUnfollow

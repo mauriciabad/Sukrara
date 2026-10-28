@@ -64,6 +64,10 @@ public final class FollowModel {
     public var macName: String
     /// Unfollow asks first ("the wearer has to invite again").
     public var confirmingUnfollow = false
+    /// How the readings arrive while following ("Over the internet · Bluetooth: connected to Pixel"), nil otherwise.
+    public var source: String?
+    /// The newest problem with the link in words (Bluetooth not allowed, a damaged file moved aside), nil = none.
+    public var problem: String?
     @ObservationIgnored private weak var actions: (any FollowActions)?
     /// Look for phones offering nearby pairing (on while a follow step is on screen and not following).
     @ObservationIgnored public var searchNearby: (Bool) -> Void = { _ in }

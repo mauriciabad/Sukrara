@@ -6032,6 +6032,118 @@
           }
         }
       }
+    },
+    "Over the internet (relays)" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Over the internet (relays)"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Por internet (relés)"
+          }
+        }
+      }
+    },
+    "Bluetooth off" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bluetooth off"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bluetooth desactivado"
+          }
+        }
+      }
+    },
+    "Bluetooth not allowed" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bluetooth not allowed"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bluetooth sin permiso"
+          }
+        }
+      }
+    },
+    "Looking for the phone over Bluetooth" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Looking for the phone over Bluetooth"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Buscando el móvil por Bluetooth"
+          }
+        }
+      }
+    },
+    "Bluetooth: connected to %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bluetooth: connected to %@"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bluetooth: conectado a %@"
+          }
+        }
+      }
+    },
+    "%@ couldn't be read and was moved aside; Sukrara started it again." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ couldn't be read and was moved aside; Sukrara started it again."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No se pudo leer %@ y se apartó; Sukrara lo empezó de nuevo."
+          }
+        }
+      }
+    },
+    "Sukrara may not use Bluetooth: allow it in System Settings › Privacy & Security › Bluetooth to get readings from the phone nearby." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sukrara may not use Bluetooth: allow it in System Settings › Privacy & Security › Bluetooth to get readings from the phone nearby."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sukrara no puede usar el Bluetooth: permítelo en Ajustes del Sistema › Privacidad y seguridad › Bluetooth para recibir lecturas del móvil cercano."
+          }
+        }
+      }
     }
   },
   "version" : "1.0"
